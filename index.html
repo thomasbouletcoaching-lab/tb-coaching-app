@@ -354,6 +354,7 @@ function compute(prog,carnet,suivi,today){
     const cv=x=>{const n=num(x); return n===null?null:(Math.abs(n)<1?n*100:n);};
     const stp=cv(E.step)??dflt, bmp=cv(E.bump)??dflt;
     for(let w=1;w<=NW;w++){
+      if(E.off&&w>=+E.off){ r.weeks[w]={w,raw:"",eff:"",forced:false,off:true}; continue; } // supprimé du programme à partir de cette semaine
       const raw=(E.weeks||{})[w]||""; let eff="";
       const ph=phases[w-1];
       if(raw) eff=raw;
@@ -2459,6 +2460,181 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   const has=!!(NU.plan&&NU.plan.types&&NU.plan.types.some(t=>t.meals.some(m=>m.opts.length))); if(has&&!confirm("Remplacer le plan alimentaire actuel de ce client ?")) return;
   const N=nutriProposal(d,T); if(!N.R.length) return toast("Aucun repas compatible : ajoute des plats dans Nutrition → Plats");
   applyNutri(N,T); toast(`Plan créé : ${NU.plan.tgt.k} kcal, ${NU.plan.tgt.p} g de protéines`); render(); });
+
+// ================= MODULE PROGRAMME, SÉANCES, RÉALISÉ, DIÈTE, MESURES =================
+const _css15=document.createElement("style");
+_css15.textContent=`.sessbar .sb-btns{display:flex;gap:6px;flex-wrap:wrap}.sessbar.live button.pause{background:var(--yellow);color:#000}.sessbar.miss{border:1px solid var(--red)}
+.hx{padding:10px 0;border-top:1px dashed var(--line)}.hx .chip{margin-left:6px}
+.adj{margin-top:8px;padding:10px;border-radius:10px;background:var(--chalk)}.adj .it{display:flex;align-items:center;gap:6px;padding:5px 0;border-top:1px solid var(--line)}.adj .it:first-child{border-top:0}
+.adj .diff{font-variant-numeric:tabular-nums}.up{color:var(--green)}.down{color:var(--red)}
+.mgridc{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.mgridc .mc{background:var(--chalk);border-radius:10px;padding:6px}.mgridc .mc b{font-size:.85rem}`;
+document.head.appendChild(_css15);
+const rowAt=(s,i)=>M&&M.rows.find(r=>r.s===+s&&r.i===+i);
+const hasLog=k=>{ const v=ST.carnet[k]; return !!(v&&((v.sets||[]).some(x=>x.d||x.g!=null)||v.g!=null)); };
+function offWeek(s,rowsI){ const w=M.cw; const used=rowsI.some(i=>hasLog(w+"_"+s+"_"+i))||!!(ST.carnet[w+"_t_"+s]||{}).start; return used?w+1:w; }
+function exOf(s,i){ const P=ST.prog; P.sessions=P.sessions||[]; for(let k=0;k<=s;k++) if(!P.sessions[k]) P.sessions[k]={ex:[]}; const S=P.sessions[s]; S.ex=S.ex||[]; for(let k=0;k<=i;k++) if(!S.ex[k]) S.ex[k]={}; return S.ex[i]; }
+
+// ---------- 1. Supprimer un exercice / une séance (à partir de la semaine en cours, l'historique reste)
+const _vProg15=vProgramme;
+vProgramme=function(){ let h=_vProg15(); if(!coach()||!M) return h; const S=M.sessions[ST.ses];
+  h=h.replace(/<div class="card"><div class="row"><div style="flex:0 0 64px">([\s\S]*?)data-act="pg-mv" data-v="(\d+)\.(\d+)\.1"([^>]*)>↓<\/button>/g,(m,mid,s,i,rest)=>{ const r=rowAt(s,i), off=r&&r.E&&r.E.off;
+    const btn=off?`<button class="ghost sm" data-act="pg-undel" data-v="${s}.${i}" title="Restaurer">↺</button>`:(r&&r.ex?`<button class="ghost sm" data-act="pg-del" data-v="${s}.${i}" aria-label="Supprimer l'exercice">🗑</button>`:"");
+    return `<div class="card"${off?' style="opacity:.6"':""}>${off?`<div class="alert ko small" style="margin:0 0 6px">Supprimé du programme à partir de S${off} (les séances déjà notées restent dans l'historique).</div>`:""}<div class="row"><div style="flex:0 0 64px">${mid}data-act="pg-mv" data-v="${s}.${i}.1"${rest}>↓</button>${btn}`; });
+  const act=S.rows.filter(r=>r.ex), allOff=act.length&&act.every(r=>r.E&&r.E.off), sOff=allOff?Math.min(...act.map(r=>+r.E.off)):null;
+  const sbtn=allOff?`<div class="alert ko small" style="margin-top:8px">Séance supprimée à partir de S${sOff}. <button class="ghost sm" data-act="pg-sundel" data-v="${S.s}">Restaurer la séance</button></div>`
+    :act.length?`<div class="row" style="margin-top:8px"><button class="ghost sm" data-act="pg-sdel" data-v="${S.s}">🗑 Supprimer cette séance</button></div>`:"";
+  return h.replace(/(· Split : [^<]*<\/div>)(<\/div>)/,`$1${sbtn}$2`); };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v; if(!/^pg-(del|undel|sdel|sundel)$/.test(a)||!coach()) return;
+  if(a==="pg-del"){ const [s,i]=v.split(".").map(Number), r=rowAt(s,i), w=offWeek(s,[i]);
+    if(!confirm(`Supprimer « ${r.ex} » du programme à partir de la semaine ${w} ?\n\nLes séances déjà notées restent dans l'historique. Tu pourras le restaurer.`)) return; exOf(s,i).off=w; }
+  else if(a==="pg-undel"){ const [s,i]=v.split(".").map(Number); delete exOf(s,i).off; }
+  else if(a==="pg-sdel"){ const s=+v, S=M.sessions[s], idx=S.rows.filter(r=>r.ex&&!(r.E&&r.E.off)).map(r=>r.i), w=offWeek(s,idx);
+    if(!confirm(`Supprimer la séance « ${S.name} » à partir de la semaine ${w} ?\n\nLes séances déjà faites restent dans l'historique. Tu pourras la restaurer.`)) return; idx.forEach(i=>exOf(s,i).off=w); }
+  else if(a==="pg-sundel"){ const s=+v; M.sessions[s].rows.forEach(r=>{ if(r.E&&r.E.off) delete exOf(s,r.i).off; }); }
+  saveProg(); render(); });
+
+// ---------- 2. Chrono : pause, séance notée faite ou loupée sans la lancer
+const tDur=t=>Math.max(0,(t.end||t.pause||Date.now())-t.start-(t.pz||0));
+sessBar=function(S,w){ const k=w+"_t_"+S.s, t=ST.carnet[k]||{};
+  if(t.missed) return `<div class="sessbar miss"><div class="grow"><b>✗ Séance loupée</b><div class="muted small">notée le ${new Date(t.at||Date.now()).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})}</div></div><button class="ghost sm" data-act="ses-undo" data-v="${k}">Annuler</button></div>`;
+  if(!t.start) return `<div class="sessbar"><button class="ok grow" data-act="ses-start" data-v="${k}">▶ Commencer la séance</button><div class="sb-btns"><button class="ghost sm" data-act="ses-mdone" data-v="${k}" aria-label="Marquer la séance comme faite">✓ Faite</button><button class="ghost sm" data-act="ses-miss" data-v="${k}" aria-label="Marquer la séance comme loupée">✗ Loupée</button></div></div>`;
+  if(!t.end){ const paused=!!t.pause;
+    return `<div class="sessbar live"><div class="grow"><div class="muted small">${paused?"En pause":"Séance en cours depuis "+new Date(t.start).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</div><div class="stimer" ${paused?"":`data-start="${t.start+(t.pz||0)}"`}>${fmtDur(tDur(t))}</div></div>
+      <div class="sb-btns">${paused?`<button data-act="ses-play" data-v="${k}" aria-label="Reprendre le chrono">▶</button>`:`<button class="pause" data-act="ses-pause" data-v="${k}" aria-label="Mettre le chrono en pause">⏸</button>`}<button data-act="ses-end" data-v="${k}">Terminer</button></div></div>`; }
+  const st=sessStats(S,w);
+  return `<div class="sessbar done"><div class="grow"><b>✓ Séance ${t.manual?"faite":"terminée"}</b><div class="muted small">${new Date(t.end).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})}${t.manual?" · notée sans chrono":" · "+fmtDurTxt(tDur(t))}${st.done?` · ${st.done} séries`:""}${st.vol?` · ${fmtN(Math.round(st.vol))} kg`:""}</div></div><button class="ghost sm" data-act="${t.manual?"ses-undo":"ses-resume"}" data-v="${k}">${t.manual?"Annuler":"Reprendre"}</button></div>`; };
+const _saveCarnet15=saveCarnet;
+saveCarnet=async function(key){ const v=ST.carnet[key];
+  if(/_t_/.test(key)&&v&&v.missed){ recompute(); cacheClient(); await safeWrite("carnet",{client_id:CUR,k:key,data:v,updated_at:new Date().toISOString()},{client_id:CUR,k:key},"upsert"); return; }
+  if(/_h_/.test(key)){ recompute(); cacheClient(); const has=v&&(v.list||[]).length; await safeWrite("carnet",has?{client_id:CUR,k:key,data:v,updated_at:new Date().toISOString()}:null,{client_id:CUR,k:key},has?"upsert":"delete"); return; }
+  return _saveCarnet15(key); };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, k=b.dataset.v; if(!/^ses-(pause|play|end|resume|mdone|miss|undo)$/.test(a)) return;
+  e.stopImmediatePropagation(); const now=Date.now(), t=ST.carnet[k]=Object.assign({},ST.carnet[k]);
+  if(a==="ses-pause"){ t.pause=now; }
+  else if(a==="ses-play"){ if(t.pause){ t.pz=(t.pz||0)+(now-t.pause); delete t.pause; } }
+  else if(a==="ses-end"){ if(t.pause){ t.pz=(t.pz||0)+(now-t.pause); delete t.pause; } t.end=now; stopRest(false); toast(`Séance terminée : ${fmtDurTxt(tDur(t))} 💪`); }
+  else if(a==="ses-resume"){ t.pause=t.end; delete t.end; }
+  else if(a==="ses-mdone"){ ST.carnet[k]={start:now,end:now,manual:1}; toast("Séance notée comme faite"); }
+  else if(a==="ses-miss"){ if(!confirm("Noter cette séance comme loupée ?")) return; ST.carnet[k]={missed:1,at:now}; }
+  else if(a==="ses-undo"){ delete ST.carnet[k]; }
+  saveCarnet(k); render(); },true);
+
+// ---------- 3. Changer d'exercice en séance (propositions équivalentes) + exercices hors programme
+function altsFor(name,cur){ const b=BASEMAP[name]||{}, prof=ST.prog.profile; if(!b.mP) return [];
+  return Object.keys(BASEMAP).filter(n=>n!==name&&n!==cur&&BASEMAP[n].mP===b.mP&&(typeof eqAllowed!=="function"||eqAllowed(n,prof)))
+    .sort((x,y)=>(BASEMAP[x].eq===b.eq)-(BASEMAP[y].eq===b.eq)||x.localeCompare(y,"fr")).slice(0,10); }
+const _carnetEx15=carnetEx;
+carnetEx=function(r,w){ let h=_carnetEx15(r,w); const key=w+"_"+r.key, v=ST.carnet[key]||{};
+  if(v.ex) h=h.replace(`<div class="muted small">à la place de ${esc(r.ex)}</div>`,`<div class="muted small">à la place de ${esc(r.ex)} <span class="chip">hors programme</span></div>`);
+  h=h.replace(`<div class="row small" style="margin-top:4px;gap:8px">`,`<div class="row small" style="margin-top:4px;gap:8px"><button class="linkbtn small" style="font-size:.82rem" data-act="cx-menu" data-v="${ST.cxMenu===key?"":key}">🔄 Changer d'exercice</button>`);
+  if(ST.cxMenu===key){ const alts=altsFor(r.ex,v.ex);
+    if(alts.length) h=h.replace(`<div class="row" style="margin-top:6px"><button class="ghost sm" data-act="cx-hist"`,`<div class="muted small" style="margin-top:6px">Équivalents (même muscle principal)</div><div class="row">${alts.map(n=>`<button class="chip" data-act="cx-pick" data-v="${key}" data-n="${esc(n)}">${esc(n)}</button>`).join("")}</div><div class="row" style="margin-top:6px"><button class="ghost sm" data-act="cx-hist"`); }
+  return h; };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="cx-pick"]'); if(!b) return; const key=b.dataset.v, n=b.dataset.n; const c=ensureSets(key); const {r}=rowOf(key);
+  if(n===r.ex) delete c.ex; else c.ex=n; updateTop(key); saveCarnet(key); ST.cxMenu=null; toast(`Remplacé par ${n}`); render(); });
+const hxKey=(w,s)=>w+"_h_"+s;
+function hxHTML(S,w){ const key=hxKey(w,S.s), L=(ST.carnet[key]||{}).list||[], open=ST.hxOpen===key;
+  let h=L.map((x,li)=>`<div class="hx"><div class="row"><b class="grow">${esc(x.ex)}<span class="chip">hors programme</span></b><button class="ghost sm" data-act="hx-del" data-v="${key}|${li}" aria-label="Retirer l'exercice">✕</button></div>
+    <div class="tbl"><table class="sets"><tr><th>Série</th><th class="n">Kg</th><th class="n">Reps</th><th class="n">RPE</th><th></th></tr>${(x.sets||[]).map((s,i)=>`<tr class="${s.d?"done":""}"><td><span class="sn">${i+1}</span></td>${["g","h","r"].map(f=>`<td><input class="si" data-hx="${key}|${li}|${i}|${f}" inputmode="decimal" value="${esc(s[f]??"")}"></td>`).join("")}<td><button class="chk ${s.d?"on":""}" data-act="hx-done" data-v="${key}|${li}|${i}" aria-label="Série faite">✓</button></td></tr>`).join("")}</table></div>
+    <div class="row" style="margin-top:6px"><button class="ghost sm grow" data-act="hx-sadd" data-v="${key}|${li}">＋ Ajouter une série</button><button class="ghost sm" data-act="hx-srm" data-v="${key}|${li}">− Retirer</button></div></div>`).join("");
+  h+=open?`<div class="hx"><label class="f">Exercice fait en plus ou à la place<input id="hx-new" list="dl-ex" placeholder="Ex. Presse à cuisses" autocomplete="off" value="${esc(ST.hxNew||"")}"></label><div class="row" style="margin-top:6px"><button class="sm" data-act="hx-add" data-v="${key}">Ajouter</button><button class="ghost sm" data-act="hx-open" data-v="">Annuler</button></div></div>`
+    :`<div class="row" style="margin-top:8px"><button class="ghost sm" data-act="hx-open" data-v="${key}">＋ Exercice hors programme</button></div>`;
+  return h; }
+const _carnetSession15=carnetSession;
+carnetSession=function(S,w){ const h=_carnetSession15(S,w); if(!h) return h; return h.replace(/<\/div><\/div>$/,`</div>${hxHTML(S,w)}</div>`); };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||""; if(!/^hx-/.test(a)) return;
+  const [key,li,si]=v.split("|"); const get=()=>ST.carnet[key]=Object.assign({list:[]},ST.carnet[key]);
+  if(a==="hx-open"){ ST.hxOpen=v||null; render(); return; }
+  if(a==="hx-add"){ const n=(ST.hxNew||((document.getElementById("hx-new")||{}).value)||"").trim(); if(!n) return toast("Indique l'exercice"); const o=get(); o.list=[...o.list,{ex:n,sets:[{},{},{}]}]; ST.hxOpen=null; ST.hxNew=""; }
+  else if(a==="hx-del"){ if(!confirm("Retirer cet exercice ?")) return; const o=get(); o.list=o.list.filter((x,i)=>i!==+li); }
+  else if(a==="hx-sadd"){ const o=get(), x=o.list[+li]; const last=x.sets[x.sets.length-1]||{}; x.sets.push({g:last.g,h:last.h,r:last.r}); }
+  else if(a==="hx-srm"){ const x=get().list[+li]; if(x.sets.length>1) x.sets.pop(); }
+  else if(a==="hx-done"){ const s=get().list[+li].sets[+si]; if(s.d) delete s.d; else s.d=1; }
+  saveCarnet(key); render(); });
+document.addEventListener("input",e=>{ if(e.target&&e.target.id==="hx-new") ST.hxNew=e.target.value; });
+document.addEventListener("change",e=>{ const el=e.target; if(el&&el.id==="hx-new"){ ST.hxNew=el.value; return; } if(!el.dataset||el.dataset.hx===undefined) return; const [key,li,si,f]=el.dataset.hx.split("|");
+  const o=ST.carnet[key]; if(!o) return; const s=o.list[+li].sets[+si]; const x=String(el.value).replace(",",".").trim(); if(x===""||isNaN(+x)) delete s[f]; else s[f]=+x; saveCarnet(key); });
+
+// ---------- 4. Travail réellement effectué : graphiques
+function effData(){ const NS=M.NSEM, add0=t=>sysAdd(t,M.pdc), W=[]; for(let w=1;w<=NS;w++) W.push({w,ton:0,sets:0,plan:0,intS:0,intN:0,rpeS:0,rpeN:0,mov:{},mus:{}});
+  const loadOf=(g,type)=>type==="Haltères"?2*g:type==="Lesté"?g+M.pdc:g;
+  const addSet=(o,name,type,x)=>{ if(!x.d) return; const g=num(x.g), h=num(x.h), rp=num(x.r); o.sets++; const mP=(BASEMAP[name]||{}).mP; if(mP) o.mus[mP]=(o.mus[mP]||0)+1;
+    const m=o.mov[name]=o.mov[name]||{ton:0,best:0,sets:0}; m.sets++;
+    if(g!=null&&h!=null){ const ld=loadOf(g,type)*h; o.ton+=ld; m.ton+=ld; const sys=sysOf(g,h,rp,add0(type)); if(sys) m.best=Math.max(m.best,sys-add0(type));
+      const t=M.trackedByName[name]; if(t&&t.est){ o.intS+=(g+add0(type))/((t.work&&t.work[o.w])||t.est); o.intN++; } }
+    if(rp!=null){ o.rpeS+=rp; o.rpeN++; } };
+  Object.entries(ST.carnet).forEach(([k,v])=>{ const m=k.match(/^(\d+)_(\d+)_(\d+)$/); const hm=k.match(/^(\d+)_h_(\d+)$/); const w=+(m||hm||[])[1]; const o=W[w-1]; if(!o||!v) return;
+    if(m){ const r=rowAt(m[2],m[3]); if(!r) return; const name=v.ex||r.ex; if(!name) return; const type=typeOfName(name,r); setsOf(v).forEach(x=>addSet(o,name,type,x)); }
+    else (v.list||[]).forEach(x=>{ const type=typeOfName(x.ex); (x.sets||[]).forEach(s=>addSet(o,x.ex,type,s)); }); });
+  M.rows.forEach(r=>{ for(let w=1;w<=NS;w++){ const k=r.weeks[w]; if(r.ex&&k&&k.eff) W[w-1].plan+=planSets(k).length; } });
+  return W; }
+function vEff(){ if(!M||!M.rows) return ""; const W=effData(), last=Math.max(1,Math.min(M.cw,M.NSEM)), V=W.slice(0,last), labs=V.map(o=>"S"+o.w);
+  if(!V.some(o=>o.sets)) return `<h2>Travail réalisé</h2><div class="card muted">Les courbes apparaîtront dès les premières séries cochées ✓ dans le Carnet.</div>`;
+  let h=`<h2>Travail réalisé</h2><p class="note">Calculé uniquement à partir des séries cochées ✓ dans le Carnet (exercices remplacés et hors programme compris).</p>`;
+  h+=chart("Volume hebdo réalisé",labs,[{n:"Tonnage (kg)",v:V.map(o=>Math.round(o.ton)),c:"var(--blue)"}],[{n:"Séries faites",v:V.map(o=>o.sets),c:"var(--green)",right:true},{n:"Séries prévues",v:V.map(o=>o.plan),c:"var(--steel)",right:true,dash:true}],{right:true});
+  h+=chart("Intensité réalisée",labs,[],[{n:"RPE moyen",v:V.map(o=>o.rpeN?o.rpeS/o.rpeN:null),c:"var(--yellow)",dash:true},{n:"% du 1RM (mouvements suivis)",v:V.map(o=>o.intN?o.intS/o.intN:null),c:"var(--red)",right:true}],{right:true,rmin:0.5,rfmt:v=>Math.round(v*100)+"%"});
+  const movs=[...new Set(V.flatMap(o=>Object.keys(o.mov)))].sort((a,b)=>V.reduce((s,o)=>s+((o.mov[b]||{}).sets||0),0)-V.reduce((s,o)=>s+((o.mov[a]||{}).sets||0),0));
+  if(!movs.includes(ST.effMv)) ST.effMv=movs[0];
+  h+=`<div class="card"><h3>Par mouvement</h3><div class="row">${movs.slice(0,14).map(n=>`<button class="chip ${n===ST.effMv?"on":""}" data-act="eff-mv" data-v="${esc(n)}">${esc(n)}</button>`).join("")}</div></div>`;
+  h+=chart(ST.effMv+" : réalisé",labs,[{n:"Tonnage (kg)",v:V.map(o=>(o.mov[ST.effMv]||{}).ton||null),c:"var(--blue)"}],[{n:"Meilleur 1RM estimé (kg)",v:V.map(o=>((o.mov[ST.effMv]||{}).best)||null),c:"var(--green)",right:true}],{right:true});
+  const mus=Object.keys(MUSMAP).filter(m=>V.some(o=>o.mus[m])); if(!mus.includes(ST.effMu)) ST.effMu=mus[0];
+  if(mus.length){ const mu=MUSMAP[ST.effMu]||{};
+    h+=`<div class="card"><h3>Par groupe musculaire</h3><div class="row">${mus.map(m=>`<button class="chip ${m===ST.effMu?"on":""}" data-act="eff-mu" data-v="${esc(m)}">${esc(m)}</button>`).join("")}</div></div>`;
+    h+=chart(ST.effMu+" : séries faites (muscle principal)",labs,[{n:"Séries faites",v:V.map(o=>o.mus[ST.effMu]||0),c:"var(--blue)"}],[{n:"MEV",v:V.map(()=>mu.MEV),c:"var(--yellow)",dash:true},{n:"MRV",v:V.map(()=>mu.MRV),c:"var(--red)",dash:true}]); }
+  h+=`<p class="note">Tonnage = charge × répétitions (haltères : × 2 ; lesté : poids de corps + lest). % du 1RM = charge de la série ÷ 1RM de travail du mouvement suivi. RPE moyen sur l'échelle de gauche, % du 1RM à droite.</p>`;
+  return h; }
+function vHorsProg(w){ const out=[]; Object.entries(ST.carnet).forEach(([k,v])=>{ const m=k.match(/^(\d+)_(\d+)_(\d+)$/), hm=k.match(/^(\d+)_h_(\d+)$/);
+    if(m&&+m[1]===w&&v&&v.ex){ const r=rowAt(m[2],m[3]); if(r) out.push(`${esc(v.ex)} <span class="muted small">à la place de ${esc(r.ex)} · ${esc((M.sessions[r.s]||{}).name||"")}</span>`); }
+    if(hm&&+hm[1]===w) (v.list||[]).forEach(x=>out.push(`${esc(x.ex)} <span class="muted small">ajouté · ${esc((M.sessions[+hm[2]]||{}).name||"")}</span>`)); });
+  return `<div class="card"><h3 style="margin-top:0">Hors programme · S${w}</h3>${out.length?out.map(x=>`<div style="padding:4px 0;border-top:1px solid var(--line)">${x}</div>`).join(""):`<p class="muted small">Aucun exercice remplacé ou ajouté cette semaine.</p>`}</div>`; }
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="eff-mv"&&a!=="eff-mu") return; if(a==="eff-mv") ST.effMv=b.dataset.v; else ST.effMu=b.dataset.v; render(); });
+const _x10After15=x10After;
+x10After=function(){ _x10After15(); if(ST.bilan||!M) return; const app=$("#app");
+  if(coach()&&ST.view==="tableau"){ const i=app.innerHTML.indexOf("<h2>Objectifs de perf</h2>"); const add=vHorsProg(ST.week||M.cw)+vEff(); if(i>=0) app.innerHTML=app.innerHTML.slice(0,i)+add+app.innerHTML.slice(i); else app.insertAdjacentHTML("beforeend",add); }
+  else if(!coach()&&ST.view==="objectifs") app.insertAdjacentHTML("beforeend",vEff()); };
+
+// ---------- 5. Diète : ajuster le repas réellement mangé, tout valider d'un coup
+RES.aq=()=>fSearch(NU.aq).map(f=>`<button data-act="na-add" data-v="${f.id}">${esc(f.name)} <span class="muted small">${f.unit?"1 "+esc(f.unit)+" = "+r0(f.unit_g*f.kcal/100)+" kcal":r0(f.kcal)+" kcal/100 g"}</span></button>`).join("");
+const dTxt=(v,u="")=>{ const r=Math.round(v); return `<span class="${r>0?"up":r<0?"down":""}">${r>0?"+":r<0?"−":"±"}${Math.abs(r)}${u}</span>`; };
+function adjHTML(mi,o0){ const A=NU.adj, cur=mac(A.it), pl=optMac(o0);
+  return `<div class="adj"><b>Ce que tu as vraiment mangé</b>${A.it.map((i,ii)=>`<div class="it"><span class="grow">${esc(i.n)}<br><span class="muted small">${qtyTxt(i)} · ${r0(mac([i]).k)} kcal</span></span><button class="ghost sm" data-act="na-step" data-v="${ii}.-1" aria-label="Moins">−</button><button class="ghost sm" data-act="na-step" data-v="${ii}.1" aria-label="Plus">＋</button><button class="ghost sm" data-act="na-rm" data-v="${ii}" aria-label="Retirer">✕</button></div>`).join("")||`<p class="muted small">Aucun aliment.</p>`}
+    <label class="f" style="margin-top:8px">Ajouter un aliment<input data-nuq="aq" data-res="nu-ares" value="${esc(NU.aq||"")}" placeholder="riz, poulet, pain…" autocomplete="off"></label><div class="res" id="nu-ares">${RES.aq()}</div>
+    <div class="diff small" style="margin-top:8px">Prévu ${r0(pl.k)} kcal → mangé <b>${r0(cur.k)} kcal</b> (${dTxt(cur.k-pl.k," kcal")}) · P ${dTxt(cur.p-pl.p," g")} · G ${dTxt(cur.g-pl.g," g")} · L ${dTxt(cur.l-pl.l," g")}</div>
+    <div class="row" style="margin-top:8px"><button class="ok sm" data-act="na-save" data-v="${mi}">Valider ce repas</button><button class="ghost sm" data-act="na-cancel">Annuler</button></div></div>`; }
+const _nJour15=nJour;
+nJour=function(){ let h=_nJour15(); const {L,t,P}=nDayCtx(); if(!t||!hasMeals(P)) return h;
+  t.meals.forEach((m,mi)=>{ const st=L.m&&L.m[mi], o0=m.opts[0]; if(st||!o0) return; const tag=`<button class="ghost" data-act="nu-skip" data-v="${mi}">Sauté</button></div>`;
+    h=h.replace(tag,`<button class="ghost" data-act="na-open" data-v="${mi}">✏️ Ajuster</button><button class="ghost" data-act="nu-skip" data-v="${mi}">Sauté</button></div>${NU.adj&&NU.adj.mi===mi&&NU.adj.d===NU.day?adjHTML(mi,o0):""}`); });
+  const left=t.meals.filter((m,mi)=>!(L.m&&L.m[mi])&&m.opts[0]).length;
+  if(left>1) h=h.replace(/(repas sur \d+ notés[^<]*<\/div>)/,`$1<div class="row" style="margin-top:8px"><button class="ok sm" data-act="na-all">✅ Tout le reste mangé comme prévu</button></div>`);
+  return h; };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v; if(!/^na-/.test(a)) return;
+  const {t}=nDayCtx(); const dayLog=()=>{ const d=NU.day; NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); NU.logs[d].m=Object.assign({},NU.logs[d].m); return NU.logs[d]; };
+  if(a==="na-open"){ const o=t.meals[+v].opts[0]; NU.adj={mi:+v,d:NU.day,it:JSON.parse(JSON.stringify(o.it||[])).map(i=>{ i.q=(+i.q||0)*(o.m||1); return i; })}; NU.aq=""; NU.alt=null; }
+  else if(a==="na-cancel") NU.adj=null;
+  else if(a==="na-step"){ const [ii,dir]=v.split(".").map(Number), i=NU.adj.it[ii]; const st=i.ug?+i.ug:(i.q>=100?10:5); i.q=Math.max(0,Math.round((+i.q||0)+dir*st)); }
+  else if(a==="na-rm") NU.adj.it.splice(+v,1);
+  else if(a==="na-add"){ const f=NU.fmap[v]; if(f) NU.adj.it.push(fSnap(f,f.unit_g||100)); NU.aq=""; }
+  else if(a==="na-save"){ const mi=+v, o=t.meals[mi].opts[0], L=dayLog(); const it=NU.adj.it.filter(i=>+i.q>0);
+    L.m[mi]={s:"alt",n:o.n+" (ajusté)",mac:mac(it),it}; NU.adj=null; nuSaveLog(NU.day); toast("Repas enregistré"); }
+  else if(a==="na-all"){ const L=dayLog(); t.meals.forEach((m,mi)=>{ const o=m.opts[0]; if(!L.m[mi]&&o) L.m[mi]={s:"ok",n:o.n,mac:optMac(o)}; }); nuSaveLog(NU.day); toast("Journée validée ✅"); }
+  render(); });
+
+// ---------- 6. Graphiques de mensurations : toutes les courbes, droite et gauche ensemble
+function mLine(series,unit){ const W=170,H=90,p=14; const all=series.flatMap(s=>s.pts); if(all.length<2) return "";
+  const xs=all.map(q=>new Date(q[0]).getTime()), ys=all.map(q=>q[1]); let x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys); if(x1===x0) x1=x0+1; if(y1-y0<1){ y0-=0.5; y1+=0.5; }
+  const X=t=>p+(t-x0)/(x1-x0)*(W-2*p), Y=y=>H-p-(y-y0)/(y1-y0)*(H-2*p);
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img">${series.map(s=>`<polyline fill="none" stroke="${s.c}" stroke-width="2" ${s.dash?'stroke-dasharray="4 3"':""} points="${s.pts.map(q=>X(new Date(q[0]).getTime()).toFixed(1)+","+Y(q[1]).toFixed(1)).join(" ")}"/>`).join("")}
+    <text x="2" y="10" font-size="9" fill="var(--soft)">${fmtN(round(y1,1))} ${unit}</text><text x="2" y="${H-2}" font-size="9" fill="var(--soft)">${fmtN(round(y0,1))}</text></svg>`; }
+const _nMes15=nMesures;
+nMesures=function(){ const h=_nMes15(); const dates=Object.keys(NU.mes||{}).sort(); if(dates.length<2) return h;
+  const S=k=>dates.filter(d=>NU.mes[d][k]!=null&&NU.mes[d][k]!=="").map(d=>[d+"T12:00:00",+NU.mes[d][k]]);
+  const pairs=[["Bras","bras_d","bras_g"],["Cuisses","cuisse_d","cuisse_g"],["Mollets","mollet_d","mollet_g"]], inPair=new Set(pairs.flatMap(p=>[p[1],p[2]]));
+  const cards=[]; MES.filter(m=>!m[4]&&!inPair.has(m[0])).forEach(([k,l,u])=>{ const s=S(k); if(s.length>1){ const dv=s[s.length-1][1]-s[0][1]; cards.push(`<div class="mc"><b>${esc(l)}</b> <span class="small">${dv>0?"+":dv<0?"−":"±"}${fmtN(Math.abs(round(dv,1)))} ${u}</span>${mLine([{pts:s,c:"var(--blue)"}],u)}</div>`); } });
+  pairs.forEach(([l,d,g])=>{ const sd=S(d), sg=S(g); if(sd.length>1||sg.length>1) cards.push(`<div class="mc"><b>${l}</b> <span class="small"><span style="color:var(--blue)">━ droit</span> <span style="color:var(--red)">┅ gauche</span></span>${mLine([{pts:sd,c:"var(--blue)"},{pts:sg,c:"var(--red)",dash:true}],"cm")}</div>`); });
+  if(!cards.length) return h;
+  const card=`<div class="card"><h3 style="margin-top:0">Toutes les courbes</h3><div class="mgridc">${cards.join("")}</div><p class="note">Écart = dernière mesure − première. Abscisse proportionnelle aux dates.</p></div>`;
+  const i=h.indexOf(`<div class="card"><h3 style="margin-top:0">Historique</h3>`); return i>=0?h.slice(0,i)+card+h.slice(i):h+card; };
 
 boot();
 
