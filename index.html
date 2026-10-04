@@ -1950,6 +1950,222 @@ const _tplApply7=true;
 document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="tpl-apply"]'); if(!b) return; setTimeout(()=>{ const t=(BZ.set.templates||[])[+b.dataset.v]; if(!t||!t.prog) return; const P=ST.prog; if(JSON.stringify(P.sessions)!==JSON.stringify(t.prog.sessions)) return; let ch=false;
   if(t.prog.days){ P.profile.days=t.prog.days.slice(); ch=true; } if(t.prog.source){ P.profile.source=t.prog.source; ch=true; } if(t.prog.overload){ P.overload=JSON.parse(JSON.stringify(t.prog.overload)); ch=true; } if(ch){ saveProg(); render(); } },300); });
 
+// ================= MODULE SÉCURITÉ, RGPD, NOTIFICATIONS, DÉMARRAGE =================
+const LINKS={booking:"https://calendly.com/thomboulet",privacy:"confidentialite.html"};
+const X10={meta:{},ob:undefined,obCid:null,obLater:false,obEdit:false,obDraft:{},obT:null};
+const ls10={get:k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } },set:(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} }};
+const privacyLink=(t="politique de confidentialité")=>`<a href="${LINKS.privacy}" target="_blank" rel="noopener">${t}</a>`;
+const _css10=document.createElement("style");
+_css10.textContent=`label.ck{display:flex;gap:10px;align-items:flex-start;font-size:.95rem;color:var(--ink);margin:10px 0}label.ck input{width:22px;height:22px;flex:0 0 22px;margin-top:1px}
+.obq{padding:8px 0;border-top:1px solid var(--line)}.obq:first-of-type{border-top:0}.obq .row{margin-top:4px}
+.obans dt{font-size:.78rem;color:var(--soft);margin-top:8px}.obans dd{margin:2px 0 0;white-space:pre-wrap}
+#updbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:45;box-shadow:0 4px 16px rgba(0,0,0,.25);white-space:nowrap}
+button.danger{background:var(--red);color:#fff}`;
+document.head.appendChild(_css10);
+
+// ---------- session : métadonnées (consentement)
+const _afterAuth10=afterAuth;
+afterAuth=async function(session){ X10.meta=(session&&session.user&&session.user.user_metadata)||{}; X10.obCid=null; X10.ob=undefined; X10.obLater=false; X10.obEdit=false; return _afterAuth10(session); };
+
+// ---------- questionnaire de démarrage : chargement
+const _openClient10=openClient;
+openClient=async function(id,silent){ await _openClient10(id,silent); obLoad(id); };
+async function obLoad(cid){ if(!navigator.onLine||!SB) return;
+  const {data,error}=await SB.from("onboarding").select("*").eq("client_id",cid).maybeSingle();
+  if(error||CUR!==cid) return;
+  X10.ob=data||null; X10.obCid=cid; X10.obDraft=Object.assign({},(data&&data.data)||{}); scheduleRender(); }
+const obDone=()=>!!(X10.ob&&X10.ob.submitted_at);
+
+// ---------- rendu : écrans d'accueil client (consentement, questionnaire) puis compléments
+const _render10=render;
+render=function(){
+  if(UID&&MODE==="client"&&ST.ready&&ST.view!=="auth"){
+    if(!X10.meta.rgpd_ok) return gateShell(vConsent(),"Bienvenue");
+    if(X10.obCid===CUR&&CUR&&(X10.obEdit||(!obDone()&&!X10.obLater))) return gateShell(vOnboard(),"Questionnaire de démarrage");
+  }
+  _render10(); x10After(); };
+function gateShell(html,sub){ $("#appTitle").textContent=CONFIG.brand; $("#appSub").textContent=sub; $("#app").innerHTML=html; $("#tabs").innerHTML=""; $("#roleBtn").hidden=true; const f=document.getElementById("msgfab"); if(f) f.style.display="none"; }
+function x10After(){ const app=$("#app"); const f=document.getElementById("msgfab"); if(f) f.style.display="";
+  if(MODE==="coach"&&!CUR&&ST.view==="clients") app.insertAdjacentHTML("beforeend",vCoachSafety());
+  else if(MODE==="client"&&!coach()&&ST.view==="compte") app.insertAdjacentHTML("beforeend",vClientAccount());
+  else if(MODE==="client"&&!coach()&&ST.view==="semaine"){ const top=clientNudges(); if(top) app.insertAdjacentHTML("afterbegin",top); }
+  else if(coach()&&ST.view==="athlete") app.insertAdjacentHTML("beforeend",vObCoach());
+  const ps=document.getElementById("x10-push"); if(ps) pushPaint(ps);
+  const pn=document.getElementById("x10-pushnudge"); if(pn) nudgePaint(pn); }
+
+// ---------- consentement RGPD
+function vConsent(){ return `<h2>Avant de commencer</h2><div class="card">
+  <p>Pour assurer ton suivi, l'app enregistre des informations te concernant : profil, programme, séances, mesures, photos de progression, alimentation, réponses au questionnaire et messages. Certaines sont des <b>données de santé</b>.</p>
+  <ul class="small" style="padding-left:18px;margin:6px 0">
+   <li>Seuls toi et ton coach les consultez. Elles sont stockées chez des prestataires techniques listés dans la politique de confidentialité.</li>
+   <li>Elles ne sont ni vendues ni utilisées pour de la publicité.</li>
+   <li>Tu peux les télécharger ou supprimer ton compte à tout moment depuis l'onglet « Compte ».</li></ul>
+  <label class="ck"><input type="checkbox" id="x10-ck" ${X10.ck?"checked":""}><span>J'accepte que ces données, y compris de santé, soient utilisées pour mon suivi de coaching, comme décrit dans la ${privacyLink()}.</span></label>
+  <div class="row"><button data-act="x10-consent">Continuer</button><button class="ghost" data-act="logout">Refuser et me déconnecter</button></div></div>`; }
+
+// ---------- questionnaire de démarrage
+const DAYS10=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+const OBQ=[
+ ["Ton objectif",[
+  ["obj","sel","Ton objectif principal",["Gagner en force","Améliorer ma composition corporelle","Retrouver de l'énergie et de la forme","Préparer une échéance sportive","Autre"],1],
+  ["obj_detail","area","Décris-le avec tes mots : ce que tu veux changer, et pourquoi maintenant"],
+  ["obj_date","text","Une échéance en tête ? (date, compétition, événement)"]]],
+ ["Ton historique",[
+  ["years","sel","Depuis combien de temps tu t'entraînes",["Moins d'1 an","1 à 3 ans","3 à 5 ans","Plus de 5 ans"]],
+  ["freq","sel","Séances par semaine en ce moment",["0","1","2","3","4","5 ou plus"]],
+  ["sports","text","Activités pratiquées (actuellement ou avant)"],
+  ["perfs","area","Tes repères de charge, si tu en as (ex. squat 5 × 100 kg)"]]],
+ ["Ton emploi du temps",[
+  ["n_ses","sel","Séances possibles par semaine",["2","3","4","5","6"]],
+  ["dur","sel","Durée maximale d'une séance",["45 min","60 min","75 min","90 min ou plus"]],
+  ["days","days","Jours où tu peux t'entraîner"],
+  ["lieu","sel","Lieu d'entraînement",["Salle de sport","À la maison","Les deux"]],
+  ["equip","text","Matériel disponible si tu t'entraînes chez toi"]]],
+ ["Ton quotidien",[
+  ["job","text","Ton activité professionnelle et ton rythme (horaires, déplacements…)"],
+  ["sleep","sel","Sommeil moyen par nuit",["Moins de 6 h","6 à 7 h","7 à 8 h","Plus de 8 h"]],
+  ["stress","sel","Stress ressenti ces dernières semaines",["1 · faible","2","3","4","5 · très élevé"]],
+  ["activity","sel","Activité dans la journée",["Plutôt assis","Mixte","Plutôt debout ou actif"]],
+  ["food","area","Habitudes alimentaires, préférences, régime particulier, allergies ou intolérances"]]],
+ ["Douleurs et précautions",[
+  ["pain","area","Douleurs, gênes ou blessures, actuelles ou passées (zone, depuis quand, ce qui les déclenche)"],
+  ["q1","yn","Un médecin t'a-t-il déjà parlé d'un problème cardiaque ou d'une tension artérielle élevée ?",null,1],
+  ["q2","yn","Ressens-tu des douleurs dans la poitrine, au repos, dans la vie quotidienne ou à l'effort ?",null,1],
+  ["q3","yn","Au cours des 12 derniers mois, as-tu perdu connaissance ou perdu l'équilibre à cause d'un vertige ?",null,1],
+  ["q4","yn","As-tu une maladie chronique diagnostiquée (autre qu'un problème cardiaque ou de tension) ?",null,1],
+  ["q5","yn","Prends-tu actuellement un traitement prescrit pour une maladie chronique ?",null,1],
+  ["q6","yn","As-tu, ou as-tu eu dans les 12 derniers mois, un problème d'os, d'articulation ou de muscle qui pourrait s'aggraver avec l'activité physique ?",null,1],
+  ["q7","yn","Un médecin t'a-t-il déjà dit de ne pratiquer une activité physique que sous surveillance médicale ?",null,1]]]];
+const OBYN=["q1","q2","q3","q4","q5","q6","q7"];
+const obFlag=d=>OBYN.some(k=>d[k]==="Oui");
+const OBWARN=`<div class="alert ko">Tu as répondu « oui » à au moins une question. Avant de démarrer ou d'augmenter ton activité physique, demande l'avis de ton médecin, puis préviens ton coach. Ce questionnaire ne remplace pas un avis médical.</div>`;
+function obField([k,type,label,opts,req]){ const d=X10.obDraft, v=d[k]??"", L=`${esc(label)}${req?" *":""}`;
+  if(type==="sel") return `<label class="f obq">${L}${sel(opts,v,`data-ob="${k}"`)}</label>`;
+  if(type==="text") return `<label class="f obq">${L}<input data-ob="${k}" value="${esc(v)}"></label>`;
+  if(type==="area") return `<label class="f obq">${L}<textarea data-ob="${k}" rows="3">${esc(v)}</textarea></label>`;
+  if(type==="days"){ const a=Array.isArray(d.days)?d.days:[]; return `<div class="obq"><div class="muted small">${L}</div><div class="row">${DAYS10.map((n,i)=>`<button type="button" class="chip ${a[i]?"on":""}" data-act="x10-obday" data-v="${i}">${n}</button>`).join("")}</div></div>`; }
+  if(type==="yn") return `<div class="obq"><div style="font-size:.92rem">${L}</div><div class="row">${["Oui","Non"].map(o=>`<button type="button" class="chip ${v===o?"on":""}" data-act="x10-obyn" data-v="${k}|${o}">${o}</button>`).join("")}</div></div>`;
+  return ""; }
+function vOnboard(){ const d=X10.obDraft;
+  let h=`<h2>Questionnaire de démarrage</h2><p class="muted">Environ 5 minutes. Tes réponses servent à ton coach pour construire un programme adapté à ton objectif, ton emploi du temps et ton historique. Seul ton coach les lit.</p>`;
+  OBQ.forEach(([t,fs])=>{ h+=`<div class="card"><h3 style="margin-top:0">${t}</h3>${fs.map(obField).join("")}${t==="Douleurs et précautions"&&obFlag(d)?OBWARN:""}</div>`; });
+  h+=`<p class="note">* Réponse obligatoire. Questions d'aptitude adaptées (tutoiement) des 7 questions générales du PAR-Q+ (PAR-Q+ Collaboration ; Warburton et al., Health &amp; Fitness Journal of Canada, 2011).</p>
+   <div class="row" style="margin:10px 0 24px"><button data-act="x10-obsend">${obDone()?"Enregistrer mes modifications":"Envoyer à mon coach"}</button><button class="ghost" data-act="x10-oblater">${X10.obEdit?"Fermer":"Plus tard"}</button></div>`;
+  return h; }
+function obSave(submit){ const cid=CUR; if(!cid) return Promise.resolve(false);
+  const row={client_id:cid,data:X10.obDraft,updated_at:new Date().toISOString()}; if(submit) row.submitted_at=new Date().toISOString(); else if(X10.ob&&X10.ob.submitted_at) row.submitted_at=X10.ob.submitted_at;
+  return SB.from("onboarding").upsert(row).select().single().then(({data,error})=>{ if(error){ toast("Non enregistré : "+error.message); return false; } if(CUR===cid) X10.ob=data; return true; }); }
+function obAutosave(){ clearTimeout(X10.obT); X10.obT=setTimeout(()=>obSave(false),900); }
+document.addEventListener("change",e=>{ const el=e.target; if(el.id==="x10-ck"){ X10.ck=el.checked; return; } if(!el.dataset||el.dataset.ob===undefined) return; X10.obDraft[el.dataset.ob]=el.value; obAutosave(); });
+function vObCoach(){ if(X10.obCid!==CUR) return `<div class="card muted">Chargement du questionnaire…</div>`;
+  const o=X10.ob; if(!o||!o.submitted_at) return `<div class="card"><h3 style="margin-top:0">Questionnaire de démarrage</h3><p class="muted">${o?"Commencé par ton client, pas encore envoyé.":"Pas encore rempli."} Il s'affiche automatiquement à ton client à sa prochaine connexion.</p></div>`;
+  const d=o.data||{}; let h=`<div class="card"><h3 style="margin-top:0">Questionnaire de démarrage</h3><p class="muted small">Envoyé le ${new Date(o.submitted_at).toLocaleDateString("fr-FR")}${o.updated_at&&o.updated_at>o.submitted_at?" · modifié le "+new Date(o.updated_at).toLocaleDateString("fr-FR"):""}</p>`;
+  if(obFlag(d)) h+=`<div class="alert x">Au moins une réponse « oui » aux questions d'aptitude : demander un avis médical avant de démarrer.</div>`;
+  OBQ.forEach(([t,fs])=>{ const rows=fs.map(([k,type,label])=>{ let v=d[k]; if(type==="days") v=Array.isArray(v)?DAYS10.filter((n,i)=>v[i]).join(", "):""; if(v===undefined||v==="") return ""; return `<dt>${esc(label)}</dt><dd>${type==="yn"&&v==="Oui"?"<b style='color:var(--red)'>Oui</b>":esc(v)}</dd>`; }).join(""); if(rows) h+=`<h3>${t}</h3><dl class="obans">${rows}</dl>`; });
+  return h+`</div>`; }
+
+// ---------- client : compte, prise de rendez-vous, données
+function clientNudges(){ let h="";
+  if(X10.obCid===CUR&&!obDone()) h+=`<div class="alert ko row"><span class="grow">Ton questionnaire de démarrage n'est pas encore envoyé à ton coach.</span><button class="sm" data-act="x10-obopen">Le compléter</button></div>`;
+  if(ls10.get("tb-pushnudge")!=="1") h+=`<div id="x10-pushnudge"></div>`;
+  return h; }
+function vClientAccount(){ return `<div class="card"><h3 style="margin-top:0">Mon coach</h3><p class="muted small">Un point à faire, un bilan, une question qui mérite un appel ?</p><a class="chip" style="padding:8px 14px;font-size:1rem" href="${LINKS.booking}" target="_blank" rel="noopener">Réserver un rendez-vous</a></div>
+  <div class="card"><h3 style="margin-top:0">Notifications</h3><div id="x10-push" data-who="client"></div></div>
+  <div class="card"><h3 style="margin-top:0">Questionnaire de démarrage</h3><p class="muted small">${obDone()?"Envoyé à ton coach. Tu peux mettre tes réponses à jour (nouvelle douleur, emploi du temps qui change…).":"Pas encore envoyé."}</p><button class="ghost" data-act="x10-obopen">${obDone()?"Revoir mes réponses":"Le compléter"}</button></div>
+  <div class="card"><h3 style="margin-top:0">Mes données</h3><p class="muted small">Tu peux récupérer une copie de tes données à tout moment. Détails dans la ${privacyLink()}.</p>
+   <div class="row"><button class="ghost" data-act="x10-myexport">Télécharger mes données</button></div>
+   <details style="margin-top:10px"><summary>Supprimer mon compte</summary><p class="small">Ton compte, ton programme, ton carnet, tes mesures, tes photos, tes réponses et tes messages seront <b>définitivement effacés</b>. Les factures sont conservées, car la loi l'impose. Les sauvegardes de ton coach sont effacées au plus tard 12 mois après. Pense à télécharger tes données avant.</p><button class="danger" data-act="x10-delete">Supprimer définitivement mon compte</button></details></div>`; }
+
+// ---------- coach : sauvegarde + notifications
+function vCoachSafety(){ const last=ls10.get("tb-lastbackup"); const days=last?Math.floor((Date.now()-new Date(last).getTime())/864e5):null;
+  const st=days===null?`<div class="alert ko">Aucune sauvegarde téléchargée depuis ce téléphone.</div>`:days>30?`<div class="alert ko">Dernière sauvegarde il y a ${days} jours : pense à en refaire une.</div>`:`<p class="muted small">Dernière sauvegarde : ${days===0?"aujourd'hui":`il y a ${days} jour${days>1?"s":""}`}.</p>`;
+  return `<div class="card"><h3 style="margin-top:0">Sauvegarde de tes données</h3>${st}<p class="muted small">Le plan gratuit de Supabase ne conserve pas de sauvegarde. Télécharge une copie complète une fois par mois et range-la sur ton espace personnel (Drive, iCloud). Supprime les sauvegardes de plus de 12 mois : c'est l'engagement pris dans ta politique de confidentialité. Jamais sur GitHub : elle contient les données de tes clients. Les photos et vidéos ne sont pas incluses.</p><button data-act="x10-backup">Télécharger toutes mes données</button></div>
+  <div class="card"><h3 style="margin-top:0">Notifications sur ce téléphone</h3><div id="x10-push" data-who="coach"></div></div>
+  <p class="note">${privacyLink("Politique de confidentialité")} présentée à tes clients.</p>`; }
+async function x10Rows(table,filter){ let out=[],from=0; for(;;){ let q=SB.from(table).select("*").range(from,from+999); if(filter) q=filter(q); const {data,error}=await q; if(error) throw new Error(table+" : "+error.message); out=out.concat(data||[]); if(!data||data.length<1000) return out; from+=1000; } }
+async function x10Export(full){ toast("Préparation du fichier…");
+  try{ const T={}, list=["clients","carnet","suivi","nutri_log","mesures","messages","onboarding"]; if(full) list.push("biz_settings","biz_contracts","biz_payments","nutri_dishes");
+    for(const t of list) T[t]=await x10Rows(t); if(full) T.nutri_foods=await x10Rows("nutri_foods",q=>q.eq("coach_id",UID));
+    download(`${full?"tb-coaching_sauvegarde":"mes-donnees-coaching"}_${todayISO()}.json`,{app:"tb-coaching",type:full?"sauvegarde-complete":"export-client",at:new Date().toISOString(),email:EMAIL,tables:T});
+    if(full){ ls10.set("tb-lastbackup",new Date().toISOString()); render(); } toast("Fichier téléchargé"); }
+  catch(e){ toast("Export impossible : "+e.message); } }
+
+// ---------- notifications push
+const isIOS10=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const standalone10=()=>(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone===true;
+async function pushStatus(){ if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window)) return isIOS10()&&!standalone10()?"install":"unsupported";
+  if(Notification.permission==="denied") return "denied"; try{ const reg=await navigator.serviceWorker.getRegistration(); const sub=reg&&await reg.pushManager.getSubscription(); return sub?"on":"off"; }catch(e){ return "off"; } }
+async function pushPaint(el){ const st=await pushStatus(), coachSide=el.dataset.who==="coach";
+  const what=coachSide?"les nouveaux messages de tes clients":"les messages de ton coach, tes jours de séance et le bilan du dimanche";
+  el.innerHTML={on:`<p class="small">Activées sur ce téléphone ✓ Tu reçois ${what}.</p><button class="ghost sm" data-act="x10-pushoff">Désactiver</button>`,
+    off:`<p class="muted small">Reçois une notification pour ${what}.</p><button data-act="x10-pushon">Activer les notifications</button>`,
+    install:`<p class="muted small">Sur iPhone, ajoute d'abord l'app à ton écran d'accueil (bouton Partager, puis « Sur l'écran d'accueil »), puis ouvre-la depuis son icône pour activer les notifications.</p>`,
+    denied:`<p class="muted small">Notifications bloquées pour cette app. Réactive-les dans les Réglages du téléphone (Notifications → TB my Coach), puis reviens ici.</p>`,
+    unsupported:`<p class="muted small">Ce navigateur ne gère pas les notifications.</p>`}[st];
+ }
+async function nudgePaint(n){ if(await pushStatus()==="off") n.innerHTML=`<div class="card row"><span class="grow small">Active les notifications pour ne rater ni un message de ton coach ni une séance.</span><button class="sm" data-act="x10-pushon">Activer</button><button class="ghost sm" data-act="x10-pushnudge">Plus tard</button></div>`; }
+const b64u8=s=>{ const p="=".repeat((4-s.length%4)%4), b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/")); return Uint8Array.from(b,c=>c.charCodeAt(0)); };
+async function pushOn(){ try{ const perm=await Notification.requestPermission(); if(perm!=="granted"){ toast("Notifications refusées"); render(); return; }
+    const {data:key,error}=await SB.rpc("push_public_key"); if(error||!key) throw new Error(error?error.message:"clé indisponible");
+    const reg=await navigator.serviceWorker.ready; let sub=await reg.pushManager.getSubscription(); if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u8(key)});
+    const {error:e2}=await SB.rpc("push_register",{p_endpoint:sub.endpoint,p_sub:sub.toJSON()}); if(e2) throw new Error(e2.message);
+    ls10.set("tb-pushnudge","1"); toast("Notifications activées"); }
+  catch(e){ toast("Activation impossible : "+e.message); } render(); }
+async function pushOff(){ try{ const reg=await navigator.serviceWorker.getRegistration(); const sub=reg&&await reg.pushManager.getSubscription(); if(sub){ await SB.from("push_subs").delete().eq("endpoint",sub.endpoint); await sub.unsubscribe(); } toast("Notifications désactivées"); }catch(e){ toast(e.message); } render(); }
+
+// ---------- suppression de compte (client)
+async function deleteAccount(){ const t=prompt("Suppression définitive de ton compte et de toutes tes données (les factures sont conservées, obligation légale).\n\nTape SUPPRIMER pour confirmer.");
+  if((t||"").trim().toUpperCase()!=="SUPPRIMER") return toast("Suppression annulée");
+  toast("Suppression en cours…"); const {data,error}=await SB.functions.invoke("delete-account",{body:{}});
+  if(error||!data||!data.ok){ let msg=error?error.message:"erreur inconnue"; try{ const j=error&&error.context&&await error.context.json(); if(j&&j.error) msg=j.error; }catch(e){} alert("Suppression impossible : "+msg); return; }
+  try{ await pushOff(); }catch(e){} try{ localStorage.clear(); }catch(e){} alert("Ton compte et tes données ont été supprimés de l'application. Ils disparaîtront des sauvegardes de ton coach au plus tard dans 12 mois."); await SB.auth.signOut().catch(()=>{}); location.reload(); }
+
+// ---------- actions
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v; if(!/^x10-/.test(a)) return;
+  if(a==="x10-consent"){ if(!X10.ck) return toast("Coche la case pour continuer");
+    b.disabled=true; const {data,error}=await SB.auth.updateUser({data:{rgpd_ok:new Date().toISOString(),rgpd_v:1}}); b.disabled=false;
+    if(error) return toast("Enregistrement impossible : "+error.message); X10.meta=(data.user&&data.user.user_metadata)||Object.assign({},X10.meta,{rgpd_ok:true}); window.scrollTo(0,0); render(); }
+  else if(a==="x10-obday"){ const d=Array.isArray(X10.obDraft.days)?X10.obDraft.days.slice():[false,false,false,false,false,false,false]; d[+v]=!d[+v]; X10.obDraft.days=d; b.classList.toggle("on",d[+v]); obAutosave(); }
+  else if(a==="x10-obyn"){ const [k,o]=v.split("|"); X10.obDraft[k]=o; obAutosave(); render(); }
+  else if(a==="x10-obsend"){ const d=X10.obDraft; if(!d.obj) return toast("Indique ton objectif principal");
+    const miss=OBYN.filter(k=>!d[k]); if(miss.length) return toast("Réponds aux "+miss.length+" question(s) de la partie « Douleurs et précautions »");
+    const first=!obDone(); b.disabled=true; clearTimeout(X10.obT); const ok=await obSave(true); b.disabled=false; if(!ok) return;
+    if(first) SB.from("messages").insert({client_id:CUR,sender:UID,from_coach:false,body:"📋 J'ai rempli mon questionnaire de démarrage."+(obFlag(d)?" (au moins une réponse « oui » aux questions d'aptitude)":"")}).then(()=>{});
+    X10.obEdit=false; window.scrollTo(0,0); toast(first?"Envoyé à ton coach, merci !":"Réponses mises à jour"); render(); }
+  else if(a==="x10-oblater"){ X10.obLater=true; X10.obEdit=false; window.scrollTo(0,0); render(); }
+  else if(a==="x10-obopen"){ X10.obEdit=true; window.scrollTo(0,0); render(); }
+  else if(a==="x10-backup") x10Export(true);
+  else if(a==="x10-myexport") x10Export(false);
+  else if(a==="x10-pushon") pushOn();
+  else if(a==="x10-pushoff") pushOff();
+  else if(a==="x10-pushnudge"){ ls10.set("tb-pushnudge","1"); const n=document.getElementById("x10-pushnudge"); if(n) n.remove(); }
+  else if(a==="x10-delete") deleteAccount(); });
+
+// ---------- écran de connexion : lien vers la politique de confidentialité
+const _vAuth10=vAuth;
+vAuth=function(){ return _vAuth10()+`<p class="note">${privacyLink("Politique de confidentialité")}</p>`; };
+
+// ---------- business : lien de paiement en ligne dans les relances
+const _bzSettings10=bzSettings;
+bzSettings=function(){ return _bzSettings10().replace(`<div class="card"><h3 style="margin-top:0">Offre par défaut</h3>`,
+  `<div class="card"><h3 style="margin-top:0">Paiement en ligne</h3><label class="f" style="margin-top:8px">Ton lien de paiement<input data-bs="paylink" inputmode="url" value="${esc(BZ.set.paylink||"")}" placeholder="https://buy.stripe.com/…"></label><p class="note">Lien Stripe (Payment Link), PayPal.me, Lydia Pro… Il est ajouté automatiquement aux e-mails de relance et d'échéance.</p></div><div class="card"><h3 style="margin-top:0">Offre par défaut</h3>`); };
+const _payRow10=payRow;
+payRow=function(p){ let h=_payRow10(p); const L=(BZ.set.paylink||"").trim(); if(!/^https?:\/\//.test(L)) return h;
+  h=h.replace(encodeURIComponent("Merci !\n"),encodeURIComponent(`Tu peux régler directement en ligne ici : ${L}\n\nMerci !\n`));
+  const today=todayISO(), em=(CLIENTS.find(c=>c.id===p.client_id)||{}).email;
+  if(p.status==="attendu"&&p.due>=today&&em&&BZ.payId!==p.id&&BZ.editId!==p.id){
+    const body=`Salut,\n\nL'échéance de ${fmtE(p.amount)} pour « ${p.label} » est prévue le ${frDate(p.due)}.\n\nTu peux régler directement en ligne ici : ${L}\n\nMerci !\n`;
+    h=h.replace(/<\/div><\/div>$/,`<a class="chip" style="padding:6px 10px" href="mailto:${esc(em)}?subject=${encodeURIComponent("Paiement coaching")}&body=${encodeURIComponent(body)}">Envoyer le lien de paiement</a></div></div>`); }
+  return h; };
+
+// ---------- nouvelle version disponible
+const VER10={base:null,shown:false};
+async function verHash(){ const r=await fetch(location.pathname+"?vcheck="+Date.now(),{cache:"no-store"}); if(!r.ok) return null; const t=await r.text(); let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))|0; return t.length+":"+h; }
+async function verCheck(){ if(!navigator.onLine||VER10.shown) return; try{ const h=await verHash(); if(!h) return; if(!VER10.base){ VER10.base=h; return; }
+  if(h!==VER10.base){ VER10.shown=true; const b=document.createElement("button"); b.id="updbar"; b.textContent="Nouvelle version disponible · Mettre à jour"; b.onclick=()=>location.reload(); document.body.appendChild(b); } }catch(e){} }
+setTimeout(verCheck,3000); setInterval(verCheck,15*60*1000);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") verCheck(); });
+
 boot();
 
 </script>

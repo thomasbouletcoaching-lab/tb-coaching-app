@@ -1,0 +1,28 @@
+# Empêche la mise en pause automatique du projet Supabase gratuit (après 7 jours sans activité).
+# Une petite lecture publique par jour suffit. N'utilise que la clé publique déjà présente dans index.html.
+name: Keep-alive Supabase
+
+on:
+  schedule:
+    - cron: "17 5 * * *"   # tous les jours vers 7 h (heure de Paris)
+  workflow_dispatch:
+
+permissions:
+  actions: write   # pour garder ce workflow actif (GitHub désactive les tâches planifiées après 60 jours sans commit)
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Interroger Supabase
+        run: |
+          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "https://xtapitojdvicgcaygeqj.supabase.co/rest/v1/nutri_foods?select=id&limit=1" \
+            -H "apikey: sb_publishable_c1EzH7XuWPwsCizxuFCUTg_G3Z82B_M")
+          echo "Réponse Supabase : $code"
+          test "$code" = "200"
+      - name: Garder le workflow actif
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/keepalive.yml/enable"
