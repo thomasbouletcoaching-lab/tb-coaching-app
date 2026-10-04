@@ -2274,6 +2274,72 @@ document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); i
   else if(ST.bilan&&(a==="view"||a==="clients"||a==="home"||a==="open"||a==="logout")) ST.bilan=false; },true);
 document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||el.dataset.bil===undefined||!coach()) return; ST.prog.bilan=Object.assign({},ST.prog.bilan,{[el.dataset.bil]:el.value,at:new Date().toISOString()}); saveProg(); });
 
+// ================= MODULE BIBLIOTHÈQUE VIDÉOS =================
+const VL={coach:null,map:{},loaded:false,q:"",only:false,busy:null};
+const _css13=document.createElement("style");
+_css13.textContent=`#vidmodal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(12px + env(safe-area-inset-top,0px)) 12px 12px}
+#vidmodal video{max-width:100%;max-height:78vh;border-radius:10px;background:#000}#vidmodal .vh{color:#fff;font-weight:600;margin-bottom:8px;text-align:center}
+.vrow{padding:9px 0;border-top:1px solid var(--line)}.vrow:first-child{border-top:0}`;
+document.head.appendChild(_css13);
+const vlCoachId=()=>MODE==="coach"?UID:((CLIENTS.find(c=>c.id===CUR)||CLIENTS[0]||{}).coach_id||null);
+async function vlLoad(force){ const cid=vlCoachId(); if(!cid||!SB||!navigator.onLine) return; if(VL.loaded&&VL.coach===cid&&!force) return;
+  const {data,error}=await SB.from("video_lib").select("*").eq("coach_id",cid); if(error) return;
+  VL.coach=cid; VL.map={}; (data||[]).forEach(r=>VL.map[r.ex]=r); VL.loaded=true; scheduleRender(); }
+const _afterAuth13=afterAuth; afterAuth=async function(s){ VL.loaded=false; VL.map={}; return _afterAuth13(s); };
+const _openClient13=openClient; openClient=async function(id,silent){ await _openClient13(id,silent); vlLoad(); };
+async function vlUrl(r){ if(r.kind==="url") return r.url; const {data,error}=await SB.storage.from("media").createSignedUrl(r.path,3600*6); if(error) throw error; return data.signedUrl; }
+function vlShow(name,url){ let m=document.getElementById("vidmodal"); if(m) m.remove(); m=document.createElement("div"); m.id="vidmodal";
+  m.innerHTML=`<div class="vh">${esc(name)}</div><video src="${esc(url)}" controls autoplay playsinline loop></video><button class="ghost" style="margin-top:12px;color:#fff;border-color:#fff" data-act="vl-close">Fermer</button>`;
+  document.body.appendChild(m); }
+// bouton « ▶ Démo » : vidéo perso du coach en priorité (sauf lien propre au client)
+document.addEventListener("click",async e=>{ const a=e.target.closest("a.demo"); if(!a) return; const name=(a.getAttribute("aria-label")||"").replace(/^Voir la démo de /,"");
+  const r=VL.map[name]; if(!r||((ST.prog&&ST.prog.media)||{})[name]) return; e.preventDefault();
+  try{ const u=await vlUrl(r); if(r.kind==="file") vlShow(name,u); else window.open(u,"_blank","noopener"); }catch(err){ toast("Vidéo indisponible : "+err.message); } },true);
+// liens « ▶ Démo » marqués quand une vidéo perso existe
+const _render13=render; render=function(){ _render13(); if(!VL.loaded) return; document.querySelectorAll("#app a.demo").forEach(a=>{ const n=(a.getAttribute("aria-label")||"").replace(/^Voir la démo de /,""); if(VL.map[n]&&!((ST.prog&&ST.prog.media)||{})[n]) a.textContent="▶ Démo du coach"; }); };
+// ---------- espace coach : onglet Vidéos
+const _homeShell13=homeShell;
+homeShell=function(shell){ if(ST.view!=="vid") return _homeShell13(shell);
+  const tabs=[["clients","Mes clients"],["biz","Business"],["lib","Nutrition"],["vid","Vidéos"]].map(([k,l])=>`<button class="${k==="vid"?"on":""}" data-act="home" data-v="${k}">${l}</button>`).join("");
+  if(!VL.loaded) vlLoad(); return shell(CONFIG.brand,"Espace coach · "+EMAIL,vVideos(),tabs); };
+const _render13b=render; render=function(){ _render13b(); const t=$("#tabs"); if(MODE==="coach"&&!CUR&&t&&!t.querySelector('[data-v="vid"]')&&t.querySelector('[data-act="home"]')) t.insertAdjacentHTML("beforeend",`<button data-act="home" data-v="vid">Vidéos</button>`); };
+function vVideos(){ const names=[...new Set([...Object.keys(BASEMAP),...Object.keys(VL.map)])].sort((a,b)=>a.localeCompare(b,"fr")), n=Object.keys(VL.map).length;
+  let h=`<h2>Bibliothèque vidéos</h2><div class="card"><p class="muted small" style="margin-top:0">Filme une fois la démo d'un exercice : tous tes clients la voient via le bouton « ▶ Démo » (sauf si tu as mis un lien propre à un client). ${n} vidéo${n>1?"s":""} dans ta bibliothèque.</p>
+   <label class="f">Rechercher un exercice<input data-vlq="1" value="${esc(VL.q)}" autocomplete="off" placeholder="Ex. squat, tirage, développé…"></label>
+   <label class="ck" style="margin:8px 0 0"><input type="checkbox" data-vlonly="1" ${VL.only?"checked":""}><span>Seulement les exercices avec vidéo</span></label></div><div class="card" id="vl-list">${vlList(names)}</div>
+   <p class="note">Vidéo : 50 Mo max, compressée automatiquement en 720p quand c'est possible. Tu peux aussi coller un lien YouTube ou Instagram.</p>`;
+  return h; }
+function vlList(names){ names=names||[...new Set([...Object.keys(BASEMAP),...Object.keys(VL.map)])].sort((a,b)=>a.localeCompare(b,"fr"));
+  const q=nrm(VL.q||""), L=names.filter(x=>(!VL.only||VL.map[x])&&(!q||q.split(/\s+/).every(w=>nrm(x).includes(w)))).slice(0,40);
+  if(!L.length) return `<p class="muted">Aucun exercice trouvé.</p>`;
+  return L.map(x=>{ const r=VL.map[x], busy=VL.busy===x; return `<div class="vrow"><div class="row"><span class="grow"><b>${esc(x)}</b><br><span class="small ${r?"":"muted"}">${busy?"Envoi en cours…":r?(r.kind==="file"?"✓ Vidéo perso":"✓ Lien "+esc(r.url.replace(/^https?:\/\/(www\.)?/,"").slice(0,32))):"Pas de vidéo"}</span></span></div>
+    <div class="row" style="margin-top:6px">${r?`<button class="ghost sm" data-act="vl-play" data-v="${esc(x)}">▶ Voir</button>`:""}<label class="ghost sm attach" style="display:inline-flex;align-items:center;padding:6px 10px;border:1px solid var(--line);border-radius:10px;cursor:pointer">🎥 ${r&&r.kind==="file"?"Remplacer":"Ajouter une vidéo"}<input type="file" accept="video/*" data-vlfile="${esc(x)}" style="display:none"></label><button class="ghost sm" data-act="vl-link" data-v="${esc(x)}">🔗 Lien</button>${r?`<button class="ghost sm" data-act="vl-del" data-v="${esc(x)}">Retirer</button>`:""}</div></div>`; }).join("")+(L.length===40?`<p class="muted small">Affine ta recherche pour voir plus d'exercices.</p>`:""); }
+const vlRefresh=()=>{ const el=document.getElementById("vl-list"); if(el) el.innerHTML=vlList(); };
+document.addEventListener("input",e=>{ if(e.target.dataset&&e.target.dataset.vlq){ VL.q=e.target.value; vlRefresh(); } });
+document.addEventListener("change",async e=>{ const el=e.target; if(!el.dataset) return;
+  if(el.dataset.vlonly){ VL.only=el.checked; vlRefresh(); return; }
+  if(el.dataset.vlfile===undefined||!el.files||!el.files[0]) return; const ex=el.dataset.vlfile; let f=el.files[0];
+  VL.busy=ex; vlRefresh();
+  try{ if(f.size>20*1024*1024){ try{ f=await compressVideo(f); }catch(err){} }
+    if(f.size>50*1024*1024) throw new Error("vidéo trop lourde (50 Mo max) : filme un clip plus court");
+    const type=f.type||"video/mp4", ext=(type.split("/")[1]||"mp4").replace("quicktime","mov"), slug=nrm(ex).replace(/[^a-z0-9]+/g,"-").slice(0,40);
+    const path=`lib/${UID}/${slug}_${Date.now()}.${ext}`;
+    const {error}=await SB.storage.from("media").upload(path,f,{contentType:type,upsert:false}); if(error) throw error;
+    const old=VL.map[ex]; const {data,error:e2}=await SB.from("video_lib").upsert({coach_id:UID,ex,kind:"file",path,url:null,updated_at:new Date().toISOString()}).select().single(); if(e2) throw e2;
+    VL.map[ex]=data; if(old&&old.kind==="file"&&old.path) SB.storage.from("media").remove([old.path]).then(()=>{});
+    toast("Vidéo ajoutée"); }
+  catch(err){ toast("Envoi impossible : "+err.message); }
+  VL.busy=null; vlRefresh(); });
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v; if(!/^vl-/.test(a)) return;
+  if(a==="vl-close"){ const m=document.getElementById("vidmodal"); if(m) m.remove(); return; }
+  if(a==="vl-play"){ const r=VL.map[v]; try{ const u=await vlUrl(r); if(r.kind==="file") vlShow(v,u); else window.open(u,"_blank","noopener"); }catch(err){ toast(err.message); } return; }
+  if(a==="vl-link"){ const cur=VL.map[v]; const u=prompt("Lien de la vidéo (YouTube, Instagram…) pour « "+v+" »",cur&&cur.kind==="url"?cur.url:""); if(u==null) return; const url=u.trim();
+    if(!/^https?:\/\/\S+$/.test(url)) return toast("Lien invalide");
+    const {data,error}=await SB.from("video_lib").upsert({coach_id:UID,ex:v,kind:"url",url,path:null,updated_at:new Date().toISOString()}).select().single(); if(error) return toast(error.message);
+    if(cur&&cur.kind==="file"&&cur.path) SB.storage.from("media").remove([cur.path]).then(()=>{}); VL.map[v]=data; toast("Lien enregistré"); vlRefresh(); return; }
+  if(a==="vl-del"){ if(!confirm("Retirer la vidéo de « "+v+" » ?")) return; const r=VL.map[v]; const {error}=await SB.from("video_lib").delete().eq("coach_id",UID).eq("ex",v); if(error) return toast(error.message);
+    if(r&&r.kind==="file"&&r.path) SB.storage.from("media").remove([r.path]).then(()=>{}); delete VL.map[v]; vlRefresh(); } });
+
 boot();
 
 </script>
