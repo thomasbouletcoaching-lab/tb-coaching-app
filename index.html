@@ -2280,7 +2280,8 @@ const VL={coach:null,map:{},loaded:false,q:"",only:false,busy:null};
 const _css13=document.createElement("style");
 _css13.textContent=`#vidmodal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(12px + env(safe-area-inset-top,0px)) 12px 12px}
 #vidmodal video{max-width:100%;max-height:78vh;border-radius:10px;background:#000}#vidmodal .vh{color:#fff;font-weight:600;margin-bottom:8px;text-align:center}
-.vrow{padding:9px 0;border-top:1px solid var(--line)}.vrow:first-child{border-top:0}`;
+.vrow{padding:9px 0;border-top:1px solid var(--line)}.vrow .row{flex-wrap:wrap}
+.vfile{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-family:var(--cond);font-weight:600;font-size:.9rem;padding:6px 10px;border:1px solid var(--line);border-radius:10px;color:var(--ink);cursor:pointer}.vrow:first-child{border-top:0}`;
 document.head.appendChild(_css13);
 const vlCoachId=()=>MODE==="coach"?UID:((CLIENTS.find(c=>c.id===CUR)||CLIENTS[0]||{}).coach_id||null);
 async function vlLoad(force){ const cid=vlCoachId(); if(!cid||!SB||!navigator.onLine) return; if(VL.loaded&&VL.coach===cid&&!force) return;
@@ -2314,7 +2315,7 @@ function vlList(names){ names=names||[...new Set([...Object.keys(BASEMAP),...Obj
   const q=nrm(VL.q||""), L=names.filter(x=>(!VL.only||VL.map[x])&&(!q||q.split(/\s+/).every(w=>nrm(x).includes(w)))).slice(0,40);
   if(!L.length) return `<p class="muted">Aucun exercice trouvé.</p>`;
   return L.map(x=>{ const r=VL.map[x], busy=VL.busy===x; return `<div class="vrow"><div class="row"><span class="grow"><b>${esc(x)}</b><br><span class="small ${r?"":"muted"}">${busy?"Envoi en cours…":r?(r.kind==="file"?"✓ Vidéo perso":"✓ Lien "+esc(r.url.replace(/^https?:\/\/(www\.)?/,"").slice(0,32))):"Pas de vidéo"}</span></span></div>
-    <div class="row" style="margin-top:6px">${r?`<button class="ghost sm" data-act="vl-play" data-v="${esc(x)}">▶ Voir</button>`:""}<label class="ghost sm attach" style="display:inline-flex;align-items:center;padding:6px 10px;border:1px solid var(--line);border-radius:10px;cursor:pointer">🎥 ${r&&r.kind==="file"?"Remplacer":"Ajouter une vidéo"}<input type="file" accept="video/*" data-vlfile="${esc(x)}" style="display:none"></label><button class="ghost sm" data-act="vl-link" data-v="${esc(x)}">🔗 Lien</button>${r?`<button class="ghost sm" data-act="vl-del" data-v="${esc(x)}">Retirer</button>`:""}</div></div>`; }).join("")+(L.length===40?`<p class="muted small">Affine ta recherche pour voir plus d'exercices.</p>`:""); }
+    <div class="row" style="margin-top:6px">${r?`<button class="ghost sm" data-act="vl-play" data-v="${esc(x)}">▶ Voir</button>`:""}<label class="vfile">🎥 ${r&&r.kind==="file"?"Remplacer":"Ajouter une vidéo"}<input type="file" accept="video/*" data-vlfile="${esc(x)}" style="display:none"></label><button class="ghost sm" data-act="vl-link" data-v="${esc(x)}">🔗 Lien</button>${r?`<button class="ghost sm" data-act="vl-del" data-v="${esc(x)}">Retirer</button>`:""}</div></div>`; }).join("")+(L.length===40?`<p class="muted small">Affine ta recherche pour voir plus d'exercices.</p>`:""); }
 const vlRefresh=()=>{ const el=document.getElementById("vl-list"); if(el) el.innerHTML=vlList(); };
 document.addEventListener("input",e=>{ if(e.target.dataset&&e.target.dataset.vlq){ VL.q=e.target.value; vlRefresh(); } });
 document.addEventListener("change",async e=>{ const el=e.target; if(!el.dataset) return;
