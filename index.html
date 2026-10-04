@@ -2207,6 +2207,73 @@ document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); i
 // fermer la messagerie ou changer de dossier annule l'enregistrement en cours
 const _msgClose11=msgClose; msgClose=function(){ if(REC.on){ REC.cancel=true; recStop(); } _msgClose11(); };
 
+// ================= MODULE BILAN DE CYCLE =================
+const _css12=document.createElement("style");
+_css12.textContent=`.bil h3{margin:0 0 6px}.bil .kpis{grid-template-columns:repeat(3,1fr)}
+.bil table.bt{width:100%;border-collapse:collapse;font-size:.9rem}.bil table.bt td,.bil table.bt th{padding:5px 4px;border-top:1px solid var(--line);text-align:left}.bil table.bt th{font-size:.75rem;color:var(--soft);font-weight:600}
+.bil .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.bil .up{color:var(--green);font-weight:600}.bil .down{color:var(--red);font-weight:600}
+.bil .ph2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.bil .ph2 img{width:100%;border-radius:8px;aspect-ratio:3/4;object-fit:cover;background:var(--chalk)}
+@media print{.bil .card{break-inside:avoid;border:1px solid #ccc}#msgfab{display:none!important}}`;
+document.head.appendChild(_css12);
+const isoOf=d=>isoD(d);
+const signed=(v,unit,dec=1)=>{ if(v==null||isNaN(v)) return "—"; const r=Math.round(v*10**dec)/10**dec; return (r>0?"+":r<0?"−":"±")+fmtN(Math.abs(r))+(unit?" "+unit:""); };
+function bilanData(){ const NS=M.NSEM, lastW=Math.max(1,Math.min(M.cw,NS)), d0=isoOf(M.dateOf(1)), d1=isoOf(new Date(M.dateOf(NS).getTime()+6*864e5)), today=todayISO();
+  // régularité : séances prévues (semaines écoulées) vs réalisées
+  let planned=0, done=0; for(let w=1;w<=lastW;w++) M.sessions.forEach(S=>{ if(!S.rows.some(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff)) return; if(w===M.cw&&today<isoOf(M.dateOf(w))) return; planned++;
+    const t=ST.carnet[w+"_t_"+S.s]; if((t&&t.end)||sessStats(S,w).done>0) done++; });
+  // charges : premier e1RM noté vs meilleur
+  const lifts=M.tracked.filter(t=>t.name).map(t=>{ const add=sysAdd(t.type,M.pdc); const E=M.cEntries.filter(c=>c.ex===t.name&&c.sys);
+    if(!E.length) return {name:t.name,first:null,best:null};
+    const w0=Math.min(...E.map(c=>c.w)), first=Math.max(...E.filter(c=>c.w===w0).map(c=>c.sys))-add, best=Math.max(...E.map(c=>c.sys))-add;
+    const bw=E.find(c=>c.sys-add===best).w; return {name:t.name,first,best,w0,bw,lest:t.type==="Lesté"}; });
+  // mesures
+  const md=Object.keys(NU.mes||{}).sort().filter(d=>d>=addDays(d0,-14)&&d<=d1);
+  const meas=MES.filter(m=>!m[4]).map(([k,l,u])=>{ const ds=md.filter(d=>NU.mes[d][k]!=null&&NU.mes[d][k]!==""); if(!ds.length) return null;
+    const a=+NU.mes[ds[0]][k], b=+NU.mes[ds[ds.length-1]][k]; return {k,l,u,a,b,da:ds[0],db:ds[ds.length-1],n:ds.length}; }).filter(Boolean);
+  // photos : première et dernière date avec la même pose
+  const pd=md.filter(d=>NU.mes[d].ph&&Object.keys(NU.mes[d].ph).length); let photo=null;
+  if(pd.length>=2){ const pa=NU.mes[pd[0]].ph, pb=NU.mes[pd[pd.length-1]].ph; const pose=["face","profil","dos"].find(p=>pa[p]&&pb[p]); if(pose) photo={pose,a:pa[pose],b:pb[pose],da:pd[0],db:pd[pd.length-1]}; }
+  // suivi nutrition et bilans hebdo
+  const nd=Object.keys(NU.logs||{}).filter(d=>d>=d0&&d<=d1&&d<=today).length, elapsed=Math.max(1,Math.min(NS*7,Math.round((new Date(today)-new Date(d0))/864e5)+1));
+  const checkins=Object.keys(ST.suivi||{}).filter(w=>+w>=1&&+w<=NS&&Object.values(ST.suivi[w]||{}).some(v=>v!==""&&v!=null)).length;
+  return {NS,lastW,d0,d1,planned,done,lifts,meas,photo,nd,elapsed,checkins,ended:today>d1}; }
+function vBilan(){ const B=bilanData(), P=ST.prog, bl=P.bilan||{}, fr=d=>new Date(d+"T12:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
+  if(B.photo&&(!MSG.urls[B.photo.a]||!MSG.urls[B.photo.b])) signUrls([B.photo.a,B.photo.b]).then(()=>scheduleRender());
+  let h=`<div class="row noprint" style="margin:8px 0"><button class="ghost sm" data-act="bil-close">‹ Retour</button><span class="grow"></span><button class="sm" data-act="bil-print">Enregistrer en PDF</button></div>
+  <div class="bil"><h2 style="margin-bottom:2px">Bilan de cycle · ${esc(P.profile.name||"")}</h2>
+  <p class="muted" style="margin-top:0">${fr(B.d0)} → ${fr(B.d1)} · ${B.ended?`${B.NS} semaines`:`bilan intermédiaire, semaine ${B.lastW} sur ${B.NS}`}</p>`;
+  const pct=B.planned?Math.round(B.done/B.planned*100):null;
+  h+=`<div class="card"><h3>Régularité</h3><div class="kpis"><div class="kpi"><b>${B.planned?`${B.done}/${B.planned}`:"—"}</b><span>séances réalisées${pct!=null?` (${pct} %)`:""}</span></div><div class="kpi"><b>${B.checkins}</b><span>bilans hebdo remplis</span></div><div class="kpi"><b>${B.nd}</b><span>jours de nutrition notés sur ${B.elapsed}</span></div></div></div>`;
+  const L=B.lifts.filter(x=>x.first!=null);
+  h+=`<div class="card"><h3>Charges : 1RM estimé</h3>${L.length?`<table class="bt"><tr><th>Mouvement</th><th class="num">Début</th><th class="num">Meilleur</th><th class="num">Écart</th></tr>${L.map(x=>{ const d=x.best-x.first, p=x.first>0?d/x.first*100:null;
+    return `<tr><td>${esc(x.name)}${x.lest?' <span class="muted small">(lest)</span>':""}</td><td class="num">${fmtN(roundPas(x.first,0.5))} kg<div class="muted small">S${x.w0}</div></td><td class="num">${fmtN(roundPas(x.best,0.5))} kg<div class="muted small">S${x.bw}</div></td><td class="num ${d>0?"up":d<0?"down":""}">${signed(roundPas(d,0.5),"kg")}${p!=null&&x.first>0?`<div class="small">${signed(p,"%",0)}</div>`:""}</td></tr>`; }).join("")}</table>
+    <p class="note">1RM estimé à partir des séries notées dans le carnet (charge, répétitions, RPE). C'est une estimation, pas un test maximal.</p>`:`<p class="muted">Pas encore assez de séries notées sur les mouvements suivis.</p>`}</div>`;
+  h+=`<div class="card"><h3>Mesures</h3>${B.meas.length?`<table class="bt"><tr><th>Mesure</th><th class="num">Début</th><th class="num">Dernière</th><th class="num">Écart</th></tr>${B.meas.map(m=>`<tr><td>${esc(m.l)}</td><td class="num">${fmtN(m.a)} ${m.u}</td><td class="num">${m.n>1?fmtN(m.b)+" "+m.u:"—"}</td><td class="num">${m.n>1?signed(m.b-m.a,m.u):"—"}</td></tr>`).join("")}</table>
+    <p class="note">Première mesure du ${new Date(B.meas[0].da+"T12:00:00").toLocaleDateString("fr-FR")}, dernière du ${new Date(B.meas.reduce((a,m)=>m.db>a?m.db:a,"")+"T12:00:00").toLocaleDateString("fr-FR")}.</p>`:`<p class="muted">Aucune mesure enregistrée pendant ce cycle.</p>`}</div>`;
+  if(B.photo){ const u=MSG.urls; h+=`<div class="card"><h3>Photos (${esc(B.photo.pose)})</h3><div class="ph2"><div>${u[B.photo.a]?`<img src="${esc(u[B.photo.a])}" alt="Début">`:"…"}<div class="muted small">${new Date(B.photo.da+"T12:00:00").toLocaleDateString("fr-FR")}</div></div><div>${u[B.photo.b]?`<img src="${esc(u[B.photo.b])}" alt="Dernière">`:"…"}<div class="muted small">${new Date(B.photo.db+"T12:00:00").toLocaleDateString("fr-FR")}</div></div></div></div>`; }
+  h+=`<div class="card"><h3>Le mot du coach</h3>${coach()
+    ?`<label class="f">Ce qui a bien marché, les points à travailler, le ressenti du cycle<textarea rows="5" data-bil="note">${esc(bl.note||"")}</textarea></label>
+      <label class="f" style="margin-top:8px">La suite proposée<textarea rows="3" data-bil="next" placeholder="Ex. objectif et priorités du prochain cycle, ajustements prévus…">${esc(bl.next||"")}</textarea></label>
+      <p class="note noprint">Visible par ton client dans son bilan. Décris ce qui a été observé et ce que tu proposes, sans promettre de résultat chiffré.</p>`
+    :(bl.note||bl.next?`${bl.note?`<p style="white-space:pre-wrap">${esc(bl.note)}</p>`:""}${bl.next?`<h3 style="margin-top:10px">La suite</h3><p style="white-space:pre-wrap">${esc(bl.next)}</p>`:""}`:`<p class="muted">Ton coach complétera cette partie en fin de cycle.</p>`)}</div>`;
+  if(!coach()) h+=`<div class="card noprint"><h3>On en parle ?</h3><p class="muted small">Pour faire le point sur ce bilan et préparer la suite.</p><a class="chip" style="padding:8px 14px;font-size:1rem" href="${LINKS.booking}" target="_blank" rel="noopener">Réserver un rendez-vous</a></div>`;
+  return h+`</div>`; }
+// affichage : remplace le contenu de l'onglet courant tant que le bilan est ouvert
+const _render12=render;
+render=function(){ _render12(); if(ST.bilan&&CUR&&M&&ST.ready&&ST.view!=="auth"&&(MODE!=="client"||X10.meta.rgpd_ok)){ try{ $("#app").innerHTML=vBilan(); }catch(e){ console.error(e); $("#app").innerHTML=`<div class="alert x">Bilan indisponible : ${esc(e.message)}</div>`; } } };
+// points d'entrée : coach (Plus, Tableau) et client (Objectifs)
+const _vPlus12=vPlus;
+vPlus=function(){ return _vPlus12().replace(`<button data-act="clients">Tous mes clients</button>`,`<button data-act="bil-open">Bilan de cycle</button><button data-act="clients">Tous mes clients</button>`); };
+const _x10After12=x10After;
+x10After=function(){ _x10After12(); if(!ST.bilan&&MODE==="client"&&!coach()&&ST.view==="objectifs"&&M){ const end=isoOf(new Date(M.dateOf(M.NSEM).getTime()+6*864e5)), soon=addDays(end,-14)<=todayISO(), hasNote=ST.prog.bilan&&(ST.prog.bilan.note||ST.prog.bilan.next);
+  $("#app").insertAdjacentHTML("afterbegin",`<div class="card row"><span class="grow">${hasNote?"Ton bilan de cycle est prêt, avec le mot de ton coach.":soon?"Ton cycle touche à sa fin : consulte ton bilan.":"Ton bilan de cycle, mis à jour au fil des semaines."}</span><button class="sm" data-act="bil-open">Voir mon bilan</button></div>`); } };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act;
+  if(a==="bil-open"){ ST.bilan=true; window.scrollTo(0,0); render(); }
+  else if(a==="bil-close"){ ST.bilan=false; window.scrollTo(0,0); render(); }
+  else if(a==="bil-print") window.print();
+  else if(ST.bilan&&(a==="view"||a==="clients"||a==="home"||a==="open"||a==="logout")) ST.bilan=false; },true);
+document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||el.dataset.bil===undefined||!coach()) return; ST.prog.bilan=Object.assign({},ST.prog.bilan,{[el.dataset.bil]:el.value,at:new Date().toISOString()}); saveProg(); });
+
 boot();
 
 </script>
