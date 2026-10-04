@@ -2340,6 +2340,126 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   if(a==="vl-del"){ if(!confirm("Retirer la vidéo de « "+v+" » ?")) return; const r=VL.map[v]; const {error}=await SB.from("video_lib").delete().eq("coach_id",UID).eq("ex",v); if(error) return toast(error.message);
     if(r&&r.kind==="file"&&r.path) SB.storage.from("media").remove([r.path]).then(()=>{}); delete VL.map[v]; vlRefresh(); } });
 
+// ================= MODULE GÉNÉRATEUR : questionnaire → programme + plan alimentaire =================
+const PRIO14=[["Pectoraux","Pecs"],["Dos (largeur)","Dos-largeur"],["Dos (épaisseur)","Dos-épaisseur"],["Épaules","Épaules-latéral"],["Biceps","Biceps"],["Triceps","Triceps"],["Quadriceps","Quadriceps"],["Ischio-jambiers","Ischios"],["Fessiers","Fessiers"],["Mollets","Mollets"],["Abdos","Abdos"]];
+// questions supplémentaires (s'ajoutent au questionnaire de démarrage existant)
+(()=>{ const sec=t=>OBQ.find(s=>s[0]===t)[1];
+  const hist=sec("Ton historique"); hist.push(["prio","multi","Groupes musculaires que tu veux développer en priorité (3 maximum)",PRIO14.map(x=>x[0]),0,3]);
+  const emp=sec("Ton emploi du temps"); const i=emp.findIndex(f=>f[0]==="equip"); emp.splice(i,1,["equipL","multi","Matériel disponible à la maison",EQUIP],["equip","text","Autre matériel, précisions"]);
+  OBQ.splice(OBQ.findIndex(s=>s[0]==="Douleurs et précautions"),0,["Ton alimentation",[
+   ["sex","sel","Sexe (pour estimer tes besoins énergétiques)",["Homme","Femme"]],
+   ["age","num","Âge"],["height","num","Taille (cm)"],["weight","num","Poids actuel (kg)"],
+   ["nobj","sel","Ton objectif côté alimentation",["Perdre du gras","Perdre du gras en douceur","Maintenir / recomposition","Prendre du muscle"]],
+   ["meals","sel","Nombre de prises alimentaires par jour",["3 repas","3 repas + 1 collation","3 repas + 2 collations"]],
+   ["diet","sel","Ton régime",["Omnivore","Pescétarien (pas de viande)","Végétarien","Vegan"]],
+   ["excl","multi","Exclusions",["Sans lactose","Sans gluten","Sans porc","Sans poisson","Sans fruits de mer"]],
+   ["dislike","text","Aliments que tu n'aimes pas (séparés par des virgules)"],
+   ["cook","sel","Temps pour cuisiner un repas",["Moins de 15 min","15 à 30 min","Plus de 30 min"]]]]); })();
+const _obField14=obField;
+obField=function(f){ const [k,type,label,opts,req,max]=f, d=X10.obDraft, L=`${esc(label)}${req?" *":""}`;
+  if(type==="num") return `<label class="f obq">${L}<input data-ob="${k}" inputmode="decimal" value="${esc(d[k]??"")}"></label>`;
+  if(type==="multi"){ const a=Array.isArray(d[k])?d[k]:[]; return `<div class="obq"><div class="muted small">${L}</div><div class="row">${opts.map(o=>`<button type="button" class="chip ${a.includes(o)?"on":""}" data-act="x14-multi" data-v="${esc(k)}" data-o="${esc(o)}" ${max?`data-max="${max}"`:""}>${esc(o)}</button>`).join("")}</div></div>`; }
+  return _obField14(f); };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="x14-multi"]'); if(!b) return; const k=b.dataset.v, o=b.dataset.o, max=+b.dataset.max||0;
+  let a=Array.isArray(X10.obDraft[k])?X10.obDraft[k].slice():[]; if(a.includes(o)) a=a.filter(x=>x!==o); else { if(max&&a.length>=max) return toast(`${max} maximum`); a.push(o); }
+  X10.obDraft[k]=a; b.classList.toggle("on",a.includes(o)); obAutosave(); });
+// affichage côté coach : listes lisibles
+const _vObCoach14=vObCoach;
+vObCoach=function(){ const o=X10.ob; let h=_vObCoach14(); if(X10.obCid!==CUR||!o||!o.submitted_at) return h;
+  const d=o.data||{}; OBQ.forEach(([t,fs])=>fs.forEach(([k,type])=>{ if(type==="multi"&&Array.isArray(d[k])&&d[k].length) h=h.replace(`<dd>${esc(d[k].join(","))}</dd>`,`<dd>${esc(d[k].join(", "))}</dd>`); }));
+  return h.replace(/<\/div>$/,genCard(d)+"</div>"); };
+
+// ---------- proposition d'entraînement
+function trainProposal(d){ const n=Math.max(2,Math.min(6,parseInt(d.n_ses)||3)), yrs=d.years||"", lieu=d.lieu==="À la maison"?"Maison":"Salle";
+  const level=yrs==="Moins d'1 an"?"Débutant":yrs==="Plus de 5 ans"?"Avancé":"Intermédiaire";
+  const DEF={2:[true,false,false,true,false,false,false],3:DAYS3,4:DAYS4,5:[true,true,true,true,true,false,false],6:DAYS6};
+  let days=Array.isArray(d.days)&&d.days.some(Boolean)?d.days.map(Boolean):null;
+  if(days){ const on=days.map((v,i)=>v?i:-1).filter(i=>i>=0); if(on.length>n){ const keep=new Set(Array.from({length:n},(_,j)=>on[Math.round(j*(on.length-1)/Math.max(1,n-1))])); days=days.map((v,i)=>keep.has(i)); } }
+  if(!days||days.filter(Boolean).length<Math.min(n,2)) days=DEF[n].slice();
+  const nd=days.filter(Boolean).length, dmax={"45 min":45,"60 min":60,"75 min":75,"90 min ou plus":90}[d.dur]||75, equip=Array.isArray(d.equipL)?d.equipL.filter(x=>EQUIP.includes(x)):[];
+  const prio=(Array.isArray(d.prio)?d.prio:[]).map(l=>(PRIO14.find(x=>x[0]===l)||[])[1]).filter(Boolean).slice(0,3);
+  let bank=null, why="";
+  if(lieu==="Maison"){ bank=equip.some(x=>x==="Haltères"||x==="Élastiques")?"home1":"home0"; why="entraînement à la maison"; }
+  else if(level==="Débutant"&&nd<=3){ bank="fb3"; why="débutant, 3 séances ou moins"; }
+  else if(d.obj==="Gagner en force"){ bank=nd>=4?"pl4":null; why=nd>=4?"objectif force, 4 séances":"objectif force, moins de 4 séances : programme généré sur mesure"; }
+  else if(d.obj==="Améliorer ma composition corporelle"){ bank=nd>=6?"ppl6":nd>=4?"pb4":"fb3"; why="objectif composition corporelle, "+nd+" séances"; }
+  else if(d.obj==="Retrouver de l'énergie et de la forme"){ bank=nd>=4?"pb4":"fb3"; why="objectif forme, "+nd+" séances"; }
+  else { bank=null; why="échéance ou objectif spécifique : programme généré sur mesure"; }
+  const b=bank&&BANK.find(x=>x.id===bank);
+  return {level,days,nd,dmax,dmin:Math.max(30,dmax-30),lieu,equip,prio,pdc:parseFloat(String(d.weight||"").replace(",","."))||null,bank:b,why}; }
+function applyTraining(T){ const P=ST.prog, pr=P.profile;
+  Object.assign(pr,{level:T.level,dmax:T.dmax,dmin:T.dmin,lieu:T.lieu,equip:T.equip.slice(),prio:T.prio.slice()}); if(T.pdc) pr.pdc=T.pdc;
+  if(T.bank){ applyBank(T.bank.id); if(T.bank.days.filter(Boolean).length===T.nd) pr.days=T.days.slice(); }
+  else { pr.days=T.days.slice(); pr.split="AUTO"; pr.source="Générateur"; }
+  saveProg(); }
+
+// ---------- proposition alimentaire
+const nrmW=s=>nrm(s||"").replace(/œ/g,"oe").replace(/æ/g,"ae").replace(/[^a-z0-9 ]+/g," ");
+function foodFlags(f){ const n=nrm(f.name).replace(/œ/g,"oe"), c=f.cat||"", F={};
+  if(c==="Volailles & viandes"||c==="Charcuterie") F.meat=1;
+  if(/porc|lardon|bacon|chorizo|saucisse|saucisson|rillettes|coppa|mortadelle|jambon(?!.*dinde)|pate de campagne/.test(n)) F.pork=1,F.meat=1;
+  if(/crevette|gambas|moule|crabe|calamar|saint-jacques|huitre|poulpe|surimi/.test(n)) F.sea=1;
+  else if(c==="Poissons & fruits de mer") F.fish=1;
+  if(c==="Fromages"||(c==="Produits laitiers"&&!/soja|amande|avoine|coco|sans lactose/.test(n))||/^beurre( demi| allege|$)|creme fraiche|creme liquide|whey|caseine|tzatziki|pesto|parmesan|gainer|pancakes proteines|barre proteinee|granola/.test(n)) F.dairy=1;
+  if(c==="Œufs"||/oeuf|pancakes proteines/.test(n)) F.egg=1;
+  if(/pates|pain|wrap|tortilla de ble|boulgour|couscous|semoule|epeautre|bagel|flocons d.avoine|son d.avoine|muesli|granola|seitan|pita|orge|nouilles aux oeufs|sauce soja|biscotte|farine|crepe|pancake|barre proteinee|naan|galette de sarrasin|boisson avoine/.test(n)) F.gluten=1;
+  if(/^miel/.test(n)) F.honey=1;
+  return F; }
+function dishOK(dsh,d){ const fl={}; const names=[nrmW(dsh.name)];
+  (dsh.items||[]).forEach(i=>{ const f=NU.fmap[i.f]; if(!f) return; Object.assign(fl,foodFlags(f)); names.push(nrmW(f.name)); });
+  const diet=d.diet||"Omnivore", ex=Array.isArray(d.excl)?d.excl:[];
+  if(diet.startsWith("Pescétarien")&&fl.meat) return false;
+  if(diet==="Végétarien"&&(fl.meat||fl.fish||fl.sea)) return false;
+  if(diet==="Vegan"&&(fl.meat||fl.fish||fl.sea||fl.dairy||fl.egg||fl.honey)) return false;
+  if(ex.includes("Sans lactose")&&fl.dairy) return false; if(ex.includes("Sans gluten")&&fl.gluten) return false; if(ex.includes("Sans porc")&&fl.pork) return false;
+  if(ex.includes("Sans poisson")&&fl.fish) return false; if(ex.includes("Sans fruits de mer")&&fl.sea) return false;
+  const bad=String(d.dislike||"").split(/[,;\n]+/).map(w=>nrmW(w).trim()).filter(w=>w.length>=3);
+  if(bad.some(w=>names.some(n=>n.includes(w)||n.includes(w.replace(/s$/,""))))) return false;
+  return true; }
+const seedSort=(arr,seed)=>arr.map(x=>{ let h=0; const s=seed+x.name; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return [h,x]; }).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+function nutriProposal(d,T){ const w=parseFloat(String(d.weight||"").replace(",","."))||null, h=parseFloat(String(d.height||"").replace(",","."))||null, age=parseInt(d.age)||null;
+  const adj={"Perdre du gras":-20,"Perdre du gras en douceur":-12,"Maintenir / recomposition":0,"Prendre du muscle":8}[d.nobj]; const neat={"Plutôt assis":1.35,"Mixte":1.5,"Plutôt debout ou actif":1.65}[d.activity]||1.35;
+  const meals=d.meals==="3 repas"?["Petit-déjeuner","Déjeuner","Dîner"]:d.meals==="3 repas + 2 collations"?["Petit-déjeuner","Collation","Déjeuner","Collation","Dîner"]:["Petit-déjeuner","Déjeuner","Collation","Dîner"];
+  const pool=c=>seedSort((NU.dishes||[]).filter(x=>x.cat===c&&dishOK(x,d)),CUR||"");
+  const R=pool("Repas"), C=pool("Collation"), P0=pool("Petit-déjeuner"), P=P0.length>=2?P0:[...P0,...C.filter(x=>!P0.includes(x))];
+  const missing=[!w&&"poids",!h&&"taille",!age&&"âge",!d.sex&&"sexe",adj===undefined&&"objectif alimentaire"].filter(Boolean);
+  return {prof:{sex:d.sex==="Femme"?"F":"H",age:age||undefined,h:h||undefined,w:w||undefined,neat,ses:T.nd,dur:T.dmax,adj:adj??0},meals,P,R,C,missing}; }
+function applyNutri(N,T){ const plan=blankNut(); plan.prof=Object.assign({},N.prof); Object.keys(plan.prof).forEach(k=>plan.prof[k]===undefined&&delete plan.prof[k]);
+  NU.plan=plan; nBesoins(); plan.tgt=Object.assign({},NU.calc);
+  let ri=0, ci=0; const pick=(list,i)=>list.length?list[i%list.length]:null;
+  const mealsOf=()=>N.meals.map(name=>{ const cat=name==="Petit-déjeuner"?"P":name==="Collation"?"C":"R"; const L=N[cat]; let opts=[];
+    if(cat==="R"){ opts=[0,1,2].map(j=>pick(L,ri+j)).filter(Boolean); ri+=3; } else if(cat==="C"){ opts=[0,1,2].map(j=>pick(L,ci+j)).filter(Boolean); ci+=3; } else opts=L.slice(0,3);
+    const seen=new Set(); opts=opts.filter(x=>!seen.has(x.id)&&seen.add(x.id));
+    return {name,opts:opts.map(dishSnap)}; });
+  plan.types.forEach(t=>{ ri=0; ci=0; t.meals=mealsOf(); });
+  const R=plan.types.find(t=>t.id==="R"); if(R&&plan.tgt&&plan.tgt.g) R.g=Math.round(plan.tgt.g*0.85);
+  plan.week=T.days.map(on=>on?"E":"R");
+  plan.types.forEach(t=>{ try{ fitType(t); }catch(e){ console.error(e); } });
+  NU.ti=0; NU.nv="plan"; nuSave(); }
+
+// ---------- carte de génération (Athlète, côté coach)
+function genCard(d){ if(!coach()) return "";
+  const T=trainProposal(d), lib=!!(NU.dishes&&NU.foods); if(!lib) Promise.all([nuFoods(),nuDishes()]).then(()=>scheduleRender());
+  const N=lib?nutriProposal(d,T):null, DN=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+  const hasProg=(ST.prog.sessions||[]).some(s=>s&&s.ex&&s.ex.length), hasPlan=!!(NU.plan&&NU.plan.types&&NU.plan.types.some(t=>t.meals.some(m=>m.opts.length)));
+  let h=`<h3 style="margin-top:14px">⚡ Générer à partir du questionnaire</h3>
+   <div class="alert ok small"><b>Entraînement</b> · ${esc(T.level)} · ${T.nd} séances (${T.days.map((v,i)=>v?DN[i]:null).filter(Boolean).join(", ")}) · ${T.dmin} à ${T.dmax} min · ${T.lieu}${T.equip.length?" ("+esc(T.equip.join(", "))+")":""}${T.prio.length?" · priorités : "+esc(T.prio.join(", ")):""}<br>Programme : <b>${T.bank?esc(T.bank.name):"généré sur mesure (split automatique)"}</b> — ${esc(T.why)}</div>
+   <div class="row"><button class="sm" data-act="x14-train">Appliquer au programme</button></div>`;
+  if(!N) h+=`<p class="muted small">Chargement de la bibliothèque de plats…</p>`;
+  else { const few=[["petit-déjeuner",N.P],["repas",N.R],["collation",N.C]].filter(([l,L])=>L.length<3).map(([l,L])=>`${L.length} ${l}`);
+    h+=`<div class="alert ${N.missing.length?"ko":"ok"} small" style="margin-top:10px"><b>Alimentation</b> · ${N.meals.length} prises par jour · ${esc(d.diet||"Omnivore")}${Array.isArray(d.excl)&&d.excl.length?" · "+esc(d.excl.join(", ")):""}${d.dislike?" · sans : "+esc(d.dislike):""}<br>
+     Plats compatibles : ${N.P.length} petits-déjeuners, ${N.R.length} repas, ${N.C.length} collations.${N.missing.length?`<br>Manquant : ${esc(N.missing.join(", "))} (valeurs par défaut utilisées, à corriger dans Suivi → Besoins).`:""}${few.length?`<br>Peu de choix (${esc(few.join(", "))}) : ajoute des plats dans Nutrition → Plats.`:""}</div>
+     <div class="row"><button class="sm" data-act="x14-nutri">Créer le plan alimentaire</button></div>
+     <p class="note">Besoins calculés comme dans « Besoins » (Mifflin-St Jeor), 3 options par repas choisies selon le régime et les exclusions, quantités ajustées aux macros. Jour de repos : glucides −15 %. Tout reste modifiable. Filtres « sans gluten » et « sans lactose » indicatifs, basés sur les ingrédients : pour un client cœliaque ou allergique, vérifie les étiquettes des produits.</p>`; }
+  return h; }
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="x14-train"&&a!=="x14-nutri") return; if(!coach()||!X10.ob) return; const d=X10.ob.data||{}, T=trainProposal(d);
+  if(a==="x14-train"){ const has=(ST.prog.sessions||[]).some(s=>s&&s.ex&&s.ex.length); if(has&&!confirm("Remplacer le programme actuel de ce client (séances, jours, phases) ? Ses 1RM et son carnet sont conservés.")) return;
+    applyTraining(T); toast(T.bank?`« ${T.bank.name} » appliqué au profil`:"Profil appliqué : programme généré automatiquement"); render(); return; }
+  await Promise.all([nuFoods(),nuDishes()]); if(NU.cid!==CUR) await nuEnsure();
+  const has=!!(NU.plan&&NU.plan.types&&NU.plan.types.some(t=>t.meals.some(m=>m.opts.length))); if(has&&!confirm("Remplacer le plan alimentaire actuel de ce client ?")) return;
+  const N=nutriProposal(d,T); if(!N.R.length) return toast("Aucun repas compatible : ajoute des plats dans Nutrition → Plats");
+  applyNutri(N,T); toast(`Plan créé : ${NU.plan.tgt.k} kcal, ${NU.plan.tgt.p} g de protéines`); render(); });
+
 boot();
 
 </script>
