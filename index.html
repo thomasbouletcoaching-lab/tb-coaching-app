@@ -2166,6 +2166,47 @@ async function verCheck(){ if(!navigator.onLine||VER10.shown) return; try{ const
 setTimeout(verCheck,3000); setInterval(verCheck,15*60*1000);
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") verCheck(); });
 
+// ================= MODULE MESSAGES VOCAUX =================
+const REC={on:false,rec:null,stream:null,chunks:[],t0:0,iv:null,mime:"",cancel:false};
+const recOK=()=>!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder);
+const recDur=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
+const _css11=document.createElement("style");
+_css11.textContent=`.maudio{display:block;width:250px;min-width:220px;max-width:100%;height:40px;margin:2px 0}
+button.recon{background:var(--red);color:#fff;font-variant-numeric:tabular-nums}`;
+document.head.appendChild(_css11);
+const _msgRender11=msgRender;
+msgRender=function(){ _msgRender11(); const el=document.getElementById("msgpanel"); if(!el||!MSG.open) return;
+  // lecteurs audio à la place des vignettes
+  MSG.list.forEach(m=>(m.media||[]).forEach(x=>{ if(x.type!=="audio") return; const u=MSG.urls[x.path]; const img=u&&[...el.querySelectorAll("img.mmedia")].find(i=>i.getAttribute("src")===u);
+    if(img){ const a=document.createElement("audio"); a.className="maudio"; a.controls=true; a.preload="metadata"; a.src=u; img.closest("a").replaceWith(a); } }));
+  // bouton micro
+  const send=el.querySelector('[data-act="msg-send"]'); if(!send||!recOK()) return;
+  const b=document.createElement("button"); b.dataset.act="msg-rec"; b.setAttribute("aria-label",REC.on?"Arrêter et envoyer le vocal":"Enregistrer un message vocal");
+  b.className=REC.on?"sm recon":"ghost sm"; b.textContent=REC.on?"⏹ "+recDur((Date.now()-REC.t0)/1000):"🎤"; send.before(b);
+  if(REC.on){ const c=document.createElement("button"); c.className="ghost sm"; c.dataset.act="msg-reccancel"; c.setAttribute("aria-label","Annuler le vocal"); c.textContent="✕"; b.before(c); } };
+async function recStart(){ if(!CUR) return; MSG.err="";
+  try{ REC.stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ MSG.err="Micro inaccessible : autorise-le dans les réglages du téléphone (Réglages → Safari ou TB my Coach → Micro)."; msgRender(); return; }
+  REC.mime=["audio/mp4","audio/webm;codecs=opus","audio/webm","audio/ogg"].find(m=>{ try{ return MediaRecorder.isTypeSupported(m); }catch(e){ return false; } })||"";
+  REC.rec=new MediaRecorder(REC.stream,REC.mime?{mimeType:REC.mime}:undefined); REC.chunks=[]; REC.cancel=false;
+  REC.rec.ondataavailable=e=>{ if(e.data&&e.data.size) REC.chunks.push(e.data); };
+  REC.rec.start(1000); REC.on=true; REC.t0=Date.now();
+  REC.iv=setInterval(()=>{ const s=(Date.now()-REC.t0)/1000; const b=document.querySelector('#msgpanel [data-act="msg-rec"]'); if(b) b.textContent="⏹ "+recDur(s); if(s>=300) recStop(); },500);
+  msgRender(); }
+async function recStop(){ if(!REC.on) return; clearInterval(REC.iv); REC.on=false; const dur=(Date.now()-REC.t0)/1000, cid=CUR;
+  const stopped=new Promise(ok=>REC.rec.onstop=ok); try{ REC.rec.stop(); }catch(e){} await stopped; REC.stream.getTracks().forEach(t=>t.stop());
+  if(REC.cancel||dur<1){ msgRender(); if(!REC.cancel) toast("Vocal trop court"); return; }
+  const type=(REC.rec.mimeType||REC.mime||"audio/mp4").split(";")[0], ext=type.includes("mp4")||type.includes("aac")?"m4a":type.includes("ogg")?"ogg":"webm";
+  const blob=new Blob(REC.chunks,{type}), path=`${cid}/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+  MSG.up="Envoi du vocal…"; msgRender();
+  const {error}=await SB.storage.from("media").upload(path,blob,{contentType:type,upsert:false}); MSG.up=0;
+  if(error){ MSG.err="Vocal non envoyé : "+error.message; msgRender(); return; }
+  if(cid!==CUR) return; await signUrls([path]); await msgSend([{path,type:"audio",dur:Math.round(dur)}]); }
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="msg-rec"&&a!=="msg-reccancel") return;
+  if(a==="msg-reccancel"){ REC.cancel=true; recStop(); return; } if(REC.on) recStop(); else recStart(); });
+// fermer la messagerie ou changer de dossier annule l'enregistrement en cours
+const _msgClose11=msgClose; msgClose=function(){ if(REC.on){ REC.cancel=true; recStop(); } _msgClose11(); };
+
 boot();
 
 </script>
