@@ -2717,6 +2717,51 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
     try{ const out=await veExport(); veClose(); vlUpload(ex,out); }catch(err){ VE.busy=null; veRender(); veLoop(); toast("Montage impossible : "+err.message); } return; }
   veRender(); });
 
+// ================= MODULE CONNEXION : mot de passe fiable entre Safari et l'app installée =================
+// Sur iPhone, l'app installée (écran d'accueil) et Safari ne partagent pas la connexion : les liens reçus par
+// e-mail s'ouvrent dans Safari. Le client doit donc avoir un mot de passe pour se connecter dans l'app installée.
+const REC17=/type=recovery/.test(location.hash+location.search);
+const _afterAuth17=afterAuth;
+afterAuth=async function(session){ if(REC17&&session&&!ST.recDone) AUTH.mode="newpass";
+  await _afterAuth17(session);
+  if(session&&AUTH.mode==="newpass"&&!ST.recDone){ ST.view="auth"; ST.ready=true; render(); } };
+const pwHelp=()=>`<div class="alert ko small" style="margin-top:8px">Pas encore de mot de passe, ou tu l'as oublié ? Appuie sur « Mot de passe oublié », ouvre le lien reçu par e-mail : un écran te demande de <b>choisir ton mot de passe</b>. Reviens ensuite ici et connecte-toi avec ton e-mail et ce mot de passe.</div>`;
+const _vAuth17=vAuth;
+vAuth=function(){ let h=_vAuth17(); const m=AUTH.mode;
+  if(m==="newpass") h=h.replace(`<h2>Nouveau mot de passe</h2><div class="card">`,`<h2>Choisis ton mot de passe</h2><div class="card"><p class="small" style="margin-top:0">8 caractères minimum. Tu l'utiliseras pour te connecter depuis l'app installée sur ton écran d'accueil, avec ton e-mail${EMAIL?` (<b>${esc(EMAIL)}</b>)`:""}.</p>`);
+  if(m==="login"&&/incorrect/.test(AUTH.msg||"")) h=h.replace(/(<div class="alert ko"[^>]*>[^<]*<\/div>)/,`$1${pwHelp()}`);
+  if(m==="login"&&standalone10()) h=h.replace(`<button class="ghost" data-act="au-magic">Recevoir un lien de connexion (sans mot de passe)</button>`,`<button class="ghost" data-act="au-magic">Recevoir un lien de connexion (sans mot de passe)</button></div><p class="note" style="margin-top:4px">Sur iPhone, ce lien s'ouvre dans Safari et non dans l'app installée : pour l'app, utilise ton mot de passe.</p><div>`);
+  return h; };
+const friendly=msg=>/rate limit|security purposes/i.test(msg||"")?"Trop d'e-mails envoyés en peu de temps : attends quelques minutes (jusqu'à une heure) avant de redemander un lien.":msg;
+const _authGo17=authGo;
+authGo=async function(){ const mode=AUTH.mode;
+  if(mode==="signup"){ const email=((document.getElementById("au-email")||{}).value||"").trim(), pass=(document.getElementById("au-pass")||{}).value||""; AUTH.email=email;
+    if(pass.length<8){ AUTH.ok=false; AUTH.msg="8 caractères minimum pour le mot de passe."; return render(); }
+    AUTH.busy=true; AUTH.msg=""; render(); let r; try{ r=await SB.auth.signUp({email,password:pass,options:{emailRedirectTo:location.origin+location.pathname}}); }catch(e){ r={error:e}; } AUTH.busy=false;
+    if(r.error){ AUTH.ok=false; AUTH.msg=friendly(r.error.message); }
+    else if(r.data&&r.data.user&&Array.isArray(r.data.user.identities)&&!r.data.user.identities.length){ AUTH.ok=false; AUTH.msg="Un compte existe déjà avec cet e-mail. Utilise « Mot de passe oublié » pour choisir un nouveau mot de passe."; AUTH.mode="login"; }
+    else { AUTH.ok=true; AUTH.msg=r.data.session?"Compte créé.":"Compte créé : confirme ton adresse avec le lien reçu par e-mail, puis connecte-toi."; }
+    return render(); }
+  await _authGo17();
+  if(AUTH.msg) AUTH.msg=friendly(AUTH.msg);
+  if(mode==="newpass"&&AUTH.ok){ ST.recDone=true; try{ const {data}=await SB.auth.updateUser({data:{pw_set:new Date().toISOString()}}); if(data&&data.user) X10.meta=data.user.user_metadata||X10.meta; }catch(e){}
+    AUTH.mode="login"; AUTH.msg=""; if(location.hash) history.replaceState(null,"",location.pathname);
+    const {data:{session}}=await SB.auth.getSession(); toast("Mot de passe enregistré ✅"); if(session){ ST.view="clients"; await _afterAuth17(session); }
+    alert("Mot de passe enregistré.\n\nDans l'app installée sur ton écran d'accueil, connecte-toi avec ton e-mail et ce mot de passe."); }
+  else render(); };
+// client connecté sans mot de passe choisi dans l'app : on le lui propose
+function pwCard(){ return `<div class="card" id="pwcard"><h3 style="margin-top:0">🔐 Choisis ton mot de passe</h3><p class="small">Indispensable pour te connecter depuis l'app installée sur ton écran d'accueil${isIOS10()&&!standalone10()?" (dans Safari : bouton Partager, puis « Sur l'écran d'accueil »)":""}.</p>
+  <label class="f">Nouveau mot de passe (8 caractères minimum)<input id="pw17" type="password" autocomplete="new-password"></label>
+  <div class="row" style="margin-top:8px"><button class="sm" data-act="x17-pw">Enregistrer</button><button class="ghost sm" data-act="x17-skip">J'ai déjà un mot de passe</button></div></div>`; }
+const _x10After17=x10After;
+x10After=function(){ _x10After17(); if(MODE!=="client"||coach()||X10.meta.pw_set||ST.bilan) return; if(ST.view==="semaine"||ST.view==="compte") $("#app").insertAdjacentHTML("afterbegin",pwCard()); };
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="x17-pw"&&a!=="x17-skip"&&a!=="cp-pass") return;
+  if(a==="x17-skip"){ const {data}=await SB.auth.updateUser({data:{pw_set:"existing"}}); if(data&&data.user) X10.meta=data.user.user_metadata; return render(); }
+  if(a==="cp-pass"){ setTimeout(async()=>{ const {data}=await SB.auth.updateUser({data:{pw_set:new Date().toISOString()}}); if(data&&data.user){ X10.meta=data.user.user_metadata; } },1500); return; }
+  const p=(document.getElementById("pw17")||{}).value||""; if(p.length<8) return toast("8 caractères minimum");
+  b.disabled=true; const {data,error}=await SB.auth.updateUser({password:p,data:{pw_set:new Date().toISOString()}}); b.disabled=false;
+  if(error) return toast("Erreur : "+(/same/i.test(error.message)?"c'est déjà ton mot de passe actuel":error.message)); X10.meta=data.user.user_metadata; toast("Mot de passe enregistré ✅"); render(); });
+
 boot();
 
 </script>
