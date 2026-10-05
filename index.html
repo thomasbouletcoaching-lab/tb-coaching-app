@@ -2637,6 +2637,86 @@ nMesures=function(){ const h=_nMes15(); const dates=Object.keys(NU.mes||{}).sort
   const card=`<div class="card"><h3 style="margin-top:0">Toutes les courbes</h3><div class="mgridc">${cards.join("")}</div><p class="note">Écart = dernière mesure − première. Abscisse proportionnelle aux dates.</p></div>`;
   const i=h.indexOf(`<div class="card"><h3 style="margin-top:0">Historique</h3>`); return i>=0?h.slice(0,i)+card+h.slice(i):h+card; };
 
+// ================= MODULE ÉDITEUR VIDÉO (couper, cadrer) avant ajout à la bibliothèque =================
+const VE={on:false};
+const VFMT=[["orig","Original",0],["9:16","Vertical 9:16",9/16],["4:5","Portrait 4:5",4/5],["1:1","Carré",1],["16:9","Horizontal 16:9",16/9]];
+const _css16=document.createElement("style");
+_css16.textContent=`#vedit{position:fixed;inset:0;z-index:70;background:var(--chalk);overflow-y:auto;padding:calc(10px + env(safe-area-inset-top,0px)) 14px calc(20px + env(safe-area-inset-bottom,0px))}
+#vedit .pv{display:flex;justify-content:center;background:#000;border-radius:12px;padding:6px;margin:8px 0}#vedit canvas{max-width:100%;max-height:46vh;border-radius:6px;background:#111}
+#vedit input[type=range]{width:100%;padding:0;background:transparent;accent-color:var(--blue)}#vedit .lab{display:flex;justify-content:space-between;font-size:.82rem;color:var(--soft);margin-top:8px}
+#vedit .tl{position:relative;height:8px;border-radius:4px;background:var(--line);margin:6px 0 2px}#vedit .tl span{position:absolute;top:0;bottom:0;background:var(--blue);border-radius:4px}`;
+document.head.appendChild(_css16);
+const fmtS=s=>{ s=Math.max(0,s||0); return Math.floor(s/60)+":"+(s%60).toFixed(1).padStart(4,"0"); };
+function veCrop(){ const v=VE.v, w=v.videoWidth, h=v.videoHeight, A=(VFMT.find(f=>f[0]===VE.fmt)||VFMT[0])[2]||w/h;
+  let cw,ch; if(w/h>A){ ch=h; cw=h*A; } else { cw=w; ch=w/A; } cw/=VE.zoom; ch/=VE.zoom;
+  const cx=w/2+VE.ox*(w-cw)/2, cy=h/2+VE.oy*(h-ch)/2; return {sx:Math.max(0,cx-cw/2),sy:Math.max(0,cy-ch/2),cw,ch}; }
+function veOut(c){ const sc=Math.min(1,720/Math.min(c.cw,c.ch)); return {W:Math.round(c.cw*sc/2)*2,H:Math.round(c.ch*sc/2)*2}; }
+function veDraw(){ const cv=document.getElementById("ve-cv"); if(!cv||!VE.v||!VE.v.videoWidth) return; const c=veCrop(), o=veOut(c), k=Math.min(1,480/Math.max(o.W,o.H));
+  cv.width=Math.round(o.W*k); cv.height=Math.round(o.H*k); cv.getContext("2d").drawImage(VE.v,c.sx,c.sy,c.cw,c.ch,0,0,cv.width,cv.height); }
+function veLoop(){ if(!VE.on) return; const v=VE.v; if(v&&!v.paused&&v.currentTime>=VE.end-0.03){ v.currentTime=VE.start; } veDraw(); const t=document.getElementById("ve-t"); if(t&&v) t.textContent=fmtS(v.currentTime); VE.raf=requestAnimationFrame(veLoop); }
+function veHTML(){ const d=VE.dur||0;
+  return `<div class="row"><b class="grow">Ajuster la vidéo · ${esc(VE.ex)}</b><button class="ghost sm" data-act="ve-x">Annuler</button></div>
+   <div class="pv"><canvas id="ve-cv"></canvas></div>
+   <div class="row" style="justify-content:center"><button class="ghost sm" data-act="ve-play">${VE.v&&!VE.v.paused?"⏸ Pause":"▶ Lire l'extrait"}</button><span class="muted small" id="ve-t">${fmtS(VE.start)}</span></div>
+   <h3 style="margin:12px 0 0">Durée</h3>
+   <div class="tl"><span style="left:${d?VE.start/d*100:0}%;right:${d?100-VE.end/d*100:0}%"></span></div>
+   <div class="lab"><span>Début ${fmtS(VE.start)}</span><button class="linkbtn" style="font-size:.85rem" data-act="ve-here" data-v="start">Placer ici</button></div><input type="range" min="0" max="${d}" step="0.1" value="${VE.start}" data-ve="start">
+   <div class="lab"><span>Fin ${fmtS(VE.end)}</span><button class="linkbtn" style="font-size:.85rem" data-act="ve-here" data-v="end">Placer ici</button></div><input type="range" min="0" max="${d}" step="0.1" value="${VE.end}" data-ve="end">
+   <div class="muted small">Durée gardée : ${fmtS(VE.end-VE.start)}</div>
+   <h3 style="margin:12px 0 4px">Cadrage</h3><div class="row">${VFMT.map(([k,l])=>`<button class="chip ${VE.fmt===k?"on":""}" data-act="ve-fmt" data-v="${k}">${l}</button>`).join("")}</div>
+   <div class="lab"><span>Zoom</span><span>× ${VE.zoom.toFixed(2)}</span></div><input type="range" min="1" max="3" step="0.05" value="${VE.zoom}" data-ve="zoom">
+   <div class="lab"><span>← Position horizontale →</span></div><input type="range" min="-1" max="1" step="0.02" value="${VE.ox}" data-ve="ox">
+   <div class="lab"><span>↑ Position verticale ↓</span></div><input type="range" min="-1" max="1" step="0.02" value="${VE.oy}" data-ve="oy">
+   <div class="row" style="margin-top:6px"><button class="ghost sm" data-act="ve-center">Recentrer</button></div>
+   <label class="ck" style="margin-top:10px"><input type="checkbox" data-ve="sound" ${VE.sound?"checked":""}><span>Garder le son</span></label>
+   ${VE.busy?`<div class="alert ok">${esc(VE.busy)}</div>`:`<div class="row" style="margin-top:10px"><button class="ok" data-act="ve-save">Enregistrer la vidéo</button><button class="ghost sm" data-act="ve-raw">Envoyer sans modifier</button></div>`}
+   <p class="note">Le montage se fait sur ton téléphone, en temps réel : compte la durée de l'extrait. Résultat en 720p maximum.</p>`; }
+function veRender(){ let el=document.getElementById("vedit"); if(!VE.on){ if(el) el.remove(); return; } if(!el){ el=document.createElement("div"); el.id="vedit"; document.body.appendChild(el); }
+  const y=el.scrollTop; el.innerHTML=veHTML(); el.scrollTop=y; veDraw(); }
+async function veOpen(ex,file){ veClose(); const url=URL.createObjectURL(file), v=document.createElement("video"); v.src=url; v.muted=true; v.playsInline=true; v.setAttribute("playsinline",""); v.preload="auto"; v.style.cssText="position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none"; document.body.appendChild(v);
+  Object.assign(VE,{on:true,ex,file,url,v,start:0,end:0,dur:0,fmt:"orig",zoom:1,ox:0,oy:0,sound:true,busy:"Chargement de la vidéo…"}); veRender();
+  try{ await new Promise((ok,ko)=>{ v.onloadedmetadata=ok; v.onerror=()=>ko(new Error("format non lu par ce téléphone")); setTimeout(()=>ko(new Error("délai dépassé")),15000); });
+    VE.dur=isFinite(v.duration)?v.duration:0; VE.end=VE.dur; VE.busy=null; v.currentTime=0.01; await new Promise(ok=>{ v.onseeked=ok; setTimeout(ok,1500); }); veRender(); veLoop(); }
+  catch(e){ toast("Lecture impossible : "+e.message+". Envoi sans modification."); const f=file; veClose(); vlUpload(ex,f); } }
+function veClose(){ VE.on=false; cancelAnimationFrame(VE.raf); if(VE.v){ try{ VE.v.pause(); VE.v.remove(); }catch(e){} } if(VE.url) URL.revokeObjectURL(VE.url); VE.v=null; VE.url=null; veRender(); }
+async function veExport(){ const v=VE.v, c=veCrop(), o=veOut(c);
+  const mime=["video/mp4;codecs=avc1","video/mp4","video/webm;codecs=vp9","video/webm"].find(m=>{ try{ return MediaRecorder.isTypeSupported(m); }catch(e){ return false; } });
+  if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream||!mime) throw new Error("montage non pris en charge par ce navigateur");
+  const cv=document.createElement("canvas"); cv.width=o.W; cv.height=o.H; const ctx=cv.getContext("2d"); const stream=cv.captureStream(30);
+  let actx=null; if(VE.sound){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); const src=actx.createMediaElementSource(v), dst=actx.createMediaStreamDestination(); src.connect(dst); dst.stream.getAudioTracks().forEach(t=>stream.addTrack(t)); v.muted=false; }catch(e){ actx=null; v.muted=true; } }
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:2500000}), chunks=[]; rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); }; const stopped=new Promise(ok=>rec.onstop=ok);
+  v.loop=false; v.currentTime=VE.start; ctx.drawImage(v,c.sx,c.sy,c.cw,c.ch,0,0,o.W,o.H); rec.start(500); await v.play(); // lancé dans le geste (exigence iPhone)
+  await new Promise(ok=>{ const tick=()=>{ if(v.currentTime>=VE.end-0.02||v.ended){ ok(); return; } ctx.drawImage(v,c.sx,c.sy,c.cw,c.ch,0,0,o.W,o.H);
+      const p=document.getElementById("ve-busy"); VE.busy=`Montage en cours… ${Math.round((v.currentTime-VE.start)/Math.max(0.1,VE.end-VE.start)*100)} %`; if(p) p.textContent=VE.busy; else { const al=document.querySelector("#vedit .alert"); if(al) al.textContent=VE.busy; } requestAnimationFrame(tick); }; tick(); });
+  v.pause(); rec.stop(); await stopped; if(actx) actx.close().catch(()=>{}); v.muted=true;
+  const type=mime.split(";")[0]; const out=new File([new Blob(chunks,{type})],"demo."+(type.includes("mp4")?"mp4":"webm"),{type}); if(!out.size) throw new Error("vidéo vide"); return out; }
+// envoi vers la bibliothèque (même logique que l'ajout direct)
+async function vlUpload(ex,f){ VL.busy=ex; vlRefresh();
+  try{ if(f.size>20*1024*1024){ try{ f=await compressVideo(f); }catch(err){} }
+    if(f.size>50*1024*1024) throw new Error("vidéo trop lourde (50 Mo max) : garde un extrait plus court");
+    const type=f.type||"video/mp4", ext=(type.split("/")[1]||"mp4").replace("quicktime","mov"), slug=nrm(ex).replace(/[^a-z0-9]+/g,"-").slice(0,40), path=`lib/${UID}/${slug}_${Date.now()}.${ext}`;
+    const {error}=await SB.storage.from("media").upload(path,f,{contentType:type,upsert:false}); if(error) throw error;
+    const old=VL.map[ex]; const {data,error:e2}=await SB.from("video_lib").upsert({coach_id:UID,ex,kind:"file",path,url:null,updated_at:new Date().toISOString()}).select().single(); if(e2) throw e2;
+    VL.map[ex]=data; if(old&&old.kind==="file"&&old.path) SB.storage.from("media").remove([old.path]).then(()=>{}); toast("Vidéo ajoutée"); }
+  catch(err){ toast("Envoi impossible : "+err.message); }
+  VL.busy=null; vlRefresh(); }
+// le choix d'un fichier ouvre l'éditeur au lieu d'envoyer directement
+document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||el.dataset.vlfile===undefined||!el.files||!el.files[0]) return; e.stopImmediatePropagation(); const f=el.files[0]; el.value=""; veOpen(el.dataset.vlfile,f); },true);
+document.addEventListener("input",e=>{ const el=e.target; if(!VE.on||!el.dataset||el.dataset.ve===undefined) return; const k=el.dataset.ve; if(k==="sound") return; let x=+el.value;
+  if(k==="start"){ VE.start=Math.min(x,VE.end-0.3); if(VE.v) VE.v.currentTime=VE.start; } else if(k==="end"){ VE.end=Math.max(x,VE.start+0.3); if(VE.v) VE.v.currentTime=VE.end; } else VE[k]=x;
+  veDraw(); if(k==="start"||k==="end"){ const lab=el.previousElementSibling; if(lab) lab.firstElementChild.textContent=(k==="start"?"Début ":"Fin ")+fmtS(VE[k]); const bar=document.querySelector("#vedit .tl span"); if(bar){ bar.style.left=VE.start/VE.dur*100+"%"; bar.style.right=(100-VE.end/VE.dur*100)+"%"; } } });
+document.addEventListener("change",e=>{ const el=e.target; if(!VE.on||!el.dataset||el.dataset.ve===undefined) return; if(el.dataset.ve==="sound") VE.sound=el.checked; else veRender(); });
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(!/^ve-/.test(a)||!VE.on) return; const v=VE.v;
+  if(a==="ve-x") return veClose();
+  if(a==="ve-play"){ if(!v) return; if(v.paused){ if(v.currentTime<VE.start||v.currentTime>=VE.end-0.05) v.currentTime=VE.start; v.play().catch(()=>{}); } else v.pause(); }
+  else if(a==="ve-here"){ if(!v) return; if(b.dataset.v==="start") VE.start=Math.min(v.currentTime,VE.end-0.3); else VE.end=Math.max(v.currentTime,VE.start+0.3); }
+  else if(a==="ve-fmt"){ VE.fmt=b.dataset.v; VE.ox=0; VE.oy=0; }
+  else if(a==="ve-center"){ VE.ox=0; VE.oy=0; VE.zoom=1; }
+  else if(a==="ve-raw"){ const f=VE.file, ex=VE.ex; veClose(); return vlUpload(ex,f); }
+  else if(a==="ve-save"){ const ex=VE.ex; VE.busy="Montage en cours… 0 %"; cancelAnimationFrame(VE.raf); veRender();
+    try{ const out=await veExport(); veClose(); vlUpload(ex,out); }catch(err){ VE.busy=null; veRender(); veLoop(); toast("Montage impossible : "+err.message); } return; }
+  veRender(); });
+
 boot();
 
 </script>
