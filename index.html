@@ -2920,6 +2920,34 @@ document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); i
   else if(v==="msg"){ msgOpen(); return; }
   render(); },true);
 
+// ================= MODULE NOTES PRIVÉES DU COACH (par client, jamais visibles du client) =================
+const CN={cid:null,list:[],busy:false,open:false};
+async function cnLoad(cid){ if(!SB||!cid) return; CN.busy=true;
+  const {data,error}=await SB.from("coach_notes").select("id,body,pinned,created_at").eq("client_id",cid).order("created_at",{ascending:false}).range(0,499);
+  CN.busy=false; if(CUR!==cid) return; CN.cid=cid; CN.list=error?[]:(data||[]); if(error) console.error(error); if(coach()&&ST.view==="tableau") render(); }
+function vNotes(){ if(CN.cid!==CUR){ if(!CN.busy) cnLoad(CUR); return `<div class="card muted small">Chargement des notes…</div>`; }
+  const L=[...CN.list].sort((a,b)=>(b.pinned-a.pinned)||(b.created_at<a.created_at?-1:1)), n=L.length;
+  const it=x=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><div class="row" style="flex-wrap:nowrap;gap:6px"><span class="muted small grow">${x.pinned?"📌 ":""}${new Date(x.created_at).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}</span>
+    <button class="ghost sm" data-act="cn-pin" data-v="${x.id}" aria-label="${x.pinned?"Désépingler":"Épingler"}">${x.pinned?"Désépingler":"📌"}</button><button class="ghost sm" data-act="cn-del" data-v="${x.id}" aria-label="Supprimer la note">🗑</button></div>
+    <div style="white-space:pre-wrap">${esc(x.body)}</div></div>`;
+  return `<details class="card" id="cn-card"${CN.open?" open":""}><summary><b>📝 Notes privées</b> <span class="muted small">(${n}) · visibles par toi uniquement</span></summary>
+    <label class="f" style="margin-top:8px">Nouvelle note<textarea id="cn-new" rows="3" maxlength="5000" placeholder="Ex. : contexte, contraintes d'agenda, points à surveiller, idées pour le prochain cycle…">${esc(ST.cnDraft||"")}</textarea></label>
+    <div class="row" style="margin-top:6px"><button class="sm" data-act="cn-add">Ajouter</button></div>
+    ${n?L.map(it).join(""):`<p class="muted small">Aucune note pour l'instant.</p>`}
+    <p class="note">Évite d'y noter des données de santé détaillées : seulement ce qui est utile au suivi.</p></details>`; }
+const _vTableau22=vTableau;
+vTableau=function(){ return vNotes()+_vTableau22(); };
+document.addEventListener("toggle",e=>{ if(e.target&&e.target.id==="cn-card") CN.open=e.target.open; },true);
+document.addEventListener("input",e=>{ if(e.target&&e.target.id==="cn-new") ST.cnDraft=e.target.value; });
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(!/^cn-/.test(a)||!coach()||!CUR) return;
+  const cid=CUR;
+  if(a==="cn-add"){ const body=((document.getElementById("cn-new")||{}).value||"").trim(); if(!body) return toast("Note vide");
+    b.disabled=true; const {data,error}=await SB.from("coach_notes").insert({client_id:cid,body}).select("id,body,pinned,created_at").single(); b.disabled=false;
+    if(error) return toast("Non enregistrée : "+error.message); ST.cnDraft=""; if(CN.cid===cid) CN.list.unshift(data); toast("Note ajoutée"); return render(); }
+  const id=b.dataset.v, x=CN.list.find(n=>n.id===id); if(!x) return;
+  if(a==="cn-pin"){ const {error}=await SB.from("coach_notes").update({pinned:!x.pinned}).eq("id",id); if(error) return toast(error.message); x.pinned=!x.pinned; return render(); }
+  if(a==="cn-del"){ if(!confirm("Supprimer cette note ?")) return; const {error}=await SB.from("coach_notes").delete().eq("id",id); if(error) return toast(error.message); CN.list=CN.list.filter(n=>n.id!==id); toast("Note supprimée"); render(); } });
+
 boot();
 
 </script>
