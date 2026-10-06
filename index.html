@@ -2815,6 +2815,61 @@ shareInvite=function(email,name){ const txt=`Salut ${name?name.split(" ")[0]:""}
 const _vAuth19=vAuth;
 vAuth=function(){ if(/error sending|unexpected_failure|smtp/i.test(AUTH.msg||"")){ AUTH.ok=false; AUTH.msg="L'envoi d'e-mail est momentanément indisponible. Demande à ton coach un mot de passe provisoire : il peut te le créer depuis son espace."; } return _vAuth19(); };
 
+// ================= MODULE « À TRAITER AUJOURD'HUI » (coach) =================
+const TD={data:null,at:0,busy:false};
+const tdDone=k=>{ try{ return localStorage.getItem("tb-td-"+k)===todayISO(); }catch(e){ return false; } };
+const tdMark=k=>{ try{ localStorage.setItem("tb-td-"+k,todayISO()); }catch(e){} };
+async function loadTodo(){ if(TD.busy||(TD.data&&Date.now()-TD.at<60000)) return; TD.busy=true;
+  try{ const ids=CLIENTS.filter(c=>c.coach_id===UID&&!c.archived).map(c=>c.id); const D={}; ids.forEach(id=>D[id]={missed:0,ob:null,end:null,bilan:false,late:0,lateAmt:0});
+    if(ids.length){ const since=new Date(Date.now()-7*864e5).toISOString();
+      const [ms,ob,pr,pay]=await Promise.all([
+        SB.from("carnet").select("client_id,k,data").in("client_id",ids).like("k","%\\_t\\_%").gte("updated_at",since).range(0,4999),
+        SB.from("onboarding").select("client_id,submitted_at").in("client_id",ids).not("submitted_at","is",null),
+        SB.from("clients").select("id,start:program->profile->>start,phases:program->phases,bilan:program->bilan").in("id",ids),
+        SB.from("biz_payments").select("client_id,client_name,amount,due").eq("status","attendu").lt("due",todayISO()).range(0,999)]);
+      (ms.data||[]).forEach(r=>{ if(r.data&&r.data.missed&&D[r.client_id]) D[r.client_id].missed++; });
+      (ob.data||[]).forEach(r=>{ if(D[r.client_id]) D[r.client_id].ob=r.submitted_at; });
+      (pr.data||[]).forEach(r=>{ const o=D[r.id]; if(!o||!/^\d{4}-\d{2}-\d{2}$/.test(r.start||"")) return; const n=Array.isArray(r.phases)?r.phases.length:12; o.end=addDays(r.start,7*n-1); o.bilan=!!(r.bilan&&(r.bilan.note||r.bilan.next)); });
+      (pay.data||[]).forEach(r=>{ const o=D[r.client_id]; if(o){ o.late++; o.lateAmt+=+r.amount||0; } }); }
+    TD.data=D; TD.at=Date.now(); }
+  catch(e){ console.error(e); }
+  TD.busy=false; render(); }
+function todoItems(){ const today=todayISO(), out=[];
+  CLIENTS.filter(c=>c.coach_id===UID&&!c.archived).forEach(c=>{ const o=(OV.data||{})[c.id]||{}, t=(TD.data||{})[c.id]||{}, nm=esc(c.name);
+    const add=(k,p,ic,txt,act,btn)=>{ if(!tdDone(c.id+":"+k)) out.push({p,k:c.id+":"+k,id:c.id,h:`<span style="font-size:1.2rem">${ic}</span><div class="grow"><b>${nm}</b><div class="small">${txt}</div></div><button class="sm" data-act="td-go" data-v="${c.id}" data-to="${act}">${btn}</button><button class="ghost sm" data-act="td-ok" data-v="${c.id}:${k}" aria-label="Marquer comme traité">✓</button>`}); };
+    if(o.unread) add("msg",1,"💬",`${o.unread} message${o.unread>1?"s":""} non lu${o.unread>1?"s":""}`,"msg","Lire");
+    if(o.pain) add("pain",1,"⚠️","Douleur signalée cette semaine","jour","Voir");
+    if(o.checkin) add("ci"+o.checkin,2,"📋",`Bilan de la semaine ${o.checkin} à commenter`,"ci:"+o.checkin,"Commenter");
+    if(t.missed) add("miss",2,"✗",`${t.missed} séance${t.missed>1?"s":""} loupée${t.missed>1?"s":""} ces 7 derniers jours`,"msg","Écrire");
+    let seen=null; try{ seen=localStorage.getItem("tb-obseen-"+c.id); }catch(e){} if(t.ob&&seen!==t.ob) add("ob",2,"📝","Questionnaire de démarrage à lire","ob","Lire");
+    if(t.late) add("pay",2,"💶",`${t.late} paiement${t.late>1?"s":""} en retard (${fmtE(t.lateAmt)})`,"pay","Business");
+    if(t.end){ const dl=Math.round((new Date(t.end+"T12:00:00")-new Date(today+"T12:00:00"))/864e5);
+      if(dl<0&&dl>-30&&!t.bilan) add("bil",2,"🏁",`Cycle terminé le ${frDate(t.end)} : bilan à rédiger`,"bilan","Bilan");
+      else if(dl>=0&&dl<=14) add("end",3,"⏳",`Fin de cycle dans ${dl} jour${dl>1?"s":""} : préparer le bilan et la suite`,"bilan","Bilan"); }
+    const days=o.last?Math.floor((Date.now()-new Date(o.last))/864e5):null;
+    if(OV.data&&(days===null||days>=5)) add("idle",3,"😴",days===null?"Aucune saisie depuis plus de 14 jours":`Aucune saisie depuis ${days} jours`,"msg","Relancer"); });
+  return out.sort((a,b)=>a.p-b.p); }
+function vTodo(){ if(!TD.data) loadTodo(); else setTimeout(loadTodo,0); if(!OV.data) return "";
+  const L=todoItems();
+  return `<div class="card"><h3 style="margin-top:0">À traiter aujourd'hui${L.length?` <span class="chip on">${L.length}</span>`:""}</h3>${L.length?L.map(x=>`<div class="row" style="padding:8px 0;border-top:1px solid var(--line);flex-wrap:nowrap;gap:8px">${x.h}</div>`).join(""):`<p class="muted small">Rien en attente 👌 Tous tes clients sont à jour.</p>`}
+   ${L.length?`<p class="note">✓ = traité, masqué jusqu'à demain. Les messages et bilans disparaissent d'eux-mêmes une fois lus ou commentés.</p>`:""}</div>`; }
+const _vClients20=vClients;
+vClients=function(){ return vTodo()+_vClients20(); };
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="td-go"&&a!=="td-ok") return;
+  if(a==="td-ok"){ tdMark(b.dataset.v); return render(); }
+  const id=b.dataset.v, to=b.dataset.to||"";
+  if(to==="pay"){ CUR=null; M=null; ST.view="biz"; bzEnsure(); window.scrollTo(0,0); return render(); }
+  await openClient(id); OV.at=0; TD.at=0;
+  if(to==="msg") msgOpen();
+  else if(to.startsWith("ci:")){ ST.view="carnet"; ST.week=+to.slice(3); }
+  else if(to==="ob"){ ST.view="athlete"; try{ localStorage.setItem("tb-obseen-"+id,(TD.data[id]||{}).ob||""); }catch(err){} }
+  else if(to==="bilan") ST.bilan=true;
+  else if(to==="jour"){ ST.view="nutrition"; NU.nv="journal"; }
+  window.scrollTo(0,0); render(); });
+// ouvrir le questionnaire depuis Athlète le marque comme lu
+const _vObCoach20=vObCoach;
+vObCoach=function(){ const h=_vObCoach20(); if(X10.ob&&X10.ob.submitted_at&&CUR){ try{ localStorage.setItem("tb-obseen-"+CUR,X10.ob.submitted_at); }catch(e){} } return h; };
+
 boot();
 
 </script>
