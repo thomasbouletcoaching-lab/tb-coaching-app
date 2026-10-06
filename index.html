@@ -2762,6 +2762,25 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   b.disabled=true; const {data,error}=await SB.auth.updateUser({password:p,data:{pw_set:new Date().toISOString()}}); b.disabled=false;
   if(error) return toast("Erreur : "+(/same/i.test(error.message)?"c'est déjà ton mot de passe actuel":error.message)); X10.meta=data.user.user_metadata; toast("Mot de passe enregistré ✅"); render(); });
 
+// ================= MODULE PAS PAR JOUR PRÉCIS (besoins nutritionnels) =================
+// Le nombre de pas saisi au clavier est converti en coefficient d'activité sur la même échelle que le menu
+// (≈ 3 000 pas → 1,2 · 6 500 → 1,35 · 10 000 → 1,5 · 14 000 → 1,65, puis +0,0375 par 1 000 pas, plafonné à 2,0).
+function neatFromSteps(s){ s=+s; if(!(s>0)) return null; const A=[[3000,1.2],[6500,1.35],[10000,1.5],[14000,1.65]];
+  if(s<=A[0][0]) return 1.2; for(let i=1;i<A.length;i++) if(s<=A[i][0]){ const [x0,y0]=A[i-1],[x1,y1]=A[i]; return y0+(s-x0)*(y1-y0)/(x1-x0); }
+  return Math.min(2,1.65+(s-14000)*0.0000375); }
+const _nBesoins18=nBesoins;
+nBesoins=function(){ const P=NU.plan, f=P.prof||(P.prof={}), nf=neatFromSteps(f.steps); const saved=f.neat;
+  if(nf) f.neat=nf; let h; try{ h=_nBesoins18(); } finally{ if(nf){ if(saved===undefined) delete f.neat; else f.neat=saved; } }
+  const inp=`<label class="f" style="flex-basis:100%;margin-top:6px">Ou nombre de pas précis par jour (au clavier)<input data-nk="prof.steps" data-t="n" inputmode="numeric" value="${esc(f.steps??"")}" placeholder="ex. 17000"></label>${nf?`<div class="muted small" style="flex-basis:100%">${fmtN(+f.steps)} pas/jour → coefficient d'activité ${fmtN(round(nf,2))} (remplace le choix du menu). Efface le nombre pour revenir au menu.</div>`:""}`;
+  return h.replace(/(<label class="f" style="flex-basis:100%">Activité hors séances[\s\S]*?<\/select><\/label>)/,`$1${inp}`)
+    .replace(/(Activité hors séances)(<select[^>]*>)/,nf?`$1 <span class="chip">pas précis utilisés</span>$2<option value="" selected disabled>Remplacé par le nombre de pas précis</option>`:"$1$2"); };
+// choisir une fourchette dans le menu efface le nombre précis (et inversement, le nombre précis prend le dessus)
+document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||el.dataset.nk!=="prof.neat"||!NU.plan||!coach()) return; if(NU.plan.prof) delete NU.plan.prof.steps; },true);
+// questionnaire de démarrage : pas précis optionnels, repris par le générateur
+(()=>{ const q=OBQ.find(s=>s[0]==="Ton quotidien"); if(!q) return; const i=q[1].findIndex(f=>f[0]==="activity"); q[1].splice(i+1,0,["steps_n","num","Nombre de pas moyen par jour, si tu le connais (montre, téléphone)"]); })();
+const _nutriProposal18=nutriProposal;
+nutriProposal=function(d,T){ const N=_nutriProposal18(d,T); const s=parseInt(String(d.steps_n||"").replace(/\D/g,"")); if(s>0) N.prof.steps=s; return N; };
+
 boot();
 
 </script>
