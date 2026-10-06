@@ -3011,10 +3011,10 @@ const sMove=(w,S)=>{ const v=ST.carnet&&ST.carnet[w+"_d_"+S.s]; return v&&v.day!
 const sDay=(w,S)=>{ const m=sMove(w,S); return m==null?S.dayOff:m; };
 const sActive=(w,S)=>!!(S.day&&S.rows.some(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff));
 // applique les déplacements de la semaine w le temps d'un rendu (jour affiché + ordre des séances)
-function withMoves(w,fn){ if(!M||!M.sessions) return fn(); const saved=M.sessions.map(S=>[S,S.day,S.dayOff]), order=M.sessions.slice();
-  M.sessions.forEach(S=>{ const m=sMove(w,S); if(m!=null){ S.dayOff=m; S.day=DAYS[m]; } }); M.sessions.sort((a,b)=>a.dayOff-b.dayOff||a.s-b.s);
+function withMoves(w,fn,sort){ if(!M||!M.sessions) return fn(); const saved=M.sessions.map(S=>[S,S.day,S.dayOff]), order=M.sessions.slice();
+  M.sessions.forEach(S=>{ const m=sMove(w,S); if(m!=null){ S.dayOff=m; S.day=DAYS[m]; } }); if(sort) M.sessions.sort((a,b)=>a.dayOff-b.dayOff||a.s-b.s);
   try{ return fn(); } finally{ saved.forEach(([S,d,o])=>{ S.day=d; S.dayOff=o; }); M.sessions.splice(0,M.sessions.length,...order); } }
-const _vSemaine24=vSemaine; vSemaine=function(){ return withMoves(ST.week,()=>_vSemaine24()); };
+const _vSemaine24=vSemaine; vSemaine=function(){ return ST.printProg?_vSemaine24():withMoves(ST.week,()=>_vSemaine24(),true); };
 const _vCarnet24=vCarnet; vCarnet=function(){ return withMoves(ST.week,()=>_vCarnet24()); };
 const _vToday24=vToday; vToday=function(){ return withMoves(M.cw,()=>_vToday24()); };
 todaySession=function(){ if(!M||!M.sessions) return null; const t=todayISO();
@@ -3045,7 +3045,7 @@ function moveBox(w,S){ const d0=M.dateOf(w), cur=sDay(w,S), orig=S.dayOff;
   if(CAL.mv!==w+"_"+S.s) return `<div class="row" style="margin-top:6px"><button class="ghost sm" data-act="mv-open" data-v="${w}_${S.s}">📅 Déplacer${sMove(w,S)!=null?` <span class="muted small">(prévue le ${DAYS[orig].toLowerCase()})</span>`:""}</button></div>`;
   return `<div style="margin-top:6px"><div class="small muted">Déplacer cette séance (semaine ${w} uniquement) :</div><div class="row" style="gap:4px;margin-top:4px">${DAYS10.map((x,i)=>{ const dt=new Date(d0.getTime()+i*864e5); return `<button class="${i===cur?"":"ghost "}sm" data-act="mv-set" data-v="${w}_${S.s}_${i}">${x} ${dt.getDate()}</button>`; }).join("")}<button class="ghost sm" data-act="mv-open" data-v="">Annuler</button></div></div>`; }
 const _vSemaine24b=vSemaine;
-vSemaine=function(){ const w=ST.week; let h=_vSemaine24b(); const L=M.sessions.filter(S=>sActive(w,S)).sort((a,b)=>sDay(w,a)-sDay(w,b)||a.s-b.s); let i=0;
+vSemaine=function(){ if(ST.printProg) return _vSemaine24b(); const w=ST.week; let h=_vSemaine24b(); const L=M.sessions.filter(S=>sActive(w,S)).sort((a,b)=>sDay(w,a)-sDay(w,b)||a.s-b.s); let i=0;
   h=h.replace(/<div class="card ses"><h3>[\s\S]*?(?=<div class="card ses"><h3>|$)/g,blk=>{ const S=L[i++]; if(!S) return blk; const j=blk.lastIndexOf("</div>"); return j<0?blk:blk.slice(0,j)+moveBox(w,S)+blk.slice(j); });
   return (w===M.cw||CAL.open?vCalendar():"")+h; };
 const _css24=document.createElement("style"); _css24.textContent=`.calg{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}.calc{min-height:46px;padding:3px 2px;display:flex;flex-direction:column;align-items:center;gap:1px;background:transparent;color:var(--fg,inherit);border:1px solid var(--line);border-radius:8px;font-weight:400}.calc.has{font-weight:700}.calc.now{outline:2px solid var(--acc,#2563eb)}.calc span{font-size:.8rem}.cs{font-style:normal;font-size:.75rem;line-height:1}.cs.done{color:var(--green,#16a34a)}.cs.miss{color:var(--red,#dc2626)}.cs.todo,.cs.today,.cs.run{color:var(--acc,#2563eb)}.cs.past{color:var(--muted,#888)}`; document.head.appendChild(_css24);
@@ -3059,6 +3059,46 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
     const other=M.sessions.find(x=>x!==S&&sActive(w,x)&&sDay(w,x)===d); if(other&&!confirm(`${other.name} est déjà prévue ce jour-là. Faire les deux le même jour ?`)) return;
     if(d===S.dayOff) delete ST.carnet[k]; else ST.carnet[k]={day:d,at:new Date().toISOString()}; CAL.mv=null; render(); await saveCarnet(k);
     toast(d===S.dayOff?"Séance remise à son jour prévu":`Séance déplacée au ${DAYS[d].toLowerCase()} ${new Date(M.dateOf(w).getTime()+d*864e5).getDate()}`); } });
+
+// ================= MODULE « MES RECORDS » =================
+function recordsAll(skip){ const R={};
+  Object.entries(ST.carnet||{}).forEach(([k,v])=>{ if(k===skip||!/^\d+_\d+_\d+$/.test(k)) return; const o=rowOf(k); if(!o.r) return; const name=v.ex||o.r.ex; if(!name) return;
+    const sets=setsOf(v).filter(x=>x.g!=null&&x.g!==""&&x.h!=null&&x.h!==""&&+x.h>0); if(!sets.length) return; const type=typeOfName(name,v.ex?null:o.r), add=sysAdd(type,M.pdc);
+    const e=R[name]=R[name]||{name,type,n:0,e1:null,top:null,reps:null,first:null};
+    sets.forEach(x=>{ const g=+x.g, h=+x.h; e.n++; const s=sysOf(g,h,x.r==null||x.r===""?null:+x.r,add)-add;
+      if(!e.first||o.w<e.first.w||(o.w===e.first.w&&s<e.first.v)) e.first={v:s,w:o.w};
+      if(!e.e1||s>e.e1.v+1e-9) e.e1={v:s,w:o.w,g,h,r:x.r};
+      if(!e.top||g>e.top.g||(g===e.top.g&&h>e.top.h)) e.top={g,h,w:o.w};
+      if(type==="Lesté"&&g===0&&(!e.reps||h>e.reps.h)) e.reps={h,w:o.w}; }); });
+  return R; }
+const recU=(t,g)=>t==="Lesté"?(g>0?"+"+fmtN(g)+" kg":"poids du corps"):t==="Haltères"?fmtN(g)+" kg/h.":fmtN(g)+" kg";
+const recW=w=>`S${w} · ${M.dateOf(w).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}`;
+const RCV={all:false};
+function vRecords(){ const R=Object.values(recordsAll()); if(!R.length) return `<div class="card"><h3 style="margin-top:0">🏆 Mes records</h3><p class="muted small">Tes records apparaîtront ici dès tes premières séries notées dans le carnet.</p></div>`;
+  const tr=new Set(M.tracked.filter(t=>t.name).map(t=>t.name)), recent=w=>w>=M.cw-1;
+  R.sort((a,b)=>(tr.has(b.name)-tr.has(a.name))||(b.e1.w-a.e1.w)||b.n-a.n);
+  const L=RCV.all?R:R.slice(0,8), nNew=R.filter(e=>recent(e.e1.w)||recent(e.top.w)).length;
+  const it=e=>{ const gain=e.first&&e.e1.w>e.first.w&&e.first.v>0?Math.round((e.e1.v/e.first.v-1)*100):null;
+    return `<div style="padding:8px 0;border-top:1px solid var(--line)"><div class="row" style="flex-wrap:nowrap"><b class="grow">${tr.has(e.name)?"⭐ ":""}${esc(e.name)}</b>${recent(e.e1.w)||recent(e.top.w)?`<span class="chip on">nouveau</span>`:""}</div>
+      <div class="small">Charge max : <b>${recU(e.type,e.top.g)} × ${fmtN(e.top.h)}</b> <span class="muted">(${recW(e.top.w)})</span>${e.reps&&e.type==="Lesté"?` · max au poids du corps : <b>${fmtN(e.reps.h)} reps</b>`:""}</div>
+      ${e.e1.v>0?`<div class="small">1RM estimé : <b>${recU(e.type,round(e.e1.v,1))}</b> <span class="muted">(${recW(e.e1.w)}${gain!=null&&gain>0?` · +${gain} % depuis S${e.first.w}`:""})</span></div>`:""}
+      <div class="row" style="margin-top:4px"><button class="ghost sm" data-act="rec-hist" data-v="${esc(e.name)}">Historique</button></div></div>`; };
+  return `<div class="card" id="rec-card"><h3 style="margin-top:0">🏆 Mes records${nNew?` <span class="chip on">${nNew} récent${nNew>1?"s":""}</span>`:""}</h3>${L.map(it).join("")}
+    ${R.length>8?`<div class="row" style="margin-top:6px"><button class="ghost sm" data-act="rec-all">${RCV.all?"Voir moins":`Voir les ${R.length} exercices`}</button></div>`:""}
+    <p class="note">⭐ = mouvement suivi. Le 1RM estimé est calculé à partir de la charge, des répétitions et du RPE notés : c'est un ordre de grandeur, pas une charge à tenter.</p></div>`; }
+// client : en tête de l'onglet Objectifs ; coach : dans le Tableau
+const _x10After25=x10After;
+x10After=function(){ _x10After25(); if(!M||ST.bilan||!CUR) return; const app=$("#app"); if(!app) return;
+  if(MODE==="client"&&!coach()&&ST.view==="objectifs"&&!ST.todayOn){ const h2=app.querySelector("h2"); if(h2) h2.insertAdjacentHTML("afterend",vRecords()); else app.insertAdjacentHTML("afterbegin",vRecords()); }
+  else if(coach()&&ST.view==="tableau"){ const n=document.getElementById("cn-card"); (n?n:app.firstElementChild||app).insertAdjacentHTML(n?"afterend":"beforebegin",vRecords().replace("🏆 Mes records","🏆 Records")); } };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="rec-hist"&&a!=="rec-all") return;
+  if(a==="rec-all"){ RCV.all=!RCV.all; return render(); }
+  ST.histEx=b.dataset.v; ST.view="carnet"; ST.todayOn=false; window.scrollTo(0,0); render(); });
+// nouveau record au moment de noter une série
+const _saveCarnet25=saveCarnet;
+saveCarnet=async function(key){ if(/^\d+_\d+_\d+$/.test(key)&&M&&!coach()){ try{ const v=ST.carnet[key], o=rowOf(key), name=v&&(v.ex||(o.r&&o.r.ex));
+    if(name){ const before=recordsAll(key)[name], after=recordsAll()[name]; if(before&&after&&(after.e1.v>before.e1.v+0.05||after.top.g>before.top.g)){ const t=Date.now(); if(!RCV.last||t-RCV.last>20000||RCV.lastN!==name){ RCV.last=t; RCV.lastN=name; toast(`🏆 Nouveau record sur ${name} !`); } } } }catch(e){ console.error(e); } }
+  return _saveCarnet25(key); };
 
 boot();
 
