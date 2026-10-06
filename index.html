@@ -3005,6 +3005,61 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
     const {error}=await SB.from("messages").insert(rows); BC.busy=false;
     if(error){ toast("Non envoyé : "+error.message); return render(); } BC.txt=""; BC.open=false; toast(`Message envoyé à ${to.length} client${to.length>1?"s":""} ✅`); render(); } });
 
+// ================= MODULE CALENDRIER + DÉPLACER UNE SÉANCE =================
+// Un déplacement est propre à une semaine : clé carnet « w_d_s » = {day:0-6 (0 = lundi), at}. Le programme du coach n'est pas modifié.
+const sMove=(w,S)=>{ const v=ST.carnet&&ST.carnet[w+"_d_"+S.s]; return v&&v.day!=null&&v.day!==S.dayOff?v.day:null; };
+const sDay=(w,S)=>{ const m=sMove(w,S); return m==null?S.dayOff:m; };
+const sActive=(w,S)=>!!(S.day&&S.rows.some(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff));
+// applique les déplacements de la semaine w le temps d'un rendu (jour affiché + ordre des séances)
+function withMoves(w,fn){ if(!M||!M.sessions) return fn(); const saved=M.sessions.map(S=>[S,S.day,S.dayOff]), order=M.sessions.slice();
+  M.sessions.forEach(S=>{ const m=sMove(w,S); if(m!=null){ S.dayOff=m; S.day=DAYS[m]; } }); M.sessions.sort((a,b)=>a.dayOff-b.dayOff||a.s-b.s);
+  try{ return fn(); } finally{ saved.forEach(([S,d,o])=>{ S.day=d; S.dayOff=o; }); M.sessions.splice(0,M.sessions.length,...order); } }
+const _vSemaine24=vSemaine; vSemaine=function(){ return withMoves(ST.week,()=>_vSemaine24()); };
+const _vCarnet24=vCarnet; vCarnet=function(){ return withMoves(ST.week,()=>_vCarnet24()); };
+const _vToday24=vToday; vToday=function(){ return withMoves(M.cw,()=>_vToday24()); };
+todaySession=function(){ if(!M||!M.sessions) return null; const t=todayISO();
+  for(let k=0;k<=14;k++){ const L=sesOnDate(addDays(t,k)); if(L.length){ const x=L.find(x=>!k||!["done","miss"].includes(sesStatus(x.w,x.S,t)))||L[0]; return {S:x.S,w:x.w,today:!k,inDays:k}; } }
+  return null; };
+// enregistrement
+const _saveCarnet24=saveCarnet;
+saveCarnet=async function(key){ if(!/^\d+_d_\d+$/.test(key)) return _saveCarnet24(key); const v=ST.carnet[key]; recompute(); cacheClient();
+  await safeWrite("carnet",v?{client_id:CUR,k:key,data:v,updated_at:new Date().toISOString()}:null,{client_id:CUR,k:key},v?"upsert":"delete"); };
+// --- sessions d'une date
+function sesOnDate(iso){ if(!M||!M.dateOf) return []; const d0=isoD(M.dateOf(1)); const diff=Math.round((new Date(iso+"T12:00:00")-new Date(d0+"T12:00:00"))/864e5); if(diff<0) return [];
+  const w=Math.floor(diff/7)+1, dow=diff%7; if(w>M.NSEM) return []; return M.sessions.filter(S=>sActive(w,S)&&sDay(w,S)===dow).map(S=>({S,w})); }
+function sesStatus(w,S,iso){ const t=ST.carnet[w+"_t_"+S.s]||{}; const logged=S.rows.some(r=>{ const v=ST.carnet[w+"_"+r.key]; return v&&((v.sets&&v.sets.some(x=>x.d||x.r!=null))||v.r!=null); });
+  if(t.missed) return "miss"; if(t.end||logged) return "done"; if(t.start) return "run"; return iso<todayISO()?"past":iso===todayISO()?"today":"todo"; }
+const CAL={m:null,open:false,mv:null};
+function vCalendar(){ const today=todayISO(); if(!CAL.m) CAL.m=today.slice(0,7); const [Y,Mo]=CAL.m.split("-").map(Number); const first=new Date(Y,Mo-1,1), nd=new Date(Y,Mo,0).getDate(), lead=(first.getDay()+6)%7;
+  const ic={done:"✓",miss:"✗",run:"⏱",past:"·",today:"●",todo:"●"};
+  let cells=""; for(let i=0;i<lead;i++) cells+=`<div></div>`;
+  for(let d=1;d<=nd;d++){ const iso=`${Y}-${String(Mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`, L=sesOnDate(iso);
+    cells+=`<button class="calc${iso===today?" now":""}${L.length?" has":""}" data-act="cal-day" data-v="${iso}" ${L.length?"":"tabindex=\"-1\""} aria-label="${d}${L.length?" : "+esc(L.map(x=>x.S.name).join(", ")):""}"><span>${d}</span>${L.map(x=>{ const st=sesStatus(x.w,x.S,iso); return `<i class="cs ${st}" title="${esc(x.S.name)}">${ic[st]}</i>`; }).join("")}</button>`; }
+  const mName=first.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  return `<details class="card" id="cal-card"${CAL.open?" open":""}><summary><b>📅 Calendrier</b> <span class="muted small">${esc(mName)}</span></summary>
+   <div class="row" style="margin:6px 0;flex-wrap:nowrap"><button class="ghost sm" data-act="cal-m" data-v="-1" aria-label="Mois précédent">‹</button><b class="grow" style="text-align:center;text-transform:capitalize">${esc(mName)}</b><button class="ghost sm" data-act="cal-m" data-v="1" aria-label="Mois suivant">›</button></div>
+   <div class="calg">${DAYS10.map(x=>`<div class="muted small" style="text-align:center">${x}</div>`).join("")}${cells}</div>
+   <p class="note"><i class="cs done">✓</i> faite · <i class="cs miss">✗</i> loupée · <i class="cs todo">●</i> prévue · <i class="cs past">·</i> non notée. Appuie sur un jour pour voir la séance.</p></details>`; }
+// bouton « Déplacer » sous chaque séance de la vue Semaine
+function moveBox(w,S){ const d0=M.dateOf(w), cur=sDay(w,S), orig=S.dayOff;
+  if(CAL.mv!==w+"_"+S.s) return `<div class="row" style="margin-top:6px"><button class="ghost sm" data-act="mv-open" data-v="${w}_${S.s}">📅 Déplacer${sMove(w,S)!=null?` <span class="muted small">(prévue le ${DAYS[orig].toLowerCase()})</span>`:""}</button></div>`;
+  return `<div style="margin-top:6px"><div class="small muted">Déplacer cette séance (semaine ${w} uniquement) :</div><div class="row" style="gap:4px;margin-top:4px">${DAYS10.map((x,i)=>{ const dt=new Date(d0.getTime()+i*864e5); return `<button class="${i===cur?"":"ghost "}sm" data-act="mv-set" data-v="${w}_${S.s}_${i}">${x} ${dt.getDate()}</button>`; }).join("")}<button class="ghost sm" data-act="mv-open" data-v="">Annuler</button></div></div>`; }
+const _vSemaine24b=vSemaine;
+vSemaine=function(){ const w=ST.week; let h=_vSemaine24b(); const L=M.sessions.filter(S=>sActive(w,S)).sort((a,b)=>sDay(w,a)-sDay(w,b)||a.s-b.s); let i=0;
+  h=h.replace(/<div class="card ses"><h3>[\s\S]*?(?=<div class="card ses"><h3>|$)/g,blk=>{ const S=L[i++]; if(!S) return blk; const j=blk.lastIndexOf("</div>"); return j<0?blk:blk.slice(0,j)+moveBox(w,S)+blk.slice(j); });
+  return (w===M.cw||CAL.open?vCalendar():"")+h; };
+const _css24=document.createElement("style"); _css24.textContent=`.calg{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}.calc{min-height:46px;padding:3px 2px;display:flex;flex-direction:column;align-items:center;gap:1px;background:transparent;color:var(--fg,inherit);border:1px solid var(--line);border-radius:8px;font-weight:400}.calc.has{font-weight:700}.calc.now{outline:2px solid var(--acc,#2563eb)}.calc span{font-size:.8rem}.cs{font-style:normal;font-size:.75rem;line-height:1}.cs.done{color:var(--green,#16a34a)}.cs.miss{color:var(--red,#dc2626)}.cs.todo,.cs.today,.cs.run{color:var(--acc,#2563eb)}.cs.past{color:var(--muted,#888)}`; document.head.appendChild(_css24);
+document.addEventListener("toggle",e=>{ if(e.target&&e.target.id==="cal-card") CAL.open=e.target.open; },true);
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||""; if(!/^(cal-|mv-)/.test(a)) return;
+  if(a==="cal-m"){ const [Y,Mo]=CAL.m.split("-").map(Number); const d=new Date(Y,Mo-1+(+v),1); CAL.m=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; CAL.open=true; return render(); }
+  if(a==="cal-day"){ const L=sesOnDate(v); if(!L.length) return; ST.todayOn=false; ST.week=L[0].w; if(L[0].w!==M.cw) CAL.open=true;
+    if(v<=todayISO()){ ST.view="carnet"; ST.cses=L[0].S.s; ST.csesW=L[0].w; } else ST.view="semaine"; window.scrollTo(0,0); return render(); }
+  if(a==="mv-open"){ CAL.mv=v||null; return render(); }
+  if(a==="mv-set"){ const [w,s,d]=v.split("_").map(Number), S=M.sessions.find(x=>x.s===s); if(!S) return; const k=w+"_d_"+s;
+    const other=M.sessions.find(x=>x!==S&&sActive(w,x)&&sDay(w,x)===d); if(other&&!confirm(`${other.name} est déjà prévue ce jour-là. Faire les deux le même jour ?`)) return;
+    if(d===S.dayOff) delete ST.carnet[k]; else ST.carnet[k]={day:d,at:new Date().toISOString()}; CAL.mv=null; render(); await saveCarnet(k);
+    toast(d===S.dayOff?"Séance remise à son jour prévu":`Séance déplacée au ${DAYS[d].toLowerCase()} ${new Date(M.dateOf(w).getTime()+d*864e5).getDate()}`); } });
+
 boot();
 
 </script>
