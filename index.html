@@ -2781,6 +2781,40 @@ document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||el.da
 const _nutriProposal18=nutriProposal;
 nutriProposal=function(d,T){ const N=_nutriProposal18(d,T); const s=parseInt(String(d.steps_n||"").replace(/\D/g,"")); if(s>0) N.prof.steps=s; return N; };
 
+// ================= MODULE ACCÈS CLIENT SANS E-MAIL (mot de passe provisoire) =================
+// Le coach crée (ou réinitialise) l'accès d'un client : mot de passe provisoire à transmettre par SMS / WhatsApp.
+// Ne dépend d'aucun envoi d'e-mail et fonctionne directement dans l'app installée sur l'écran d'accueil.
+const ACC={};
+const accText=(name,email,pw)=>`Salut ${name?name.split(" ")[0]:""} ! Ton espace TB my Coach est prêt.\n\n1. Ouvre ce lien dans Safari : ${APP_URL}\n2. Ajoute-le à ton écran d'accueil (bouton Partager, puis « Sur l'écran d'accueil »), puis ouvre l'app depuis l'icône.\n3. Connecte-toi avec :\nE-mail : ${email}\nMot de passe provisoire : ${pw}\n\nTu pourras ensuite choisir ton propre mot de passe dans l'app.`;
+async function accessFor(id){ const c=CLIENTS.find(x=>x.id===id); if(!c) return; if(!c.email) return toast("Ajoute d'abord l'e-mail du client (Gérer)");
+  if(!confirm(`Créer un mot de passe provisoire pour ${c.name} (${c.email}) ?\n\nS'il avait déjà un mot de passe, il sera remplacé.`)) return false;
+  toast("Création de l'accès…"); const {data,error}=await SB.functions.invoke("coach-access",{body:{client_id:id}});
+  if(error||!data||!data.ok){ let m=error?error.message:"erreur inconnue"; try{ const j=error&&error.context&&await error.context.json(); if(j&&j.error) m=j.error; }catch(e){} toast(m); return false; }
+  ACC.open={name:c.name,email:data.email,pw:data.password}; accRender(); return true; }
+function accRender(){ let el=document.getElementById("accmodal"); if(!ACC.open){ if(el) el.remove(); return; } if(!el){ el=document.createElement("div"); el.id="accmodal"; document.body.appendChild(el); }
+  const A=ACC.open; el.innerHTML=`<div class="card" style="max-width:420px;margin:0 auto"><h3 style="margin-top:0">🔑 Accès de ${esc(A.name)}</h3>
+   <p class="small">Envoie ces informations à ton client par SMS ou WhatsApp. Aucun e-mail n'est nécessaire.</p>
+   <div class="alert ok"><div class="small">E-mail</div><b>${esc(A.email)}</b><div class="small" style="margin-top:6px">Mot de passe provisoire</div><b style="font-size:1.4rem;letter-spacing:.05em;font-family:ui-monospace,monospace">${esc(A.pw)}</b></div>
+   <div class="row" style="margin-top:8px"><button data-act="acc-share">Envoyer le message</button><button class="ghost" data-act="acc-copy">Copier</button><button class="ghost" data-act="acc-close">Fermer</button></div>
+   <p class="note">Ce mot de passe n'est affiché qu'ici : en cas d'oubli, recrée simplement un accès. À sa connexion, l'app propose au client de choisir son propre mot de passe.</p></div>`; }
+const _css19=document.createElement("style"); _css19.textContent=`#accmodal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:flex;align-items:center;padding:16px}#accmodal .card{width:100%}`; document.head.appendChild(_css19);
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(!/^acc-/.test(a)) return; const A=ACC.open;
+  if(a==="acc-make") return accessFor(b.dataset.v);
+  if(a==="acc-close"){ ACC.open=null; return accRender(); }
+  const txt=A&&accText(A.name,A.email,A.pw); if(!txt) return;
+  if(a==="acc-share"){ if(navigator.share) navigator.share({title:"Ton accès TB my Coach",text:txt}).catch(()=>{}); else { try{ await navigator.clipboard.writeText(txt); toast("Message copié"); }catch(err){ toast("Copie impossible"); } } }
+  if(a==="acc-copy"){ try{ await navigator.clipboard.writeText(txt); toast("Message copié"); }catch(err){ toast("Copie impossible"); } } });
+// bouton dans « Gérer » de chaque client + les invitations passent par le mot de passe provisoire
+const _vClients19=vClients;
+vClients=function(){ return _vClients19().replace(/<button class="ghost" data-act="inv" data-v="([^"]+)">Envoyer l'invitation<\/button>/g,(m,id)=>`<button class="ghost" data-act="acc-make" data-v="${id}">🔑 Créer l'accès (mot de passe)</button>`)
+  .replace("Quand tu crées un client avec son e-mail, il reçoit automatiquement un lien de connexion. Tu peux aussi le renvoyer ou partager le lien depuis « Gérer ».","Quand tu crées un client avec son e-mail, un mot de passe provisoire est généré : envoie-le-lui par SMS ou WhatsApp. Tu peux en recréer un à tout moment depuis « Gérer »."); };
+inviteClient=async function(email){ if(!email) return toast("Ajoute d'abord l'e-mail du client"); const c=CLIENTS.find(x=>(x.email||"").toLowerCase()===email.trim().toLowerCase()); if(!c) return toast("Client introuvable"); return accessFor(c.id); };
+shareInvite=function(email,name){ const txt=`Salut ${name?name.split(" ")[0]:""} ! Ton espace TB my Coach : ${APP_URL}\nOuvre-le dans Safari, ajoute-le à ton écran d'accueil (Partager, puis « Sur l'écran d'accueil »), puis connecte-toi avec ton e-mail (${email||"…"}) et le mot de passe que je t'envoie.`;
+  if(navigator.share) navigator.share({title:"Ton espace coaching",text:txt}).catch(()=>{}); else location.href=`mailto:${encodeURIComponent(email||"")}?subject=${encodeURIComponent("Ton espace coaching")}&body=${encodeURIComponent(txt)}`; };
+// écran de connexion : message clair si l'envoi d'e-mail est en panne
+const _vAuth19=vAuth;
+vAuth=function(){ if(/error sending|unexpected_failure|smtp/i.test(AUTH.msg||"")){ AUTH.ok=false; AUTH.msg="L'envoi d'e-mail est momentanément indisponible. Demande à ton coach un mot de passe provisoire : il peut te le créer depuis son espace."; } return _vAuth19(); };
+
 boot();
 
 </script>
