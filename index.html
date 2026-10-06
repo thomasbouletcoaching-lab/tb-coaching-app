@@ -2948,6 +2948,63 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   if(a==="cn-pin"){ const {error}=await SB.from("coach_notes").update({pinned:!x.pinned}).eq("id",id); if(error) return toast(error.message); x.pinned=!x.pinned; return render(); }
   if(a==="cn-del"){ if(!confirm("Supprimer cette note ?")) return; const {error}=await SB.from("coach_notes").delete().eq("id",id); if(error) return toast(error.message); CN.list=CN.list.filter(n=>n.id!==id); toast("Note supprimée"); render(); } });
 
+// ================= MODULE RÉPONSES TYPES + MESSAGE À TOUS (coach) =================
+const RT_DEF=[
+  {t:"Bilan reçu",b:"Merci {prenom} pour ton bilan ! Je le regarde et je te réponds d'ici demain."},
+  {t:"Séance loupée",b:"Salut {prenom}, j'ai vu que la séance n'a pas pu se faire. Pas de souci : dis-moi ce qui a coincé (agenda, fatigue, douleur ?) et on adapte la suite si besoin."},
+  {t:"Relance carnet",b:"Salut {prenom} ! Je n'ai pas vu passer tes séances ces derniers jours. Tout va bien ? Note-les dans le carnet dès que tu peux : c'est ce qui me permet d'ajuster ton programme."},
+  {t:"Retour vidéo",b:"Bien reçu ta vidéo {prenom}.\nÀ garder : …\nÀ corriger : …\nRefilme une série la semaine prochaine pour comparer."},
+  {t:"Bonne semaine",b:"Belle semaine {prenom}, bravo pour la régularité ! On garde ce cap pour la suite."}];
+const rtList=()=>Array.isArray(BZ.set.replies)?BZ.set.replies:RT_DEF;
+const rtFirst=n=>(n||"").trim().split(/\s+/)[0]||"";
+const rtFill=(b,name)=>String(b).replace(/\{prenom\}/g,rtFirst(name));
+const RTS={open:false,edit:false};
+// ---- dans la messagerie : bouton ⚡ réponses types
+const _msgRender23=msgRender;
+msgRender=function(){ _msgRender23(); const el=document.getElementById("msgpanel"); if(!el||!MSG.open||!iAmCoach()) return; if(!BZ.loaded) bzEnsure();
+  const ta=el.querySelector("#msg-txt"); if(!ta) return;
+  const bt=document.createElement("button"); bt.className="ghost sm"; bt.dataset.act="rt-tog"; bt.setAttribute("aria-label","Réponses types"); bt.textContent="⚡"; ta.before(bt);
+  if(!RTS.open) return; const L=rtList(); const box=document.createElement("div"); box.className="rtbox";
+  box.innerHTML=RTS.edit?`<div class="small muted" style="margin-bottom:4px">{prenom} est remplacé par le prénom du client.</div>${L.map((x,i)=>`<div class="rted"><input data-rt="${i}.t" value="${esc(x.t)}" aria-label="Titre"><textarea data-rt="${i}.b" rows="2" aria-label="Texte">${esc(x.b)}</textarea><button class="ghost sm" data-act="rt-rm" data-v="${i}" aria-label="Supprimer">🗑</button></div>`).join("")}
+     <div class="row" style="margin-top:4px"><button class="ghost sm" data-act="rt-addn">+ Ajouter</button><button class="sm" data-act="rt-save">Enregistrer</button><button class="ghost sm" data-act="rt-reset">Modèles d'origine</button></div>`
+   :`${L.map((x,i)=>`<button class="ghost sm" data-act="rt-use" data-v="${i}">${esc(x.t)}</button>`).join("")}<button class="ghost sm" data-act="rt-edit">✎ Gérer</button>`;
+  el.querySelector(".mp-c").prepend(box); };
+const _css23=document.createElement("style"); _css23.textContent=`.rtbox{display:flex;flex-wrap:wrap;gap:6px;max-height:45vh;overflow:auto;padding:6px 0;margin-bottom:6px;border-bottom:1px solid var(--line)}.rted{display:flex;gap:6px;width:100%;align-items:flex-start}.rted input{flex:0 0 32%}.rted textarea{flex:1}`; document.head.appendChild(_css23);
+const rtRead=()=>{ const L=rtList().map(x=>({...x})); document.querySelectorAll("[data-rt]").forEach(f=>{ const [i,k]=f.dataset.rt.split("."); if(L[i]) L[i][k]=f.value; }); return L; };
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(!/^rt-/.test(a)) return;
+  if(a==="rt-tog"){ RTS.open=!RTS.open; RTS.edit=false; return msgRender(); }
+  if(a==="rt-edit"){ RTS.edit=true; return msgRender(); }
+  if(a==="rt-use"){ const x=rtList()[+b.dataset.v], ta=document.getElementById("msg-txt"); if(!x||!ta) return; const txt=rtFill(x.b,ST.prog&&ST.prog.profile&&ST.prog.profile.name);
+    ta.value=ta.value.trim()?ta.value.trimEnd()+"\n"+txt:txt; RTS.open=false; const v=ta.value; msgRender(); const t2=document.getElementById("msg-txt"); if(t2){ t2.value=v; t2.focus(); } return; }
+  if(a==="rt-addn"){ BZ.set.replies=rtRead().concat([{t:"Nouveau",b:""}]); return msgRender(); }
+  if(a==="rt-rm"){ const L=rtRead(); L.splice(+b.dataset.v,1); BZ.set.replies=L; return msgRender(); }
+  if(a==="rt-reset"){ if(!confirm("Revenir aux modèles d'origine ?")) return; BZ.set.replies=RT_DEF.map(x=>({...x})); await bzSaveSet(); return msgRender(); }
+  if(a==="rt-save"){ BZ.set.replies=rtRead().filter(x=>(x.t||"").trim()&&(x.b||"").trim()); await bzSaveSet(); RTS.edit=false; return msgRender(); } });
+// ---- message à tous (accueil coach)
+const BC={sel:null,txt:"",busy:false,open:false};
+function vBroadcast(){ const L=CLIENTS.filter(c=>c.coach_id===UID&&!c.archived); if(!L.length) return ""; if(!BC.sel){ BC.sel={}; L.forEach(c=>BC.sel[c.id]=true); }
+  const n=L.filter(c=>BC.sel[c.id]).length;
+  return `<details class="card" id="bc-card"${BC.open?" open":""}><summary><b>📣 Message à plusieurs clients</b></summary>
+   <p class="small muted">Chaque client le reçoit dans sa messagerie, comme un message individuel (avec notification s'il les a activées). {prenom} est remplacé par son prénom.</p>
+   <div class="row" style="gap:6px">${L.map(c=>`<label class="chip${BC.sel[c.id]?" on":""}" style="cursor:pointer"><input type="checkbox" data-bc="${c.id}" ${BC.sel[c.id]?"checked":""} style="display:none">${esc(c.name)}</label>`).join("")}</div>
+   <div class="row" style="margin-top:6px"><button class="ghost sm" data-act="bc-all">Tous</button><button class="ghost sm" data-act="bc-none">Aucun</button>${rtList().length?`<select id="bc-rt" aria-label="Partir d'une réponse type"><option value="">Partir d'une réponse type…</option>${rtList().map((x,i)=>`<option value="${i}">${esc(x.t)}</option>`).join("")}</select>`:""}</div>
+   <label class="f" style="margin-top:6px">Message<textarea id="bc-txt" rows="4" maxlength="4000" placeholder="Ex. : Salut {prenom} ! Petit rappel : pense à remplir ton bilan de la semaine d'ici dimanche.">${esc(BC.txt)}</textarea></label>
+   <div class="row" style="margin-top:6px"><button data-act="bc-send" ${BC.busy||!n?"disabled":""}>Envoyer à ${n} client${n>1?"s":""}</button></div></details>`; }
+const _vTodo23=vTodo;
+vTodo=function(){ return _vTodo23()+vBroadcast(); };
+document.addEventListener("toggle",e=>{ if(e.target&&e.target.id==="bc-card") BC.open=e.target.open; },true);
+document.addEventListener("input",e=>{ if(e.target&&e.target.id==="bc-txt") BC.txt=e.target.value; });
+document.addEventListener("change",e=>{ const el=e.target; if(el.dataset&&el.dataset.bc){ BC.sel[el.dataset.bc]=el.checked; return render(); }
+  if(el.id==="bc-rt"&&el.value!==""){ const x=rtList()[+el.value]; if(x){ BC.txt=x.b; render(); } } });
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(!/^bc-/.test(a)||!ST.isCoach) return;
+  const L=CLIENTS.filter(c=>c.coach_id===UID&&!c.archived);
+  if(a==="bc-all"||a==="bc-none"){ L.forEach(c=>BC.sel[c.id]=a==="bc-all"); return render(); }
+  if(a==="bc-send"){ const txt=(BC.txt||"").trim(), to=L.filter(c=>BC.sel[c.id]); if(!txt) return toast("Message vide"); if(!to.length) return toast("Aucun destinataire");
+    if(!confirm(`Envoyer ce message à ${to.length} client${to.length>1?"s":""} ?\n\n${rtFill(txt,to[0].name)}${to.length>1?"\n\n(exemple pour "+to[0].name+")":""}`)) return;
+    BC.busy=true; render(); const rows=to.map(c=>({client_id:c.id,sender:UID,from_coach:true,body:rtFill(txt,c.name),media:[],ref:null}));
+    const {error}=await SB.from("messages").insert(rows); BC.busy=false;
+    if(error){ toast("Non envoyé : "+error.message); return render(); } BC.txt=""; BC.open=false; toast(`Message envoyé à ${to.length} client${to.length>1?"s":""} ✅`); render(); } });
+
 boot();
 
 </script>
