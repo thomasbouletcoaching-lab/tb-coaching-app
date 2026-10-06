@@ -2870,6 +2870,56 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
 const _vObCoach20=vObCoach;
 vObCoach=function(){ const h=_vObCoach20(); if(X10.ob&&X10.ob.submitted_at&&CUR){ try{ localStorage.setItem("tb-obseen-"+CUR,X10.ob.submitted_at); }catch(e){} } return h; };
 
+// ================= MODULE « AUJOURD'HUI » (client) =================
+const dowIdx=()=>(new Date().getDay()+6)%7; // 0 = lundi
+function todaySession(){ if(!M||!M.sessions) return null; const w=M.cw, d=dowIdx();
+  const act=S=>S.rows.some(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff);
+  const S=M.sessions.find(S=>S.day&&S.dayOff===d&&act(S)); if(S) return {S,w,today:true};
+  for(let k=1;k<=7;k++){ const dd=(d+k)%7, ww=d+k>6?w+1:w; const N=M.sessions.find(S=>S.day&&S.dayOff===dd&&S.rows.some(r=>r.ex&&r.weeks[ww]&&r.weeks[ww].eff)); if(N) return {S:N,w:ww,today:false,inDays:k}; }
+  return null; }
+function vToday(){ const name=((ST.prog&&ST.prog.profile&&ST.prog.profile.name)||"").split(" ")[0], now=new Date();
+  let h=`<h2 style="margin-bottom:0">Bonjour ${esc(name)} 👋</h2><p class="muted" style="margin-top:2px;text-transform:capitalize">${now.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})} · semaine ${M.cw}/${M.NSEM}${M.phases[M.cw-1]?" · "+esc(M.phases[M.cw-1]):""}</p>`;
+  if(!X10.meta.pw_set) h+=pwCard();
+  // séance
+  const T=todaySession();
+  if(T&&T.today){ const k=T.w+"_t_"+T.S.s, t=ST.carnet[k]||{}, n=T.S.rows.filter(r=>r.ex&&r.weeks[T.w]&&r.weeks[T.w].eff).length, dur=Math.round(((M.W[T.w-1]||{}).ses||[])[T.S.s]?.dur||0);
+    const st=t.missed?"✗ Notée comme loupée":t.end?"✓ Séance faite, bravo !":t.start?"⏱ Séance en cours":"";
+    h+=`<div class="card ses"><div class="muted small">Séance du jour</div><h3 style="margin:2px 0">${esc(T.S.name)}</h3><div class="muted small">${n} exercice${n>1?"s":""}${dur?` · ≈ ${dur} min`:""}</div>${st?`<div style="margin-top:6px"><b>${st}</b></div>`:""}
+      <div class="row" style="margin-top:8px"><button class="${t.end||t.missed?"ghost":"ok"}" data-act="tdy-go" data-v="carnet:${T.w}">${t.end?"Voir la séance":t.start?"Reprendre":"▶ Ouvrir ma séance"}</button></div></div>`; }
+  else h+=`<div class="card"><div class="muted small">Entraînement</div><h3 style="margin:2px 0">Jour de repos 😌</h3>${T?`<div class="muted small">Prochaine séance : <b>${esc(T.S.name)}</b> ${T.inDays===1?"demain":"dans "+T.inDays+" jours"}</div>`:""}<div class="row" style="margin-top:8px"><button class="ghost sm" data-act="tdy-go" data-v="semaine">Voir ma semaine</button></div></div>`;
+  // nutrition
+  if(typeof planOn==="function"&&NU.loaded&&NU.cid===CUR&&planOn()){ const P=planOn(), L=NU.logs[todayISO()]||{}, ty=P.types.find(x=>x.id===(L.t||P.week[dowIdx()]))||P.types[0], meals=(ty&&ty.meals)||[];
+    const done=meals.filter((m,i)=>L.m&&L.m[i]).length, got=consumed(L), plan=dayPlan(ty);
+    h+=`<div class="card"><div class="muted small">Alimentation</div><h3 style="margin:2px 0">${done}/${meals.length} repas notés</h3><div class="muted small">${r0(got.k)} / ${r0(plan.k)} kcal · protéines ${r0(got.p)} / ${r0(plan.p)} g</div>
+      <div class="row" style="margin-top:8px"><button class="${done<meals.length?"ok":"ghost"} sm" data-act="tdy-go" data-v="nut:jour">${done<meals.length?"Valider mes repas":"Voir ma journée"}</button></div></div>`; }
+  // bilan de la semaine
+  const sv=ST.suivi[M.cw]||{}; if(!sv.sent&&dowIdx()>=4) h+=`<div class="card"><div class="muted small">Bilan</div><h3 style="margin:2px 0">Ton bilan de la semaine ${M.cw}</h3><div class="muted small">2 minutes pour faire le point avec ton coach.</div><div class="row" style="margin-top:8px"><button class="ok sm" data-act="tdy-go" data-v="bilan:${M.cw}">Remplir mon bilan</button></div></div>`;
+  else if(sv.reply) h+=`<div class="card"><div class="muted small">Réponse de ton coach à ton bilan</div><p style="white-space:pre-wrap;margin:4px 0">${esc(sv.reply)}</p></div>`;
+  // messages
+  const lastC=[...(MSG.list||[])].reverse().find(m=>m.from_coach);
+  h+=`<div class="card"><div class="muted small">Messages</div>${lastC?`<p style="margin:4px 0">${MSG.unread?`<b>${MSG.unread} nouveau${MSG.unread>1?"x":""} message${MSG.unread>1?"s":""}</b> · `:""}<span class="muted">${esc((lastC.body||"📎 pièce jointe").slice(0,120))}</span></p>`:`<p class="muted small" style="margin:4px 0">Une question, une vidéo de ta série ? Écris à ton coach.</p>`}<div class="row"><button class="${MSG.unread?"ok":"ghost"} sm" data-act="tdy-go" data-v="msg">${MSG.unread?"Lire":"Écrire à mon coach"}</button></div></div>`;
+  // mesures
+  if(NU.loaded&&NU.cid===CUR){ const ds=Object.keys(NU.mes||{}).sort(), last=ds[ds.length-1], age=last?Math.round((new Date(todayISO()+"T12:00:00")-new Date(last+"T12:00:00"))/864e5):null;
+    if(age===null||age>=7) h+=`<div class="card"><div class="muted small">Mesures</div><h3 style="margin:2px 0">${age===null?"Première mesure à faire":"Mesure de la semaine"}</h3><div class="muted small">${age===null?"Poids et tour de taille suffisent pour commencer.":`Dernière mesure il y a ${age} jours.`}</div><div class="row" style="margin-top:8px"><button class="ghost sm" data-act="tdy-go" data-v="nut:mesures">Noter mes mesures</button></div></div>`; }
+  h+=`<div id="x10-pushnudge"></div>`;
+  return h; }
+// onglet « Aujourd'hui » en premier pour le client, ouvert par défaut
+const _openClient21=openClient;
+openClient=async function(id,silent){ await _openClient21(id,silent); if(MODE==="client"&&!ST.todayInit){ ST.todayInit=true; ST.todayOn=true; render(); } };
+const _render21=render;
+render=function(){ _render21(); if(MODE!=="client"||coach()||!M||!CUR||!ST.ready||ST.view==="auth"||ST.bilan) return; const tabs=$("#tabs"); if(!tabs||!tabs.querySelector('[data-act="view"]')) return;
+  if(!tabs.querySelector('[data-v="today"]')) tabs.insertAdjacentHTML("afterbegin",`<button data-act="view" data-v="today">Accueil</button>`);
+  if(ST.todayOn){ tabs.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.v==="today")); try{ $("#app").innerHTML=vToday(); }catch(e){ console.error(e); ST.todayOn=false; return; } const pn=document.getElementById("x10-pushnudge"); if(pn&&typeof nudgePaint==="function"&&ls10.get("tb-pushnudge")!=="1") nudgePaint(pn); } };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||"";
+  if(a==="view"&&MODE==="client"){ if(v==="today"){ e.stopImmediatePropagation(); ST.todayOn=true; window.scrollTo(0,0); render(); } else ST.todayOn=false; return; }
+  if(a!=="tdy-go") return; ST.todayOn=false; window.scrollTo(0,0);
+  if(v.startsWith("carnet:")){ ST.view="carnet"; ST.week=+v.slice(7); }
+  else if(v==="semaine"){ ST.view="semaine"; ST.week=M.cw; }
+  else if(v.startsWith("nut:")){ ST.view="nutrition"; NU.nv=v.slice(4); NU.day=todayISO(); }
+  else if(v.startsWith("bilan:")){ ST.view="carnet"; ST.week=+v.slice(6); setTimeout(()=>{ const el=document.querySelector('[data-act="ck-send"]'); if(el) el.scrollIntoView({block:"center"}); },300); }
+  else if(v==="msg"){ msgOpen(); return; }
+  render(); },true);
+
 boot();
 
 </script>
