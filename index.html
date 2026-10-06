@@ -3137,6 +3137,36 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   if(error) return toast("Non enregistré : "+error.message); RM.data=D; RM.draft=null; if(p) RM.sent=JSON.stringify(p);
   let st="on"; try{ st=await pushStatus(); }catch(err){} toast(st==="on"?"Rappels enregistrés ✅":"Rappels enregistrés. Active les notifications pour les recevoir."); render(); });
 
+// ================= MODULE PLAT ÉQUIVALENT (macros proches) =================
+const eqCat=n=>/petit/i.test(n)?"Petit-déjeuner":/collation|go[uû]ter|snack|en-cas/i.test(n)?"Collation":"Repas";
+function eqList(m,o0){ if(!NU.dishes||!NU.foods) return null; const T=optMac(o0), d=(X10.ob&&X10.ob.data)||{}, cat=eqCat(m.name), seen=new Set([nrm(o0.n)]);
+  m.opts.forEach(o=>seen.add(nrm(o.n)));
+  const out=[]; NU.dishes.filter(x=>x.cat===cat&&!seen.has(nrm(x.name))).forEach(x=>{ let ok=true; try{ ok=dishOK(x,d); }catch(e){} if(!ok) return;
+    const s=dishSnap(x); if(!s.it.length) return; const D=mac(s.it); if(!(D.k>0)) return;
+    const k=Math.min(2,Math.max(0.5,Math.round(T.k/D.k*20)/20)); s.m=k; const S=mac(s.it,k);
+    const sc=(Math.abs(S.k-T.k)+8*Math.abs(S.p-T.p)+4*Math.abs(S.g-T.g)+9*Math.abs(S.l-T.l))/Math.max(T.k,100); // écart en kcal, protéines comptées double
+    out.push({s,S,sc}); });
+  return out.sort((a,b)=>a.sc-b.sc).slice(0,5); }
+const eqD=(a,b,u)=>{ const x=Math.round(a-b); return x===0?"=":(x>0?"+":"−")+Math.abs(x)+u; };
+function eqHTML(mi,m,o0){ const L=eqList(m,o0); if(!L){ Promise.all([nuFoods(),nuDishes()]).then(()=>scheduleRender()); return `<div class="edit muted small">Chargement des plats…</div>`; }
+  const T=optMac(o0);
+  return `<div class="edit"><b>Plats équivalents</b><div class="muted small">Quantités ajustées pour rester proche de ton repas prévu (${r0(T.k)} kcal · P ${r0(T.p)} g).</div>
+   ${L.length?L.map((x,i)=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><div class="row"><b class="grow">${esc(x.s.n)}</b><span class="muted small">${r0(x.S.k)} kcal</span></div>
+     <div class="small muted">P ${r0(x.S.p)} g (${eqD(x.S.p,T.p," g")}) · G ${r0(x.S.g)} g (${eqD(x.S.g,T.g," g")}) · L ${r0(x.S.l)} g (${eqD(x.S.l,T.l," g")})</div>${itemsList(x.s)}
+     <button class="sm" data-act="eq-use" data-v="${mi}.${i}">J'ai mangé ça</button></div>`).join(""):`<p class="muted small">Aucun plat équivalent compatible dans la bibliothèque.</p>`}
+   <div class="row" style="margin-top:6px"><button class="ghost sm" data-act="eq-open" data-v="">Fermer</button></div></div>`; }
+const _nJour27=nJour;
+nJour=function(){ let h=_nJour27(); const {L,t,P}=nDayCtx(); if(!t||!hasMeals(P)) return h;
+  t.meals.forEach((m,mi)=>{ const st=L.m&&L.m[mi], o0=m.opts[0]; if(st||!o0) return; const tag=`<button class="ghost" data-act="nu-skip" data-v="${mi}">Sauté</button></div>`;
+    h=h.replace(tag,`<button class="ghost" data-act="eq-open" data-v="${mi}">🔁 Équivalent</button>${tag}${NU.eq&&NU.eq.mi===mi&&NU.eq.d===NU.day?eqHTML(mi,m,o0):""}`); });
+  return h; };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||""; if(a!=="eq-open"&&a!=="eq-use") return;
+  if(a==="eq-open"){ NU.eq=v===""||(NU.eq&&NU.eq.mi===+v&&NU.eq.d===NU.day)?null:{mi:+v,d:NU.day}; NU.alt=null; NU.adj=null; return render(); }
+  const [mi,i]=v.split(".").map(Number), {t}=nDayCtx(), m=t&&t.meals[mi]; if(!m) return; const x=(eqList(m,m.opts[0])||[])[i]; if(!x) return;
+  const d=NU.day; NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); NU.logs[d].m=Object.assign({},NU.logs[d].m);
+  const it=x.s.it.map(f=>Object.assign({},f,{q:Math.round((+f.q||0)*x.s.m)}));
+  NU.logs[d].m[mi]={s:"alt",n:x.s.n+" (équivalent)",mac:mac(it),it}; NU.eq=null; nuSaveLog(d); toast("Repas enregistré"); render(); });
+
 boot();
 
 </script>
