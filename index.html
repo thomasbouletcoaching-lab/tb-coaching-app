@@ -2097,7 +2097,7 @@ const standalone10=()=>(window.matchMedia&&matchMedia("(display-mode: standalone
 async function pushStatus(){ if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window)) return isIOS10()&&!standalone10()?"install":"unsupported";
   if(Notification.permission==="denied") return "denied"; try{ const reg=await navigator.serviceWorker.getRegistration(); const sub=reg&&await reg.pushManager.getSubscription(); return sub?"on":"off"; }catch(e){ return "off"; } }
 async function pushPaint(el){ const st=await pushStatus(), coachSide=el.dataset.who==="coach";
-  const what=coachSide?"les nouveaux messages de tes clients":"les messages de ton coach, tes jours de séance et le bilan du dimanche";
+  const what=coachSide?"les nouveaux messages de tes clients":"les messages de ton coach et les rappels que tu choisis ci-dessous";
   el.innerHTML={on:`<p class="small">Activées sur ce téléphone ✓ Tu reçois ${what}.</p><button class="ghost sm" data-act="x10-pushoff">Désactiver</button>`,
     off:`<p class="muted small">Reçois une notification pour ${what}.</p><button data-act="x10-pushon">Activer les notifications</button>`,
     install:`<p class="muted small">Sur iPhone, ajoute d'abord l'app à ton écran d'accueil (bouton Partager, puis « Sur l'écran d'accueil »), puis ouvre-la depuis son icône pour activer les notifications.</p>`,
@@ -3099,6 +3099,43 @@ const _saveCarnet25=saveCarnet;
 saveCarnet=async function(key){ if(/^\d+_\d+_\d+$/.test(key)&&M&&!coach()){ try{ const v=ST.carnet[key], o=rowOf(key), name=v&&(v.ex||(o.r&&o.r.ex));
     if(name){ const before=recordsAll(key)[name], after=recordsAll()[name]; if(before&&after&&(after.e1.v>before.e1.v+0.05||after.top.g>before.top.g)){ const t=Date.now(); if(!RCV.last||t-RCV.last>20000||RCV.lastN!==name){ RCV.last=t; RCV.lastN=name; toast(`🏆 Nouveau record sur ${name} !`); } } } }catch(e){ console.error(e); } }
   return _saveCarnet25(key); };
+
+// ================= MODULE RAPPELS RÉGLABLES (client) =================
+// Préférences dans push_prefs.data ; push_prefs.plan = dates de séance à venir (déplacements compris), recalculées par l'app.
+const RM={uid:null,data:null,sent:"",busy:false};
+const RM_DEF={ses:{on:true,h:"07:30"},bilan:{on:true,dow:6,h:"18:00"},meals:{on:false,h:"20:30"},mes:{on:false,dow:0,h:"08:00"}};
+const rmD=()=>{ const d=RM.data||{}; const o={}; Object.keys(RM_DEF).forEach(k=>o[k]=Object.assign({},RM_DEF[k],d[k]||{})); return o; };
+async function rmLoad(){ if(!SB||!UID||RM.uid===UID||RM.busy) return; RM.busy=true; const {data}=await SB.from("push_prefs").select("data,plan").eq("user_id",UID).maybeSingle(); RM.busy=false;
+  RM.uid=UID; RM.data=data&&data.data&&Object.keys(data.data).length?data.data:null; RM.sent=data?JSON.stringify(data.plan||{}):""; rmSync(); if(ST.view==="compte") render(); }
+function rmPlan(){ if(!M||!M.dateOf) return null; const start=isoD(M.dateOf(1)), end=addDays(start,7*M.NSEM-1), t=todayISO(), ses=[];
+  for(let k=0;k<35;k++){ const d=addDays(t,k); if(d>end) break; if(sesOnDate(d).some(x=>!(ST.carnet[x.w+"_t_"+x.S.s]||{}).missed)) ses.push(d); }
+  return {start,end,ses,nut:!!(typeof planOn==="function"&&NU.loaded&&NU.cid===CUR&&planOn())}; }
+let _rmT=null;
+function rmSync(){ if(MODE!=="client"||coach()||!CUR||!M||RM.uid!==UID) return; clearTimeout(_rmT); _rmT=setTimeout(async()=>{ const p=rmPlan(); if(!p) return; const s=JSON.stringify(p); if(s===RM.sent) return;
+  const {error}=await SB.from("push_prefs").upsert({user_id:UID,plan:p,updated_at:new Date().toISOString()},{onConflict:"user_id"}); if(!error) RM.sent=s; },800); }
+const rmTime=(k,v)=>`<input type="time" data-rm="${k}.h" value="${esc(v)}" step="900" style="width:110px">`;
+const rmDay=(k,v)=>`<select data-rm="${k}.dow">${DAYS.map((x,i)=>`<option value="${i}" ${+v===i?"selected":""}>${x}</option>`).join("")}</select>`;
+function vReminders(){ const D=RM.draft||rmD(); const row=(k,lab,extra)=>`<div class="rmrow"><label><input type="checkbox" data-rm="${k}.on" ${D[k].on?"checked":""}><b>${lab}</b></label><div class="rmctl">${extra}</div></div>`;
+  return `<div class="card" id="rm-card"><h3 style="margin-top:0">⏰ Mes rappels</h3><p class="muted small">Choisis quand recevoir une notification. Les heures sont arrondies au quart d'heure.</p>
+   ${row("ses","Jour de séance",`à ${rmTime("ses",D.ses.h)}`)}
+   ${row("bilan","Bilan de la semaine",`${rmDay("bilan",D.bilan.dow)} à ${rmTime("bilan",D.bilan.h)}`)}
+   ${row("meals","Noter mes repas",`à ${rmTime("meals",D.meals.h)}`)}
+   ${row("mes","Mesures hebdomadaires",`${rmDay("mes",D.mes.dow)} à ${rmTime("mes",D.mes.h)}`)}
+   <div class="row" style="margin-top:8px"><button class="sm" data-act="rm-save">Enregistrer mes rappels</button></div>
+   <p class="note">Les rappels de séance suivent ton calendrier, y compris les séances déplacées. ${RM.data?"":"Tant que tu n'as rien enregistré, tu reçois les rappels par défaut (jours de séance le matin, bilan le dimanche soir)."} Ils nécessitent les notifications activées sur ce téléphone.</p></div>`; }
+const _css26=document.createElement("style"); _css26.textContent=`.rmrow{padding:10px 0;border-top:1px solid var(--line)}.rmrow label{display:flex;gap:10px;align-items:center;cursor:pointer}.rmrow input[type=checkbox]{width:20px;height:20px;flex:0 0 auto;margin:0}.rmctl{display:flex;gap:6px;align-items:center;margin:6px 0 0 30px;flex-wrap:wrap}.rmctl select,.rmctl input{width:auto!important;min-width:0;flex:0 0 auto}`; document.head.appendChild(_css26);
+const rmQ=s=>{ const m=/^(\d{1,2}):(\d{2})/.exec(s||""); if(!m) return null; let t=(+m[1])*60+Math.round(+m[2]/15)*15; t=Math.min(t,23*60+45); return String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); };
+const rmSet=(D,f)=>{ const [k,p]=f.dataset.rm.split("."); D[k][p]=p==="on"?f.checked:p==="dow"?+f.value:(rmQ(f.value)||D[k][p]); };
+document.addEventListener("change",e=>{ const f=e.target; if(!f.dataset||!f.dataset.rm) return; e.stopImmediatePropagation(); if(!RM.draft) RM.draft=rmD(); rmSet(RM.draft,f); },true);
+const _x10After26=x10After;
+x10After=function(){ _x10After26(); if(MODE!=="client"||coach()||!CUR) return; if(RM.uid!==UID) rmLoad(); else rmSync();
+  if(ST.view==="compte"&&!ST.todayOn){ const ps=document.getElementById("x10-push"); const card=ps&&ps.closest(".card"); if(card) card.insertAdjacentHTML("afterend",vReminders()); else $("#app").insertAdjacentHTML("beforeend",vReminders()); } };
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b||b.dataset.act!=="rm-save") return;
+  const D=RM.draft||rmD(); document.querySelectorAll("[data-rm]").forEach(f=>rmSet(D,f));
+  b.disabled=true; const p=rmPlan(); const row={user_id:UID,data:D,updated_at:new Date().toISOString()}; if(p) row.plan=p;
+  const {error}=await SB.from("push_prefs").upsert(row,{onConflict:"user_id"}); b.disabled=false;
+  if(error) return toast("Non enregistré : "+error.message); RM.data=D; RM.draft=null; if(p) RM.sent=JSON.stringify(p);
+  let st="on"; try{ st=await pushStatus(); }catch(err){} toast(st==="on"?"Rappels enregistrés ✅":"Rappels enregistrés. Active les notifications pour les recevoir."); render(); });
 
 boot();
 
