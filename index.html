@@ -3686,6 +3686,63 @@ vBank=function(){ const full=_vBank40(), cut=full.indexOf('<h3 style="margin:14p
    `.replace(/<button class="ghost sm" data-act="bank-apply" data-v="([^"]+)">Appliquer<\/button><\/div>/g,(m,id)=>{ const b=BANK.find(x=>x.id===id); return `<button class="ghost sm" data-act="bank-prev" data-v="${id}">${ST.bankPrev===id?"Masquer":"Aperçu"}</button><button class="ghost sm" data-act="bank-apply" data-v="${id}">Appliquer</button></div>${ST.bankPrev===id&&b?progPreview(b.s.map(([name,day,ex])=>({name,day,ex})),b.phases,b.days):""}`; })+tail; };
 document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="bkf"]'); if(!b) return; const k=b.dataset.k, v=b.dataset.v; BKF[k]=k==="nd"?+v:v; render(); });
 
+// ================= MODULE AUDIT 1 : zones de toucher, messages hors ligne, rappel avant séance, fiche d'activation =================
+// --- zones de toucher : 44 px minimum (recommandation Apple)
+const _css41=document.createElement("style"); _css41.textContent=`#app button,#msgpanel button,#accmodal button,nav.tabs button,a.btn{min-height:44px}#app button,#msgpanel button{min-width:44px}button.sm{padding:9px 12px}
+#app .row{row-gap:6px}#app .chip[data-act]{min-height:40px;padding:8px 12px}`; document.head.appendChild(_css41);
+// --- messages écrits hors ligne : mis en file d'attente puis envoyés au retour du réseau
+const MQ_K="tb-msgq", mqGet=()=>{ try{ return JSON.parse(localStorage.getItem(MQ_K)||"[]"); }catch(e){ return []; } }, mqSet=a=>{ try{ localStorage.setItem(MQ_K,JSON.stringify(a)); }catch(e){} };
+const uuid41=()=>(crypto.randomUUID?crypto.randomUUID():"10000000-1000-4000-8000-100000000000".replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)));
+const _msgSend41=msgSend;
+msgSend=async function(media){ if((media&&media.length)||navigator.onLine) return _msgSend41(media); const t=document.getElementById("msg-txt"), body=(t&&t.value||"").trim(); if(!body) return;
+  const row={id:uuid41(),client_id:CUR,sender:UID,from_coach:iAmCoach(),body,media:[],ref:MSG.ref||null}; mqSet(mqGet().concat([row]));
+  MSG.list.push(Object.assign({created_at:new Date().toISOString(),pending:true},row)); if(t) t.value=""; MSG.ref=""; msgRender(); toast("Hors ligne : message gardé, il partira au retour du réseau"); };
+async function mqFlush(){ if(!navigator.onLine||!SB||!UID) return; const a=mqGet(); if(!a.length) return; let ok=0;
+  for(const r of a){ const {error}=await SB.from("messages").upsert(r,{onConflict:"id",ignoreDuplicates:true}); if(!error||!netErr(error)){ mqSet(mqGet().filter(x=>x.id!==r.id)); const m=MSG.list.find(x=>x.id===r.id); if(m) m.pending=false; ok++; } else break; }
+  if(ok){ toast(`${ok} message${ok>1?"s":""} envoyé${ok>1?"s":""}`); if(MSG.open) msgRender(); } }
+window.addEventListener("online",()=>setTimeout(mqFlush,800)); setTimeout(mqFlush,4000);
+const _msgRender41=msgRender;
+msgRender=function(){ _msgRender41(); const el=document.getElementById("msgpanel"); if(!el||!MSG.open) return; mqGet().filter(r=>r.client_id===CUR).forEach(r=>{ const b=el.querySelector(`[data-act="msg-del"][data-v="${r.id}"]`), mt=b&&b.closest(".mt"); if(mt&&!mt.querySelector(".mpend")) mt.insertAdjacentHTML("afterbegin",`<span class="mpend">⏳ en attente · </span>`); }); };
+// --- rappel de séance 1 h avant l'heure fixée dans le calendrier
+const _rmPlan41=rmPlan;
+rmPlan=function(){ const p=_rmPlan41(); if(!p) return p; const st={}; (p.ses||[]).forEach(d=>{ const tm=sesOnDate(d).map(x=>sTime(x.w,x.S)).filter(Boolean).sort()[0]; if(tm) st[d]=tm; }); p.st=st; return p; };
+const _vReminders41=vReminders;
+vReminders=function(){ return _vReminders41().replace(/(Jour de séance<\/b><\/label><div class="rmctl">)/,`$1<span class="muted small" style="flex-basis:100%">ou 1 h avant l'heure fixée dans ton calendrier</span>`); };
+// --- fiche d'activation (coach)
+const ACT={data:null,at:0,busy:false};
+async function actLoad(force){ if(ACT.busy||(!force&&ACT.data&&Date.now()-ACT.at<60000)) return; ACT.busy=true; const {data,error}=await SB.rpc("client_activation"); ACT.busy=false; ACT.at=Date.now();
+  if(error){ console.error(error); ACT.data=ACT.data||{}; return; } ACT.data={}; (data||[]).forEach(r=>ACT.data[r.client_id]=r); render(); }
+const ACT_MSG={pw:n=>`Salut ${n} ! Pense à choisir ton mot de passe dans l'app : onglet Compte → « Choisir / changer mon mot de passe ». Il te sert à te connecter depuis l'app installée sur ton écran d'accueil.`,
+  ob:n=>`Salut ${n} ! Peux-tu remplir ton questionnaire de démarrage dans l'app ? Il me sert à construire ton programme et ton plan. Tu le retrouves à l'ouverture de l'app (ou Compte → « Revoir mes réponses »).`,
+  cgv:n=>`Salut ${n} ! À l'ouverture de l'app, merci de lire et d'accepter les conditions générales du coaching. Une question ? Écris-moi.`};
+function actSteps(c,r){ r=r||{}; const n=(c.name||"").split(" ")[0];
+  return [["Compte créé",r.has_account,c.email?`<button class="sm" data-act="acc-make" data-v="${c.id}">🔑 Créer l'accès</button>`:`<span class="muted small">Ajoute d'abord son e-mail (Gérer)</span>`],
+    ["Nouvelle app ouverte",r.new_app,`<button class="ghost sm" data-act="pn-newlink" data-v="${c.id}">Envoyer le lien</button>`],
+    ["Mot de passe choisi",r.pw_set,`<button class="ghost sm" data-act="act-msg" data-v="${c.id}" data-k="pw">Relancer</button>`],
+    ["Notifications activées",r.devices>0,`<button class="ghost sm" data-act="pn-help" data-v="${c.id}">Expliquer</button>`],
+    ["Questionnaire envoyé",r.onboarding,`<button class="ghost sm" data-act="act-msg" data-v="${c.id}" data-k="ob">Relancer</button>`],
+    ...(CGV.on?[["CGV acceptées",r.cgv,`<button class="ghost sm" data-act="act-msg" data-v="${c.id}" data-k="cgv">Relancer</button>`]]:[])]; }
+function vActivation(id){ const c=CLIENTS.find(x=>x.id===id); if(!c||!ACT.data) return ""; const S=actSteps(c,ACT.data[id]), done=S.filter(s=>s[1]).length; if(done===S.length) return "";
+  const first=S.findIndex(s=>!s[1]);
+  return `<details class="card" id="act-card" open><summary><b>🚀 Activation de ${esc(c.name)}</b> <span class="chip on">${done}/${S.length}</span></summary>
+    ${S.map(([l,ok,btn],i)=>`<div class="row" style="padding:6px 0;border-top:1px solid var(--line);flex-wrap:nowrap;gap:8px"><span style="width:22px">${ok?"✅":i===first?"👉":"⬜"}</span><span class="grow${ok?" muted":""}">${l}</span>${ok?"":(i===first||!S[i-1]||S[i-1][1]?btn:"")}</div>`).join("")}
+    <p class="note">Les étapes se cochent toutes seules quand ${esc(c.name.split(" ")[0])} les réalise. Les relances préparent un message : tu le relis avant de l'envoyer.</p></details>`; }
+const _x10After41=x10After;
+x10After=function(){ _x10After41(); if(!(coach()&&ST.view==="tableau"&&CUR)) return; if(!ACT.data){ actLoad(); return; } const h=vActivation(CUR); if(!h) return; const pn=document.getElementById("pn-coach"); if(pn) pn.remove();
+  const ref=document.getElementById("cg-coach")||document.getElementById("cn-card"); if(ref) ref.insertAdjacentHTML("beforebegin",h); else $("#app").insertAdjacentHTML("afterbegin",h); };
+// « À traiter » : une ligne d'activation remplace la ligne « notifications »
+const _todoItems41=todoItems;
+todoItems=function(){ let out=_todoItems41().filter(x=>!/:pn$/.test(x.k)); if(!ACT.data){ actLoad(); return out; }
+  CLIENTS.filter(c=>c.coach_id===UID&&!c.archived).forEach(c=>{ const S=actSteps(c,ACT.data[c.id]), done=S.filter(s=>s[1]).length; if(done===S.length) return; const k=c.id+":act"+done; if(tdDone(k)) return; const nx=S.find(s=>!s[1]);
+    out.push({p:2,k,id:c.id,h:`<span style="font-size:1.2rem">🚀</span><div class="grow"><b>${esc(c.name)}</b><div class="small">Activation ${done}/${S.length} · prochaine étape : ${nx[0].toLowerCase()}</div></div><button class="sm" data-act="act-open" data-v="${c.id}">Voir</button><button class="ghost sm" data-act="td-ok" data-v="${k}" aria-label="Marquer comme traité">✓</button>`}); });
+  return out.sort((a,b)=>a.p-b.p); };
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="act-msg"&&a!=="act-open") return; e.stopImmediatePropagation();
+  const id=b.dataset.v, c=CLIENTS.find(x=>x.id===id); if(!c) return;
+  if(a==="act-open"){ await openClient(id); ST.view="tableau"; ACT.at=0; window.scrollTo(0,0); return render(); }
+  const txt=ACT_MSG[b.dataset.k]((c.name||"").split(" ")[0]), r=(ACT.data||{})[id]||{};
+  if(r.new_app){ if(CUR!==id) await openClient(id); await msgOpen(); const t=document.getElementById("msg-txt"); if(t){ t.value=txt; t.focus(); } toast("Vérifie le message puis appuie sur Envoyer"); }
+  else if(navigator.share) navigator.share({title:"TB my Coach",text:txt}).catch(()=>{}); else { try{ await navigator.clipboard.writeText(txt); toast("Message copié : colle-le dans un SMS ou WhatsApp"); }catch(err){ toast("Copie impossible"); } } },true);
+
 boot();
 
 </script>
