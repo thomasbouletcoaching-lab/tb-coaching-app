@@ -8,7 +8,7 @@ const SHOTS = process.env.SHOTS_DIR || require('os').tmpdir();
 const UMD = fs.readFileSync(__dirname + '/node_modules/@supabase/supabase-js/dist/umd/supabase.js');
 const REF = 'xtapitojdvicgcaygeqj';
 const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
-const jwt = (sub, email) => b64({ alg: 'HS256', typ: 'JWT' }) + '.' + b64({ sub, email, role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 36000, aud: 'authenticated' }) + '.sig';
+const jwt = (sub, email) => b64({ alg: 'HS256', typ: 'JWT' }) + '.' + b64({ sub, email, role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 86400 * 60, aud: 'authenticated' }) + '.sig';
 
 let this_db;
 const FOODS = [{ id: 'fp', name: 'Blanc de poulet (cru)', cat: 'Volailles & viandes', kcal: 110, p: 23, g: 0, l: 1.5 }, { id: 'fr', name: 'Riz basmati (cuit)', cat: 'Féculents & céréales', kcal: 130, p: 3, g: 28, l: 0.4 }, { id: 'fa', name: 'Avocat', cat: 'Fruits', kcal: 160, p: 2, g: 1.8, l: 15 }];
@@ -22,7 +22,7 @@ function scenario(role) {
   const client = { id: CID, coach_id: COACH, email: 'client@exemple.fr', name: 'Client Fictif', archived: false, updated_at: new Date().toISOString(), created_at: new Date().toISOString(), program: {}, nutrition: {} };
   const db = { onboarding: [], messages: [], log: [] };
   client.nutrition = PLAN; this_db = db;
-  return { uid, email, user, CID, db, session: { access_token: jwt(uid, email), refresh_token: 'r', token_type: 'bearer', expires_in: 36000, expires_at: Math.floor(Date.now() / 1000) + 36000, user },
+  return { uid, email, user, CID, db, session: { access_token: jwt(uid, email), refresh_token: 'r', token_type: 'bearer', expires_in: 36000, expires_at: Math.floor(Date.now() / 1000) + 86400 * 60, user },
     handle(method, path, body, accept) {
       db.log.push(method + ' ' + path);
       if (this.extra) { const x = this.extra(method, path, body, accept, path.replace(/^\/rest\/v1\//, '').split('?')[0], /pgrst\.object/.test(accept || '')); if (x !== undefined) return x; }
@@ -47,7 +47,7 @@ function scenario(role) {
 async function run(role, steps, pre) {
   const sc = scenario(role); if (pre) pre(sc);
   const b = await chromium.launch({ executablePath: EXE, args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
-  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', permissions: ['microphone'] });
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, serviceWorkers: 'block', permissions: ['microphone'] });
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
   p.on('console', m => { if (m.type() === 'error' && !/WebSocket|Failed to load resource|realtime/i.test(m.text())) errs.push('CONSOLE ' + m.text()); });
@@ -58,6 +58,7 @@ async function run(role, steps, pre) {
     sc.lastBody = body; const out = sc.handle(r.request().method(), u.pathname + u.search, Array.isArray(body) ? body[0] : body, r.request().headers()['accept']);
     await r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(out) }); });
   await p.addInitScript(([k, v]) => { localStorage.setItem(k, v); }, [`sb-${REF}-auth-token`, JSON.stringify(sc.session)]);
+  if (sc.clock) await p.clock.install({ time: new Date(sc.clock) });
   await p.goto(BASE, { waitUntil: 'load' });
   await p.waitForTimeout(1500);
   await steps(p, sc);

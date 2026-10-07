@@ -24,7 +24,7 @@ const T = {
   }, clientPre(sc => (m, path, body, acc, t) => { if (t === 'carnet' && m === 'POST') { sc.lastWrite = body; return []; } })),
 
   'client : records': () => run('client', async (p) => {
-    await p.waitForTimeout(800); await p.click('nav.tabs [data-v="objectifs"]'); await p.waitForTimeout(300);
+    await p.waitForTimeout(800); await p.click('[data-act="nav44"][data-v="objectifs"]'); await p.waitForTimeout(300);
     ok((await txt(p, '#rec-card')).includes('65 kg × 6'), 'charge max affichée');
     ok(await p.evaluate(async () => { ST.carnet['2_0_0'].sets.push({ g: 70, h: 5, r: 8.5, d: 1 }); await saveCarnet('2_0_0'); return document.body.textContent.includes('Nouveau record'); }), 'toast nouveau record');
   }, clientPre(() => (m, path, b, a, t) => { if (t === 'carnet' && m === 'GET' && /client_id=eq/.test(path)) return CAR; if (t === 'carnet') return []; })),
@@ -67,6 +67,35 @@ const T = {
     if (t === 'messages' && m === 'POST' && !one) { sc.bc = sc.lastBody; return []; }
     if (t === 'leads' && m === 'GET') return [{ id: 'l1', name: 'Marc Exemple', email: 'marc@exemple.fr', created_at: new Date().toISOString(), status: 'nouveau', data: { goal: 'Gagner en force' } }];
     if (t === 'coach_notes') { if (m === 'POST') { const r = Object.assign({ id: 'n1', pinned: false, created_at: new Date().toISOString() }, body); return one ? r : [r]; } return []; } })),
+
+  'client : bilan express du week-end': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(1500); ok(!!(await p.$('#qb-card')), 'carte bilan sur l\'Accueil le samedi');
+    for (const k of ['en', 'so', 'st', 'fa', 'mo']) { await p.click(`[data-act="qb-set"][data-v$=".${k}.4"]`); await p.waitForTimeout(80); }
+    await p.click('[data-act="qb-send"]'); await p.waitForTimeout(500);
+    ok(sc.sv && sc.sv.data && sc.sv.data.q5 && sc.sv.data.sent, 'bilan envoyé avec les 5 réponses');
+  }, sc => { clientPre(sc2 => (m, path, b, a, t) => { if (t === 'suivi' && m === 'POST') { sc2.sv = b; return []; } })(sc); sc.clock = '2026-10-17T10:00:00'; }),
+
+  'client : premier lancement allégé + 5 onglets': () => run('client', async (p) => {
+    await p.waitForTimeout(1200); const n = await p.$$eval('#app .card h3', a => a.length); ok(n === 5, 'questionnaire essentiel (5 sections)');
+    await p.evaluate(() => Object.assign(X10.obDraft, { obj: 'Gagner en force', q1: 'Non', q2: 'Non', q3: 'Non', q4: 'Non', q5: 'Non', q6: 'Non', q7: 'Non' }));
+    await p.click('[data-act="x10-obsend"]'); await p.waitForTimeout(800);
+    ok((await txt(p, '#app')).includes('Complète ton profil'), 'proposition de compléter le profil');
+    ok((await txt(p, '#tabs')) === 'Accueil Semaine Carnet Suivi Compte' || (await txt(p, '#tabs')).replace(/ /g, '') === 'AccueilSemaineCarnetSuiviCompte', '5 onglets');
+  }, sc => { sc.user.user_metadata.rgpd_ok = '2026-10-01'; sc.user.user_metadata.pw_set = 'x'; getDb().onboarding = []; }),
+
+  'client : message écrit hors ligne': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(() => msgOpen()); await p.waitForTimeout(300);
+    await p.context().setOffline(true); await p.fill('#msg-txt', 'Hors ligne'); await p.click('[data-act="msg-send"]'); await p.waitForTimeout(300);
+    ok(!!(await p.$('.mpend')), 'message marqué en attente');
+    await p.context().setOffline(false); await p.evaluate(() => window.dispatchEvent(new Event('online'))); await p.waitForTimeout(2500);
+    ok(sc.sent && sc.sent.body === 'Hors ligne', 'message envoyé au retour du réseau');
+  }, clientPre(sc => (m, path, b, a, t) => { if (t === 'messages' && m === 'POST') { sc.sent = b; return []; } })),
+
+  'coach : activation et revue de la semaine': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1200); ok((await txt(p, '#app')).includes('Activation 3/5'), 'activation dans À traiter');
+    await p.click('[data-act="act-open"]'); await p.waitForTimeout(1200);
+    ok(!!(await p.$('#act-card')), 'fiche d\'activation'); ok(!!(await p.$('#rv-card')), 'revue de la semaine'); ok(!!(await p.$('#onb-card')), 'mise en route');
+  }, coachPre(sc => (m, path) => { if (/rpc\/client_activation/.test(path)) return [{ client_id: sc.CID, has_account: true, new_app: true, pw_set: false, devices: 0, onboarding: true, cgv: false }]; if (/rpc\/client_app_status/.test(path)) return []; })),
 
   'page publique : candidature': async () => {
     const b = await chromium.launch({ executablePath: EXE }); const p = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage(); let posted = null; const errs = [];
