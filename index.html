@@ -3409,6 +3409,93 @@ x10After=function(){ _x10After35(); if(coach()||ST.view!=="nutrition"||NU.nv!=="
     m.opts.forEach((o,oi)=>{ if(!oi) return; const sw=document.querySelector(`[data-act="nu-swap"][data-v="${mi}.${oi}"]`); const box=sw&&sw.closest(".edit"); if(!box||box.querySelector(".mmac")) return; const om=optMac(o);
       sw.insertAdjacentHTML("beforebegin",`<div class="muted small mmac" style="margin:4px 0">${macTxt(om)}<br>${Math.abs(om.k-T.k)<=Math.max(40,T.k*0.08)&&Math.abs(om.p-T.p)<=6?"≈ même apport que le plat prévu, quantités déjà ajustées":diffLine(om,T)}</div>`); }); }); };
 
+// ================= MODULE CLAUDE (abonnement Pro) : préparer un plan / un brouillon, importer le plan =================
+// Rien n'est envoyé automatiquement : le texte est copié, le coach le colle dans Claude, relit et réimporte lui-même.
+const CL={imp:false,txt:"",prev:null,err:""};
+const CL_RULES=`Règles impératives : aucune promesse de résultat chiffré ; aucune allégation de santé (pas de diagnostic, pas de traitement, rien de thérapeutique) ; ton technique, bienveillant, sans jargon commercial ; tutoiement.`;
+async function clCopy(txt,what){ let ok=false; try{ await navigator.clipboard.writeText(txt); ok=true; }catch(e){}
+  if(!ok){ const ta=document.createElement("textarea"); ta.value=txt; ta.style.cssText="position:fixed;top:0;left:0;opacity:0"; document.body.appendChild(ta); ta.select(); try{ ok=document.execCommand("copy"); }catch(e){} ta.remove(); }
+  toast(ok?`${what} copié : colle-le dans Claude (projet « Coaching clients »)`:"Copie impossible"); if(ok) window.open("https://claude.ai/new","_blank","noopener"); }
+function clProfile(){ const d=(X10.obCid===CUR&&X10.ob&&X10.ob.data)||{}, P=NU.plan||{}, f=P.prof||{}, L=[];
+  const sx=d.sex||(f.sex==="F"?"Femme":f.sex==="H"?"Homme":""); if(sx) L.push(`Sexe : ${sx}`); if(d.age||f.age) L.push(`Âge : ${d.age||f.age} ans`); if(d.height||f.h) L.push(`Taille : ${d.height||f.h} cm`); if(d.weight||f.w) L.push(`Poids : ${d.weight||f.w} kg`);
+  if(d.nobj) L.push(`Objectif alimentaire : ${d.nobj}`); if(d.meals) L.push(`Prises alimentaires souhaitées : ${d.meals}`); L.push(`Régime : ${d.diet||"Omnivore"}`);
+  if(Array.isArray(d.excl)&&d.excl.length) L.push(`Exclusions : ${d.excl.join(", ")}`); if(d.dislike) L.push(`N'aime pas : ${d.dislike}`); if(d.cook) L.push(`Temps de cuisine : ${d.cook}`);
+  if(M&&M.sessions){ const n=M.sessions.filter(S=>sActive(M.cw,S)).length; if(n) L.push(`Séances de musculation : ${n} par semaine (${M.sessions.filter(S=>sActive(M.cw,S)).map(S=>S.day).join(", ")})`); }
+  return L.join("\n"); }
+async function clPlanPrompt(){ await nuFoods(); const P=NU.plan, T=P&&P.tgt; if(!T) return toast("Calcule d'abord la cible dans Besoins");
+  const types=P.types.map(t=>{ const tt=tgtOf(t); return `- « ${t.name} » (jours : ${P.week.map((id,i)=>id===t.id?DAYS[i]:null).filter(Boolean).join(", ")||"aucun"}) : ${r0(tt.k)} kcal · P ${r0(tt.p)} g · G ${r0(tt.g)} g · L ${r0(tt.l)} g ; repas : ${t.meals.map(m=>m.name).join(", ")||"à définir"}`; }).join("\n");
+  const foods=(NU.foods||[]).map(f=>`${f.name} | ${r0(f.kcal)} | ${fmtN(+f.p)} | ${fmtN(+f.g)} | ${fmtN(+f.l)}`).join("\n");
+  const txt=`Tu es l'assistant de Thomas Boulet, coach sportif diplômé STAPS. Crée un plan alimentaire pour un client (données anonymisées).
+${CL_RULES}
+
+PROFIL
+${clProfile()}
+
+TYPES DE JOUR ET CIBLES (à respecter à ±3 % en kcal, protéines au gramme près si possible)
+${types}
+
+CONSIGNES
+- Pour chaque repas : 1 plat prévu + 2 alternatives aux macros proches, simples et réalistes.
+- Utilise UNIQUEMENT des aliments de la liste ci-dessous, avec leur nom EXACT, quantités en grammes (aliment cru sauf si le nom indique « cuit »).
+- Respecte le régime, les exclusions et les aliments non aimés.
+- Vérifie tes totaux avec les valeurs de la liste (pour 100 g : kcal | P | G | L ; kcal = 4P + 4G + 9L).
+
+RÉPONDS UNIQUEMENT avec un bloc JSON valide, sans texte autour, au format :
+{"types":[{"name":"Jour d'entraînement","days":[0,2,4],"meals":[{"name":"Petit-déjeuner","options":[{"name":"Porridge protéiné","items":[{"food":"Flocons d'avoine","g":60}]}]}]}],"notes":"conseils courts pour le client"}
+("days" : 0 = lundi … 6 = dimanche ; la 1re option de chaque repas est le plat prévu.)
+
+LISTE DES ALIMENTS (nom | kcal | P | G | L pour 100 g)
+${foods}`;
+  clCopy(txt,"Le brief du plan"); }
+// recherche tolérante d'un aliment par son nom
+function clFood(name){ const n=nrm(name).replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim(); if(!n) return null; const F=NU.foods||[];
+  let f=F.find(x=>nrm(x.name)===nrm(name)); if(f) return f; const norm=x=>nrm(x).replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+  f=F.find(x=>norm(x.name)===n); if(f) return f; const w=n.split(" ").filter(x=>x.length>2);
+  const C=F.filter(x=>{ const t=norm(x.name); return w.length&&w.every(y=>t.includes(y)); }); if(C.length) return C.sort((a,b)=>a.name.length-b.name.length)[0]; return null; }
+function clParse(txt){ const s=String(txt||""), i=s.indexOf("{"), j=s.lastIndexOf("}"); if(i<0||j<i) throw new Error("Aucun bloc JSON trouvé dans le texte collé");
+  const J=JSON.parse(s.slice(i,j+1)); if(!Array.isArray(J.types)||!J.types.length) throw new Error("Le JSON ne contient pas de « types »");
+  const miss=new Set(), week=Array(7).fill(null), types=J.types.map((t,ti)=>{ const id=ti===0?"E":ti===1?"R":"T"+ti;
+    (Array.isArray(t.days)?t.days:[]).forEach(d=>{ if(d>=0&&d<7&&week[d]==null) week[d]=id; });
+    return {id,name:String(t.name||`Type ${ti+1}`).slice(0,60),meals:(t.meals||[]).map(m=>({name:String(m.name||"Repas").slice(0,60),opts:(m.options||m.opts||[]).map(o=>({n:String(o.name||o.n||"Plat").slice(0,80),m:1,
+      it:(o.items||o.it||[]).map(x=>{ const f=clFood(x.food||x.n||""); const q=+(x.g??x.q); if(!f||!(q>0)){ miss.add(String(x.food||x.n||"?")); return null; } return fSnap(f,Math.round(q)); }).filter(Boolean)})).filter(o=>o.it.length)}))}; });
+  for(let d=0;d<7;d++) if(week[d]==null) week[d]=types[types.length>1?1:0].id;
+  return {types,week,notes:typeof J.notes==="string"?J.notes.slice(0,2000):"",miss:[...miss]}; }
+function vClImport(){ if(!CL.imp) return ""; const R=CL.prev;
+  let h=`<div class="card" id="cl-imp" style="border:2px solid var(--blue)"><h3 style="margin-top:0">📥 Importer le plan proposé par Claude</h3><p class="small muted">Colle ici toute la réponse de Claude (le bloc JSON suffit).</p>
+   <textarea id="cl-txt" rows="6" style="width:100%;font-family:ui-monospace,monospace;font-size:.8rem" placeholder='{"types":[...]}'>${esc(CL.txt)}</textarea>
+   <div class="row" style="margin-top:6px"><button class="sm" data-act="cl-check">Vérifier</button><button class="ghost sm" data-act="cl-close">Fermer</button></div>${CL.err?`<div class="alert ko small" style="margin-top:6px">${esc(CL.err)}</div>`:""}`;
+  if(R){ h+=`<div style="margin-top:8px">${R.types.map(t=>{ const tt=tgtOf(t), d=dayPlan(t); return `<div style="padding:6px 0;border-top:1px solid var(--line)"><b>${esc(t.name)}</b> · ${R.week.map((id,i)=>id===t.id?DSH[i]:null).filter(Boolean).join(" ")}<div class="small">${macTxt(d)}${tt?` <span class="muted">(cible ${r0(tt.k)} kcal · P ${r0(tt.p)})</span>`:""}</div><div class="muted small">${t.meals.map(m=>`${esc(m.name)} : ${m.opts.length} option${m.opts.length>1?"s":""}`).join(" · ")}</div></div>`; }).join("")}
+     ${R.miss.length?`<div class="alert ko small">Aliments non trouvés dans ta base, ignorés : ${esc(R.miss.join(", "))}</div>`:""}
+     <div class="row" style="margin-top:8px"><button class="ok sm" data-act="cl-apply">Remplacer le plan par celui-ci</button></div><p class="note">La cible, le profil et le cardio sont conservés. Les alternatives seront ajustées au plat prévu. Relis le plan avant de le rendre visible au client.</p></div>`; }
+  return h+`</div>`; }
+const _nPlanCoach36=nPlanCoach;
+nPlanCoach=function(){ let h=_nPlanCoach36(); const bar=`<div class="card"><div class="row" style="gap:6px"><button class="ghost sm" data-act="cl-plan">✨ Préparer pour Claude</button><button class="ghost sm" data-act="cl-open">📥 Importer depuis Claude</button></div><p class="note" style="margin-top:6px">Copie un brief anonymisé (sans nom) à coller dans Claude, puis réimporte sa réponse ici.</p></div>`;
+  return bar+vClImport()+h; };
+document.addEventListener("input",e=>{ if(e.target.id==="cl-txt") CL.txt=e.target.value; });
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(!/^cl-/.test(a)||!coach()) return;
+  if(a==="cl-plan") return clPlanPrompt();
+  if(a==="cl-open"){ CL.imp=true; CL.prev=null; CL.err=""; render(); const el=document.getElementById("cl-imp"); if(el) el.scrollIntoView({block:"start"}); return; }
+  if(a==="cl-close"){ CL.imp=false; CL.prev=null; CL.txt=""; CL.err=""; return render(); }
+  if(a==="cl-check"){ await nuFoods(); try{ CL.prev=clParse(CL.txt); CL.err=""; }catch(err){ CL.prev=null; CL.err="Impossible de lire la réponse : "+err.message; } return render(); }
+  if(a==="cl-apply"){ const R=CL.prev; if(!R||!confirm("Remplacer les types de jour et les repas du plan actuel par ceux de Claude ?")) return;
+    const P=NU.plan; P.types=R.types; P.week=R.week; if(R.notes&&!P.notes) P.notes=R.notes; P.types.forEach(t=>fitAlts(t)); NU.ti=0; CL.imp=false; CL.prev=null; CL.txt=""; nuSave(); render(); toast("Plan importé ✅ Relis-le, ajuste si besoin."); } });
+// messagerie coach : brouillon de réponse avec Claude
+function clMsgPrompt(){ const nm=(ST.prog&&ST.prog.profile&&ST.prog.profile.name)||"", re=nm?new RegExp(nm.split(/\s+/).map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).join("|"),"gi"):null, anon=s=>re?String(s||"").replace(re,"le client"):String(s||"");
+  const last=(MSG.list||[]).slice(-12).map(m=>`${m.from_coach?"Coach":"Client"} : ${anon(m.body||"(pièce jointe)")}`).join("\n");
+  const sv=ST.suivi&&M?ST.suivi[M.cw]||{}:{}; const R=typeof recordsAll==="function"&&M?Object.values(recordsAll()).filter(x=>x.e1&&x.e1.w>=M.cw-1).map(x=>x.name).slice(0,5):[];
+  const done=M?M.sessions.filter(S=>sActive(M.cw,S)).map(S=>{ const t=ST.carnet[M.cw+"_t_"+S.s]||{}; return `${S.name} : ${t.missed?"loupée":t.end?"faite":"pas encore notée"}`; }).join(" ; "):"";
+  return `Tu es l'assistant de Thomas Boulet, coach sportif diplômé STAPS. Rédige un brouillon de réponse au dernier message du client (Thomas le relira avant de l'envoyer).
+${CL_RULES} Réponse courte (3 à 6 phrases), concrète. Si le client évoque une douleur ou un problème de santé, recommande de consulter un professionnel de santé et propose d'adapter la séance, sans diagnostic.
+
+CONTEXTE (semaine ${M?M.cw:"?"} du cycle${M&&M.phases[M.cw-1]?", phase "+M.phases[M.cw-1]:""})
+Séances de la semaine : ${done||"—"}
+${R.length?"Records récents : "+R.join(", ")+"\n":""}${sv.sent?`Bilan de la semaine : ${anon(Object.entries(sv).filter(([k])=>!["sent","reply"].includes(k)).map(([k,v])=>k+" = "+v).join(", "))}\n`:""}
+DERNIERS MESSAGES
+${last||"(aucun)"}`; }
+const _msgRender36=msgRender;
+msgRender=function(){ _msgRender36(); const el=document.getElementById("msgpanel"); if(!el||!MSG.open||!iAmCoach()) return; const tg=el.querySelector('[data-act="rt-tog"]'); if(tg) tg.insertAdjacentHTML("afterend",`<button class="ghost sm" data-act="clm-draft" aria-label="Brouillon avec Claude" title="Brouillon avec Claude">✨</button>`); };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="clm-draft"]'); if(!b) return; e.stopImmediatePropagation(); clCopy(clMsgPrompt(),"Le contexte du message"); },true);
+
 boot();
 
 </script>
