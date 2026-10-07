@@ -3341,6 +3341,14 @@ obLoad=async function(cid){ if(X10.obCid===cid&&X10.obDraft&&X10.obLocalAt&&Date
     if(!navigator.onLine||!SB) return; const {data,error}=await SB.from("onboarding").select("*").eq("client_id",cid).maybeSingle(); if(!error&&CUR===cid) X10.ob=data||X10.ob; return; }
   return _obLoad32(cid); };
 
+// ================= MODULE CALORIES COHÉRENTES AVEC LES MACROS =================
+// Les objectifs sont calculés avec 4 kcal/g (protéines, glucides) et 9 kcal/g (lipides). Les aliments affichaient
+// leur énergie d'étiquette, qui compte aussi les fibres (≈ 2 kcal/g) : d'où des écarts de 50 à 100 kcal à macros égales.
+// Désormais : kcal = 4 P + 4 G + 9 L, sauf pour les boissons alcoolisées et les estimations sans macros
+// (énergie d'étiquette conservée quand les macros en expliquent moins de 60 %).
+const kcalOf=i=>{ const lab=+i.k||0, atw=4*(+i.p||0)+4*(+i.g||0)+9*(+i.l||0); return lab>0&&atw<0.6*lab?lab:atw; };
+mac=function(its,m=1){ const t=Z(); (its||[]).forEach(i=>{ const x=(+i.q||0)*m/100; t.k+=x*kcalOf(i); t.p+=x*(+i.p||0); t.g+=x*(+i.g||0); t.l+=x*(+i.l||0); }); return t; };
+
 boot();
 
 </script>
