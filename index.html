@@ -4126,6 +4126,36 @@ vBank=function(){ fxEntry(); const all=BANK.slice(); BANK.splice(0,BANK.length,.
   const i=h.indexOf('<div class="muted small" style="margin:6px 0">'); return i<0?h:h.slice(0,i)+vForceCard()+h.slice(i); };
 const _css47=document.createElement("style"); _css47.textContent=`[data-act="bank-prev"],[data-act="bank-apply"]{flex:none;white-space:nowrap}.bkacts{gap:8px;margin-top:6px}`; document.head.appendChild(_css47);
 
+// ================= MODULE 48 · PETITS DESSINS DU LOGO DANS L'INTERFACE (fond, titres, cartes de l'Accueil) =================
+const IC48={"cal": "<rect x=\"14\" y=\"26\" width=\"92\" height=\"82\" rx=\"20\"/><path d=\"M14 52 H106\"/><path d=\"M38 14 V36 M82 14 V36\"/><path d=\"M40 80 L54 93 L80 66\"/>", "man": "<circle cx=\"60\" cy=\"14\" r=\"10\"/><path d=\"M2 40 H118\"/><rect x=\"12\" y=\"24\" width=\"12\" height=\"32\" rx=\"6\"/><rect x=\"96\" y=\"24\" width=\"12\" height=\"32\" rx=\"6\"/><path d=\"M38 40 Q50 34 60 32 Q70 34 82 40\"/><path d=\"M60 30 Q56 52 60 70\"/><path d=\"M60 70 Q44 74 36 88 Q37 100 41 112\"/><path d=\"M60 70 Q76 74 84 88 Q83 100 79 112\"/>", "fire": "<path d=\"M62 8 C84 34 104 54 98 84 C94 106 78 116 60 116 C38 116 20 102 22 80 C24 62 38 54 42 34 C52 46 54 56 62 60 C68 44 66 26 62 8 Z\"/><path d=\"M60 116 C48 116 42 106 44 96 C46 86 54 82 58 72 C66 84 76 90 74 102 C72 110 66 116 60 116\"/>", "tgt": "<circle cx=\"56\" cy=\"64\" r=\"46\"/><circle cx=\"56\" cy=\"64\" r=\"28\"/><circle cx=\"56\" cy=\"64\" r=\"9\"/><path d=\"M58 62 L104 16\"/><path d=\"M90 14 L104 16 L106 30\"/>", "plate": "<circle cx=\"62\" cy=\"64\" r=\"40\"/><circle cx=\"62\" cy=\"64\" r=\"24\"/><path d=\"M8 18 V44 Q8 54 16 56 V112 M16 18 V44 M24 18 V44 Q24 54 16 56\"/><path d=\"M114 18 Q100 32 102 58 L112 62 V112\"/>", "chart": "<path d=\"M14 12 V108 H110\"/><path d=\"M30 88 L54 62 L72 76 L102 34\"/><path d=\"M84 32 H102 V50\"/>"};
+document.body.insertAdjacentHTML("afterbegin",`<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="g48-cal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B9A6FF"/><stop offset="1" stop-color="#6F8CFF"/></linearGradient><linearGradient id="g48-man" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8FB8FF"/><stop offset="1" stop-color="#4C7BF0"/></linearGradient><linearGradient id="g48-fire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF8FC4"/><stop offset="1" stop-color="#FF6B8A"/></linearGradient><linearGradient id="g48-tgt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7FF0D6"/><stop offset="1" stop-color="#4C9BFF"/></linearGradient><linearGradient id="g48-plate" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A6F3DA"/><stop offset="1" stop-color="#2FC7A8"/></linearGradient><linearGradient id="g48-chart" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9FF5C0"/><stop offset="1" stop-color="#3FB8F0"/></linearGradient></defs></svg>`);
+const ic48=(k,cls="i48")=>`<svg class="${cls}" viewBox="0 0 120 120" fill="none" stroke="url(#g48-${k})" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC48[k]}</svg>`;
+// fond : dessins très légers, éparpillés
+(()=>{ const bg=document.getElementById("bg45"); if(!bg) return; const D=[["cal",8,14,-12,.20],["chart",80,9,6,.16],["man",62,31,-4,.22],["tgt",14,47,10,.17],["fire",84,58,-9,.18],["plate",20,78,7,.19],["chart",70,86,-5,.15]];
+  bg.insertAdjacentHTML("beforeend",`<div class="dood48">${D.map(([k,x,y,r,s])=>`<span style="left:${x}%;top:${y}%;width:${Math.round(s*400)}px;transform:translate(-50%,-50%) rotate(${r}deg)">${ic48(k,"")}</span>`).join("")}</div>`); })();
+// Accueil : une icône devant le titre de chaque carte
+const LAB48={"Séance du jour":"man","Entraînement":"man","Alimentation":"plate","Progrès":"chart","Mesures":"tgt","Bilan":"cal","Paiement":"cal"};
+const _vToday48=vToday;
+vToday=function(){ let h=_vToday48();
+  h=h.replace(/<div class="lb45"><span>([^<]+)<\/span>/g,(m,l)=>LAB48[l]?`<div class="lb45"><span class="lbi48">${ic48(LAB48[l])}${l}</span>`:m);
+  h=h.replace(/<div class="card"><div class="muted small">([^<]+)<\/div>/g,(m,l)=>LAB48[l]?`<div class="card"><div class="muted small lbi48">${ic48(LAB48[l])}${l}</div>`:m);
+  h=h.replace('<span><b class="kv45">',`<span class="lbi48">${ic48("fire","i48 f48")}<b class="kv45">`);
+  h=h.replace('<div class="card ses45">',`<div class="card ses45">${ic48(/Jour de repos/.test(h)?"cal":"man","wm48")}`).replace('<div class="card nu45">',`<div class="card nu45">${ic48("plate","wm48")}`);
+  return h; };
+// titres des pages
+const H48={carnet:"man",nutrition:"plate",objectifs:"tgt",semaine:"cal",outils:"chart",programme:"chart"};
+const _render48=render;
+render=function(){ _render48(); if(ST.todayOn&&MODE==="client") return; const k=H48[ST.view]; const h=k&&document.querySelector("#app h2"); if(h&&!h.querySelector(".i48")&&!h.closest(".hero45")) h.insertAdjacentHTML("afterbegin",ic48(k,"i48 h48")); };
+const _css48=document.createElement("style"); _css48.textContent=`
+.i48{width:18px;height:18px;flex:0 0 auto;vertical-align:-3px;margin-right:6px}
+.lbi48{display:inline-flex;align-items:center}.f48{width:20px;height:20px;margin-right:4px}
+.h48{width:26px;height:26px;margin-right:8px;vertical-align:-4px}
+.ses45,.nu45{position:relative;overflow:hidden}.ses45>*,.nu45>*{position:relative}
+.wm48{position:absolute!important;right:-18px;bottom:-22px;width:150px;height:150px;opacity:.10;transform:rotate(-10deg);pointer-events:none}
+.dood48{position:absolute;inset:0}.dood48 span{position:absolute;display:block;opacity:var(--dood,.07)}.dood48 svg{width:100%;height:auto;display:block}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--dood:.10}} :root[data-theme="dark"]{--dood:.10}
+@media print{.dood48,.wm48{display:none}}`; document.head.appendChild(_css48);
+
 boot();
 
 </script>
