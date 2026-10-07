@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Vérifier la syntaxe du JavaScript de l'app
+        run: node -e 'const s=require("fs").readFileSync("index.html","utf8");const m=s.match(/<script>([\s\S]*)<\/script>\s*<\/body>/);new Function(m[1]);new Function(require("fs").readFileSync("sw.js","utf8"));console.log("syntaxe OK")'
+      - name: Installer les outils de test
+        working-directory: tests
+        run: npm install --no-audit --no-fund && npx playwright install --with-deps chromium
+      - name: Lancer les tests de bout en bout
+        run: |
+          python3 -m http.server 8765 >/dev/null 2>&1 &
+          sleep 2
+          node tests/run.js
+        env:
+          BASE_URL: http://localhost:8765/

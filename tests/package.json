@@ -1,0 +1,7 @@
+{
+  "name": "tb-coaching-app-tests",
+  "private": true,
+  "description": "Tests de bout en bout de l'app TB my Coach (Supabase simulé)",
+  "scripts": { "test": "node run.js" },
+  "devDependencies": { "playwright": "1.63.0", "@supabase/supabase-js": "2.117.2" }
+}
