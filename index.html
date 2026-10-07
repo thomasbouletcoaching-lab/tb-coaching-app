@@ -3210,6 +3210,37 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   if(a==="ld-purge"){ const old=LD.list.filter(l=>l.status!=="client"&&Date.now()-new Date(l.created_at)>365*864e5); if(!old.length||!confirm(`Supprimer définitivement ${old.length} candidature(s) de plus de 12 mois ?`)) return;
     const {error}=await SB.from("leads").delete().in("id",old.map(l=>l.id)); if(error) return toast(error.message); LD.list=LD.list.filter(l=>!old.includes(l)); toast("Supprimées"); render(); } });
 
+// ================= MODULE CGV ACCEPTÉES DANS L'APP =================
+// on:false tant que Thomas n'a pas complété et validé cgv.html (SIRET, adresse, médiateur).
+const CGV={v:"2026-10",on:false,url:"cgv.html"};
+const CG={cid:null,rows:null,busy:false,ck:false,early:false};
+async function cgLoad(cid){ if(CG.busy||!cid) return; CG.busy=true; const {data,error}=await SB.from("cgv_accept").select("version,accepted_at,early_start").eq("client_id",cid).order("accepted_at",{ascending:false}).range(0,49);
+  CG.busy=false; if(CUR!==cid) return; CG.cid=cid; CG.rows=error?[]:(data||[]); if(error) console.error(error); scheduleRender(); }
+const cgCur=()=>CG.cid===CUR&&CG.rows?CG.rows.find(r=>r.version===CGV.v)||null:undefined;
+function vCgv(){ return `<h2>Conditions générales</h2><div class="card"><p>Avant de continuer, prends connaissance des conditions générales de vente du coaching (version ${esc(CGV.v)}). L'essentiel :</p>
+  <ul class="small"><li>Cycle de 12 semaines à distance via l'app, 1 600 € (TVA non applicable).</li><li>Obligation de moyens : aucun résultat chiffré n'est garanti, la progression dépend de facteurs individuels.</li>
+  <li>Le coaching n'est pas un suivi médical : signale toute douleur, blessure ou traitement, et consulte un médecin en cas de doute.</li><li>Droit de rétractation de 14 jours (contrat à distance) ; sans demande de ta part, le cycle ne commence pas avant la fin de ce délai.</li><li>Programmes réservés à ton usage personnel.</li></ul>
+  <p><a href="${CGV.url}" target="_blank" rel="noopener">Lire les conditions générales complètes</a></p>
+  <label class="row" style="gap:10px;align-items:flex-start;flex-wrap:nowrap;cursor:pointer"><input type="checkbox" id="cg-ck" ${CG.ck?"checked":""} style="width:20px;height:20px;flex:0 0 auto;margin-top:3px"><span>J'ai lu et j'accepte les conditions générales de vente (version ${esc(CGV.v)}).</span></label>
+  <label class="row" style="gap:10px;align-items:flex-start;flex-wrap:nowrap;cursor:pointer;margin-top:8px"><input type="checkbox" id="cg-early" ${CG.early?"checked":""} style="width:20px;height:20px;flex:0 0 auto;margin-top:3px"><span class="small">Facultatif : je demande que le coaching commence avant la fin du délai de rétractation de 14 jours. Je sais que si je me rétracte ensuite, je paierai la part du service déjà fournie.</span></label>
+  <div class="row" style="margin-top:12px"><button data-act="cg-ok">Continuer</button><button class="ghost" data-act="logout">Me déconnecter</button></div>
+  <p class="note">Ton acceptation est enregistrée avec sa date. Une question ? Écris à ton coach avant d'accepter.</p></div>`; }
+const _render29=render;
+render=function(){ if(CGV.on&&UID&&MODE==="client"&&ST.ready&&ST.view!=="auth"&&X10.meta.rgpd_ok&&CUR){ const c=cgCur(); if(c===undefined){ cgLoad(CUR); } else if(!c) return gateShell(vCgv(),"Conditions générales"); }
+  _render29(); };
+document.addEventListener("change",e=>{ if(e.target.id==="cg-ck") CG.ck=e.target.checked; if(e.target.id==="cg-early") CG.early=e.target.checked; },true);
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b||b.dataset.act!=="cg-ok") return; if(!CG.ck) return toast("Coche la case d'acceptation pour continuer");
+  b.disabled=true; const row={client_id:CUR,version:CGV.v,early_start:!!CG.early,ua:navigator.userAgent.slice(0,400)};
+  const {data,error}=await SB.from("cgv_accept").insert(row).select("version,accepted_at,early_start").single(); b.disabled=false;
+  if(error) return toast("Enregistrement impossible : "+error.message); CG.rows=[data].concat(CG.rows||[]); toast("Conditions acceptées ✅"); window.scrollTo(0,0); render(); });
+const cgLine=c=>c?`CGV version ${esc(c.version)} acceptées le ${new Date(c.accepted_at).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})} à ${new Date(c.accepted_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}${c.early_start?" · début anticipé demandé":""}`:"";
+const _x10After29=x10After;
+x10After=function(){ _x10After29(); if(!CUR||!M||ST.bilan) return; const app=$("#app"); if(!app) return;
+  if(CG.cid!==CUR){ cgLoad(CUR); return; } const last=(CG.rows||[])[0];
+  if(MODE==="client"&&!coach()&&ST.view==="compte"&&!ST.todayOn&&last) app.insertAdjacentHTML("beforeend",`<div class="card"><h3 style="margin-top:0">Conditions générales</h3><p class="small">${cgLine(last)}.</p><a href="${CGV.url}" target="_blank" rel="noopener">Relire les conditions générales</a></div>`);
+  if(coach()&&ST.view==="tableau"){ const n=document.getElementById("cn-card"); const st=ST.prog&&ST.prog.profile&&ST.prog.profile.start, warn=last&&!last.early_start&&st&&st<addDays(isoD(new Date(last.accepted_at)),14);
+    const h=`<div class="card small" id="cg-coach">📄 ${last?cgLine(last):`CGV non acceptées${CGV.on?"":" (demande d'acceptation pas encore activée)"}`}${warn?`<div class="alert ko small" style="margin-top:6px">Début anticipé non demandé : le cycle ne devrait pas commencer avant le ${frDate(addDays(isoD(new Date(last.accepted_at)),14))} (fin du délai de rétractation).</div>`:""}${last?`<div class="muted" style="margin-top:4px">Pense à envoyer au client la confirmation par e-mail (copie des CGV).</div>`:""}</div>`; if(n) n.insertAdjacentHTML("beforebegin",h); else app.insertAdjacentHTML("afterbegin",h); } };
+
 boot();
 
 </script>
