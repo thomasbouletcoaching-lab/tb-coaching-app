@@ -16,7 +16,7 @@ hébergée **gratuitement** sur GitHub Pages.
 | `confidentialite.html` | Politique de confidentialité présentée aux clients |
 | `sw.js` | Service worker : hors ligne, installation sur téléphone, notifications |
 | `manifest.webmanifest` | Nom, couleurs et icônes de l'app installée |
-| `logo.png`, `icon-*.png`, `apple-touch-icon.png`, `favicon.ico` | Visuels |
+| `logo.png`, `logo-complet.png` (avec « My Coach »), `icon-*.png`, `apple-touch-icon.png`, `favicon.ico` | Visuels |
 | `.github/workflows/keepalive.yml` | Tâche quotidienne qui empêche la mise en pause de Supabase |
 | `.nojekyll` | Indique à GitHub de servir les fichiers tels quels |
 
