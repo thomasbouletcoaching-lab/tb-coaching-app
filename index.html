@@ -3349,6 +3349,35 @@ obLoad=async function(cid){ if(X10.obCid===cid&&X10.obDraft&&X10.obLocalAt&&Date
 const kcalOf=i=>{ const lab=+i.k||0, atw=4*(+i.p||0)+4*(+i.g||0)+9*(+i.l||0); return lab>0&&atw<0.6*lab?lab:atw; };
 mac=function(its,m=1){ const t=Z(); (its||[]).forEach(i=>{ const x=(+i.q||0)*m/100; t.k+=x*kcalOf(i); t.p+=x*(+i.p||0); t.g+=x*(+i.g||0); t.l+=x*(+i.l||0); }); return t; };
 
+// ================= MODULE QUANTITÉS PRÉCISES (extras, aliments scannés, repas ajustés) =================
+const QC_SPOON=/miel|huile|beurre|confiture|sucre|sirop|sauce|cr[eè]me|p[aâ]te [àa] tartiner|mayonnaise|ketchup|pesto|vinaigrette|tahini|pur[ée]e d'ol|nutella|caramel|chocolat|graines|noix|amande|cacahu/i;
+const qcStep=i=>{ const q=+i.q||0, dense=(+i.k||0)>=300; if(dense) return q<60?1:5; return q<20?1:q<150?5:10; };
+function qcPortions(i){ const out=[]; if(i.ug&&i.u) out.push([`1 ${i.u} (${fmtN(+i.ug)} g)`,+i.ug]); if(i.ug&&i.u&&i.ug*2<=400) out.push([`2 ${i.u}${/[sx]$/.test(i.u)?"":"s"} (${fmtN(2*i.ug)} g)`,2*i.ug]);
+  if(QC_SPOON.test(i.n||"")||(+i.k||0)>=300){ out.push(["1 c. à café ≈ 5 g",5],["1 c. à soupe ≈ 15 g",15]); }
+  return out.slice(0,4); }
+function qcHTML(kind,idx,i){ const q=Math.round((+i.q||0)*10)/10, P=qcPortions(i);
+  return `<span class="qc"><button class="ghost sm" data-act="qc-step" data-v="${kind}.${idx}.-1" aria-label="Moins">−</button><input data-qc="${kind}.${idx}" inputmode="decimal" enterkeyhint="done" value="${q}" aria-label="Quantité en grammes"><span class="muted small">g</span><button class="ghost sm" data-act="qc-step" data-v="${kind}.${idx}.1" aria-label="Plus">＋</button></span>${P.length?`<span class="qcp">${P.map(([l,g])=>`<button class="chip" data-act="qc-set" data-v="${kind}.${idx}.${g}">${esc(l)}</button>`).join("")}</span>`:""}`; }
+const _css34=document.createElement("style"); _css34.textContent=`.qc{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto}.qc input{width:64px;text-align:center;padding:6px 4px;font-weight:700}.qcp{display:flex;flex-wrap:wrap;gap:4px;flex-basis:100%;margin-top:4px;order:10}.qcp .chip{padding:5px 10px;font-size:.8rem}`; document.head.appendChild(_css34);
+function qcItem(kind,idx){ if(kind==="x"){ const L=NU.logs[NU.day]; return L&&L.x?L.x[idx]:null; } return NU.adj&&NU.adj.it?NU.adj.it[idx]:null; }
+function qcApply(kind,idx,q){ q=Math.max(0,Math.round(q*10)/10); if(kind==="x"){ const d=NU.day; NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); NU.logs[d].x=[...(NU.logs[d].x||[])]; const it=NU.logs[d].x[idx]; if(!it) return; NU.logs[d].x[idx]={...it,q}; nuSaveLog(d); }
+  else { const it=NU.adj&&NU.adj.it[idx]; if(!it) return; it.q=q; } }
+const _nJour34=nJour;
+nJour=function(){ let h=_nJour34(); const L=NU.logs[NU.day]||{};
+  h=h.replace(/<button class="ghost sm" data-act="nu-xstep" data-v="(\d+)\.-1"[^>]*>−<\/button><button class="ghost sm" data-act="nu-xstep" data-v="\1\.1"[^>]*>＋<\/button>/g,(m,xi)=>{ const it=(L.x||[])[+xi]; return it?qcHTML("x",+xi,it):m; });
+  h=h.replace(/<button class="ghost sm" data-act="na-step" data-v="(\d+)\.-1"[^>]*>−<\/button><button class="ghost sm" data-act="na-step" data-v="\1\.1"[^>]*>＋<\/button>/g,(m,ii)=>{ const it=NU.adj&&NU.adj.it[+ii]; return it?qcHTML("a",+ii,it):m; });
+  return h; };
+document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||!el.dataset.qc) return; const [kind,idx]=el.dataset.qc.split("."); const q=parseFloat(String(el.value).replace(",","."));
+  if(!(q>=0)) return toast("Quantité invalide"); qcApply(kind,+idx,q); render(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Enter"&&e.target.dataset&&e.target.dataset.qc) e.target.blur(); });
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="qc-step"&&a!=="qc-set") return; e.stopImmediatePropagation();
+  const [kind,idx,v]=b.dataset.v.split("."), it=qcItem(kind,+idx); if(!it) return;
+  if(a==="qc-set") qcApply(kind,+idx,+v); else { const s=qcStep(it); qcApply(kind,+idx,Math.max(0,Math.round(((+it.q||0)+(+v)*s)/s)*s)); }
+  render(); },true);
+// après un scan : on demande tout de suite la quantité réellement mangée
+const _offLookup34=offLookup;
+offLookup=async function(code){ const L0=((NU.logs[NU.day]||{}).x||[]).length; await _offLookup34(code); const L1=((NU.logs[NU.day]||{}).x||[]).length;
+  if(L1>L0) setTimeout(()=>{ const el=document.querySelector(`[data-qc="x.${L1-1}"]`); if(el){ el.scrollIntoView({block:"center"}); el.focus(); el.select&&el.select(); toast("Indique la quantité mangée (en grammes)"); } },250); };
+
 boot();
 
 </script>
