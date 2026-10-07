@@ -3685,7 +3685,7 @@ BANK.forEach(b=>{ if(!b.nd) b.nd=b.days.filter(Boolean).length; if(META[b.id]){ 
 const BKF={lvl:"",nd:0,split:""};
 const _vBank40=vBank;
 vBank=function(){ const full=_vBank40(), cut=full.indexOf('<h3 style="margin:14px 0 4px">Mes programmes</h3>'); if(cut<0) return full; const tail=full.slice(cut); const L=BANK.filter(b=>(!BKF.lvl||b.lvl===BKF.lvl)&&(!BKF.nd||b.nd===BKF.nd)&&(!BKF.split||b.split===BKF.split)), T=(BZ.set&&BZ.set.templates)||[];
-  const chips=(k,opts,lab)=>`<div class="row" style="gap:4px;margin:4px 0"><span class="muted small" style="min-width:52px">${lab}</span>${[["","Tous"],...opts].map(([v,t])=>`<button class="chip ${String(BKF[k])===String(v)?"on":""}" data-act="bkf" data-k="${k}" data-v="${v}">${esc(t)}</button>`).join("")}</div>`;
+  const chips=(k,opts,lab)=>`<div class="row" style="gap:4px;margin:4px 0"><span class="muted small" style="min-width:52px">${lab}</span>${[["","Tous"],...opts].map(([v,t])=>`<button class="chip ${String(BKF[k]||"")===String(v)?"on":""}" data-act="bkf" data-k="${k}" data-v="${v}">${esc(t)}</button>`).join("")}</div>`;
   const splits=[...new Set(BANK.map(b=>b.split))];
   return `<div class="card"><h3 style="margin-top:0">Banque de programmes <span class="muted small">(${BANK.length})</span></h3><p class="muted small">Appliquer remplace les séances, jours et phases de ce client (son profil et ses 1RM sont gardés). Les exercices non réalisables avec son matériel sont remplacés automatiquement. Tu peux ensuite tout modifier.</p>
    ${chips("lvl",[["Débutant","Débutant"],["Intermédiaire","Intermédiaire"],["Avancé","Avancé"]],"Niveau")}${chips("nd",[[2,"2 j"],[3,"3 j"],[4,"4 j"],[5,"5 j"],[6,"6 j"]],"Jours")}${chips("split",splits.map(s=>[s,s]),"Split")}
@@ -4000,6 +4000,131 @@ header.top h1::before{width:44px!important;height:44px!important;flex:0 0 44px!i
 :root[data-theme="dark"] header.top h1::before{background-image:url(logo-sombre.png?v=5)}
 @media (prefers-reduced-motion: reduce){#bg45 i,.bar45 i,.mb-t i,.obprog div,#app .strip45 button.on,#app .big45,#msgfab,.hd45{animation:none!important}}`;
 document.head.appendChild(_css46);
+
+// ================= MODULE 47 · BANQUE : force à fréquence réglable, street workout, musculation élaborée =================
+// nouveaux exercices (poids du corps / street)
+[["Muscle-up négatif","Dos-largeur","Triceps","Pecs","Poids de corps"],["Transitions muscle-up (barre basse)","Dos-largeur","Triceps",null,"Poids de corps"],
+ ["Tractions explosives poitrine à la barre","Dos-largeur","Biceps",null,"Poids de corps"],["Muscle-up assisté élastique","Dos-largeur","Triceps","Pecs","Élastique"],
+ ["Muscle-up lesté","Dos-largeur","Triceps","Pecs","Poids de corps"],["Straight bar dips","Triceps","Pecs",null,"Poids de corps"],
+ ["Rowing australien (barre basse)","Dos-épaisseur","Biceps",null,"Poids de corps"],["Hollow body hold","Abdos",null,null,"Poids de corps"],
+ ["L-sit (parallèles)","Abdos","Triceps",null,"Poids de corps"],["Pompes","Pecs","Triceps",null,"Poids de corps"],["Pistol squat assisté","Quadriceps","Fessiers",null,"Poids de corps"],
+ ["Tractions négatives 3-5 s","Dos-largeur","Biceps",null,"Poids de corps"],["Tractions assistées élastique / machine","Dos-largeur","Biceps",null,"Machine"],["Dips assistés élastique / machine","Triceps","Pecs",null,"Machine"],
+ ["Dips négatifs 3-5 s","Triceps","Pecs",null,"Poids de corps"],["Tractions lestées — départ bras tendus","Dos-largeur","Biceps",null,"Poids de corps"],["Dips pause en bas","Triceps","Pecs",null,"Poids de corps"],["Dips lestés — lockout","Triceps","Pecs",null,"Poids de corps"]
+].forEach(([n,a,b,c,eq])=>{ if(!BASEMAP[n]){ LIB.BASE.push([n,a,b,c,eq,null,1]); BASEMAP[n]={mP:a,s1:b,s2:c,eq,sch:null,cost:1}; } });
+const DN47={2:["Lundi","Jeudi"],3:["Lundi","Mercredi","Vendredi"],4:["Lundi","Mardi","Jeudi","Vendredi"],5:["Lundi","Mardi","Mercredi","Vendredi","Samedi"],6:["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"]};
+const daysSet47=nd=>DAYS.map(d=>DN47[nd].includes(d));
+// ---------- générateur « force à la carte » : fréquence de chaque mouvement
+const LV47=["Débutant","Intermédiaire","Avancé"];
+const LIFT47={
+ S:{lab:"Squat",ex:["Squat barre","Squat barre","Squat barre avec pause"],tag:["lourd","volume","technique"],
+    rx:[["4x5@75%","5x4@80%","1x3@85% + 4x3@80%"],["3x8@65%","4x6@72%","5x5@75%"],["3x5@62%","4x4@68%","5x3@70%"]]},
+ B:{lab:"Bench",ex:["Développé couché barre","Développé couché barre","Développé couché barre avec pause","Développé couché barre prise serrée"],tag:["lourd","volume","technique","léger"],
+    rx:[["4x5@75%","5x4@80%","1x2@88% + 4x3@82%"],["3x8@65%","4x6@72%","5x5@75%"],["3x5@65%","4x4@70%","5x3@72%"],["3x8@60%","4x8@63%","4x8@65%"]]},
+ D:{lab:"Deadlift",ex:["Soulevé de terre","Soulevé de terre pause sous le genou"],tag:["lourd","technique"],
+    rx:[["3x5@75%","4x4@80%","1x2@88% + 3x3@80%"],["3x4@62%","4x3@68%","5x2@72%"]]}};
+function fxLayout(B,S,D,nd){ const load=Array(nd).fill(0), has=[...Array(nd)].map(()=>[]);
+  const place=(k,c,off)=>{ for(let i=0;i<c;i++){ const ideal=(i*nd/c+off)%nd; let best=-1,bs=1e9;
+      for(let d=0;d<nd;d++){ if(load[d]>=2||has[d].some(x=>x[0]===k)) continue; const dist=Math.min(Math.abs(d-ideal),nd-Math.abs(d-ideal));
+        const prev=has[(d+nd-1)%nd]||[], sc=dist+load[d]*1.6+(k==="D"&&has[d].some(x=>x[0]==="S")?1.4:0)+(k==="S"&&has[d].some(x=>x[0]==="D")?1.4:0)+(k==="D"&&d>0&&prev.some(x=>x[0]==="S")?0.8:0); if(sc<bs){ bs=sc; best=d; } }
+      if(best<0) for(let d=0;d<nd;d++) if(!has[d].some(x=>x[0]===k)){ best=d; break; }
+      if(best>=0){ has[best].push([k,i]); load[best]++; } } };
+  place("S",S,0); place("D",D,Math.max(1,Math.round(nd/2))-(S>1?0.5:0)); place("B",B,0.5);
+  const rank={S:0,B:0,D:0}; has.forEach(L=>L.forEach(x=>{ x[1]=rank[x[0]]++; })); // 1re séance de la semaine = lourde, puis volume, technique…
+  return has.map(L=>L.sort((a,b)=>"SBD".indexOf(a[0])-"SBD".indexOf(b[0]))); }
+const ACC47={pull:["Rowing barre Pendlay","Tractions lestées (pronation)","Rowing haltère unilatéral","Tirage vertical poulie","Chest supported row machine"],
+ push:["Développé militaire barre (OHP)","Dips lestés","Développé incliné haltères"],
+ low:["Soulevé de terre roumain barre","Leg press","Fentes marchées haltères","Hip thrust barre","Leg curl assis"],
+ iso:["Face pull","Extension triceps corde poulie","Curl barre EZ","Élévation latérale haltères","Crunch poulie","Gainage lesté (planche)"]};
+function forceProg(B,S,D,nd0,lv){ const L=Math.max(0,LV47.indexOf(lv)); const nd=Math.min(6,Math.max(nd0,B,S,D,Math.ceil((B+S+D)/2)));
+  const lay=fxLayout(B,S,D,nd), days=DN47[nd], cnt={pull:0,push:0,low:0,iso:0}, take=k=>ACC47[k][cnt[k]++%ACC47[k].length];
+  const nAcc=L===0?2:3, ses=lay.map((lifts,d)=>{ const ex=lifts.map(([k,i])=>{ const M=LIFT47[k], j=Math.min(i,M.ex.length-1); return X(M.ex[j],M.rx[j][L]); });
+    const hasB=lifts.some(x=>x[0]==="B"), hasL=lifts.some(x=>x[0]!=="B"), acc=[];
+    if(hasB) acc.push(X(take("pull"),"4x8-10 RPE8")); if(hasL) acc.push(X(take("low"),"3x8-10 RPE8")); if(!hasB&&acc.length<nAcc) acc.push(X(take("push"),"3x8-10 RPE8"));
+    while(acc.length<nAcc) acc.push(X(take("iso"),"3x12-15 RPE8"));
+    const name=lifts.map(([k,i])=>LIFT47[k].lab+" "+LIFT47[k].tag[Math.min(i,LIFT47[k].tag.length-1)]).join(" · ")||"Accessoires";
+    return [name,days[d],ex.concat(acc)]; });
+  return {id:"fx",hidden:true,name:`Force · Bench ${B}× · Squat ${S}× · Deadlift ${D}× · ${nd} j · ${lv}`,cat:"Force",lvl:lv,nd,split:"Spécifique force",
+   desc:`Fréquence par semaine : développé couché ${B}×, squat ${S}×, soulevé de terre ${D}×. Une séance lourde par mouvement, les autres en volume ou en technique (pause), périodisation par blocs jusqu'au test.`,
+   days:daysSet47(nd),phases:PH12.slice(),ov:{},s:ses}; }
+// préréglages ajoutés à la banque
+[[2,2,1,3,"Débutant"],[2,2,1,3,"Intermédiaire"],[3,2,1,4,"Intermédiaire"],[3,2,1,4,"Avancé"],[3,3,1,4,"Avancé"],[4,2,2,4,"Avancé"],[3,2,2,5,"Intermédiaire"],[4,3,2,5,"Avancé"],[4,3,1,6,"Avancé"]]
+ .forEach(([B,S,D,nd,lv])=>{ const p=forceProg(B,S,D,nd,lv); delete p.hidden; p.id=`fx-${B}${S}${D}-${nd}-${LV47.indexOf(lv)}`; p.name=`Force · Bench ${B}× / Squat ${S}× / Deadlift ${D}× · ${nd} j`; BANK.push(p); });
+// ---------- street workout
+const ST47=(id,name,lv,nd,desc,s,ph)=>BANK.push({id,name,cat:"Street workout",lvl:lv,nd,split:"Street workout",desc,days:daysSet47(nd),phases:(ph||PHHYP).slice(),ov:{},s:s.map((x,i)=>[x[0],DN47[nd][i],x[1]])});
+ST47("sw-deb3","Street workout · Bases 3 j","Débutant",3,"Premières tractions et premiers dips, pompes et squat : construire la base avant le muscle-up.",[
+ ["Tirage + jambes",[X("Tractions négatives 3-5 s","4x3 RPE8",{note:"Descente lente et contrôlée, pieds posés pour remonter"}),X("Rowing australien (barre basse)","3x8-12 RPE8"),X("Squat poids de corps","3x15-20 RPE8"),X("Fentes bulgares poids de corps","3x8-10 RPE8"),X("Hollow body hold","3x20-30 RPE8")]],
+ ["Poussée + gainage",[X("Dips assistés élastique / machine","4x5-8 RPE8"),X("Pompes","4x6-12 RPE8"),X("Pompes pike (épaules)","3x6-10 RPE8"),X("Tractions assistées élastique / machine","3x6-8 RPE8"),X("Gainage planche","3x30-45 RPE8")]],
+ ["Full body",[X("Tractions assistées élastique / machine","4x5-8 RPE8"),X("Dips négatifs 3-5 s","3x3-5 RPE8"),X("Squat poids de corps","4x15 RPE8"),X("Rowing australien (barre basse)","3x10-12 RPE8"),X("Relevé de jambes suspendu","3x6-10 RPE8")]]]);
+ST47("sw-mu3","Street workout · Objectif muscle-up 3 j","Intermédiaire",3,"Tirage explosif, transition et poussée finale travaillés séparément, plus tractions, dips et squat lestés.",[
+ ["Muscle-up + tirage",[X("Tractions explosives poitrine à la barre","6x3 RPE8",{note:"Monter la poitrine le plus haut possible"}),X("Transitions muscle-up (barre basse)","5x3 RPE7"),X("Tractions lestées (pronation)","4x5 RPE8"),X("Rowing australien (barre basse)","3x10-12 RPE8"),X("Hollow body hold","3x30 RPE8")]],
+ ["Squat + poussée",[X("Squat barre","4x5 RPE8"),X("Dips lestés","4x5 RPE8"),X("Straight bar dips","3x6-8 RPE8"),X("Soulevé de terre roumain barre","3x8 RPE8"),X("L-sit (parallèles)","4x10-20 RPE8")]],
+ ["Muscle-up + volume",[X("Muscle-up assisté élastique","5x2-3 RPE8"),X("Muscle-up négatif","4x2 RPE8",{note:"Descente lente du haut de la barre jusqu'aux bras tendus"}),X("Tractions pronation (poids de corps)","3x max-2"),X("Dips (poids de corps)","3x8-12 RPE8"),X("Squat barre avec pause","3x5 RPE7")]]]);
+ST47("sw-mu4","Street workout · Muscle-up & force 4 j","Intermédiaire",4,"Deux séances de skill muscle-up, une séance de force du haut, une séance jambes.",[
+ ["Skill muscle-up + tractions",[X("Muscle-up","EMOM 8x1-2 RPE7",{note:"Qualité avant tout : arrêter si la technique se dégrade"}),X("Tractions lestées (pronation)","5x4 RPE8"),X("Rowing australien (barre basse)","3x10 RPE8"),X("Curl barre EZ","3x10-12 RPE8"),X("Hollow body hold","3x30 RPE8")]],
+ ["Jambes",[X("Squat barre","5x5 RPE8"),X("Soulevé de terre roumain barre","3x8 RPE8"),X("Fentes marchées haltères","3x10 RPE8"),X("Mollets debout machine","3x12-15 RPE8"),X("Relevé de jambes suspendu","3x8-12 RPE8")]],
+ ["Force poussée",[X("Dips lestés","5x4 RPE8"),X("Straight bar dips","4x6 RPE8"),X("Pompes lestées","3x8-10 RPE8"),X("Développé militaire barre (OHP)","3x6-8 RPE8"),X("Extension triceps corde poulie","3x12 RPE8")]],
+ ["Skill + volume",[X("Muscle-up","5x2-4 RPE8"),X("Tractions explosives poitrine à la barre","4x3 RPE8"),X("Dips (poids de corps)","3x10-15 RPE8"),X("Squat barre avec pause","3x5 RPE7"),X("L-sit (parallèles)","4x15 RPE8")]]]);
+ST47("sl-3","Street lifting · Tractions / Dips / Squat 3 j","Intermédiaire",3,"Chaque mouvement 2 à 3 fois par semaine : un jour lourd, un jour volume, un jour technique.",[
+ ["Tractions lourd · Dips volume · Squat lourd",[X("Tractions lestées (pronation)","5x3@85%"),X("Dips lestés","4x6@72%"),X("Squat barre","4x4@80%"),X("Rowing barre Pendlay","3x8 RPE8")]],
+ ["Dips lourd · Tractions volume · Squat volume",[X("Dips lestés","5x3@85%"),X("Tractions lestées (pronation)","4x6@72%"),X("Squat barre","3x8@68%"),X("Face pull","3x15 RPE8")]],
+ ["Muscle-up · technique",[X("Muscle-up","6x2 RPE7"),X("Tractions lestées — départ bras tendus","3x3@75%"),X("Dips pause en bas","3x4@70%"),X("Squat barre avec pause","3x4@68%"),X("Hollow body hold","3x30 RPE8")]]],PH12);
+ST47("sl-4a","Street lifting · Muscle-up lesté 4 j","Avancé",4,"Préparation compétition : tractions et dips lestés en pourcentages, muscle-up lesté, squat lourd.",[
+ ["Tractions + muscle-up",[X("Tractions lestées (pronation)","1x2@90% + 4x3@82%"),X("Muscle-up lesté","5x1-2 RPE8"),X("Tractions explosives poitrine à la barre","4x3 RPE8"),X("Curl barre EZ","3x8-10 RPE8")]],
+ ["Squat lourd",[X("Squat barre","1x2@88% + 4x3@80%"),X("Soulevé de terre roumain barre","3x6 RPE8"),X("Fentes marchées haltères","3x8 RPE8"),X("Relevé de jambes suspendu lesté","3x8 RPE8")]],
+ ["Dips lourd",[X("Dips lestés","1x2@90% + 4x3@82%"),X("Dips lestés — lockout","3x4 RPE8"),X("Développé couché barre prise serrée","3x6 RPE8"),X("Extension triceps corde poulie","3x10-12 RPE8")]],
+ ["Volume tractions / dips / squat",[X("Tractions lestées (pronation)","4x6@72%"),X("Dips lestés","4x6@72%"),X("Squat barre","3x6@70%"),X("Muscle-up","4x3 RPE7")]]],PH12);
+// ---------- musculation élaborée
+const BB47=(id,name,lv,nd,split,desc,s,ph)=>BANK.push({id,name,cat:"Bodybuilding",lvl:lv,nd,split,desc,days:daysSet47(nd),phases:(ph||PHHYP).slice(),ov:{Accumulation:{t:"mixte",n:2,max:5}},s:s.map((x,i)=>[x[0],DN47[nd][i],x[1]])});
+const TOP="1x6-8 RPE9 + 2x8-10 RPE8";
+BB47("bb-ul4","Hypertrophie · Haut / Bas 4 j (élaboré)","Avancé",4,"Haut / Bas","Top set + séries de recul sur les polyarticulaires, isolation en myo-reps, chaque muscle 2×/semaine.",[
+ ["Haut · force-volume",[X("Développé couché barre",TOP),X("Rowing barre Pendlay","4x6-8 RPE8"),X("Développé incliné haltères","3x8-10 RPE8"),X("Tractions prise large","3x6-10 RPE8"),X("Élévation latérale haltères","3x12-15 RPE9",{note:"Dernière série en myo-reps : 1 série + 3 mini-séries de 3-5 reps"}),X("Extension triceps corde poulie","3x10-12 RPE8",{ss:"A"}),X("Curl incliné assis haltères","3x10-12 RPE8",{ss:"A"})]],
+ ["Bas · quadriceps",[X("Squat barre",TOP),X("Leg press","3x10-12 RPE8"),X("Soulevé de terre roumain barre","3x8 RPE8"),X("Leg extension","3x12-15 RPE9",{note:"Dernière série en dégressif"}),X("Leg curl assis","3x10-12 RPE8"),X("Mollets debout machine","4x10-12 RPE8")]],
+ ["Haut · hypertrophie",[X("Développé militaire assis haltères","3x8-10 RPE8"),X("Chest supported row machine","3x10-12 RPE8"),X("Développé incliné machine convergente","3x10-12 RPE8"),X("Tirage vertical prise neutre","3x10-12 RPE8"),X("Écarté poulie haute croisé","3x12-15 RPE9"),X("Face pull","3x15 RPE8",{ss:"B"}),X("Curl marteau haltères","3x10-12 RPE8",{ss:"B"})]],
+ ["Bas · ischios-fessiers",[X("Soulevé de terre roumain barre",TOP),X("Hip thrust barre","3x8-10 RPE8"),X("Fentes marchées haltères","3x10-12 RPE8"),X("Leg curl allongé","3x10-12 RPE9"),X("Hack squat machine","3x10-12 RPE8"),X("Mollets assis machine (soléaire)","4x12-15 RPE8")]]]);
+BB47("bb-arn6","Hypertrophie · Arnold split 6 j","Avancé",6,"Split par muscle","Pecs-dos / épaules-bras / jambes, deux fois par semaine, avec supersets antagonistes.",[
+ ["Pecs & dos A",[X("Développé couché barre","4x6-8 RPE8"),X("Tractions lestées (pronation)","4x6-8 RPE8"),X("Développé incliné haltères","3x8-10 RPE8",{ss:"A"}),X("Rowing haltère unilatéral","3x8-10 RPE8",{ss:"A"}),X("Écarté poulie basse croisé","3x12-15 RPE9",{ss:"B"}),X("Pull-over poulie haute","3x12-15 RPE9",{ss:"B"})]],
+ ["Épaules & bras A",[X("Développé militaire barre (OHP)","4x6-8 RPE8"),X("Élévation latérale haltères","4x12-15 RPE9"),X("Face pull","3x15 RPE8"),X("Curl barre EZ","3x8-10 RPE8",{ss:"A"}),X("Skullcrusher barre","3x8-10 RPE8",{ss:"A"}),X("Curl marteau haltères","3x10-12 RPE8",{ss:"B"}),X("Extension triceps corde poulie","3x10-12 RPE8",{ss:"B"})]],
+ ["Jambes A",[X("Squat barre","4x6-8 RPE8"),X("Leg press","3x10-12 RPE8"),X("Leg extension","3x12-15 RPE9"),X("Leg curl assis","4x10-12 RPE8"),X("Mollets debout machine","4x10-12 RPE8"),X("Crunch poulie","3x12-15 RPE8")]],
+ ["Pecs & dos B",[X("Développé incliné barre","4x6-8 RPE8"),X("Rowing T-bar","4x8-10 RPE8"),X("Dips buste penché (focus pecs)","3x8-12 RPE8",{ss:"A"}),X("Tirage vertical prise neutre","3x10-12 RPE8",{ss:"A"}),X("Écarté haltères incliné","3x12-15 RPE9"),X("Shrug haltères","3x10-12 RPE8")]],
+ ["Épaules & bras B",[X("Développé militaire assis haltères","3x8-10 RPE8"),X("Élévation latérale unilatérale poulie","3x12-15 RPE9"),X("Reverse pec deck","3x15 RPE8"),X("Curl incliné assis haltères","3x10-12 RPE8",{ss:"A"}),X("Extension triceps overhead unilatérale poulie","3x10-12 RPE8",{ss:"A"}),X("Curl Bayesian poulie","2x12-15 RPE9")]],
+ ["Jambes B",[X("Soulevé de terre roumain barre","4x6-8 RPE8"),X("Hack squat machine","3x8-10 RPE8"),X("Hip thrust barre","3x8-10 RPE8"),X("Leg curl allongé","3x10-12 RPE9"),X("Mollets assis machine (soléaire)","4x12-15 RPE8"),X("Relevé de jambes suspendu","3x10-12 RPE8")]]]);
+BB47("bb-fb3","Hypertrophie · Full body 3 j (élaboré)","Intermédiaire",3,"Full body","Trois séances complètes avec un mouvement prioritaire différent chaque jour (squat, développé, tirage).",[
+ ["Full body · priorité jambes",[X("Squat barre","4x6-8 RPE8"),X("Développé incliné haltères","3x8-10 RPE8"),X("Rowing haltère unilatéral","3x10-12 RPE8"),X("Leg curl assis","3x10-12 RPE8"),X("Élévation latérale haltères","3x12-15 RPE9",{ss:"A"}),X("Crunch poulie","3x12-15 RPE8",{ss:"A"})]],
+ ["Full body · priorité pecs",[X("Développé couché barre","4x6-8 RPE8"),X("Tirage vertical poulie","3x8-10 RPE8"),X("Soulevé de terre roumain barre","3x8 RPE8"),X("Leg extension","3x12-15 RPE8"),X("Curl barre EZ","3x10-12 RPE8",{ss:"A"}),X("Extension triceps corde poulie","3x10-12 RPE8",{ss:"A"})]],
+ ["Full body · priorité dos",[X("Tractions prise large","4x6-10 RPE8"),X("Hack squat machine","3x8-10 RPE8"),X("Développé militaire assis haltères","3x8-10 RPE8"),X("Hip thrust barre","3x8-10 RPE8"),X("Face pull","3x15 RPE8",{ss:"A"}),X("Curl marteau haltères","3x10-12 RPE8",{ss:"A"})]]]);
+BB47("bb-tl4","Hypertrophie · Torse / Membres 4 j","Intermédiaire",4,"Mixte","Torse (pecs, dos, épaules) et membres (jambes, bras) en alternance : séances courtes et denses.",[
+ ["Torse A",[X("Développé couché barre","4x6-8 RPE8"),X("Rowing barre Pendlay","4x6-8 RPE8"),X("Développé militaire assis haltères","3x8-10 RPE8"),X("Tirage vertical prise neutre","3x10-12 RPE8"),X("Élévation latérale haltères","3x12-15 RPE9")]],
+ ["Membres A",[X("Squat barre","4x6-8 RPE8"),X("Leg curl assis","3x10-12 RPE8"),X("Fentes marchées haltères","3x10-12 RPE8"),X("Curl barre EZ","3x8-10 RPE8",{ss:"A"}),X("Skullcrusher barre","3x8-10 RPE8",{ss:"A"}),X("Mollets debout machine","3x10-15 RPE8")]],
+ ["Torse B",[X("Développé incliné haltères","4x8-10 RPE8"),X("Tractions prise large","4x6-10 RPE8"),X("Chest supported row machine","3x10-12 RPE8"),X("Écarté poulie haute croisé","3x12-15 RPE9"),X("Face pull","3x15 RPE8")]],
+ ["Membres B",[X("Soulevé de terre roumain barre","4x6-8 RPE8"),X("Leg press","3x10-12 RPE8"),X("Leg extension","3x12-15 RPE9"),X("Curl incliné assis haltères","3x10-12 RPE8",{ss:"A"}),X("Extension triceps overhead unilatérale poulie","3x10-12 RPE8",{ss:"A"}),X("Mollets assis machine (soléaire)","3x12-15 RPE8")]]]);
+BB47("bb-sh5","Spécialisation épaules & bras · 5 j","Avancé",5,"Split par muscle","Épaules et bras travaillés 3×/semaine en volume élevé, le reste en maintien.",[
+ ["Épaules + bras",[X("Développé militaire barre (OHP)","4x6-8 RPE8"),X("Élévation latérale haltères","4x12-15 RPE9"),X("Reverse pec deck","3x15 RPE8"),X("Curl barre EZ","3x8-10 RPE8",{ss:"A"}),X("Extension triceps corde poulie","3x10-12 RPE8",{ss:"A"})]],
+ ["Jambes",[X("Squat barre","4x6-8 RPE8"),X("Soulevé de terre roumain barre","3x8 RPE8"),X("Leg press","3x10-12 RPE8"),X("Leg curl assis","3x10-12 RPE8"),X("Mollets debout machine","3x12 RPE8")]],
+ ["Pecs & dos",[X("Développé incliné haltères","3x8-10 RPE8"),X("Tractions prise large","3x6-10 RPE8"),X("Rowing haltère unilatéral","3x10 RPE8"),X("Élévation latérale unilatérale poulie","3x12-15 RPE9"),X("Curl marteau haltères","3x10-12 RPE8")]],
+ ["Épaules + bras (volume)",[X("Développé militaire assis haltères","3x10-12 RPE8"),X("Élévation latérale haltères","3x15-20 RPE9",{note:"Dernière série en myo-reps"}),X("Face pull","3x15 RPE8"),X("Curl incliné assis haltères","3x10-12 RPE9",{ss:"A"}),X("Extension triceps overhead unilatérale poulie","3x10-12 RPE9",{ss:"A"})]],
+ ["Full body léger",[X("Hack squat machine","3x10 RPE7"),X("Développé couché haltères","3x10 RPE7"),X("Tirage vertical prise neutre","3x10 RPE7"),X("Élévation latérale unilatérale poulie","3x15 RPE9"),X("Curl Bayesian poulie","2x12-15 RPE9",{ss:"A"}),X("Extension triceps poulie haute","2x12-15 RPE9",{ss:"A"})]]]);
+BB47("bb-lg4","Spécialisation jambes & fessiers · 4 j","Intermédiaire",4,"Haut / Bas","Trois séances bas du corps (quadriceps, fessiers, ischios) et une séance haut du corps en maintien.",[
+ ["Quadriceps",[X("Squat barre","4x6-8 RPE8"),X("Leg press pieds bas (focus quadriceps)","3x10-12 RPE8"),X("Leg extension","3x12-15 RPE9"),X("Fentes marchées haltères","3x10-12 RPE8"),X("Mollets debout machine","4x10-12 RPE8")]],
+ ["Haut du corps",[X("Développé couché barre","3x6-8 RPE8"),X("Rowing barre Pendlay","3x8 RPE8"),X("Développé militaire assis haltères","3x8-10 RPE8"),X("Tirage vertical poulie","3x10-12 RPE8"),X("Élévation latérale haltères","3x12-15 RPE9")]],
+ ["Fessiers & ischios",[X("Hip thrust barre","4x6-8 RPE8"),X("Soulevé de terre roumain barre","3x8 RPE8"),X("Leg curl assis","3x10-12 RPE9"),X("Abduction hanche machine","3x15-20 RPE9"),X("Mollets assis machine (soléaire)","4x12-15 RPE8")]],
+ ["Jambes complètes",[X("Hack squat machine","3x8-10 RPE8"),X("Hip thrust barre","3x10-12 RPE8"),X("Leg curl allongé","3x10-12 RPE8"),X("Leg extension","2x15-20 RPE9"),X("Relevé de jambes suspendu","3x10-12 RPE8")]]]);
+// ---------- affichage : générateur en tête de banque, filtres corrigés, boutons qui ne débordent plus
+const FX={B:3,S:2,D:1,nd:4,lv:"Intermédiaire"};
+function fxEntry(){ const i=BANK.findIndex(b=>b.id==="fx"), p=forceProg(FX.B,FX.S,FX.D,FX.nd,FX.lv); if(i>=0) BANK[i]=p; else BANK.push(p); return p; }
+function vForceCard(){ const p=fxEntry(), ch=(k,opts)=>opts.map(v=>`<button class="chip ${String(FX[k])===String(v)?"on":""}" data-act="fx" data-k="${k}" data-v="${v}">${typeof v==="number"&&k!=="nd"?v+"×":k==="nd"?v+" j":esc(v)}</button>`).join("");
+  const row=(lab,k,opts)=>`<div class="row" style="gap:4px;margin:4px 0"><span class="muted small" style="min-width:74px">${lab}</span>${ch(k,opts)}</div>`;
+  return `<div class="card" id="fx-card" style="margin:8px 0"><b>Force à la carte</b><div class="muted small">Choisis combien de fois par semaine on travaille chaque mouvement : le programme se construit tout seul (un jour lourd par mouvement, les autres en volume ou en technique).</div>
+   ${row("Développé couché","B",[2,3,4])}${row("Squat","S",[1,2,3])}${row("Soulevé de terre","D",[1,2])}${row("Jours","nd",[3,4,5,6])}${row("Niveau","lv",LV47)}
+   ${p.nd!==FX.nd?`<div class="alert ko small">Il faut au moins ${p.nd} jours pour placer ces mouvements (2 maximum par séance) : programme sur ${p.nd} jours.</div>`:""}
+   <div class="muted small" style="margin:6px 0">${p.s.map(s=>`<b>${esc(s[1].slice(0,3))}.</b> ${esc(s[0])}`).join(" · ")}</div>
+   <div class="row bkacts"><button class="ghost sm" data-act="bank-prev" data-v="fx">${ST.bankPrev==="fx"?"Masquer":"Aperçu"}</button><button class="ghost sm" data-act="bank-apply" data-v="fx">Appliquer</button></div>
+   ${ST.bankPrev==="fx"?progPreview(p.s.map(([name,day,ex])=>({name,day,ex})),p.phases,p.days):""}</div>`; }
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="fx"]'); if(!b) return; e.stopImmediatePropagation(); const k=b.dataset.k; FX[k]=k==="lv"?b.dataset.v:+b.dataset.v; render(); },true);
+const _vBank47=vBank;
+vBank=function(){ fxEntry(); const all=BANK.slice(); BANK.splice(0,BANK.length,...all.filter(b=>!b.hidden)); let h; try{ h=_vBank47(); } finally{ BANK.splice(0,BANK.length,...all); }
+  h=h.replace(/flex-wrap:nowrap;gap:8px"><div class="grow">/g,'flex-wrap:wrap;gap:6px 8px"><div class="grow" style="flex:1 1 100%;min-width:0">');
+  const i=h.indexOf('<div class="muted small" style="margin:6px 0">'); return i<0?h:h.slice(0,i)+vForceCard()+h.slice(i); };
+const _css47=document.createElement("style"); _css47.textContent=`[data-act="bank-prev"],[data-act="bank-apply"]{flex:none;white-space:nowrap}.bkacts{gap:8px;margin-top:6px}`; document.head.appendChild(_css47);
 
 boot();
 
