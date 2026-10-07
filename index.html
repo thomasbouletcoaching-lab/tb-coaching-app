@@ -3297,16 +3297,16 @@ pnCard=function(st){ if(st!=="unsupported") return _pnCard31(st); const v=iosVer
     :v&&v<16.04?`Ton iPhone est en iOS ${String(v).replace(".0",".")} : les notifications demandent iOS 16.4 ou plus récent. Mets à jour ton iPhone (Réglages › Général › Mise à jour logicielle).`
     :"Ce navigateur ne gère pas les notifications. Ouvre l'app dans Safari (iPhone) ou Chrome (Android).";
   return `<div class="card" style="border:2px solid var(--blue)"><h3 style="margin-top:0">🔔 Notifications indisponibles ici</h3><p class="small">${why}</p><div class="row"><button class="ghost sm" data-act="pn-later">Plus tard</button></div></div>`; };
-// coach : charger l'état complet (appareils + diagnostic + nouvelle app ouverte ou non)
+// coach : charger l'état complet (appareils + diagnostic + app ouverte ou non)
 pnLoad=async function(){ if(PN.busy||(PN.data&&Date.now()-PN.at<60000)) return; PN.busy=true; const {data,error}=await SB.rpc("client_app_status"); PN.busy=false; PN.at=Date.now();
   PN.data={}; PN.info={}; (data||[]).forEach(r=>{ PN.data[r.client_id]=r.devices||0; PN.info[r.client_id]=r; }); if(error) console.error(error); render(); };
 const diagTxt=r=>{ const d=r&&r.diag; if(!d) return ""; const st={on:"activées",off:"pas activées",install:"app non installée (ouverte dans Safari)",denied:"refusées dans les réglages",unsupported:"non prises en charge"}[d.st]||d.st;
   return `${d.dev}${d.ios?" iOS "+String(d.ios).replace(/\.0?(\d)$/,".$1"):""}${d.inapp?" · ouvert depuis une autre app":""}${d.inst?" · app installée":""} · notifications ${st} · vu le ${new Date(d.at).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}`; };
-const shareLink31=name=>`Salut ${firstName31(name)} ! L'app a changé d'adresse. Supprime l'ancienne icône TB my Coach de ton écran d'accueil, puis :\n1. Ouvre ce lien dans Safari : ${APP_URL}\n2. Partager → « Sur l'écran d'accueil »\n3. Ouvre l'app depuis la nouvelle icône et connecte-toi (même e-mail, même mot de passe)\n4. Touche « Activer les notifications ».`;
+const shareLink31=name=>`Salut ${firstName31(name)} ! Voici ton accès à l'app TB my Coach :\n1. Ouvre ce lien dans Safari : ${APP_URL}\n2. Partager → « Sur l'écran d'accueil »\n3. Ouvre l'app depuis la nouvelle icône et connecte-toi (même e-mail, même mot de passe)\n4. Touche « Activer les notifications ».`;
 const firstName31=n=>(n||"").trim().split(/\s+/)[0]||"";
 const _x10After31=x10After;
 x10After=function(){ _x10After31(); diagSend(); if(!(coach()&&ST.view==="tableau"&&CUR&&PN.info)) return; const el=document.getElementById("pn-coach"); if(!el) return; const r=PN.info[CUR], c=CLIENTS.find(x=>x.id===CUR);
-  if(r&&!r.new_app&&c&&c.email) el.insertAdjacentHTML("beforeend",`<div class="alert ko small" style="margin-top:6px">⚠️ ${esc(firstName31(c.name))} n'a jamais ouvert la nouvelle app : elle ou il utilise sûrement encore l'ancienne icône (Netlify), sans notifications.<div class="row" style="margin-top:6px"><button class="sm" data-act="pn-newlink" data-v="${c.id}">Lui envoyer le nouveau lien (SMS / WhatsApp)</button></div></div>`);
+  if(r&&!r.new_app&&c&&c.email) el.insertAdjacentHTML("beforeend",`<div class="alert ko small" style="margin-top:6px">⚠️ ${esc(firstName31(c.name))} n'a pas encore ouvert l'app.<div class="row" style="margin-top:6px"><button class="sm" data-act="pn-newlink" data-v="${c.id}">Lui envoyer le lien (SMS / WhatsApp)</button></div></div>`);
   else if(r&&r.diag) el.insertAdjacentHTML("beforeend",`<div class="muted" style="margin-top:4px">${esc(diagTxt(r))}</div>`); };
 document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b||b.dataset.act!=="pn-newlink") return; const c=CLIENTS.find(x=>x.id===b.dataset.v); if(!c) return; const txt=shareLink31(c.name);
   if(navigator.share) navigator.share({title:"TB my Coach",text:txt}).catch(()=>{}); else { try{ await navigator.clipboard.writeText(txt); toast("Message copié : colle-le dans un SMS ou WhatsApp"); }catch(err){ toast("Copie impossible"); } } });
@@ -3717,7 +3717,7 @@ const ACT_MSG={pw:n=>`Salut ${n} ! Pense à choisir ton mot de passe dans l'app 
   cgv:n=>`Salut ${n} ! À l'ouverture de l'app, merci de lire et d'accepter les conditions générales du coaching. Une question ? Écris-moi.`};
 function actSteps(c,r){ r=r||{}; const n=(c.name||"").split(" ")[0];
   return [["Compte créé",r.has_account,c.email?`<button class="sm" data-act="acc-make" data-v="${c.id}">🔑 Créer l'accès</button>`:`<span class="muted small">Ajoute d'abord son e-mail (Gérer)</span>`],
-    ["Nouvelle app ouverte",r.new_app,`<button class="ghost sm" data-act="pn-newlink" data-v="${c.id}">Envoyer le lien</button>`],
+    ["App ouverte",r.new_app,`<button class="ghost sm" data-act="pn-newlink" data-v="${c.id}">Envoyer le lien</button>`],
     ["Mot de passe choisi",r.pw_set,`<button class="ghost sm" data-act="act-msg" data-v="${c.id}" data-k="pw">Relancer</button>`],
     ["Notifications activées",r.devices>0,`<button class="ghost sm" data-act="pn-help" data-v="${c.id}">Expliquer</button>`],
     ["Questionnaire envoyé",r.onboarding,`<button class="ghost sm" data-act="act-msg" data-v="${c.id}" data-k="ob">Relancer</button>`],
