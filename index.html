@@ -3496,6 +3496,41 @@ const _msgRender36=msgRender;
 msgRender=function(){ _msgRender36(); const el=document.getElementById("msgpanel"); if(!el||!MSG.open||!iAmCoach()) return; const tg=el.querySelector('[data-act="rt-tog"]'); if(tg) tg.insertAdjacentHTML("afterend",`<button class="ghost sm" data-act="clm-draft" aria-label="Brouillon avec Claude" title="Brouillon avec Claude">✨</button>`); };
 document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="clm-draft"]'); if(!b) return; e.stopImmediatePropagation(); clCopy(clMsgPrompt(),"Le contexte du message"); },true);
 
+// ================= MODULE « MES PAIEMENTS » (client) =================
+const MP={data:null,at:0,busy:false,inv:null};
+async function mpLoad(force){ if(MP.busy||(!force&&MP.data&&Date.now()-MP.at<300000)) return; MP.busy=true; const {data,error}=await SB.rpc("my_payments"); MP.busy=false; MP.at=Date.now();
+  if(error){ console.error(error); MP.data=MP.data||{pays:[],paylink:null}; return; } MP.data=data||{pays:[],paylink:null}; scheduleRender(); }
+const mpLink=()=>{ const L=((MP.data&&MP.data.paylink)||"").trim(); if(!/^https:\/\//.test(L)) return null; return /stripe\.com/.test(L)&&EMAIL?L+(L.includes("?")?"&":"?")+"prefilled_email="+encodeURIComponent(EMAIL):L; };
+const mpDays=d=>Math.round((new Date(d+"T12:00:00")-new Date(todayISO()+"T12:00:00"))/864e5);
+function vMyPays(){ const P=(MP.data&&MP.data.pays)||[]; if(!P.length) return ""; const link=mpLink(), tot=P.reduce((a,p)=>a+(+p.amount||0),0), paid=P.filter(p=>p.status==="payé").reduce((a,p)=>a+(+p.amount||0),0);
+  const row=p=>{ const dl=mpDays(p.due), late=p.status==="attendu"&&dl<0, soon=p.status==="attendu"&&dl>=0&&dl<=7;
+    return `<div style="padding:10px 0;border-top:1px solid var(--line)"><div class="row" style="flex-wrap:nowrap"><span class="grow"><b>${fmtE(p.amount)}</b> <span class="muted small">· ${esc(p.label||"")}</span><br>
+      <span class="small" style="color:${p.status==="payé"?"var(--green,#1d7a4c)":late?"var(--red,#c33)":"inherit"}">${p.status==="payé"?`✓ Payé le ${frDate(p.paid_at)}`:late?`En retard · prévu le ${frDate(p.due)}`:`À régler le ${frDate(p.due)}${soon?` (${dl===0?"aujourd'hui":"dans "+dl+" j"})`:""}`}</span></span>
+      ${p.status==="payé"&&p.invoice_no?`<button class="ghost sm" data-act="mp-inv" data-v="${p.id}">Facture</button>`:p.status==="attendu"&&link?`<a class="btn sm" style="text-decoration:none" href="${esc(link)}" target="_blank" rel="noopener">Payer</a>`:""}</div></div>`; };
+  return `<div class="card" id="mp-card"><h3 style="margin-top:0">💶 Mes paiements</h3><div class="muted small">${fmtE(paid)} réglés sur ${fmtE(tot)}</div>${P.map(row).join("")}
+    <p class="note">${link?"Le bouton « Payer » ouvre la page de paiement sécurisée de ton coach. ":""}Ton coach marque le paiement comme reçu : ta facture apparaît alors ici. Une question ? Écris-lui dans la messagerie.</p></div>`; }
+function vMyInvoice(p){ let h=vInvoice(p); h=h.replace(/<div class="row noprint" style="margin:8px 0">[\s\S]*?<\/div>/,`<div class="row noprint" style="margin:8px 0"><button class="ghost" data-act="mp-inv" data-v="">‹ Retour</button><button data-act="mp-print">Imprimer / PDF</button></div>`)
+  .replace(/<div class="alert ko noprint">[^<]*<\/div>/,""); return h; }
+// Compte : la rubrique ; Accueil : l'échéance proche ou en retard
+const _x10After37=x10After;
+x10After=function(){ _x10After37(); if(MODE!=="client"||coach()||!CUR||ST.bilan) return; mpLoad();
+  if(ST.view==="compte"&&!ST.todayOn){ if(MP.inv){ const p=((MP.data&&MP.data.pays)||[]).find(x=>x.id===MP.inv); if(p){ $("#app").innerHTML=vMyInvoice(p); return; } MP.inv=null; }
+    const h=vMyPays(); if(h){ const c=$("#app").querySelector(".card"); if(c) c.insertAdjacentHTML("afterend",h); else $("#app").insertAdjacentHTML("beforeend",h); } } };
+const _vToday37=vToday;
+vToday=function(){ let h=_vToday37(); const P=((MP.data&&MP.data.pays)||[]).filter(p=>p.status==="attendu"&&mpDays(p.due)<=7).sort((a,b)=>a.due<b.due?-1:1)[0]; if(!P) return h;
+  const dl=mpDays(P.due), link=mpLink();
+  return h.replace(`<div id="x10-pushnudge"></div>`,`<div class="card"><div class="muted small">Paiement</div><h3 style="margin:2px 0">${fmtE(P.amount)} ${dl<0?"en retard":dl===0?"à régler aujourd'hui":"à régler le "+frDate(P.due)}</h3><div class="muted small">${esc(P.label||"")}</div><div class="row" style="margin-top:8px">${link?`<a class="btn sm" style="text-decoration:none" href="${esc(link)}" target="_blank" rel="noopener">Payer</a>`:""}<button class="ghost sm" data-act="mp-see">Voir mes paiements</button></div></div><div id="x10-pushnudge"></div>`); };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(!/^mp-/.test(a)) return;
+  if(a==="mp-inv"){ MP.inv=b.dataset.v||null; window.scrollTo(0,0); return render(); }
+  if(a==="mp-print"){ window.print(); return; }
+  if(a==="mp-see"){ ST.todayOn=false; ST.view="compte"; window.scrollTo(0,0); render(); setTimeout(()=>{ const c=document.getElementById("mp-card"); if(c) c.scrollIntoView({block:"start"}); },100); } });
+const _css37=document.createElement("style"); _css37.textContent=`a.btn{display:inline-block;font-family:var(--cond);font-weight:600;font-size:1rem;border-radius:10px;padding:9px 14px;background:var(--ink);color:var(--paper)}a.btn.sm{font-size:.9rem;padding:6px 12px}`; document.head.appendChild(_css37);
+// rappels : échéances de paiement (activées par défaut)
+RM_DEF.pay={on:true};
+const _vReminders37=vReminders;
+vReminders=function(){ const D=RM.draft||rmD(); if(!((MP.data&&MP.data.pays)||[]).some(p=>p.status==="attendu")) return _vReminders37();
+  return _vReminders37().replace(`<div class="row" style="margin-top:8px"><button class="sm" data-act="rm-save">`,`<div class="rmrow"><label><input type="checkbox" data-rm="pay.on" ${D.pay.on?"checked":""}><b>Échéances de paiement</b></label><div class="rmctl muted small">3 jours avant et le jour même, le matin</div></div><div class="row" style="margin-top:8px"><button class="sm" data-act="rm-save">`); };
+
 boot();
 
 </script>
