@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>TB my Coach</title>
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="TB my Coach"><link rel="icon" href="favicon.ico"><link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<meta name="theme-color" content="#EEF1F6" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=3">
+<meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="TB my Coach"><link rel="icon" href="favicon.ico?v=4"><link rel="icon" type="image/png" href="favicon-clair.png?v=4" media="(prefers-color-scheme: light)"><link rel="icon" type="image/png" href="favicon-sombre.png?v=4" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EEF1F6" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#0B1426" media="(prefers-color-scheme: dark)"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=4">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
@@ -3957,6 +3957,44 @@ body.tdy45 header.top{display:none}
 body.tdy45 #app .card>.muted.small:first-child{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
 @media print{#bg45{display:none}}`;
 document.head.appendChild(_css45);
+
+// ================= MODULE 46 · COULEURS DU LOGO : touches rose / bleu / vert, mode sombre bleu nuit, animations douces =================
+(()=>{ const bg=document.getElementById("bg45"); if(bg&&bg.children.length<3) bg.insertAdjacentHTML("beforeend","<i></i>"); })();
+const _css46=document.createElement("style"); _css46.textContent=`
+:root{--pink:#FF6FB5;--violet:#8B7CFF;--sky:#4C9BFF;--mint:#3FD2B5;
+  --grad:linear-gradient(110deg,#FF6FB5 0%,#8B7CFF 30%,#4C9BFF 60%,#3FD2B5 85%,#FF6FB5 100%);
+  --gradbtn:linear-gradient(110deg,#2F6BF0 0%,#5B7CFF 45%,#2F8CF0 75%,#2F6BF0 100%);
+  --blob1:#93C5FD;--blob2:#A7F3D0;--blob3:#FBCFE8;--blobo:.42}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--chalk:#0B1426;--paper:#16243F;--ink:#EEF2F8;--soft:#9AA8BF;--line:rgba(255,255,255,.10);--blue:#4C9BFF;--accent:#4C9BFF;
+  --glass:rgba(22,38,68,.66);--glass-b:rgba(255,255,255,.07);--glass-bar:rgba(12,22,42,.80);--btn2:rgba(255,255,255,.08);--input:#1A2B4C;--navoff:#8D9AB2;
+  --blob1:#2F5BD6;--blob2:#0F8F7A;--blob3:#B0357A;--blobo:.30;
+  --gradbtn:linear-gradient(110deg,#3B7BF5 0%,#6A7CFF 45%,#3B9BF5 75%,#3B7BF5 100%)}}
+:root[data-theme="dark"]{--chalk:#0B1426;--paper:#16243F;--ink:#EEF2F8;--soft:#9AA8BF;--line:rgba(255,255,255,.10);--blue:#4C9BFF;--accent:#4C9BFF;
+  --glass:rgba(22,38,68,.66);--glass-b:rgba(255,255,255,.07);--glass-bar:rgba(12,22,42,.80);--btn2:rgba(255,255,255,.08);--input:#1A2B4C;--navoff:#8D9AB2;
+  --blob1:#2F5BD6;--blob2:#0F8F7A;--blob3:#B0357A;--blobo:.30;
+  --gradbtn:linear-gradient(110deg,#3B7BF5 0%,#6A7CFF 45%,#3B9BF5 75%,#3B7BF5 100%)}
+/* fond : trois halos (bleu, vert, rose) qui dérivent lentement */
+#bg45 i:nth-child(1){animation:drift46a 26s ease-in-out infinite alternate}
+#bg45 i:nth-child(2){animation:drift46b 32s ease-in-out infinite alternate}
+#bg45 i:nth-child(3){width:240px;height:240px;background:var(--blob3);top:640px;right:-110px;opacity:var(--blobo);animation:drift46c 28s ease-in-out infinite alternate}
+@keyframes drift46a{to{transform:translate(-60px,50px) scale(1.12)}}
+@keyframes drift46b{to{transform:translate(70px,-60px) scale(.92)}}
+@keyframes drift46c{to{transform:translate(-50px,-80px) scale(1.1)}}
+/* dégradés animés : barres de progression, jour actuel, bouton principal */
+@keyframes shift46{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+.bar45 i,.mb-t i:not(.over),.obprog div{background:var(--grad);background-size:200% 100%;animation:shift46 9s linear infinite}
+#app .strip45 button.on{background:var(--grad);background-size:200% 100%;animation:shift46 12s linear infinite}
+#app .big45:not(.ghost),#msgfab{background:var(--gradbtn);background-size:200% 100%;animation:shift46 10s linear infinite}
+#msgfab{box-shadow:0 8px 24px rgba(91,124,255,.35)}
+.seg45 button.on{background:var(--paper)}
+.hd45{background:var(--grad);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shift46 14s linear infinite}
+nav.tabs button.on svg.ic45{color:var(--accent)}
+.strip45 i.done{background:var(--mint)}
+/* logo de l'en-tête : clair ou bleu nuit selon le thème */
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) header.top h1::before{background-image:url(logo-sombre.png)}}
+:root[data-theme="dark"] header.top h1::before{background-image:url(logo-sombre.png)}
+@media (prefers-reduced-motion: reduce){#bg45 i,.bar45 i,.mb-t i,.obprog div,#app .strip45 button.on,#app .big45,#msgfab,.hd45{animation:none!important}}`;
+document.head.appendChild(_css46);
 
 boot();
 
