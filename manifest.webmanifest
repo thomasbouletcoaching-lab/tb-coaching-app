@@ -3,7 +3,7 @@
  "short_name": "TB my Coach",
  "start_url": "./",
  "display": "standalone",
- "background_color": "#EEF1F6",
+ "background_color": "#FFFFFF",
  "theme_color": "#EEF1F6",
  "icons": [
   {
