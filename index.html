@@ -3579,6 +3579,44 @@ vSemaine=function(){ let h=_vSemaine38(); if(ST.printProg) return h; const w=ST.
 const _vToday38=vToday;
 vToday=function(){ let h=_vToday38(); const T=todaySession(); if(T&&T.today){ const tm=sTime(T.w,T.S); if(tm) h=h.replace(`<div class="muted small">Séance du jour</div>`,`<div class="muted small">Séance du jour · 🕐 ${tm}</div>`); } return h; };
 
+// ================= MODULE AGENDA COACH (séances de tous les clients, jour par jour) =================
+const AG={rows:null,at:0,busy:false,w0:null,open:true};
+const mondayOf=iso=>{ const d=new Date(iso+"T12:00:00"); return addDays(iso,-((d.getDay()+6)%7)); };
+async function agLoad(force){ if(AG.busy||(!force&&AG.rows&&Date.now()-AG.at<120000)) return; AG.busy=true;
+  try{ const ids=CLIENTS.filter(c=>c.coach_id===UID&&!c.archived).map(c=>c.id); const rows=[];
+    if(ids.length){ const [cl,cd,ct]=await Promise.all([SB.from("clients").select("id,name,program").in("id",ids),
+        SB.from("carnet").select("client_id,k,data").in("client_id",ids).like("k","%\\_d\\_%").range(0,4999),
+        SB.from("carnet").select("client_id,k,data").in("client_id",ids).like("k","%\\_t\\_%").range(0,9999)]);
+      const car={}; [...(cd.data||[]),...(ct.data||[])].forEach(r=>{ (car[r.client_id]=car[r.client_id]||{})[r.k]=r.data; });
+      (cl.data||[]).forEach(c=>{ const P=c.program; if(!P||!P.profile||!/^\d{4}-\d{2}-\d{2}$/.test(P.profile.start||"")) return;
+        try{ const C=car[c.id]||{}, Mi=compute(P,C,{},new Date()); rows.push({id:c.id,name:c.name,M:Mi,car:C}); }catch(e){ console.warn("agenda",c.name,e); } }); }
+    AG.rows=rows; AG.at=Date.now(); }catch(e){ console.error(e); AG.rows=AG.rows||[]; }
+  AG.busy=false; render(); }
+function agDay(iso){ const out=[]; (AG.rows||[]).forEach(r=>{ const Mi=r.M, C=r.car, d0=isoD(Mi.dateOf(1)), diff=Math.round((new Date(iso+"T12:00:00")-new Date(d0+"T12:00:00"))/864e5); if(diff<0) return;
+    const w=Math.floor(diff/7)+1, dow=diff%7; if(w>Mi.NSEM) return;
+    Mi.sessions.forEach(S=>{ if(!(S.day&&S.rows.some(x=>x.ex&&x.weeks[w]&&x.weeks[w].eff))) return; const mv=C[w+"_d_"+S.s], day=mv&&mv.day!=null?mv.day:S.dayOff; if(day!==dow) return;
+      const tm=(mv&&mv.h)||((C["0_d_"+S.s]||{}).h)||"", t=C[w+"_t_"+S.s]||{}, st=t.missed?"miss":t.end?"done":t.start?"run":iso<todayISO()?"past":"todo";
+      out.push({id:r.id,name:r.name,ses:S.name,w,s:S.s,tm,st,moved:mv&&mv.day!=null}); }); });
+  return out.sort((a,b)=>(a.tm||"99")<(b.tm||"99")?-1:(a.tm||"99")>(b.tm||"99")?1:a.name.localeCompare(b.name)); }
+function vAgenda(){ if(!AG.rows){ agLoad(); return `<div class="card muted small">Chargement de l'agenda…</div>`; } setTimeout(()=>agLoad(),0);
+  const today=todayISO(); if(!AG.w0) AG.w0=mondayOf(today); const end=addDays(AG.w0,6);
+  const lbl=`${new Date(AG.w0+"T12:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${new Date(end+"T12:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}`;
+  let body="", n=0; for(let i=0;i<7;i++){ const iso=addDays(AG.w0,i), L=agDay(iso); n+=L.length;
+    body+=`<div class="agd${iso===today?" now":""}"><div class="agh"><b style="text-transform:capitalize">${new Date(iso+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric"})}</b>${iso===today?` <span class="chip on">aujourd'hui</span>`:""}</div>
+      ${L.length?L.map(x=>`<button class="agi" data-act="ag-go" data-v="${x.id}|${x.w}|${iso}"><span class="agt">${x.tm?esc(x.tm):"—"}</span><span class="grow"><b>${esc(x.name)}</b> · ${esc(x.ses)}${x.moved?` <span class="muted small">(déplacée)</span>`:""}</span><span class="cs ${x.st}">${ST_IC[x.st]} ${ST_TX[x.st].replace(" aujourd'hui","")}</span></button>`).join(""):`<div class="muted small" style="padding:4px 0">Aucune séance</div>`}</div>`; }
+  return `<details class="card" id="ag-card"${AG.open?" open":""}><summary><b>📅 Agenda de la semaine</b> <span class="muted small">${n} séance${n>1?"s":""}</span></summary>
+    <div class="row" style="margin:6px 0;flex-wrap:nowrap"><button class="ghost sm" data-act="ag-w" data-v="-7" aria-label="Semaine précédente">‹</button><b class="grow" style="text-align:center">${lbl}</b><button class="ghost sm" data-act="ag-w" data-v="7" aria-label="Semaine suivante">›</button></div>
+    ${AG.w0!==mondayOf(today)?`<div class="row" style="justify-content:center"><button class="chip" data-act="ag-w" data-v="0">Revenir à cette semaine</button></div>`:""}${body}
+    <p class="note">Les heures sont celles choisies par tes clients (ou par toi) dans leur calendrier. Appuie sur une séance pour la déplacer, changer l'heure ou la marquer faite / loupée.</p></details>`; }
+const _css39=document.createElement("style"); _css39.textContent=`.agd{padding:8px 0;border-top:1px solid var(--line)}.agd.now{background:color-mix(in srgb,var(--ink) 4%,transparent);border-radius:8px;padding:8px 6px}.agh{margin-bottom:4px}
+.agi{display:flex;gap:8px;align-items:center;width:100%;text-align:left;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:4px 0;font-weight:400;font-family:inherit;font-size:.92rem}.agt{font-weight:700;min-width:44px;font-variant-numeric:tabular-nums}.agi .cs{white-space:nowrap;font-size:.8rem}`; document.head.appendChild(_css39);
+const _vTodo39=vTodo; vTodo=function(){ return vAgenda()+_vTodo39(); };
+document.addEventListener("toggle",e=>{ if(e.target&&e.target.id==="ag-card") AG.open=e.target.open; },true);
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="ag-w"&&a!=="ag-go") return;
+  if(a==="ag-w"){ AG.w0=+b.dataset.v===0?mondayOf(todayISO()):addDays(AG.w0,+b.dataset.v); return render(); }
+  const [id,w,iso]=b.dataset.v.split("|"); await openClient(id); AG.at=0; ST.view="semaine"; ST.week=+w; CAL.open=true; CAL.sel=iso; CAL.m=iso.slice(0,7); window.scrollTo(0,0); render();
+  setTimeout(()=>{ const c=document.querySelector(".calday"); if(c) c.scrollIntoView({block:"center"}); },150); });
+
 boot();
 
 </script>
