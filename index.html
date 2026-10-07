@@ -3283,6 +3283,34 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
     toast(data?"Notification envoyée : verrouille ton téléphone, elle arrive dans quelques secondes":"Patiente une minute entre deux tests (ou réactive les notifications)"); return; }
   if(a==="pn-help"){ const id=b.dataset.v||CUR; if(!id) return; if(id!==CUR) await openClient(id); try{ localStorage.setItem("tb-pnask-"+id,todayISO()); }catch(err){} await msgOpen(); const t=document.getElementById("msg-txt"); if(t){ t.value=pnHelpText(); t.focus(); } toast("Vérifie le message puis appuie sur Envoyer"); } },true);
 
+// ================= MODULE ÉTAT DE L'APP CHEZ LE CLIENT (diagnostic visible du coach) =================
+const iosVer31=()=>{ const m=navigator.userAgent.match(/OS (\d+)[_.](\d+)/); return /iP(hone|ad|od)/.test(navigator.userAgent)&&m?+(m[1]+"."+m[2].padStart(2,"0")):null; };
+const inApp31=()=>/Instagram|FBAN|FBAV|GSA\/|Line\/|Snapchat|LinkedInApp|WhatsApp/i.test(navigator.userAgent);
+let _diagSent=null;
+async function diagSend(){ if(MODE!=="client"||coach()||!UID||_diagSent===UID) return; _diagSent=UID; try{ const st=await pushStatus();
+  const diag={st,dev:isIOS10()?"iPhone":isAndroid30()?"Android":"ordinateur",ios:iosVer31(),inst:!!standalone10(),inapp:inApp31(),at:new Date().toISOString()};
+  await SB.from("push_prefs").upsert({user_id:UID,diag,updated_at:new Date().toISOString()},{onConflict:"user_id"}); }catch(e){} }
+// cas « non pris en charge » : expliquer pourquoi (iOS trop ancien, navigateur intégré d'une autre app)
+const _pnCard31=pnCard;
+pnCard=function(st){ if(st!=="unsupported") return _pnCard31(st); const v=iosVer31();
+  const why=inApp31()?"Tu as ouvert l'app depuis une autre application (Instagram, Gmail, WhatsApp…). Ouvre le lien dans Safari (ou Chrome), puis ajoute-la à l'écran d'accueil."
+    :v&&v<16.04?`Ton iPhone est en iOS ${String(v).replace(".0",".")} : les notifications demandent iOS 16.4 ou plus récent. Mets à jour ton iPhone (Réglages › Général › Mise à jour logicielle).`
+    :"Ce navigateur ne gère pas les notifications. Ouvre l'app dans Safari (iPhone) ou Chrome (Android).";
+  return `<div class="card" style="border:2px solid var(--blue)"><h3 style="margin-top:0">🔔 Notifications indisponibles ici</h3><p class="small">${why}</p><div class="row"><button class="ghost sm" data-act="pn-later">Plus tard</button></div></div>`; };
+// coach : charger l'état complet (appareils + diagnostic + nouvelle app ouverte ou non)
+pnLoad=async function(){ if(PN.busy||(PN.data&&Date.now()-PN.at<60000)) return; PN.busy=true; const {data,error}=await SB.rpc("client_app_status"); PN.busy=false; PN.at=Date.now();
+  PN.data={}; PN.info={}; (data||[]).forEach(r=>{ PN.data[r.client_id]=r.devices||0; PN.info[r.client_id]=r; }); if(error) console.error(error); render(); };
+const diagTxt=r=>{ const d=r&&r.diag; if(!d) return ""; const st={on:"activées",off:"pas activées",install:"app non installée (ouverte dans Safari)",denied:"refusées dans les réglages",unsupported:"non prises en charge"}[d.st]||d.st;
+  return `${d.dev}${d.ios?" iOS "+String(d.ios).replace(/\.0?(\d)$/,".$1"):""}${d.inapp?" · ouvert depuis une autre app":""}${d.inst?" · app installée":""} · notifications ${st} · vu le ${new Date(d.at).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}`; };
+const shareLink31=name=>`Salut ${firstName31(name)} ! L'app a changé d'adresse. Supprime l'ancienne icône TB my Coach de ton écran d'accueil, puis :\n1. Ouvre ce lien dans Safari : ${APP_URL}\n2. Partager → « Sur l'écran d'accueil »\n3. Ouvre l'app depuis la nouvelle icône et connecte-toi (même e-mail, même mot de passe)\n4. Touche « Activer les notifications ».`;
+const firstName31=n=>(n||"").trim().split(/\s+/)[0]||"";
+const _x10After31=x10After;
+x10After=function(){ _x10After31(); diagSend(); if(!(coach()&&ST.view==="tableau"&&CUR&&PN.info)) return; const el=document.getElementById("pn-coach"); if(!el) return; const r=PN.info[CUR], c=CLIENTS.find(x=>x.id===CUR);
+  if(r&&!r.new_app&&c&&c.email) el.insertAdjacentHTML("beforeend",`<div class="alert ko small" style="margin-top:6px">⚠️ ${esc(firstName31(c.name))} n'a jamais ouvert la nouvelle app : elle ou il utilise sûrement encore l'ancienne icône (Netlify), sans notifications.<div class="row" style="margin-top:6px"><button class="sm" data-act="pn-newlink" data-v="${c.id}">Lui envoyer le nouveau lien (SMS / WhatsApp)</button></div></div>`);
+  else if(r&&r.diag) el.insertAdjacentHTML("beforeend",`<div class="muted" style="margin-top:4px">${esc(diagTxt(r))}</div>`); };
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b||b.dataset.act!=="pn-newlink") return; const c=CLIENTS.find(x=>x.id===b.dataset.v); if(!c) return; const txt=shareLink31(c.name);
+  if(navigator.share) navigator.share({title:"TB my Coach",text:txt}).catch(()=>{}); else { try{ await navigator.clipboard.writeText(txt); toast("Message copié : colle-le dans un SMS ou WhatsApp"); }catch(err){ toast("Copie impossible"); } } });
+
 boot();
 
 </script>
