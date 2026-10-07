@@ -163,7 +163,7 @@ body.mp-on{overflow:hidden}
 #restbar .row{flex-wrap:nowrap;gap:8px}#restbar button{min-width:56px;min-height:42px;font-size:1rem}
 button,[data-act]{touch-action:manipulation}
 body.rest-on #msgfab{display:none}
-header.top h1{display:flex;align-items:center;gap:8px}header.top h1::before{content:'';width:36px;height:36px;flex:0 0 36px;border-radius:9px;background:url(logo.png) center/cover}
+header.top h1{display:flex;align-items:center;gap:8px}header.top h1::before{content:'';width:36px;height:36px;flex:0 0 36px;border-radius:9px;background:url(logo.png?v=5) center/cover}
 @media print{#msgfab,#msgpanel{display:none!important}}
 @media print{.printdoc{color:#000}table.pt tr{break-inside:avoid}#restbar,#offbar{display:none!important}}
 @media print{header.top,nav.tabs,.noprint,.toast{display:none!important}:root{padding:0}html,body{background:#fff}body{padding:0}main{max-width:none;padding:0}.inv{border:0;padding:0}}
@@ -3963,16 +3963,16 @@ document.head.appendChild(_css45);
 const _css46=document.createElement("style"); _css46.textContent=`
 :root{--pink:#FF6FB5;--violet:#8B7CFF;--sky:#4C9BFF;--mint:#3FD2B5;
   --grad:linear-gradient(110deg,#FF6FB5 0%,#8B7CFF 30%,#4C9BFF 60%,#3FD2B5 85%,#FF6FB5 100%);
-  --gradbtn:linear-gradient(110deg,#2F6BF0 0%,#5B7CFF 45%,#2F8CF0 75%,#2F6BF0 100%);
+  --gradbtn:linear-gradient(110deg,#2F6BF0 0%,#3D8AF2 35%,#1FB5A3 65%,#2F6BF0 100%);
   --blob1:#93C5FD;--blob2:#A7F3D0;--blob3:#FBCFE8;--blobo:.42}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--chalk:#0B1426;--paper:#16243F;--ink:#EEF2F8;--soft:#9AA8BF;--line:rgba(255,255,255,.10);--blue:#4C9BFF;--accent:#4C9BFF;
   --glass:rgba(22,38,68,.66);--glass-b:rgba(255,255,255,.07);--glass-bar:rgba(12,22,42,.80);--btn2:rgba(255,255,255,.08);--input:#1A2B4C;--navoff:#8D9AB2;
   --blob1:#2F5BD6;--blob2:#0F8F7A;--blob3:#B0357A;--blobo:.30;
-  --gradbtn:linear-gradient(110deg,#3B7BF5 0%,#6A7CFF 45%,#3B9BF5 75%,#3B7BF5 100%)}}
+  --gradbtn:linear-gradient(110deg,#3B7BF5 0%,#4A9BF5 35%,#27C2AE 65%,#3B7BF5 100%)}}
 :root[data-theme="dark"]{--chalk:#0B1426;--paper:#16243F;--ink:#EEF2F8;--soft:#9AA8BF;--line:rgba(255,255,255,.10);--blue:#4C9BFF;--accent:#4C9BFF;
   --glass:rgba(22,38,68,.66);--glass-b:rgba(255,255,255,.07);--glass-bar:rgba(12,22,42,.80);--btn2:rgba(255,255,255,.08);--input:#1A2B4C;--navoff:#8D9AB2;
   --blob1:#2F5BD6;--blob2:#0F8F7A;--blob3:#B0357A;--blobo:.30;
-  --gradbtn:linear-gradient(110deg,#3B7BF5 0%,#6A7CFF 45%,#3B9BF5 75%,#3B7BF5 100%)}
+  --gradbtn:linear-gradient(110deg,#3B7BF5 0%,#4A9BF5 35%,#27C2AE 65%,#3B7BF5 100%)}
 /* fond : trois halos (bleu, vert, rose) qui dérivent lentement */
 #bg45 i:nth-child(1){animation:drift46a 26s ease-in-out infinite alternate}
 #bg45 i:nth-child(2){animation:drift46b 32s ease-in-out infinite alternate}
@@ -3984,15 +3984,20 @@ const _css46=document.createElement("style"); _css46.textContent=`
 @keyframes shift46{0%{background-position:0% 50%}100%{background-position:200% 50%}}
 .bar45 i,.mb-t i:not(.over),.obprog div{background:var(--grad);background-size:200% 100%;animation:shift46 9s linear infinite}
 #app .strip45 button.on{background:var(--grad);background-size:200% 100%;animation:shift46 12s linear infinite}
-#app .big45:not(.ghost),#msgfab{background:var(--gradbtn);background-size:200% 100%;animation:shift46 10s linear infinite}
+#app .big45:not(.ghost),#app button.ok,#app a.btn,#msgfab{background:var(--gradbtn);background-size:200% 100%;animation:shift46 10s linear infinite}
 #msgfab{box-shadow:0 8px 24px rgba(91,124,255,.35)}
 .seg45 button.on{background:var(--paper)}
 .hd45{background:var(--grad);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shift46 14s linear infinite}
 nav.tabs button.on svg.ic45{color:var(--accent)}
 .strip45 i.done{background:var(--mint)}
+.chk.on{background:var(--mint)!important;border-color:var(--mint)!important;color:#fff!important}
+table.sets tr.done td{background:color-mix(in srgb,var(--mint) 18%,transparent)}
+.alert.ok{background:color-mix(in srgb,var(--mint) 20%,var(--paper))}
+.hd45{background-image:linear-gradient(110deg,#3FD2B5 0%,#4C9BFF 35%,#8B7CFF 65%,#FF6FB5 85%,#3FD2B5 100%)!important}
+header.top h1::before{width:44px!important;height:44px!important;flex:0 0 44px!important;border-radius:11px!important}
 /* logo de l'en-tête : clair ou bleu nuit selon le thème */
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) header.top h1::before{background-image:url(logo-sombre.png)}}
-:root[data-theme="dark"] header.top h1::before{background-image:url(logo-sombre.png)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) header.top h1::before{background-image:url(logo-sombre.png?v=5)}}
+:root[data-theme="dark"] header.top h1::before{background-image:url(logo-sombre.png?v=5)}
 @media (prefers-reduced-motion: reduce){#bg45 i,.bar45 i,.mb-t i,.obprog div,#app .strip45 button.on,#app .big45,#msgfab,.hd45{animation:none!important}}`;
 document.head.appendChild(_css46);
 
