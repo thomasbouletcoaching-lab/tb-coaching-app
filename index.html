@@ -3794,6 +3794,24 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
     return clCopy(clMsgPrompt()+extra,"Le contexte du bilan"); }
   if(a==="rv-msg"){ const r=((ST.suivi[w]||{}).reply||"").trim(); if(!r) return toast("Écris d'abord ta réponse"); await msgOpen(); const t=document.getElementById("msg-txt"); if(t){ t.value=r; t.focus(); } toast("Vérifie puis appuie sur Envoyer"); } },true);
 
+// ================= MODULE PREMIER LANCEMENT RAPIDE : questionnaire essentiel, le reste plus tard =================
+const OB_ESS=new Set(["obj","years","n_ses","dur","days","lieu","equipL","sex","age","height","weight","diet","excl","pain","q1","q2","q3","q4","q5","q6","q7"]);
+const obLite=()=>!obDone()&&!X10.obEdit;
+const _vOnboard43=vOnboard;
+vOnboard=function(){ if(!obLite()) return _vOnboard43(); const full=OBQ.slice();
+  OBQ.splice(0,OBQ.length,...full.map(([t,fs])=>[t,fs.filter(f=>OB_ESS.has(f[0]))]).filter(([t,fs])=>fs.length));
+  let h; try{ h=_vOnboard43(); } finally{ OBQ.splice(0,OBQ.length,...full); }
+  const n=[...OB_ESS].filter(k=>{ const v=X10.obDraft[k]; return v!==undefined&&v!==""&&!(Array.isArray(v)&&!v.length); }).length;
+  return h.replace(/<p class="muted">Environ 5 minutes\.[^<]*<\/p>/,`<p class="muted">Environ 2 minutes : seulement l'essentiel pour démarrer. Tu pourras compléter le reste (quotidien, préférences alimentaires…) plus tard depuis l'Accueil. Seul ton coach lit tes réponses.</p><div class="obprog"><div style="width:${Math.round(n/OB_ESS.size*100)}%"></div></div><div class="muted small">${n}/${OB_ESS.size} réponses</div>`)
+    .replace(">Envoyer à mon coach<",">Envoyer l'essentiel à mon coach<"); };
+const _css43=document.createElement("style"); _css43.textContent=`.obprog{height:8px;border-radius:8px;background:var(--line);overflow:hidden;margin:6px 0 2px}.obprog div{height:100%;background:var(--blue,#1F4FB5);transition:width .3s}`; document.head.appendChild(_css43);
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="x10-obsend"]'); if(!b||!X10.obDraft) return; if(obLite()) X10.obDraft._lite=1; else if(X10.obEdit) X10.obDraft._full=1; },true);
+// Accueil : proposer de compléter le profil
+const _vToday43=vToday;
+vToday=function(){ let h=_vToday43(); const d=X10.ob&&X10.ob.submitted_at&&X10.ob.data; if(!d||!d._lite||d._full) return h;
+  return h.replace(`<div id="x10-pushnudge"></div>`,`<div class="card"><div class="muted small">Profil</div><h3 style="margin:2px 0">Complète ton profil (2 min)</h3><div class="muted small">Ton quotidien et tes préférences alimentaires aident ton coach à ajuster ton plan.</div><div class="row" style="margin-top:8px"><button class="ghost sm" data-act="ob-full">Compléter</button></div></div><div id="x10-pushnudge"></div>`); };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="ob-full"]'); if(!b) return; X10.obEdit=true; ST.todayOn=false; window.scrollTo(0,0); render(); });
+
 boot();
 
 </script>
