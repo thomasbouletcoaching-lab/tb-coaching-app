@@ -3,8 +3,8 @@
  "short_name": "TB my Coach",
  "start_url": "./",
  "display": "standalone",
- "background_color": "#11182A",
- "theme_color": "#11182A",
+ "background_color": "#EEF1F6",
+ "theme_color": "#EEF1F6",
  "icons": [
   {
    "src": "icon-192.png",
