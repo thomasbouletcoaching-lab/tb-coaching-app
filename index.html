@@ -3311,6 +3311,36 @@ x10After=function(){ _x10After31(); diagSend(); if(!(coach()&&ST.view==="tableau
 document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b||b.dataset.act!=="pn-newlink") return; const c=CLIENTS.find(x=>x.id===b.dataset.v); if(!c) return; const txt=shareLink31(c.name);
   if(navigator.share) navigator.share({title:"TB my Coach",text:txt}).catch(()=>{}); else { try{ await navigator.clipboard.writeText(txt); toast("Message copié : colle-le dans un SMS ou WhatsApp"); }catch(err){ toast("Copie impossible"); } } });
 
+// ================= MODULE QUESTIONNAIRE : vraies cases à cocher (jours, choix multiples) =================
+// 1) grandes cases natives (zone de toucher fiable sur téléphone) au lieu des pastilles ;
+// 2) un rafraîchissement en arrière-plan n'écrase plus les réponses en cours de saisie.
+const _obField32=obField;
+obField=function(f){ const [k,type,label,opts,req,max]=f, d=X10.obDraft, L=`${esc(label)}${req?" *":""}`;
+  if(type==="days"){ const a=Array.isArray(d.days)?d.days:[]; const n=a.filter(Boolean).length;
+    return `<fieldset class="obq ckg"><legend class="muted small">${L}</legend><div class="ckgrid">${DAYS.map((nm,i)=>`<label class="ckb${a[i]?" on":""}"><input type="checkbox" data-obck="days" data-i="${i}" ${a[i]?"checked":""}><span>${nm}</span></label>`).join("")}</div><div class="muted small ckn" data-ckn="days">${n} jour${n>1?"s":""} sélectionné${n>1?"s":""}</div></fieldset>`; }
+  if(type==="multi"){ const a=Array.isArray(d[k])?d[k]:[];
+    return `<fieldset class="obq ckg"><legend class="muted small">${L}</legend><div class="ckgrid">${opts.map(o=>`<label class="ckb${a.includes(o)?" on":""}"><input type="checkbox" data-obck="${esc(k)}" data-o="${esc(o)}" ${max?`data-max="${max}"`:""} ${a.includes(o)?"checked":""}><span>${esc(o)}</span></label>`).join("")}</div>${max?`<div class="muted small ckn" data-ckn="${esc(k)}">${a.length} / ${max} choisis</div>`:""}</fieldset>`; }
+  return _obField32(f); };
+const _css32=document.createElement("style"); _css32.textContent=`.ckg{border:0;padding:0;margin:12px 0 0;min-width:0}.ckg legend{padding:0;margin-bottom:6px}
+.ckgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ckb{display:flex;align-items:center;gap:10px;min-height:48px;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--paper);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;font-weight:600;line-height:1.2}
+.ckb input{width:22px;height:22px;margin:0;flex:0 0 auto;accent-color:var(--ink)}
+.ckb.on{border-color:var(--ink);background:color-mix(in srgb,var(--ink) 8%,var(--paper))}
+.ckb span{min-width:0;overflow-wrap:anywhere}.ckn{margin-top:6px}`; document.head.appendChild(_css32);
+document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||el.dataset.obck===undefined) return; e.stopImmediatePropagation(); const k=el.dataset.obck, lab=el.closest(".ckb");
+  if(k==="days"){ const d=Array.isArray(X10.obDraft.days)?X10.obDraft.days.slice():[false,false,false,false,false,false,false]; while(d.length<7) d.push(false); d[+el.dataset.i]=el.checked; X10.obDraft.days=d;
+    const n=d.filter(Boolean).length, c=document.querySelector('[data-ckn="days"]'); if(c) c.textContent=`${n} jour${n>1?"s":""} sélectionné${n>1?"s":""}`; }
+  else { const o=el.dataset.o, max=+el.dataset.max||0; let a=Array.isArray(X10.obDraft[k])?X10.obDraft[k].slice():[];
+    if(el.checked){ if(max&&a.length>=max&&!a.includes(o)){ el.checked=false; toast(`${max} choix maximum : décoche d'abord un autre groupe`); return; } if(!a.includes(o)) a.push(o); } else a=a.filter(x=>x!==o);
+    X10.obDraft[k]=a; const c=document.querySelector(`[data-ckn="${CSS.escape(k)}"]`); if(c&&max) c.textContent=`${a.length} / ${max} choisis`; }
+  if(lab) lab.classList.toggle("on",el.checked); obAutosave(); },true);
+// les modifications locales récentes priment sur un rechargement depuis le serveur
+const _obAutosave32=obAutosave; obAutosave=function(){ X10.obLocalAt=Date.now(); return _obAutosave32(); };
+const _obLoad32=obLoad;
+obLoad=async function(cid){ if(X10.obCid===cid&&X10.obDraft&&X10.obLocalAt&&Date.now()-X10.obLocalAt<30*60000){
+    if(!navigator.onLine||!SB) return; const {data,error}=await SB.from("onboarding").select("*").eq("client_id",cid).maybeSingle(); if(!error&&CUR===cid) X10.ob=data||X10.ob; return; }
+  return _obLoad32(cid); };
+
 boot();
 
 </script>
