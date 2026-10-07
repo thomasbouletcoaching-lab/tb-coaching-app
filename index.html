@@ -3743,6 +3743,57 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   if(r.new_app){ if(CUR!==id) await openClient(id); await msgOpen(); const t=document.getElementById("msg-txt"); if(t){ t.value=txt; t.focus(); } toast("Vérifie le message puis appuie sur Envoyer"); }
   else if(navigator.share) navigator.share({title:"TB my Coach",text:txt}).catch(()=>{}); else { try{ await navigator.clipboard.writeText(txt); toast("Message copié : colle-le dans un SMS ou WhatsApp"); }catch(err){ toast("Copie impossible"); } } },true);
 
+// ================= MODULE BILAN EXPRESS (client) + REVUE DE LA SEMAINE (coach) =================
+const QB=[["en","Énergie","😴","⚡"],["so","Sommeil","😫","😴"],["st","Stress","😌","😰"],["fa","Faim","🙂","🤤"],["mo","Motivation","😕","🔥"]];
+const QB_DRAFT={};
+// semaine à faire le point : du vendredi au dimanche = semaine en cours ; le lundi = rattrapage de la semaine passée
+function qbWeek(){ if(!M) return null; const d=dowIdx(); let w=d>=4?M.cw:d===0?M.cw-1:null; if(!w||w<1) return null; const sv=ST.suivi[w]||{}; return sv.sent?null:w; }
+function vQuickBilan(w){ const sv=ST.suivi[w]||{}, D=Object.assign({},sv.q5||{},QB_DRAFT[w]||{}); const n=QB.filter(([k])=>D[k]).length;
+  return `<div class="card" id="qb-card" style="border:2px solid var(--blue)"><div class="muted small">Bilan de la semaine ${w} · 30 secondes</div><h3 style="margin:2px 0 6px">Comment s'est passée ta semaine ?</h3>
+   ${QB.map(([k,l,lo,hi])=>`<div class="qbrow"><span class="qbl">${l}</span><span class="qbs">${[1,2,3,4,5].map(v=>`<button class="${+D[k]===v?"on":""}" data-act="qb-set" data-v="${w}.${k}.${v}" aria-label="${l} ${v} sur 5">${v}</button>`).join("")}</span></div>`).join("")}
+   <div class="row" style="margin-top:8px;gap:8px;flex-wrap:nowrap"><label class="f" style="flex:0 0 110px">Poids (kg)<input data-qb="${w}.poids" inputmode="decimal" value="${esc(D.poids??sv.poids??"")}" placeholder="facultatif"></label>
+   <label class="f grow">Un mot pour ton coach<input data-qb="${w}.msg" value="${esc(D.msg??sv.msg??"")}" placeholder="victoire, difficulté, question…"></label></div>
+   <div class="row" style="margin-top:8px"><button class="ok" data-act="qb-send" data-v="${w}" ${n<QB.length?"disabled":""}>Envoyer à mon coach</button><span class="muted small">${n<QB.length?`${n}/${QB.length} réponses`:""}</span></div></div>`; }
+const _css42=document.createElement("style"); _css42.textContent=`.qbrow{display:flex;align-items:center;gap:8px;padding:5px 0}.qbl{flex:0 0 92px;font-weight:600}.qbs{display:flex;gap:6px;flex:1}.qbs button{flex:1;min-width:0!important;background:var(--chalk);color:var(--ink);border:1px solid var(--line);padding:8px 0}.qbs button.on{background:var(--ink);color:var(--paper)}
+.rv-dots{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0}.rv-dots span{font-size:.85rem}`; document.head.appendChild(_css42);
+// Accueil : le bilan express remplace l'ancienne carte « Remplir mon bilan »
+const _vToday42=vToday;
+vToday=function(){ let h=_vToday42(); const w=qbWeek(); if(!w) return h;
+  h=h.replace(/<div class="card"><div class="muted small">Bilan<\/div>[\s\S]*?Remplir mon bilan<\/button><\/div><\/div>/,"");
+  const i=h.indexOf('<div class="card'); return i<0?h+vQuickBilan(w):h.slice(0,i)+vQuickBilan(w)+h.slice(i); };
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="qb-set"&&a!=="qb-send") return; e.stopImmediatePropagation();
+  if(a==="qb-set"){ const [w,k,v]=b.dataset.v.split("."); QB_DRAFT[w]=Object.assign({},QB_DRAFT[w],{[k]:+v}); return render(); }
+  const w=b.dataset.v, D=Object.assign({},(ST.suivi[w]||{}).q5||{},QB_DRAFT[w]||{}), sv=ST.suivi[w]=Object.assign({},ST.suivi[w]);
+  sv.q5={}; QB.forEach(([k])=>{ if(D[k]) sv.q5[k]=D[k]; }); const p=parseFloat(String(D.poids??"").replace(",",".")); if(p>20&&p<400) sv.poids=p; if((D.msg||"").trim()) sv.msg=D.msg.trim(); sv.sent=new Date().toISOString();
+  delete QB_DRAFT[w]; render(); await saveSuivi(w); toast("Bilan envoyé à ton coach ✅"); },true);
+document.addEventListener("input",e=>{ const el=e.target; if(!el.dataset||!el.dataset.qb) return; const [w,k]=el.dataset.qb.split("."); QB_DRAFT[w]=Object.assign({},QB_DRAFT[w],{[k]:el.value}); });
+// ---- Revue de la semaine (coach, en tête du Tableau)
+const RV={w:null};
+function vReview(){ if(!M) return ""; const w=RV.w&&RV.w<=M.NSEM?RV.w:Math.max(1,M.cw-(dowIdx()<=1?1:0)); const sv=ST.suivi[w]||{}, q=sv.q5||{};
+  const ses=M.sessions.filter(S=>sActive(w,S)).map(S=>{ const t=ST.carnet[w+"_t_"+S.s]||{}, logged=S.rows.some(r=>{ const v=ST.carnet[w+"_"+r.key]; return v&&((v.sets&&v.sets.some(x=>x.d||x.r!=null))||v.r!=null); }); return {S,st:t.missed?"miss":(t.end||logged)?"done":"todo"}; });
+  const nd=ses.filter(x=>x.st==="done").length, nm=ses.filter(x=>x.st==="miss").length;
+  let nut=""; if(NU.loaded&&NU.cid===CUR){ const d0=isoD(M.dateOf(w)), days=[0,1,2,3,4,5,6].map(i=>addDays(d0,i)).filter(d=>d<=todayISO()), L=days.map(d=>NU.logs[d]).filter(l=>l&&((l.m&&Object.keys(l.m).length)||(l.x&&l.x.length)));
+    const kc=L.map(l=>consumed(l).k).filter(k=>k>0), pk=L.map(l=>+l.pk||0).filter(Boolean); nut=`${L.length}/${days.length} jours notés${kc.length?` · moyenne ${r0(kc.reduce((a,b)=>a+b,0)/kc.length)} kcal${pk.length?` (prévu ${r0(pk.reduce((a,b)=>a+b,0)/pk.length)})`:""}`:""}`; } else if(typeof nuEnsure==="function"&&RV.nuFor!==CUR){ RV.nuFor=CUR; nuEnsure().then(()=>scheduleRender()).catch(()=>{}); }
+  const prevW=ST.suivi[w-1]&&ST.suivi[w-1].poids, rec=typeof recordsAll==="function"?Object.values(recordsAll()).filter(x=>x.e1&&x.e1.w===w).map(x=>x.name):[];
+  const dot=(k,l)=>q[k]?`<span>${l} <b>${q[k]}/5</b></span>`:"";
+  return `<details class="card" id="rv-card" open><summary><b>🗓️ Revue de la semaine ${w}</b> ${sv.sent?(sv.reply?`<span class="chip">répondu</span>`:`<span class="chip on">bilan à commenter</span>`):`<span class="muted small">pas de bilan</span>`}</summary>
+   <div class="row" style="margin:6px 0;flex-wrap:nowrap"><button class="ghost sm" data-act="rv-w" data-v="${w-1}" ${w<=1?"disabled":""} aria-label="Semaine précédente">‹</button><b class="grow" style="text-align:center">Semaine ${w}${M.phases[w-1]?" · "+esc(M.phases[w-1]):""}</b><button class="ghost sm" data-act="rv-w" data-v="${w+1}" ${w>=M.cw?"disabled":""} aria-label="Semaine suivante">›</button></div>
+   <div class="small"><b>Séances :</b> ${nd} faite${nd>1?"s":""} sur ${ses.length}${nm?` · ${nm} loupée${nm>1?"s":""}`:""} <span class="muted">(${ses.map(x=>`${x.st==="done"?"✓":x.st==="miss"?"✗":"·"} ${esc(x.S.name)}`).join(", ")})</span></div>
+   ${rec.length?`<div class="small"><b>Records :</b> ${rec.map(esc).join(", ")} 🏆</div>`:""}
+   ${nut?`<div class="small"><b>Nutrition :</b> ${nut}</div>`:""}
+   ${sv.poids?`<div class="small"><b>Poids :</b> ${fmtN(sv.poids)} kg${prevW?` (${sv.poids-prevW>0?"+":""}${fmtN(round(sv.poids-prevW,1))} kg)`:""}</div>`:""}
+   ${sv.sent?`<div class="rv-dots">${dot("en","Énergie")}${dot("so","Sommeil")}${dot("st","Stress")}${dot("fa","Faim")}${dot("mo","Motivation")}</div>${["msg","win","hard","q"].filter(k=>sv[k]).map(k=>`<div class="small" style="white-space:pre-wrap">💬 ${esc(sv[k])}</div>`).join("")}`:`<div class="muted small">Le client n'a pas encore envoyé son bilan pour cette semaine.</div>`}
+   <label class="f" style="margin-top:8px">Ta réponse (visible sur son Accueil)<textarea rows="3" data-svt="${w}" data-f="reply" placeholder="Ton retour et l'ajustement de la semaine prochaine">${esc(sv.reply||"")}</textarea></label>
+   <div class="row" style="margin-top:6px"><button class="ghost sm" data-act="rv-claude" data-v="${w}">✨ Brouillon avec Claude</button><button class="ghost sm" data-act="rv-msg" data-v="${w}">Envoyer aussi en message</button></div></details>`; }
+const _x10After42=x10After;
+x10After=function(){ _x10After42(); if(!(coach()&&ST.view==="tableau"&&CUR&&M)) return; const ref=document.getElementById("act-card")||document.getElementById("cg-coach")||document.getElementById("cn-card");
+  const h=vReview(); if(ref) ref.insertAdjacentHTML("beforebegin",h); else $("#app").insertAdjacentHTML("afterbegin",h); };
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(!/^rv-/.test(a)) return; e.stopImmediatePropagation(); const w=+b.dataset.v;
+  if(a==="rv-w"){ RV.w=w; return render(); }
+  if(a==="rv-claude"){ const sv=ST.suivi[w]||{}, q=sv.q5||{}; const extra=`\n\nBILAN EXPRESS (semaine ${w}) : énergie ${q.en||"?"}/5, sommeil ${q.so||"?"}/5, stress ${q.st||"?"}/5, faim ${q.fa||"?"}/5, motivation ${q.mo||"?"}/5${sv.poids?`, poids ${sv.poids} kg`:""}${sv.msg?`\nMot du client : ${sv.msg}`:""}\nRédige la réponse au bilan (5 à 8 phrases) : ce qui va bien, le point d'attention, l'ajustement concret pour la semaine prochaine.`;
+    return clCopy(clMsgPrompt()+extra,"Le contexte du bilan"); }
+  if(a==="rv-msg"){ const r=((ST.suivi[w]||{}).reply||"").trim(); if(!r) return toast("Écris d'abord ta réponse"); await msgOpen(); const t=document.getElementById("msg-txt"); if(t){ t.value=r; t.focus(); } toast("Vérifie puis appuie sur Envoyer"); } },true);
+
 boot();
 
 </script>
