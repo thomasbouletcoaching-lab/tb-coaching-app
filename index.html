@@ -3617,6 +3617,75 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   const [id,w,iso]=b.dataset.v.split("|"); await openClient(id); AG.at=0; ST.view="semaine"; ST.week=+w; CAL.open=true; CAL.sel=iso; CAL.m=iso.slice(0,7); window.scrollTo(0,0); render();
   setTimeout(()=>{ const c=document.querySelector(".calday"); if(c) c.scrollIntoView({block:"center"}); },150); });
 
+// ================= MODULE BANQUE DE PROGRAMMES ÉTENDUE (niveau × split × jours) =================
+(()=>{
+// exercices par emplacement : [débutant, intermédiaire, avancé]
+const SL={Q:["Goblet squat","Squat barre","Squat barre"],Q2:["Leg press","Hack squat machine","Bulgarian split squat haltères"],Q3:["Fentes inversées haltères","Bulgarian split squat haltères","Front squat"],
+ H:["Soulevé de terre roumain haltères","Soulevé de terre roumain barre","Soulevé de terre"],H2:["Hip thrust machine","Hip thrust barre","Soulevé de terre roumain barre"],HT:["Pont fessier au sol","Hip thrust barre","Hip thrust barre"],
+ HC:["Leg curl assis","Leg curl assis","Leg curl allongé"],QE:["Leg extension","Leg extension","Leg extension"],CA:["Mollets à la presse","Mollets debout machine","Mollets debout machine"],CA2:["Mollets assis machine (soléaire)","Mollets assis machine (soléaire)","Mollets assis machine (soléaire)"],
+ GL:["Abduction hanche machine","Abduction hanche machine","Kickback fessier poulie"],AD:["Adduction hanche machine","Adduction hanche machine","Adduction hanche machine"],
+ HP:["Développé machine convergente","Développé couché barre","Développé couché barre"],HP2:["Développé couché haltères","Développé incliné haltères","Développé incliné barre"],HP3:["Développé incliné machine convergente","Développé couché haltères","Développé incliné haltères"],
+ CI:["Butterfly (pec deck)","Écarté poulie basse croisé","Écarté poulie hauteur épaules"],DIP:["Dips machine assistée","Dips (poids de corps)","Dips lestés"],
+ VP:["Développé épaules machine","Développé militaire assis haltères","Développé militaire barre (OHP)"],VP2:["Développé militaire assis haltères","Développé Arnold","Développé militaire assis haltères"],
+ LR:["Élévation latérale machine","Élévation latérale haltères","Élévation latérale unilatérale poulie"],LR2:["Élévation latérale haltères","Élévation latérale unilatérale poulie","Élévation latérale partielle (lengthened partials)"],
+ VL:["Tirage vertical poulie","Tirage vertical poulie","Tractions lestées (pronation)"],VL2:["Tirage vertical prise neutre","Tirage vertical prise neutre","Tirage vertical unilatéral poulie"],PO:["Tirage bras tendu poulie","Pull-over poulie haute","Pull-over poulie haute"],
+ HR:["Rowing assis machine","Rowing haltère unilatéral","Rowing barre Pendlay"],HR2:["Chest supported row machine","Tirage horizontal poulie prise serrée","Chest supported row (haltères)"],
+ RD:["Reverse pec deck","Face pull","Face pull"],TR:["Shrug haltères","Shrug haltères","Shrug barre"],
+ BI:["Curl haltères alterné debout","Curl barre EZ","Curl incliné assis haltères"],BI2:["Curl marteau haltères","Curl marteau haltères","Curl Bayesian poulie"],
+ TRI:["Extension triceps corde poulie","Extension triceps corde poulie","Skullcrusher barre"],TRI2:["Extension triceps poulie haute","Extension triceps overhead unilatérale poulie","Overhead extension corde poulie basse"],
+ CORE:["Gainage planche","Crunch poulie","Relevé de jambes suspendu"],CORE2:["Crunch au sol","Pallof press poulie","Roue abdominale (ab wheel)"]};
+// prescriptions par rôle : m = mouvement principal, s = secondaire, i = isolation, c = gainage
+const RX={m:["3x8-10 RPE7","3x6-8 RPE8","1x5@RPE8.5 + 3x6@RPE8"],s:["3x10-12 RPE7","3x8-10 RPE8","4x8-10 RPE8"],i:["2x12-15 RPE7","3x10-12 RPE8","3x12-15 RPE9"],c:["3x30 RPE7","3x10-15 RPE8","3x8-12 RPE8"]};
+const RXS={m:["3x6-8 RPE7","4x5 RPE8","1x3@RPE8.5 + 4x4@RPE8"],s:["3x8 RPE7","3x6-8 RPE8","4x6-8 RPE8"]}; // jours « force »
+const T={ // séances : [emplacement, rôle]
+ FA:[["Q","m"],["HP","m"],["VL","s"],["HT","s"],["LR","i"],["CORE","c"],["BI","i"]],FB:[["H","m"],["VP","m"],["HR","s"],["Q2","s"],["TRI","i"],["CA","i"],["BI2","i"]],FC:[["Q3","s"],["HP2","s"],["HR2","s"],["HC","i"],["RD","i"],["CORE2","c"],["LR2","i"]],
+ UA:[["HP","m"],["HR","m"],["VP","s"],["VL","s"],["LR","i"],["TRI","i"],["BI","i"]],UB:[["VP","m"],["VL","m"],["HP2","s"],["HR2","s"],["CI","i"],["RD","i"],["BI2","i"]],
+ LA:[["Q","m"],["H2","s"],["Q2","s"],["HC","i"],["CA","i"],["CORE","c"],["AD","i"]],LB:[["H","m"],["Q3","s"],["HT","s"],["QE","i"],["CA2","i"],["GL","i"],["CORE2","c"]],
+ PU:[["HP","m"],["VP","s"],["HP3","s"],["LR","i"],["CI","i"],["TRI","i"],["TRI2","i"]],PL:[["VL","m"],["HR","m"],["HR2","s"],["RD","i"],["BI","i"],["BI2","i"],["TR","i"]],LE:[["Q","m"],["H","s"],["Q2","s"],["HC","i"],["QE","i"],["CA","i"],["CORE","c"]],
+ PU2:[["VP","m"],["HP2","s"],["DIP","s"],["LR2","i"],["CI","i"],["TRI2","i"],["RD","i"]],PL2:[["HR","m"],["VL2","s"],["PO","i"],["RD","i"],["BI2","i"],["BI","i"],["CORE2","c"]],LE2:[["H","m"],["Q3","s"],["HT","s"],["QE","i"],["HC","i"],["CA2","i"],["GL","i"]],
+ PE:[["HP","m"],["HP2","s"],["HP3","s"],["CI","i"],["DIP","s"],["CORE","c"]],DO:[["VL","m"],["HR","m"],["VL2","s"],["HR2","s"],["PO","i"],["TR","i"]],EP:[["VP","m"],["LR","i"],["VP2","s"],["LR2","i"],["RD","i"],["TR","i"]],
+ BR:[["BI","i"],["TRI","i"],["BI2","i"],["TRI2","i"],["DIP","s"],["CORE2","c"]],JA:[["Q","m"],["H2","s"],["Q2","s"],["HC","i"],["QE","i"],["CA","i"],["GL","i"]],
+ UF:[["HP","m"],["HR","m"],["VP","s"],["VL","s"],["TRI","i"],["BI","i"]],LF:[["Q","m"],["H","m"],["Q2","s"],["HC","i"],["CA","i"],["CORE","c"]]};
+const NM={FA:"Full body A",FB:"Full body B",FC:"Full body C",UA:"Haut du corps A",UB:"Haut du corps B",LA:"Bas du corps A",LB:"Bas du corps B",PU:"Push (poussée)",PL:"Pull (tirage)",LE:"Legs (jambes)",PU2:"Push B",PL2:"Pull B",LE2:"Legs B",
+ PE:"Pectoraux & triceps",DO:"Dos",EP:"Épaules & trapèzes",BR:"Bras & abdos",JA:"Jambes",UF:"Haut du corps · force",LF:"Bas du corps · force"};
+const DN={2:["Lundi","Jeudi"],3:["Lundi","Mercredi","Vendredi"],4:["Lundi","Mardi","Jeudi","Vendredi"],5:["Lundi","Mardi","Mercredi","Vendredi","Samedi"],6:["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"]};
+const LV=["Débutant","Intermédiaire","Avancé"], NX=[5,6,7];
+const mk=(key,lv,strength)=>{ const L=LV.indexOf(lv); return T[key].slice(0,NX[L]).map(([sl,r])=>{ const rx=(strength&&RXS[r]?RXS:RX)[r][L]; return X(SL[sl][L],rx); }); };
+const PROGS=[ // [id, split, nom, jours, séances, niveaux, description]
+ ["fb2","Full body","Full body 2 j",2,["FA","FB"],[0,1,2],"Tout le corps 2 fois par semaine : l'essentiel quand le temps manque."],
+ ["fb3","Full body","Full body 3 j",3,["FA","FB","FC"],[0,1,2],"Chaque muscle 3 fois par semaine, idéal pour progresser régulièrement."],
+ ["fb4","Full body","Full body 4 j",4,["FA","FB","FC","FA"],[1,2],"Haute fréquence, volume réparti sur 4 séances courtes."],
+ ["ul2","Haut / Bas","Haut / Bas du corps 2 j",2,["UA","LA"],[0,1],"Une séance haut, une séance bas : simple et efficace."],
+ ["ul4","Haut / Bas","Haut / Bas du corps 4 j",4,["UA","LA","UB","LB"],[0,1,2],"Le classique : chaque muscle 2 fois par semaine."],
+ ["ppl3","Push / Pull / Legs","Push / Pull / Legs 3 j",3,["PU","PL","LE"],[0,1,2],"Poussée, tirage, jambes : une fois chacun par semaine."],
+ ["ppl6","Push / Pull / Legs","Push / Pull / Legs 6 j",6,["PU","PL","LE","PU2","PL2","LE2"],[1,2],"Deux tours de PPL par semaine, volume élevé."],
+ ["fhb3","Mixte","Full body + Haut / Bas 3 j",3,["FA","UA","LA"],[1,2],"Une séance complète puis un haut et un bas du corps."],
+ ["pplu5","Mixte","Push / Pull / Legs + Haut / Bas 5 j",5,["PU","PL","LE","UB","LB"],[1,2],"Le meilleur des deux splits : fréquence et spécialisation."],
+ ["ulf5","Mixte","Haut / Bas + Full body 5 j",5,["UA","LA","FC","UB","LB"],[1,2],"Haut / bas deux fois et une séance complète au milieu."],
+ ["ppul4","Mixte","Push / Pull / Legs + Haut 4 j",4,["PU","PL","LE","UB"],[1,2],"PPL complété par une séance haut du corps."],
+ ["ul6","Haut / Bas","Haut / Bas du corps 6 j",6,["UA","LA","UB","LB","UA","LB"],[2],"Trois séances haut et trois séances bas, pour pratiquants confirmés."],
+ ["split5","Split par muscle","Split par groupe musculaire 5 j",5,["PE","DO","JA","EP","BR"],[1,2],"Une séance par groupe musculaire, beaucoup de volume par séance."],
+ ["phul4","Mixte","Force + volume (Haut / Bas) 4 j",4,["UF","LF","UB","LB"],[1,2],"2 séances orientées force, 2 orientées volume (type PHUL)."]];
+PROGS.forEach(([id,split,name,nd,ses,lvls,desc])=>lvls.forEach(L=>{ const lv=LV[L], days=DN[nd]; const dset=[0,1,2,3,4,5,6].map(i=>days.includes(DAYS[i]));
+  BANK.push({id:`g-${id}-${L}`,name:`${name} · ${lv}`,cat:split,lvl:lv,nd,split,desc:desc+(L===0?" Machines et haltères, technique avant la charge.":L===2?" Mouvements libres lourds, intensité élevée.":""),days:dset,
+   phases:(id==="phul4"&&L===2)?PH12.slice():PHHYP.slice(),ov:L===0?{Accumulation:{t:"intensite"}}:{Accumulation:{t:"mixte",n:2,max:5}},
+   s:ses.map((k,i)=>[NM[k]+(ses.indexOf(k)!==i?" (bis)":""),days[i],mk(k,lv,k==="UF"||k==="LF")])}); }));
+// niveaux et jours des programmes d'origine
+const META={pb4:["Avancé","Mixte"],pl4:["Avancé","Spécifique force"],"531":["Intermédiaire","Spécifique force"],ppl6:["Intermédiaire","Push / Pull / Legs"],fb3:["Débutant","Full body"],street:["Avancé","Spécifique force"],home0:["Débutant","Maison"],home1:["Intermédiaire","Maison"]};
+BANK.forEach(b=>{ if(!b.nd) b.nd=b.days.filter(Boolean).length; if(META[b.id]){ b.lvl=b.lvl||META[b.id][0]; b.split=b.split||META[b.id][1]; } b.lvl=b.lvl||"Intermédiaire"; b.split=b.split||b.cat; });
+})();
+const BKF={lvl:"",nd:0,split:""};
+const _vBank40=vBank;
+vBank=function(){ const full=_vBank40(), cut=full.indexOf('<h3 style="margin:14px 0 4px">Mes programmes</h3>'); if(cut<0) return full; const tail=full.slice(cut); const L=BANK.filter(b=>(!BKF.lvl||b.lvl===BKF.lvl)&&(!BKF.nd||b.nd===BKF.nd)&&(!BKF.split||b.split===BKF.split)), T=(BZ.set&&BZ.set.templates)||[];
+  const chips=(k,opts,lab)=>`<div class="row" style="gap:4px;margin:4px 0"><span class="muted small" style="min-width:52px">${lab}</span>${[["","Tous"],...opts].map(([v,t])=>`<button class="chip ${String(BKF[k])===String(v)?"on":""}" data-act="bkf" data-k="${k}" data-v="${v}">${esc(t)}</button>`).join("")}</div>`;
+  const splits=[...new Set(BANK.map(b=>b.split))];
+  return `<div class="card"><h3 style="margin-top:0">Banque de programmes <span class="muted small">(${BANK.length})</span></h3><p class="muted small">Appliquer remplace les séances, jours et phases de ce client (son profil et ses 1RM sont gardés). Les exercices non réalisables avec son matériel sont remplacés automatiquement. Tu peux ensuite tout modifier.</p>
+   ${chips("lvl",[["Débutant","Débutant"],["Intermédiaire","Intermédiaire"],["Avancé","Avancé"]],"Niveau")}${chips("nd",[[2,"2 j"],[3,"3 j"],[4,"4 j"],[5,"5 j"],[6,"6 j"]],"Jours")}${chips("split",splits.map(s=>[s,s]),"Split")}
+   <div class="muted small" style="margin:6px 0">${L.length} programme${L.length>1?"s":""}</div>
+   ${L.map(b=>`<div class="row" style="padding:8px 0;border-top:1px solid var(--line);flex-wrap:nowrap;gap:8px"><div class="grow"><b>${esc(b.name)}</b><div class="small"><span class="chip">${esc(b.lvl)}</span><span class="chip">${b.nd} j/sem.</span><span class="chip">${esc(b.split)}</span></div><div class="muted small">${esc(b.desc)} · ${b.s.map(s=>esc(s[0])).join(", ")}</div></div><button class="ghost sm" data-act="bank-apply" data-v="${b.id}">Appliquer</button></div>`).join("")||`<p class="muted small">Aucun programme avec ces filtres.</p>`}
+   `.replace(/<button class="ghost sm" data-act="bank-apply" data-v="([^"]+)">Appliquer<\/button><\/div>/g,(m,id)=>{ const b=BANK.find(x=>x.id===id); return `<button class="ghost sm" data-act="bank-prev" data-v="${id}">${ST.bankPrev===id?"Masquer":"Aperçu"}</button><button class="ghost sm" data-act="bank-apply" data-v="${id}">Appliquer</button></div>${ST.bankPrev===id&&b?progPreview(b.s.map(([name,day,ex])=>({name,day,ex})),b.phases,b.days):""}`; })+tail; };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="bkf"]'); if(!b) return; const k=b.dataset.k, v=b.dataset.v; BKF[k]=k==="nd"?+v:v; render(); });
+
 boot();
 
 </script>
