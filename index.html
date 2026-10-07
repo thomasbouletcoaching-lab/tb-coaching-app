@@ -3241,6 +3241,48 @@ x10After=function(){ _x10After29(); if(!CUR||!M||ST.bilan) return; const app=$("
   if(coach()&&ST.view==="tableau"){ const n=document.getElementById("cn-card"); const st=ST.prog&&ST.prog.profile&&ST.prog.profile.start, warn=last&&!last.early_start&&st&&st<addDays(isoD(new Date(last.accepted_at)),14);
     const h=`<div class="card small" id="cg-coach">📄 ${last?cgLine(last):`CGV non acceptées${CGV.on?"":" (demande d'acceptation pas encore activée)"}`}${warn?`<div class="alert ko small" style="margin-top:6px">Début anticipé non demandé : le cycle ne devrait pas commencer avant le ${frDate(addDays(isoD(new Date(last.accepted_at)),14))} (fin du délai de rétractation).</div>`:""}${last?`<div class="muted" style="margin-top:4px">Pense à envoyer au client la confirmation par e-mail (copie des CGV).</div>`:""}</div>`; if(n) n.insertAdjacentHTML("beforebegin",h); else app.insertAdjacentHTML("afterbegin",h); } };
 
+// ================= MODULE NOTIFICATIONS : activation guidée, son, pastille, test, suivi coach =================
+const isAndroid30=()=>/Android/i.test(navigator.userAgent);
+const pnHelpText=()=>`Pour recevoir mes messages et tes rappels en notification sur ton téléphone (avec le son) :\n\niPhone :\n1. Ouvre ${APP_URL} dans Safari\n2. Bouton Partager (carré avec flèche) → « Sur l'écran d'accueil »\n3. Ouvre l'app depuis la nouvelle icône, puis touche « Activer les notifications » et accepte.\n\nAndroid : ouvre l'app dans Chrome, touche « Activer les notifications » et accepte (tu peux aussi l'installer : menu ⋮ → « Ajouter à l'écran d'accueil »).\n\nVérifie ensuite dans les réglages du téléphone que les sons sont autorisés pour TB my Coach.`;
+const pnLater=()=>{ try{ const d=localStorage.getItem("tb-pushlater"); return d&&d>todayISO(); }catch(e){ return false; } };
+try{ localStorage.removeItem("tb-pushnudge"); }catch(e){}
+function pnSoundTip(){ return isIOS10()?`Pour le son et l'écran verrouillé : Réglages › Notifications › TB my Coach › active « Sons », « Écran verrouillé » et « Bannières ».`:`Pour le son : Paramètres › Notifications › TB my Coach (ou Chrome) › autorise le son et l'affichage sur l'écran de verrouillage.`; }
+function pnCard(st){ const later=`<button class="ghost sm" data-act="pn-later">Plus tard</button>`;
+  if(st==="off") return `<div class="card" style="border:2px solid var(--blue)"><h3 style="margin-top:0">🔔 Active les notifications</h3><p class="small">Reçois les messages de ton coach et tes rappels directement sur ton téléphone, avec le son, même quand l'app est fermée.</p><div class="row"><button data-act="x10-pushon">Activer les notifications</button>${later}</div><p class="note">Ton téléphone va te demander l'autorisation : touche « Autoriser ».</p></div>`;
+  if(st==="install") return `<div class="card" style="border:2px solid var(--blue)"><h3 style="margin-top:0">🔔 Reçois les notifications sur ton iPhone</h3><p class="small">Sur iPhone, les notifications ne marchent que depuis l'app installée sur l'écran d'accueil (30 secondes) :</p>
+    <ol class="small" style="padding-left:20px;margin:6px 0"><li>Touche le bouton <b>Partager</b> de Safari (carré avec une flèche vers le haut, en bas de l'écran).</li><li>Choisis <b>« Sur l'écran d'accueil »</b>, puis <b>Ajouter</b>.</li><li>Ferme Safari et ouvre <b>TB my Coach depuis la nouvelle icône</b>.</li><li>Connecte-toi avec ton e-mail et ton mot de passe, puis touche <b>« Activer les notifications »</b>.</li></ol><div class="row">${later}</div></div>`;
+  if(st==="denied") return `<div class="card" style="border:2px solid var(--red,#c33)"><h3 style="margin-top:0">🔕 Notifications bloquées</h3><p class="small">${isIOS10()?"Ouvre Réglages › Notifications › TB my Coach et active « Autoriser les notifications » (avec les sons).":"Ouvre les réglages du téléphone › Notifications › TB my Coach (ou Chrome) et autorise les notifications."} Reviens ensuite ici.</p><div class="row">${later}</div></div>`;
+  return ""; }
+nudgePaint=async function(n){ if(!n||pnLater()) return; const st=await pushStatus(); n.innerHTML=pnCard(st); };
+// resynchronise l'abonnement avec le serveur (s'il a été supprimé côté serveur) et efface la pastille à l'ouverture
+async function pnSync(){ try{ if(!UID||(await pushStatus())!=="on") return; const reg=await navigator.serviceWorker.ready, sub=await reg.pushManager.getSubscription(); if(sub) await SB.rpc("push_register",{p_endpoint:sub.endpoint,p_sub:sub.toJSON()}); }catch(e){} }
+function pnClear(){ try{ if(navigator.clearAppBadge) navigator.clearAppBadge().catch(()=>{}); if(navigator.serviceWorker&&navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage("clear-badge"); }catch(e){} }
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") pnClear(); }); pnClear();
+let _pnSynced=null;
+const _x10After30=x10After;
+x10After=function(){ _x10After30(); if(UID&&_pnSynced!==UID){ _pnSynced=UID; pnSync(); }
+  // Compte : bouton de test + réglage du son
+  const ps=document.getElementById("x10-push"); if(ps&&!document.getElementById("pn-extra")){ const box=document.createElement("div"); box.id="pn-extra"; ps.after(box);
+    pushStatus().then(st=>{ if(st!=="on") return; box.innerHTML=`<div class="row" style="margin-top:8px"><button class="ghost sm" data-act="pn-test">🔔 M'envoyer une notification de test</button></div><p class="note">${pnSoundTip()}</p>`; }); }
+  // coach : état des notifications du client dans le Tableau
+  if(coach()&&ST.view==="tableau"&&CUR){ const c=CLIENTS.find(x=>x.id===CUR); if(!PN.data) pnLoad(); else { const n=PN.data[CUR]||0, el=document.getElementById("cg-coach")||document.getElementById("cn-card");
+    const h=`<div class="card small" id="pn-coach">${n?`🔔 Notifications activées (${n} appareil${n>1?"s":""})`:`🔕 Notifications pas encore activées : ${esc((c&&c.name)||"le client")} ne reçoit ni tes messages ni ses rappels sur son téléphone.<div class="row" style="margin-top:6px"><button class="sm" data-act="pn-help">Lui envoyer le mode d'emploi</button></div>`}</div>`;
+    if(el) el.insertAdjacentHTML("beforebegin",h); else $("#app").insertAdjacentHTML("afterbegin",h); } } };
+const PN={data:null,busy:false,at:0};
+async function pnLoad(){ if(PN.busy||(PN.data&&Date.now()-PN.at<60000)) return; PN.busy=true; const {data,error}=await SB.rpc("push_clients"); PN.busy=false; PN.at=Date.now();
+  PN.data={}; (data||[]).forEach(r=>PN.data[r.client_id]=r.devices); if(error) console.error(error); render(); }
+// « À traiter » : clients sans notifications
+const _todoItems30=todoItems;
+todoItems=function(){ const out=_todoItems30(); if(!PN.data){ pnLoad(); return out; }
+  CLIENTS.filter(c=>c.coach_id===UID&&!c.archived&&c.email&&!PN.data[c.id]).forEach(c=>{ const k=c.id+":pn"; if(tdDone(k)) return; let wk=null; try{ wk=localStorage.getItem("tb-pnask-"+c.id); }catch(e){} if(wk&&wk>addDays(todayISO(),-7)) return;
+    out.push({p:3,k,id:c.id,h:`<span style="font-size:1.2rem">🔕</span><div class="grow"><b>${esc(c.name)}</b><div class="small">Notifications pas activées sur son téléphone</div></div><button class="sm" data-act="pn-help" data-v="${c.id}">Expliquer</button><button class="ghost sm" data-act="td-ok" data-v="${k}" aria-label="Marquer comme traité">✓</button>`}); });
+  return out.sort((a,b)=>a.p-b.p); };
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act;
+  if(a==="x10-pushnudge"||a==="pn-later"){ e.stopImmediatePropagation(); try{ localStorage.setItem("tb-pushlater",addDays(todayISO(),3)); }catch(err){} const n=b.closest("#x10-pushnudge"); if(n) n.innerHTML=""; else render(); return; }
+  if(a==="pn-test"){ b.disabled=true; const {data,error}=await SB.rpc("push_test"); b.disabled=false; if(error) return toast("Test impossible : "+error.message);
+    toast(data?"Notification envoyée : verrouille ton téléphone, elle arrive dans quelques secondes":"Patiente une minute entre deux tests (ou réactive les notifications)"); return; }
+  if(a==="pn-help"){ const id=b.dataset.v||CUR; if(!id) return; if(id!==CUR) await openClient(id); try{ localStorage.setItem("tb-pnask-"+id,todayISO()); }catch(err){} await msgOpen(); const t=document.getElementById("msg-txt"); if(t){ t.value=pnHelpText(); t.focus(); } toast("Vérifie le message puis appuie sur Envoyer"); } },true);
+
 boot();
 
 </script>
