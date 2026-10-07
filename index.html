@@ -6,7 +6,9 @@
 <title>TB my Coach</title>
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="TB my Coach"><link rel="icon" href="favicon.ico?v=5"><link rel="icon" type="image/png" href="favicon-clair.png?v=5" media="(prefers-color-scheme: light)"><link rel="icon" type="image/png" href="favicon-sombre.png?v=5" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#EEF1F6" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#0B1426" media="(prefers-color-scheme: dark)"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=5">
+<meta name="theme-color" content="#EEF1F6" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#0B1426" media="(prefers-color-scheme: dark)"><link rel="manifest" href="manifest.webmanifest"><script>/* 2e appli « test client » : session séparée, icône et nom différents */
+var TB_TEST=(function(){ try{ var q=new URLSearchParams(location.search).get("compte"); if(q==="test"){ sessionStorage.setItem("tb-compte","test"); return true; } if(q==="principal"){ sessionStorage.removeItem("tb-compte"); return false; } return sessionStorage.getItem("tb-compte")==="test"; }catch(e){ return /compte=test/.test(location.search); } })();
+if(TB_TEST){ document.querySelector('link[rel="manifest"]').href="manifest-test.webmanifest"; document.querySelector('meta[name="apple-mobile-web-app-title"]').content="TB Test"; document.title="TB Test client"; }</script><link rel="apple-touch-icon" href="apple-touch-icon.png?v=5">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
@@ -484,7 +486,7 @@ async function saveSuivi(w){ const v=ST.suivi[w]||{}; recompute();
   const {error}=await SB.from("suivi").upsert({client_id:CUR,w:+w,data:v,updated_at:new Date().toISOString()}); if(error) toast("Suivi non enregistré : "+error.message); }
 async function boot(){
   if(!/^https?:/.test(CONFIG.url)){ ST.view="setup"; ST.ready=true; render(); return; }
-  SB=supabase.createClient(CONFIG.url,CONFIG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  SB=supabase.createClient(CONFIG.url,CONFIG.key,{auth:Object.assign({persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},TB_TEST?{storageKey:"sb-"+new URL(CONFIG.url).hostname.split(".")[0]+"-auth-token-test"}:{})});
   SB.auth.onAuthStateChange((ev,sess)=>{ if(ev==="PASSWORD_RECOVERY"){AUTH.mode="newpass";ST.view="auth";ST.ready=true;render();}
     else if(ev==="SIGNED_OUT"){UID=null;CUR=null;MODE=null;M=null;ST.prog=null;AUTH={mode:"login",msg:"",busy:false};ST.view="auth";render();}
     else if(ev==="SIGNED_IN"&&sess&&sess.user.id!==UID) afterAuth(sess); });
@@ -4155,6 +4157,10 @@ const _css48=document.createElement("style"); _css48.textContent=`
 .dood48{position:absolute;inset:0}.dood48 span{position:absolute;display:block;opacity:var(--dood,.07)}.dood48 svg{width:100%;height:auto;display:block}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--dood:.10}} :root[data-theme="dark"]{--dood:.10}
 @media print{.dood48,.wm48{display:none}}`; document.head.appendChild(_css48);
+
+// ================= MODULE 49 · APPLI « TEST CLIENT » (2e session sur le même téléphone) =================
+if(TB_TEST){ document.body.insertAdjacentHTML("beforeend",'<div id="tbtest" aria-hidden="true">TEST</div>');
+  const c=document.createElement("style"); c.textContent=`#tbtest{position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);left:50%;transform:translateX(-50%);z-index:90;font:800 11px/1 var(--font);letter-spacing:.12em;color:#fff;background:linear-gradient(110deg,#FF6FB5,#8B7CFF,#4C9BFF);padding:5px 10px;border-radius:999px;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.2)}`; document.head.appendChild(c); }
 
 boot();
 
