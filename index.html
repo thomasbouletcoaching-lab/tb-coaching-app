@@ -3378,6 +3378,37 @@ const _offLookup34=offLookup;
 offLookup=async function(code){ const L0=((NU.logs[NU.day]||{}).x||[]).length; await _offLookup34(code); const L1=((NU.logs[NU.day]||{}).x||[]).length;
   if(L1>L0) setTimeout(()=>{ const el=document.querySelector(`[data-qc="x.${L1-1}"]`); if(el){ el.scrollIntoView({block:"center"}); el.focus(); el.select&&el.select(); toast("Indique la quantité mangée (en grammes)"); } },250); };
 
+// ================= MODULE ALTERNATIVES AJUSTÉES AU REPAS PRÉVU =================
+// Chaque alternative reçoit la portion qui colle le mieux aux macros du plat prévu (écart en kcal, protéines comptées double).
+function altFitM(o,T){ const B=mac(o.it,1); if(!(B.k>0)||!(T.k>0)) return o.m||1; let best=o.m||1, bc=Infinity;
+  for(let m=0.25;m<=3.0001;m+=0.05){ const c=Math.abs(m*B.k-T.k)+8*Math.abs(m*B.p-T.p)+4*Math.abs(m*B.g-T.g)+9*Math.abs(m*B.l-T.l); if(c<bc){ bc=c; best=Math.round(m*100)/100; } }
+  return best; }
+function fitAlts(t,only){ let n=0; (t.meals||[]).forEach((m,mi)=>{ if(only!=null&&mi!==only) return; const o0=m.opts[0]; if(!o0) return; const T=optMac(o0);
+  m.opts.forEach((o,oi)=>{ if(!oi||!(o.it||[]).length) return; o.m=altFitM(o,T); n++; }); }); return n; }
+const dTxt35=(a,b,u)=>{ const x=Math.round(a-b); return (x>0?"+":x<0?"−":"±")+Math.abs(x)+u; };
+const diffLine=(om,T)=>`vs prévu : ${dTxt35(om.k,T.k," kcal")} · P ${dTxt35(om.p,T.p," g")} · G ${dTxt35(om.g,T.g," g")} · L ${dTxt35(om.l,T.l," g")}`;
+// coach : écart affiché sous chaque alternative + boutons d'ajustement
+const _nPlanCoach35=nPlanCoach;
+nPlanCoach=function(){ let h=_nPlanCoach35(); const P=NU.plan, t=curType(), ti=P.types.indexOf(t);
+  t.meals.forEach((m,mi)=>{ const o0=m.opts[0]; if(!o0) return; const T=optMac(o0);
+    m.opts.forEach((o,oi)=>{ if(!oi) return; const om=optMac(o), off=Math.abs(om.k-T.k)>Math.max(40,T.k*0.08)||Math.abs(om.p-T.p)>6;
+      const re=new RegExp(`(data-nm="types\\.${ti}\\.meals\\.${mi}\\.opts\\.${oi}\\.m"[^>]*> %</label></div>)`);
+      h=h.replace(re,`$1<div class="small" style="margin-top:3px;color:${off?"var(--red,#c33)":"var(--muted,#888)"}">${diffLine(om,T)}</div>`); });
+    if(m.opts.length>1) h=h.replace(`<button class="sm" data-act="nu-pick" data-v="${ti}.${mi}">`,`<button class="ghost sm" data-act="alt-fit" data-v="${mi}">⚖️ Ajuster les alternatives au prévu</button><button class="sm" data-act="nu-pick" data-v="${ti}.${mi}">`); });
+  h=h.replace(`<button class="ghost sm" data-act="nu-tdup">`,`<button class="ghost sm" data-act="alt-fit" data-v="all">⚖️ Ajuster toutes les alternatives</button><button class="ghost sm" data-act="nu-tdup">`);
+  return h; };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b||!NU.plan||!coach()) return; const a=b.dataset.act;
+  if(a==="alt-fit"){ const t=curType(), n=fitAlts(t,b.dataset.v==="all"?null:+b.dataset.v); nuSave(); render(); toast(n?`${n} alternative${n>1?"s":""} ajustée${n>1?"s":""} au plat prévu`:"Aucune alternative à ajuster"); return; }
+  // après « Ajuster les portions » du jour ou l'ajout d'un plat en alternative, les alternatives suivent le plat prévu
+  if(a==="nu-fit"||a==="nu-pdish"){ const pick=NU.pick; setTimeout(()=>{ const t=a==="nu-fit"?curType():(pick&&NU.plan.types[+pick.split(".")[0]]); if(!t) return; fitAlts(t,a==="nu-fit"?null:+pick.split(".")[1]); nuSave(); render(); },0); } },true);
+// client : macros du repas prévu et des alternatives (avec l'écart)
+const _x10After35=x10After;
+x10After=function(){ _x10After35(); if(coach()||ST.view!=="nutrition"||NU.nv!=="jour"||ST.todayOn) return; let ctx; try{ ctx=nDayCtx(); }catch(e){ return; } const t=ctx&&ctx.t; if(!t||!t.meals) return;
+  t.meals.forEach((m,mi)=>{ const o0=m.opts[0]; if(!o0) return; const T=optMac(o0); const ok=document.querySelector(`[data-act="nu-ok"][data-v="${mi}"]`); const card=ok&&ok.closest(".card");
+    if(card&&!card.querySelector(".mmac")){ const nm=card.querySelector('div[style*="font-weight:600"]'); if(nm) nm.insertAdjacentHTML("afterend",`<div class="muted small mmac">Ce repas : P ${r0(T.p)} g · G ${r0(T.g)} g · L ${r0(T.l)} g</div>`); }
+    m.opts.forEach((o,oi)=>{ if(!oi) return; const sw=document.querySelector(`[data-act="nu-swap"][data-v="${mi}.${oi}"]`); const box=sw&&sw.closest(".edit"); if(!box||box.querySelector(".mmac")) return; const om=optMac(o);
+      sw.insertAdjacentHTML("beforebegin",`<div class="muted small mmac" style="margin:4px 0">${macTxt(om)}<br>${Math.abs(om.k-T.k)<=Math.max(40,T.k*0.08)&&Math.abs(om.p-T.p)<=6?"≈ même apport que le plat prévu, quantités déjà ajustées":diffLine(om,T)}</div>`); }); }); };
+
 boot();
 
 </script>
