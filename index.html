@@ -3812,6 +3812,39 @@ vToday=function(){ let h=_vToday43(); const d=X10.ob&&X10.ob.submitted_at&&X10.o
   return h.replace(`<div id="x10-pushnudge"></div>`,`<div class="card"><div class="muted small">Profil</div><h3 style="margin:2px 0">Complète ton profil (2 min)</h3><div class="muted small">Ton quotidien et tes préférences alimentaires aident ton coach à ajuster ton plan.</div><div class="row" style="margin-top:8px"><button class="ghost sm" data-act="ob-full">Compléter</button></div></div><div id="x10-pushnudge"></div>`); };
 document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="ob-full"]'); if(!b) return; X10.obEdit=true; ST.todayOn=false; window.scrollTo(0,0); render(); });
 
+// ================= MODULE NAVIGATION CLIENT À 5 ONGLETS + MISE EN ROUTE D'UN NOUVEAU CLIENT =================
+// Objectifs et Outils quittent la barre du bas : accessibles depuis l'Accueil (« Mes progrès ») et le Compte.
+const _render44=render;
+render=function(){ _render44(); if(MODE!=="client"||coach()) return; const tabs=$("#tabs"); if(!tabs) return;
+  tabs.querySelectorAll('[data-v="objectifs"],[data-v="outils"]').forEach(b=>b.remove());
+  if(["objectifs","outils"].includes(ST.view)&&!ST.todayOn){ const c=tabs.querySelector('[data-v="compte"]'); if(c) c.classList.add("on"); } };
+const _vToday44=vToday;
+vToday=function(){ let h=_vToday44(); const R=typeof recordsAll==="function"?Object.values(recordsAll()):[], nNew=R.filter(e=>e.e1&&e.e1.w>=M.cw-1).length;
+  return h.replace(`<div id="x10-pushnudge"></div>`,`<div class="card"><div class="muted small">Progrès</div><h3 style="margin:2px 0">📈 Mes progrès${nNew?` <span class="chip on">${nNew} record${nNew>1?"s":""} récent${nNew>1?"s":""}</span>`:""}</h3><div class="muted small">Records, objectifs de la phase et bilan de cycle.</div><div class="row" style="margin-top:8px"><button class="ghost sm" data-act="nav44" data-v="objectifs">Voir mes progrès</button></div></div><div id="x10-pushnudge"></div>`); };
+const _x10After44=x10After;
+x10After=function(){ _x10After44(); if(MODE!=="client"||coach()||ST.view!=="compte"||ST.todayOn||MP.inv) return; const app=$("#app"), h2=app&&app.querySelector("h2"); if(!h2||document.getElementById("nav44c")) return;
+  h2.insertAdjacentHTML("afterend",`<div class="row" id="nav44c" style="gap:8px;margin-bottom:8px"><button class="ghost" data-act="nav44" data-v="objectifs">📈 Mes progrès</button><button class="ghost" data-act="nav44" data-v="outils">🧰 Outils (1RM, charges)</button></div>`); };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="nav44"]'); if(!b) return; e.stopImmediatePropagation(); ST.todayOn=false; ST.view=b.dataset.v; window.scrollTo(0,0); render(); },true);
+// --- Mise en route (coach) : les étapes côté coach pour un client
+function onbSteps(){ const P=ST.prog||{}, custom=(P.sessions||[]).some(s=>s&&s.ex&&s.ex.length), start=/^\d{4}-\d{2}-\d{2}$/.test((P.profile||{}).start||"");
+  const plan=NU.cid===CUR&&NU.loaded?!!(NU.plan&&NU.plan.active!==false&&(NU.plan.types||[]).some(t=>t.meals.some(m=>m.opts.length))):null;
+  const cyc=BZ.loaded?BZ.contracts.some(c=>c.client_id===CUR&&!c.archived):null;
+  return [["Programme personnalisé",custom,"onb-go","programme","Banque de programmes"],["Date de début fixée",start,"onb-go","athlete","Régler"],
+    ["Plan alimentaire visible",plan,"onb-go","nutrition","Suivi › Besoins puis Plan"],["Cycle et paiement créés",cyc,"onb-go","biz","Business"]]; }
+function vOnboardCoach(){ if(!CUR||!ST.prog) return ""; let hide=null; try{ hide=localStorage.getItem("tb-onb-"+CUR); }catch(e){} if(hide) return "";
+  if(!(NU.cid===CUR&&NU.loaded)&&ONB.nu!==CUR){ ONB.nu=CUR; nuEnsure().then(()=>scheduleRender()).catch(()=>{}); } if(!BZ.loaded) bzEnsure();
+  const S=onbSteps(); if(S.every(s=>s[1]!==false)) return ""; const done=S.filter(s=>s[1]).length;
+  return `<details class="card" id="onb-card" open><summary><b>🧭 Mise en route</b> <span class="chip on">${done}/${S.length}</span></summary>
+    ${S.map(([l,ok,a,v,btn])=>`<div class="row" style="padding:6px 0;border-top:1px solid var(--line);flex-wrap:nowrap;gap:8px"><span style="width:22px">${ok?"✅":ok===null?"…":"⬜"}</span><span class="grow${ok?" muted":""}">${l}</span>${ok===false?`<button class="ghost sm" data-act="${a}" data-v="${v}">${btn}</button>`:""}</div>`).join("")}
+    <div class="row" style="margin-top:6px"><button class="ghost sm" data-act="onb-hide">Masquer pour ce client</button></div></details>`; }
+const ONB={nu:null};
+const _x10After44b=x10After;
+x10After=function(){ _x10After44b(); if(!(coach()&&ST.view==="tableau"&&CUR)) return; const h=vOnboardCoach(); if(!h) return; const ref=document.getElementById("act-card")||document.getElementById("rv-card"); if(ref) ref.insertAdjacentHTML("beforebegin",h); else $("#app").insertAdjacentHTML("afterbegin",h); };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="onb-go"&&a!=="onb-hide") return; e.stopImmediatePropagation();
+  if(a==="onb-hide"){ try{ localStorage.setItem("tb-onb-"+CUR,"1"); }catch(err){} return render(); }
+  const v=b.dataset.v; if(v==="biz"){ CUR=null; M=null; ST.view="biz"; bzEnsure(); window.scrollTo(0,0); return render(); }
+  ST.view=v; if(v==="nutrition") NU.nv="besoins"; if(v==="programme") ST.bankOpen=true; window.scrollTo(0,0); render(); },true);
+
 boot();
 
 </script>
