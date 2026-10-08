@@ -97,6 +97,64 @@ const T = {
     ok(!!(await p.$('#act-card')), 'fiche d\'activation'); ok(!!(await p.$('#rv-card')), 'revue de la semaine'); ok(!!(await p.$('#onb-card')), 'mise en route');
   }, coachPre(sc => (m, path) => { if (/rpc\/client_activation/.test(path)) return [{ client_id: sc.CID, has_account: true, new_app: true, pw_set: false, devices: 0, onboarding: true, cgv: false }]; if (/rpc\/client_app_status/.test(path)) return []; })),
 
+  'client : réorganiser une séance (glisser-déposer)': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(800); await p.evaluate(() => { ST.todayOn = false; ST.view = 'carnet'; render(); window.scrollTo(0, 0); }); await p.waitForTimeout(300);
+    const names = async () => p.$$eval('#app .cx .linkbtn[data-act="cx-hist"]', a => a.map(x => x.textContent));
+    const before = await names(); await p.click('[data-act="ro-ses"]'); await p.waitForTimeout(300);
+    ok(await p.$$eval('#ro-l .ro-it', a => a.length) === before.length, 'liste compacte avec tous les exercices');
+    const h = await p.locator('#ro-l [data-rodrag]').nth(0).boundingBox(), t = await p.locator('#ro-l .ro-it').nth(2).boundingBox();
+    await p.mouse.move(h.x + h.width / 2, h.y + h.height / 2); await p.mouse.down();
+    for (let i = 1; i <= 12; i++) { await p.mouse.move(h.x + h.width / 2, h.y + h.height / 2 + (t.y + t.height * 0.8 - h.y - h.height / 2) * i / 12); await p.waitForTimeout(15); }
+    await p.mouse.up(); await p.click('[data-act="ro-save"]'); await p.waitForTimeout(600); const after = await names();
+    ok(after[2] === before[0] && after[0] === before[1], 'nouvel ordre affiché dans le carnet');
+    ok((sc.w || []).some(k => /^1_o_0$/.test(k)) && (sc.w || []).some(k => /^2_o_0$/.test(k)), 'ordre enregistré pour cette semaine et les suivantes');
+  }, clientPre(sc => (m, path, b, a, t) => { if (t === 'carnet' && m === 'POST') { (sc.w = sc.w || []).push(b.k); return []; } })),
+
+  'coach : réorganiser le programme (historique déplacé avec l\'exercice)': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(800); await p.evaluate(id => openClient(id), sc.CID); await p.waitForTimeout(800);
+    await p.evaluate(() => { ST.carnet['1_0_0'] = { sets: [{ g: 60, h: 8, d: 1 }] }; ST.view = 'programme'; render(); }); await p.waitForTimeout(300);
+    const first = await p.evaluate(() => M.sessions[0].rows.filter(r => r.ex)[0].ex);
+    await p.click('[data-act="ro-prog"]'); await p.waitForTimeout(300);
+    await p.evaluate(() => { const l = document.getElementById('ro-l'); l.appendChild(l.firstElementChild); }); await p.click('[data-act="ro-save"]'); await p.waitForTimeout(1200);
+    const r = await p.evaluate(n => { const rows = M.sessions[0].rows.filter(r => r.ex); const last = rows[rows.length - 1]; return { last: last.ex, key: '1_' + last.key, has: !!ST.carnet['1_' + last.key], old: !!ST.carnet['1_0_0'] }; }, first);
+    ok(r.last === first, 'exercice déplacé en dernier'); ok(r.has && !r.old, 'séries notées déplacées avec lui');
+    ok((sc.w || []).some(x => x === 'DELETE') && (sc.w || []).some(x => x === r.key), 'carnet mis à jour en base');
+  }, coachPre(sc => (m, path, b, a, t) => { if (t === 'carnet' && m === 'DELETE') { (sc.w = sc.w || []).push('DELETE'); return []; } if (t === 'carnet' && m === 'POST') { (sc.w = sc.w || []).push(b.k); return []; } })),
+
+  'client : programme perso (créer, choisir les exercices, noter)': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(800); ok(!!(await p.$('#pp-today')), 'carte « Mon programme perso » sur l\'Accueil');
+    await p.click('#pp-today [data-act="pp-go"]'); await p.waitForTimeout(300); ok((await txt(p, '#app h2')).includes('Mon programme perso'), 'écran programme perso');
+    await p.click('[data-act="pp-new"]'); await p.waitForTimeout(300); await p.fill('#pp-q', 'belt'); await p.waitForTimeout(100);
+    await p.locator('[data-act="pp-add"]').first().click(); await p.waitForTimeout(200);
+    await p.click('[data-act="pp-pick"]'); await p.fill('[data-pps="name"]', 'Jambes'); await p.locator('[data-pps="name"]').blur();
+    await p.fill('[data-ppe="0.s"]', '4'); await p.locator('[data-ppe="0.s"]').blur(); await p.waitForTimeout(100);
+    await p.click('[data-act="pp-list"]'); await p.waitForTimeout(400);
+    const pp = sc.pp || {}; ok(pp.ses && pp.ses[0].name === 'Jambes' && pp.ses[0].ex[0].n === 'Belt squat' && pp.ses[0].ex[0].s === 4, 'séance enregistrée (nom, exercice, séries)');
+    await p.click('[data-act="pp-run"]'); await p.waitForTimeout(300); ok(await p.$$eval('[data-act="pp-done"]', a => a.length) === 4, '4 séries proposées');
+    await p.fill('[data-ppl="0.0.g"]', '100'); await p.locator('[data-ppl="0.0.g"]').blur(); await p.click('[data-act="pp-done"][data-v="0.0"]'); await p.waitForTimeout(200);
+    await p.click('[data-act="rt-x"]').catch(() => {}); await p.click('[data-act="pp-end"]'); await p.waitForTimeout(400);
+    const lg = sc.log || {}; ok(lg.end && lg.ex[0].sets[0].g === 100 && lg.ex[0].sets[0].d === 1, 'séance notée et terminée');
+    ok((await txt(p, '#app')).includes('Historique'), 'historique affiché');
+  }, clientPre(sc => (m, path, b, a, t) => { if (t === 'carnet' && m === 'POST') { if (b.k === 'pp') sc.pp = b.data; if (/^pl-/.test(b.k)) sc.log = b.data; return []; } })),
+
+  'client : heure de séance enregistrée à la fermeture de la roue': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(800); await p.evaluate(() => { ST.todayOn = false; ST.view = 'semaine'; CAL.open = true; render(); }); await p.waitForTimeout(300);
+    const day = await p.evaluate(() => { const b = document.querySelector('.calc.has'); return b && b.dataset.v; }); await p.click(`[data-act="cal-day"][data-v="${day}"]`); await p.waitForTimeout(300);
+    const inp = p.locator('[data-ctime]').first(); await inp.focus();
+    await p.evaluate(() => { const el = document.querySelector('[data-ctime]'); el.value = '18:00'; el.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(300);
+    ok(!sc.t && await p.evaluate(() => document.activeElement && document.activeElement.dataset.ctime !== undefined), 'pas d\'enregistrement ni de fermeture pendant le réglage');
+    await p.evaluate(() => { const el = document.querySelector('[data-ctime]'); el.value = '18:30'; el.dispatchEvent(new Event('change', { bubbles: true })); el.blur(); }); await p.waitForTimeout(500);
+    ok(sc.t && sc.t.data && sc.t.data.h === '18:30', 'heure enregistrée en refermant');
+  }, clientPre(sc => (m, path, b, a, t) => { if (t === 'carnet' && m === 'POST') { if (/_d_/.test(b.k)) sc.t = b; return []; } })),
+
+  'messagerie : zone de saisie pleine largeur, rien derrière': () => run('client', async (p) => {
+    await p.waitForTimeout(800); await p.evaluate(() => msgOpen()); await p.waitForTimeout(400);
+    const long = 'Belle semaine, bravo pour la régularité ! On garde ce cap pour la suite et on ajuste la charge au squat la semaine prochaine. Pense à bien dormir.';
+    await p.fill('#msg-txt', long); await p.locator('#msg-txt').dispatchEvent('input'); await p.waitForTimeout(100);
+    const r = await p.evaluate(() => { const t = document.getElementById('msg-txt'); return { w: t.getBoundingClientRect().width, full: t.scrollHeight <= t.clientHeight + 2, app: getComputedStyle(document.getElementById('app')).visibility }; });
+    ok(r.w > 330, 'texte sur toute la largeur'); ok(r.full, 'message entièrement visible'); ok(r.app === 'hidden', 'tableau de bord masqué derrière la messagerie');
+  }, clientPre()),
+
   'page publique : candidature': async () => {
     const b = await chromium.launch({ executablePath: EXE }); const p = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage(); let posted = null; const errs = [];
     p.on('pageerror', e => errs.push(e.message));

@@ -25,6 +25,8 @@ hébergée **gratuitement** sur GitHub Pages.
 - Tables : `clients`, `carnet`, `suivi`, `nutri_*`, `mesures`, `messages`, `biz_*`,
   `onboarding` (questionnaire de démarrage), `push_subs` (abonnements aux notifications),
   `app_private` (secrets serveur, inaccessible depuis l'app).
+- Programme perso du client : stocké dans `carnet` (clé `pp` = ses séances, `pl-<séance>-<date>` = une séance faite).
+  Aucune table supplémentaire.
 - Fonctions serveur (Edge Functions) :
   - `push` : envoie les notifications. Appelée uniquement par la base, protégée par un secret.
   - `delete-account` : suppression de compte d'un client (droit à l'effacement). Les factures sont conservées.
@@ -39,7 +41,7 @@ hébergée **gratuitement** sur GitHub Pages.
 3. L'app en ligne est mise à jour en 1 à 2 minutes. Les utilisateurs voient un bandeau
    « Nouvelle version disponible · Mettre à jour » à leur prochaine ouverture.
 
-Si `sw.js` est modifié, augmenter son numéro de version (`const C="tb-v17"` → `"tb-v18"`).
+Si `sw.js` est modifié, augmenter son numéro de version (par exemple `const C="tb-v30"` → `"tb-v31"`).
 
 ## Sauvegardes
 

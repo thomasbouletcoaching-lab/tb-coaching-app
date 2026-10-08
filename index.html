@@ -4162,6 +4162,264 @@ const _css48=document.createElement("style"); _css48.textContent=`
 if(TB_TEST){ document.body.insertAdjacentHTML("beforeend",'<div id="tbtest" aria-hidden="true">TEST</div>');
   const c=document.createElement("style"); c.textContent=`#tbtest{position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);left:50%;transform:translateX(-50%);z-index:90;font:800 11px/1 var(--font);letter-spacing:.12em;color:#fff;background:linear-gradient(110deg,#FF6FB5,#8B7CFF,#4C9BFF);padding:5px 10px;border-radius:999px;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.2)}`; document.head.appendChild(c); }
 
+// ================= MODULE 50 · MESSAGERIE : plein écran opaque au-dessus du clavier + zone de saisie qui s'agrandit =================
+// 1) Quand la messagerie est ouverte, rien de l'app ne doit apparaître derrière (sur iPhone, le clavier décale la page).
+// 2) Le panneau suit la partie visible de l'écran (visualViewport) : la barre de saisie reste collée au clavier.
+// 3) Le texte s'écrit sur toute la largeur et la zone grandit avec le message (jusqu'à 40 % de l'écran).
+const _css50=document.createElement("style"); _css50.textContent=`
+body.mp-on #app,body.mp-on header.top,body.mp-on nav.tabs,body.mp-on #bg45,body.mp-on #msgfab,body.mp-on #restbar{visibility:hidden}
+html:has(body.mp-on){background:var(--chalk)} body.mp-on{background:var(--chalk)}
+#msgpanel{background:var(--chalk)!important;overscroll-behavior:contain}
+#msgpanel .mp-l{overscroll-behavior:contain}
+body.mp-on .toast{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 64px)}
+#msgpanel .mp-c{background:var(--paper)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+#msgpanel textarea.mp-ta{display:block;width:100%;resize:none;min-height:46px;max-height:40vh;overflow-y:auto;line-height:1.35;margin:0 0 8px;padding:10px 12px;border-radius:14px;font-size:16px}
+#msgpanel .mp-tools{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}
+#msgpanel .mp-tools .mp-sp{flex:1 1 auto;min-width:0}`;
+document.head.appendChild(_css50);
+function mpSize(ta){ if(!ta) return; ta.style.height="auto"; const max=Math.round((window.visualViewport?window.visualViewport.height:window.innerHeight)*0.4);
+  ta.style.height=Math.min(Math.max(ta.scrollHeight+2,46),max)+"px"; }
+function mpFit(){ const el=document.getElementById("msgpanel"); if(!el) return; const vv=window.visualViewport;
+  if(el.hidden||!MSG.open||!vv){ el.style.top=""; el.style.height=""; el.style.bottom=""; return; }
+  const l=document.getElementById("mp-l"), atEnd=!l||l.scrollHeight-l.scrollTop-l.clientHeight<40;
+  el.style.top=Math.max(0,vv.offsetTop)+"px"; el.style.height=vv.height+"px"; el.style.bottom="auto";
+  if(l&&atEnd) l.scrollTop=l.scrollHeight; }
+if(window.visualViewport){ window.visualViewport.addEventListener("resize",mpFit); window.visualViewport.addEventListener("scroll",mpFit); }
+const _msgRender50=msgRender;
+msgRender=function(){ const a=document.activeElement, had=!!(a&&a.id==="msg-txt"), s0=had?a.selectionStart:0, s1=had?a.selectionEnd:0;
+  _msgRender50(); const el=document.getElementById("msgpanel"); if(!el||!MSG.open){ mpFit(); return; }
+  const ta=el.querySelector("#msg-txt"); if(ta&&!ta.classList.contains("mp-ta")){ const row=ta.parentElement; ta.classList.add("mp-ta"); ta.removeAttribute("style"); ta.rows=1;
+    row.before(ta); row.classList.add("mp-tools"); row.removeAttribute("style");
+    const first=row.querySelector('[data-act="msg-reccancel"],[data-act="msg-rec"],[data-act="msg-send"]'); if(first){ const sp=document.createElement("span"); sp.className="mp-sp"; first.before(sp); } }
+  mpSize(ta); if(had&&ta){ ta.focus({preventScroll:true}); try{ ta.setSelectionRange(s0,s1); }catch(e){} }
+  mpFit(); };
+document.addEventListener("input",e=>{ if(e.target&&e.target.id==="msg-txt") mpSize(e.target); });
+const _msgClose50=msgClose; msgClose=function(){ _msgClose50(); mpFit(); };
+
+// ================= MODULE 51 · HEURE DE SÉANCE : la roue de l'iPhone ne se referme plus pendant le réglage =================
+// Sur iPhone, chaque cran de la roue déclenche « change » ; l'enregistrement redessinait l'écran et refermait la roue.
+// On attend maintenant que la roue soit fermée (le champ perd le focus) pour enregistrer l'heure.
+window.addEventListener("change",e=>{ const el=e.target; if(!el||!el.dataset||el.dataset.ctime===undefined) return;
+  if(el._c51){ el._c51=false; return; } if(document.activeElement===el){ e.stopImmediatePropagation(); el._p51=true; } },true);
+document.addEventListener("focusout",e=>{ const el=e.target; if(!el||!el._p51) return; el._p51=false; el._c51=true;
+  setTimeout(()=>el.dispatchEvent(new Event("change",{bubbles:true})),0); },true);
+
+// ================= MODULE 52 · RÉORGANISER LES EXERCICES (coach : programme · client : séance du carnet) =================
+// Un bouton « Réorganiser » ouvre une liste compacte (nom de chaque exercice) qu'on glisse avec la poignée ☰.
+const RO={items:null,title:"",onSave:null,extra:""};
+const _css52=document.createElement("style"); _css52.textContent=`
+#romodal{position:fixed;inset:0;z-index:95;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.42)}
+#romodal[hidden]{display:none}
+#romodal .ro-sh{width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;background:var(--paper);color:var(--ink);border-radius:20px 20px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 30px rgba(0,0,0,.25)}
+#romodal .ro-h{display:flex;align-items:center;gap:8px;margin-bottom:4px}#romodal .ro-h b{font-size:1.1rem}
+#romodal .ro-l{flex:1 1 auto;overflow-y:auto;margin:8px -4px;padding:0 4px;-webkit-overflow-scrolling:touch}
+#romodal .ro-it{display:flex;align-items:center;gap:10px;padding:10px 8px;margin:6px 0;border:1px solid var(--line);border-radius:12px;background:var(--paper);user-select:none;-webkit-user-select:none}
+#romodal .ro-it.dragging{position:relative;z-index:3;box-shadow:0 10px 26px rgba(0,0,0,.25);border-color:var(--accent,var(--blue))}
+#romodal .ro-n{flex:0 0 26px;height:26px;border-radius:13px;background:var(--chalk);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem}
+#romodal .ro-t{flex:1 1 auto;min-width:0}#romodal .ro-t small{display:block;color:var(--soft);font-size:.78rem;margin-top:1px}
+#romodal .ro-hd{flex:0 0 48px;height:44px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:var(--soft);cursor:grab;touch-action:none}
+#romodal .ro-f{display:flex;gap:8px;margin-top:6px}#romodal .ro-f button{flex:1;min-height:46px}
+#romodal .ro-x{display:flex;gap:8px;align-items:center;font-size:.9rem;margin:4px 2px}`;
+document.head.appendChild(_css52);
+function roOpen(title,items,onSave,extra){ RO.items=items; RO.title=title; RO.onSave=onSave; RO.extra=extra||""; roPaint(); }
+function roClose(){ RO.items=null; RO.onSave=null; const m=document.getElementById("romodal"); if(m) m.hidden=true; document.body.classList.remove("ro-on"); }
+function roPaint(){ let m=document.getElementById("romodal"); if(!m){ m=document.createElement("div"); m.id="romodal"; m.setAttribute("role","dialog"); m.setAttribute("aria-modal","true"); document.body.appendChild(m); }
+  m.hidden=false; document.body.classList.add("ro-on");
+  m.innerHTML=`<div class="ro-sh"><div class="ro-h"><b class="grow">↕ Réorganiser</b><button class="ghost sm" data-act="ro-cancel" aria-label="Fermer">✕</button></div>
+    <div class="muted small">${esc(RO.title)} · glisse avec ☰ pour changer l'ordre</div>
+    <div class="ro-l" id="ro-l">${RO.items.map((x,k)=>`<div class="ro-it" data-id="${esc(x.id)}"><span class="ro-n">${k+1}</span><span class="ro-t">${esc(x.label)}${x.sub?`<small>${esc(x.sub)}</small>`:""}</span><span class="ro-hd" data-rodrag aria-label="Glisser ${esc(x.label)}">☰</span></div>`).join("")}</div>
+    ${RO.extra}<div class="ro-f"><button class="ghost" data-act="ro-cancel">Annuler</button><button data-act="ro-save">Enregistrer l'ordre</button></div></div>`; }
+const roNum=()=>document.querySelectorAll("#ro-l .ro-it").forEach((x,k)=>{ const n=x.querySelector(".ro-n"); if(n) n.textContent=k+1; });
+let RDR=null;
+document.addEventListener("pointerdown",e=>{ const hd=e.target.closest("[data-rodrag]"); if(!hd) return; const it=hd.closest(".ro-it"); if(!it) return; e.preventDefault();
+  RDR={it,list:it.parentElement,y0:e.clientY,y:e.clientY,raf:0}; it.classList.add("dragging"); try{ hd.setPointerCapture(e.pointerId); }catch(err){}
+  const tick=()=>{ if(!RDR) return; const L=RDR.list, rc=L.getBoundingClientRect(); let dy=0; if(RDR.y<rc.top+50) dy=-8; else if(RDR.y>rc.bottom-50) dy=8;
+    if(dy){ const b=L.scrollTop; L.scrollTop+=dy; const d=L.scrollTop-b; if(d){ RDR.y0-=d; roMove(RDR.y); } } RDR.raf=requestAnimationFrame(tick); }; RDR.raf=requestAnimationFrame(tick); });
+function roMove(y){ const D=RDR; const sibs=[...D.list.children].filter(x=>x!==D.it); let before=null;
+  for(const s of sibs){ const rc=s.getBoundingClientRect(); if(y<rc.top+rc.height/2){ before=s; break; } }
+  if(before!==D.it.nextElementSibling&&!(before===null&&D.it===D.list.lastElementChild)){ const t0=D.it.getBoundingClientRect().top; D.list.insertBefore(D.it,before); const t1=D.it.getBoundingClientRect().top; D.y0+=t1-t0; roNum(); try{ navigator.vibrate&&navigator.vibrate(8); }catch(e){} }
+  D.it.style.transform=`translateY(${y-D.y0}px)`; }
+document.addEventListener("pointermove",e=>{ if(!RDR) return; e.preventDefault(); RDR.y=e.clientY; roMove(e.clientY); },{passive:false});
+const roEnd=()=>{ if(!RDR) return; cancelAnimationFrame(RDR.raf); RDR.it.classList.remove("dragging"); RDR.it.style.transform=""; RDR=null; roNum(); };
+document.addEventListener("pointerup",roEnd); document.addEventListener("pointercancel",roEnd);
+document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act="ro-cancel"],[data-act="ro-save"]'); if(!b) return; e.stopImmediatePropagation();
+  if(b.dataset.act==="ro-cancel") return roClose();
+  const ids=[...document.querySelectorAll("#ro-l .ro-it")].map(x=>x.dataset.id), extra={}; document.querySelectorAll("#romodal [data-rox]").forEach(x=>extra[x.dataset.rox]=x.type==="checkbox"?x.checked:x.value);
+  const fn=RO.onSave; roClose(); if(fn) await fn(ids,extra); },true);
+document.addEventListener("click",e=>{ if(e.target&&e.target.id==="romodal") roClose(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&RO.items) roClose(); });
+// --- coach : réordonner les exercices d'une séance du programme (l'historique du carnet suit chaque exercice)
+async function roProgSave(s,ids){ const S=M.sessions[s]; if(!S) return; const F=S.rows.filter(r=>r.ex).map(r=>r.i).sort((a,b)=>a-b), order=ids.map(Number);
+  if(order.length!==F.length||order.every((x,k)=>x===F[k])) return toast("Ordre inchangé");
+  const map={}; order.forEach((oi,k)=>map[oi]=F[k]);
+  const P=ST.prog; exOf(s,Math.max(...F)); const ses=P.sessions[s];
+  const old={}; F.forEach(i=>{ const r=S.rows.find(x=>x.i===i), E=Object.assign({},ses.ex[i]||{}); if(!E.name&&r&&r.ex) E.name=r.ex; old[i]=E; });
+  order.forEach(oi=>{ ses.ex[map[oi]]=old[oi]; });
+  const re=new RegExp("^(\\d+)_"+s+"_(\\d+)$"), moves=[], next=Object.assign({},ST.carnet);
+  Object.keys(ST.carnet).forEach(k=>{ const m=k.match(re); if(m&&map[+m[2]]!==undefined&&map[+m[2]]!==+m[2]) moves.push([k,m[1]+"_"+s+"_"+map[+m[2]],ST.carnet[k]]); });
+  moves.forEach(([k])=>delete next[k]); moves.forEach(([,nk,v])=>next[nk]=v);
+  const oKeys=[]; Object.keys(next).forEach(k=>{ if(new RegExp("^\\d+_o_"+s+"$").test(k)&&next[k]&&next[k].o){ next[k]={o:next[k].o.map(x=>map[x]!==undefined?map[x]:x)}; oKeys.push(k); } });
+  ST.carnet=next; saveProg(); cacheClient(); render(); toast("Nouvel ordre enregistré");
+  for(const [k] of moves) if(!(k in next)) await safeWrite("carnet",null,{client_id:CUR,k},"delete");
+  for(const [,nk,v] of moves) await safeWrite("carnet",{client_id:CUR,k:nk,data:v,updated_at:new Date().toISOString()},{client_id:CUR,k:nk},"upsert");
+  for(const k of oKeys) await safeWrite("carnet",{client_id:CUR,k,data:next[k],updated_at:new Date().toISOString()},{client_id:CUR,k},"upsert"); }
+const _vProg52=vProgramme;
+vProgramme=function(){ let h=_vProg52(); if(!coach()||!M) return h; const S=M.sessions[ST.ses]; if(!S||S.rows.filter(r=>r.ex).length<2) return h;
+  return h.replace(/(· Split : [^<]*<\/div>)/,`$1<div class="row" style="margin-top:8px"><button class="ghost sm" data-act="ro-prog" data-v="${S.s}">↕ Réorganiser les exercices</button></div>`); };
+// --- client (et coach dans le carnet) : ordre de la séance pour cette semaine, et en option les suivantes
+const _carnetSes52=carnetSession;
+carnetSession=function(S,w){ const h=_carnetSes52(S,w); if(!h) return h; const n=S.rows.filter(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff).length; if(n<2) return h;
+  return h.replace(" · ≡ pour réordonner</div>",`</div><div class="row" style="margin:8px 0 2px"><button class="ghost sm" data-act="ro-ses" data-v="${w}.${S.s}">↕ Réorganiser</button></div>`); };
+function roSesRows(S,w){ let rows=S.rows.filter(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff); const ord=(ST.carnet[w+"_o_"+S.s]||{}).o;
+  if(ord) rows=rows.slice().sort((a,b)=>{ const ia=ord.indexOf(a.i),ib=ord.indexOf(b.i); return (ia<0?99:ia)-(ib<0?99:ib); }); return rows; }
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="ro-prog"],[data-act="ro-ses"]'); if(!b) return; e.stopImmediatePropagation();
+  if(b.dataset.act==="ro-prog"){ const s=+b.dataset.v, S=M.sessions[s];
+    const items=S.rows.filter(r=>r.ex).map(r=>({id:String(r.i),label:r.ex,sub:[r.ss?"Superset "+r.ss:"",r.E&&r.E.off?"supprimé à partir de S"+r.E.off:"",(BASEMAP[r.ex]||{}).mP||""].filter(Boolean).join(" · ")}));
+    return roOpen(S.name+(S.day?" · "+S.day:""),items,ids=>roProgSave(s,ids)); }
+  const [w,s]=b.dataset.v.split(".").map(Number), S=M.sessions.find(x=>x.s===s); if(!S) return;
+  const items=roSesRows(S,w).map(r=>{ const v=ST.carnet[w+"_"+r.key]||{}; return {id:String(r.i),label:v.ex||r.ex,sub:String(r.weeks[w].text||r.weeks[w].eff||"").replace(/<[^>]+>/g,"").split(" — ")[0]}; });
+  const more=w<M.NSEM&&M.sessions.length?`<label class="ro-x"><input type="checkbox" data-rox="next" checked style="width:20px;height:20px;margin:0"> Garder cet ordre pour les semaines suivantes</label>`:"";
+  roOpen(S.name+" · semaine "+w,items,async(ids,x)=>{ const o=ids.map(Number); const ws=[w]; if(x.next) for(let w2=w+1;w2<=M.NSEM;w2++) if(S.rows.some(r=>r.ex&&r.weeks[w2]&&r.weeks[w2].eff)) ws.push(w2);
+    ws.forEach(w2=>{ ST.carnet[w2+"_o_"+s]={o}; }); render(); toast(ws.length>1?`Ordre enregistré pour ${ws.length} semaines`:"Ordre enregistré");
+    for(const w2 of ws) await saveCarnet(w2+"_o_"+s); },more); },true);
+
+// ================= MODULE 53 · MON PROGRAMME PERSO (le client crée ses propres séances, simplement) =================
+// Données dans le carnet du client (aucune nouvelle table) : « pp » = ses séances, « pl-<séance>-<date> » = une séance faite.
+// Pensé pour continuer en autonomie après le suivi : choix des exercices dans la bibliothèque, séries / reps / repos, carnet simple.
+const PP={mode:"list",sid:null,d:null,pick:false,q:"",mus:"",saveT:null};
+const _css53=document.createElement("style"); _css53.textContent=`
+.pp-ex{padding:10px 0;border-top:1px solid var(--line)}.pp-ex:first-of-type{border-top:0}
+.pp-g{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px}.pp-g label{font-size:.75rem;color:var(--soft);display:flex;flex-direction:column;gap:3px}
+.pp-res{max-height:46vh;overflow:auto;margin-top:8px}.pp-res button{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;margin:5px 0;background:var(--paper);color:var(--ink);border:1px solid var(--line);font-family:var(--font);font-weight:500}
+.pp-res button small{color:var(--soft);font-size:.78rem;text-align:right}
+.pp-chips{display:flex;gap:6px;overflow-x:auto;padding:6px 0 2px;-webkit-overflow-scrolling:touch}.pp-chips .chip{flex:0 0 auto;white-space:nowrap}
+.pp-h{display:flex;align-items:flex-start;gap:8px}.pp-h .grow{min-width:0}
+.pp-hist{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:.9rem}`;
+document.head.appendChild(_css53);
+const ppData=()=>{ const d=ST.carnet.pp; return d&&Array.isArray(d.ses)?d:{v:1,ses:[]}; };
+const ppSes=id=>ppData().ses.find(x=>x.id===id);
+const ppId=()=>Math.random().toString(36).slice(2,7);
+const ppLogKey=(sid,d)=>"pl-"+sid+"-"+d;
+function ppLogs(sid){ return Object.keys(ST.carnet).filter(k=>k.startsWith("pl-")&&(!sid||k.startsWith("pl-"+sid+"-"))).map(k=>{ const m=k.match(/^pl-([a-z0-9]+)-(\d{4}-\d{2}-\d{2})$/); return m?{k,sid:m[1],d:m[2],v:ST.carnet[k]}:null; }).filter(Boolean).sort((a,b)=>b.d.localeCompare(a.d)); }
+function ppWrite(k){ const v=ST.carnet[k]; cacheClient(); return safeWrite("carnet",v?{client_id:CUR,k,data:v,updated_at:new Date().toISOString()}:null,{client_id:CUR,k},v?"upsert":"delete"); }
+function ppSave(now){ const d=ppData(); d.at=new Date().toISOString(); ST.carnet.pp=d; clearTimeout(PP.saveT); if(now) return ppWrite("pp"); PP.saveT=setTimeout(()=>ppWrite("pp"),500); }
+const ppRestOpts=[[60,"1 min"],[90,"1'30"],[120,"2 min"],[150,"2'30"],[180,"3 min"],[240,"4 min"]];
+function ppDefaults(n){ const b=BASEMAP[n]||{}, big=(+b.cost||1)>=2; return {n,s:3,r:big?"6-8":"10-12",rest:big?150:90}; }
+function ppPrev(sid,n,beforeD){ const L=ppLogs(sid).filter(x=>x.d<beforeD); for(const l of L){ const e=((l.v||{}).ex||[]).find(x=>x.n===n); const s=e&&(e.sets||[]).filter(x=>x.g!=null||x.h!=null); if(s&&s.length) return s; }
+  for(const l of ppLogs().filter(x=>x.d<beforeD)){ const e=((l.v||{}).ex||[]).find(x=>x.n===n); const s=e&&(e.sets||[]).filter(x=>x.g!=null||x.h!=null); if(s&&s.length) return s; } return []; }
+const fmtD53=d=>new Date(d+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"});
+// --- écrans
+function vPerso(){ const who=coach()?"du client":""; if(PP.mode==="edit"&&ppSes(PP.sid)) return vPersoEdit(); if(PP.mode==="run"&&ppSes(PP.sid)) return vPersoRun(); PP.mode="list";
+  const D=ppData(), over=M&&M.cw>M.NSEM;
+  let h=`<div class="row" style="margin:8px 0"><button class="ghost sm" data-act="pp-back">‹ Carnet</button></div><h2>${coach()?"Programme perso du client":"Mon programme perso"}</h2>`;
+  if(!coach()) h+=`<p class="note" style="margin-top:0">${over?"Ton cycle avec ton coach est terminé : continue en autonomie avec tes propres séances. ":""}Crée tes séances, choisis tes exercices dans la bibliothèque, et note tes séries comme dans le carnet.</p>`;
+  if(!D.ses.length) h+=`<div class="card"><h3 style="margin-top:0">Aucune séance ${who||"pour l'instant"}</h3><p class="muted small">${coach()?"Le client n'a pas encore créé de séance perso.":"Commence par une séance vide ou repars d'une séance de ton programme coach."}</p></div>`;
+  D.ses.forEach(S=>{ const L=ppLogs(S.id), last=L[0], today=todayISO(), cur=ST.carnet[ppLogKey(S.id,today)];
+    h+=`<div class="card ses"><div class="pp-h"><div class="grow"><h3 style="margin:0">${esc(S.name||"Séance")}</h3><div class="muted small">${S.ex.length} exercice${S.ex.length>1?"s":""}${last?` · dernière fois ${fmtD53(last.d)}`:""}${L.length?` · ${L.length} fois`:""}</div></div></div>
+      ${S.ex.length?`<div class="small" style="margin-top:6px">${S.ex.map(x=>esc(x.n)).join(" · ")}</div>`:""}
+      <div class="row" style="margin-top:10px">${S.ex.length?`<button class="ok grow" data-act="pp-run" data-v="${S.id}">${cur&&cur.start&&!cur.end?"▶ Reprendre":"▶ Commencer"}</button>`:""}<button class="ghost sm" data-act="pp-edit" data-v="${S.id}">✎ Modifier</button>${S.ex.length>1?`<button class="ghost sm" data-act="pp-ro" data-v="${S.id}" aria-label="Réorganiser">↕</button>`:""}<button class="ghost sm" data-act="pp-del" data-v="${S.id}" aria-label="Supprimer la séance">🗑</button></div></div>`; });
+  h+=`<div class="card"><div class="row"><button class="grow" data-act="pp-new">＋ Nouvelle séance</button></div>`;
+  const src=(M&&M.sessions||[]).filter(S=>S.rows.some(r=>r.ex));
+  if(src.length) h+=`<details style="margin-top:10px"><summary>Repartir d'une séance du programme coach</summary><div class="muted small" style="margin:4px 0 6px">Copie les exercices, les séries et les reps de la dernière semaine prévue. Tu pourras tout modifier.</div><div class="row">${src.map(S=>`<button class="ghost sm" data-act="pp-copy" data-v="${S.s}">${esc(S.name)}</button>`).join("")}</div></details>`;
+  h+=`</div>`;
+  const H=ppLogs().slice(0,8); if(H.length) h+=`<div class="card"><h3 style="margin-top:0">Historique</h3>${H.map(l=>{ const S=ppSes(l.sid), n=((l.v||{}).ex||[]).reduce((a,e)=>a+(e.sets||[]).filter(x=>x.d).length,0);
+    return `<div class="pp-hist"><span>${fmtD53(l.d)} · <b>${esc((S&&S.name)||(l.v&&l.v.name)||"Séance")}</b></span><span class="muted">${n} série${n>1?"s":""}${l.v&&l.v.end?" ✓":""}</span></div>`; }).join("")}</div>`;
+  return h; }
+function vPersoEdit(){ const S=ppSes(PP.sid);
+  let h=`<div class="row" style="margin:8px 0"><button class="ghost sm" data-act="pp-list">‹ Mes séances</button></div><h2>Modifier la séance</h2>
+    <div class="card"><label class="f">Nom de la séance<input data-pps="name" value="${esc(S.name||"")}" placeholder="Ex. Haut du corps"></label></div>
+    <div class="card"><div class="row" style="flex-wrap:nowrap"><h3 class="grow" style="margin:0">Exercices</h3>${S.ex.length>1?`<button class="ghost sm" data-act="pp-ro" data-v="${S.id}">↕ Réorganiser</button>`:""}</div>`;
+  if(!S.ex.length) h+=`<p class="muted small">Ajoute ton premier exercice.</p>`;
+  S.ex.forEach((x,i)=>{ h+=`<div class="pp-ex"><div class="pp-h"><b class="grow">${i+1}. ${esc(x.n)}</b><button class="ghost sm" data-act="pp-rmex" data-v="${i}" aria-label="Retirer ${esc(x.n)}">✕</button></div>
+    <div class="pp-g"><label>Séries<input data-ppe="${i}.s" inputmode="numeric" value="${esc(x.s??"")}"></label><label>Reps<input data-ppe="${i}.r" value="${esc(x.r??"")}" placeholder="8-12"></label>
+      <label>Repos<select data-ppe="${i}.rest">${ppRestOpts.map(([v,l])=>`<option value="${v}" ${+x.rest===v?"selected":""}>${l}</option>`).join("")}</select></label></div>
+    <label class="f" style="margin-top:6px">Note (facultatif)<input data-ppe="${i}.note" value="${esc(x.note||"")}" placeholder="Tempo, réglage machine…"></label></div>`; });
+  h+=PP.pick?vPersoPick():`<div class="row" style="margin-top:10px"><button class="grow" data-act="pp-pick">＋ Ajouter un exercice</button></div>`;
+  return h+`</div><div class="row"><button class="ok grow" data-act="pp-list">Terminé</button></div>`; }
+const ppMuscles=()=>[...new Set(Object.values(BASEMAP).map(b=>b.mP).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"fr"));
+function ppResults(){ const q=PP.q.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""), S=ppSes(PP.sid), have=new Set((S&&S.ex||[]).map(x=>x.n));
+  const L=Object.keys(BASEMAP).filter(n=>(!PP.mus||BASEMAP[n].mP===PP.mus)&&(!q||n.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").includes(q))).sort((a,b)=>a.localeCompare(b,"fr")).slice(0,60);
+  let h=L.map(n=>`<button data-act="pp-add" data-v="${esc(n)}"><span>${have.has(n)?"✓ ":""}${esc(n)}</span><small>${esc([BASEMAP[n].mP,BASEMAP[n].eq].filter(Boolean).join(" · "))}</small></button>`).join("");
+  if(PP.q.trim()&&!Object.keys(BASEMAP).some(n=>n.toLowerCase()===PP.q.trim().toLowerCase())) h+=`<button data-act="pp-add" data-v="${esc(PP.q.trim())}"><span>＋ Ajouter « ${esc(PP.q.trim())} »</span><small>exercice libre</small></button>`;
+  return h||`<div class="muted small">Aucun exercice trouvé.</div>`; }
+function vPersoPick(){ return `<div class="edit" style="margin-top:10px"><div class="row" style="flex-wrap:nowrap"><b class="grow">Choisir un exercice</b><button class="ghost sm" data-act="pp-pick" aria-label="Fermer">✕</button></div>
+  <input id="pp-q" type="search" placeholder="Rechercher (squat, rowing, curl…)" value="${esc(PP.q)}" style="margin-top:8px" autocomplete="off">
+  <div class="pp-chips"><button class="chip ${PP.mus?"":"on"}" data-act="pp-mus" data-v="">Tous</button>${ppMuscles().map(m=>`<button class="chip ${PP.mus===m?"on":""}" data-act="pp-mus" data-v="${esc(m)}">${esc(m)}</button>`).join("")}</div>
+  <div class="pp-res" id="pp-res">${ppResults()}</div></div>`; }
+function ppLog(S,d){ const k=ppLogKey(S.id,d); let v=ST.carnet[k];
+  if(!v){ v={name:S.name,ex:S.ex.map(x=>({n:x.n,sets:Array.from({length:Math.max(1,+x.s||3)},()=>({}))}))}; }
+  else { v=JSON.parse(JSON.stringify(v)); S.ex.forEach(x=>{ if(!v.ex.some(e=>e.n===x.n)) v.ex.push({n:x.n,sets:Array.from({length:Math.max(1,+x.s||3)},()=>({}))}); }); }
+  return v; }
+function vPersoRun(){ const S=ppSes(PP.sid), d=PP.d||todayISO(), k=ppLogKey(S.id,d), v=ppLog(S,d), t=ST.carnet[k]||{};
+  const order=S.ex.map(x=>x.n), list=v.ex.slice().sort((a,b)=>{ const ia=order.indexOf(a.n), ib=order.indexOf(b.n); return (ia<0?99:ia)-(ib<0?99:ib); });
+  let done=0,tot=0; list.forEach(e=>(e.sets||[]).forEach(x=>{ tot++; if(x.d) done++; }));
+  let h=`<div class="row" style="margin:8px 0"><button class="ghost sm" data-act="pp-list">‹ Mes séances</button></div><h2>${esc(S.name||"Séance")}</h2>
+    <div class="muted small" style="margin:-4px 2px 6px">${fmtD53(d)} · ${done}/${tot} séries faites${t.end?" · terminée":""}</div>`;
+  list.forEach(e=>{ const P=S.ex.find(x=>x.n===e.n)||{}, prev=ppPrev(S.id,e.n,d), ei=v.ex.indexOf(e);
+    h+=`<div class="card"><div class="pp-h"><b class="grow" style="font-size:1.05rem">${esc(e.n)}</b></div>
+      <div class="muted small">${P.s?`Objectif : ${esc(P.s)} × ${esc(P.r||"")}`:"Hors séance prévue"}${P.rest?` · repos ${fmtRest(+P.rest)}`:""}${P.note?` · ${esc(P.note)}`:""}</div>
+      <div class="tbl"><table class="sets"><tr><th>Série</th><th>Précédent</th><th class="n">Kg</th><th class="n">Reps</th><th></th></tr>
+      ${(e.sets||[]).map((x,i)=>{ const pv=prev[i]; return `<tr class="${x.d?"done":""}"><td><span class="sn">${i+1}</span></td><td class="muted small">${pv&&pv.g!=null?`${fmtN(pv.g)} × ${fmtN(pv.h)}`:"—"}</td>
+        <td><input class="si" data-ppl="${ei}.${i}.g" inputmode="decimal" value="${esc(x.g??"")}" placeholder="${esc(pv&&pv.g!=null?fmtN(pv.g):"")}"></td>
+        <td><input class="si" data-ppl="${ei}.${i}.h" inputmode="numeric" value="${esc(x.h??"")}" placeholder="${esc(pv&&pv.h!=null?fmtN(pv.h):String(P.r||"").split(/[-–]/)[0])}"></td>
+        <td><button class="chk ${x.d?"on":""}" data-act="pp-done" data-v="${ei}.${i}" aria-label="Série faite">✓</button></td></tr>`; }).join("")}</table></div>
+      <div class="row" style="margin-top:6px"><button class="ghost sm grow" data-act="pp-sadd" data-v="${ei}">＋ Ajouter une série</button><button class="ghost sm" data-act="pp-srm" data-v="${ei}">− Retirer</button></div></div>`; });
+  h+=`<div class="row">${t.end?`<button class="ghost grow" data-act="pp-reopen">Rouvrir la séance</button>`:`<button class="ok grow" data-act="pp-end">✓ Terminer la séance</button>`}</div>`;
+  return h; }
+// --- navigation : écran « perso » rendu comme un sous-écran du Carnet
+const _render53=render;
+render=function(){ if(ST.view!=="perso"||!CUR||!M||!ST.ready){ return _render53(); }
+  ST.view="carnet"; const keepH=ST.histEx; ST.histEx=null; try{ _render53(); } finally{ ST.view="perso"; ST.histEx=keepH; }
+  if(document.body.classList.contains("tdy45")&&ST.todayOn) return;
+  const app=$("#app"); if(!app||!$("#tabs").querySelector('[data-v="carnet"]')) return;
+  try{ app.innerHTML=vPerso(); }catch(e){ console.error(e); app.innerHTML=`<div class="alert x">Erreur d'affichage : ${esc(e.message)}</div>`; }
+  $("#tabs").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.v==="carnet")); };
+const _vCarnet53=vCarnet;
+vCarnet=function(){ const h=_vCarnet53(); if(ST.printProg||ST.histEx) return h; const n=ppData().ses.length; if(coach()&&!n) return h;
+  const btn=`<div class="card" id="pp-entry" style="display:flex;align-items:center;gap:10px"><div class="grow"><b>🏋️ ${coach()?"Programme perso du client":"Mon programme perso"}</b><div class="muted small">${n?`${n} séance${n>1?"s":""} créée${n>1?"s":""}`:"Crée tes propres séances"}</div></div><button class="ghost sm" data-act="pp-go">Ouvrir</button></div>`;
+  const i=h.indexOf("</h2>"); return i<0?btn+h:h.slice(0,i+5)+btn+h.slice(i+5); };
+const _vToday53=vToday;
+vToday=function(){ let h=_vToday53(); if(!M) return h; const n=ppData().ses.length, over=M.cw>M.NSEM;
+  const card=`<div class="card" id="pp-today"><div class="muted small">${over?"Autonomie":"En plus"}</div><h3 style="margin:2px 0">🏋️ Mon programme perso</h3><div class="muted small">${n?`${n} séance${n>1?"s":""} à toi. `:""}${over?"Ton cycle est terminé : continue avec tes propres séances.":"Crée tes propres séances, pour les jours en plus ou après ton suivi."}</div><div class="row" style="margin-top:8px"><button class="ghost sm" data-act="pp-go">${n?"Mes séances":"Créer une séance"}</button></div></div>`;
+  return h.includes(`<div id="x10-pushnudge"></div>`)?h.replace(`<div id="x10-pushnudge"></div>`,card+`<div id="x10-pushnudge"></div>`):h+card; };
+// --- actions
+function ppNew(name,ex){ const D=ppData(), S={id:ppId(),name:name||"Séance "+(D.ses.length+1),ex:ex||[]}; D.ses.push(S); ST.carnet.pp=D; ppSave(true); return S; }
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b||!/^pp-/.test(b.dataset.act)) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v||"";
+  const top=()=>window.scrollTo(0,0);
+  if(a==="pp-go"){ ST.todayOn=false; ST.view="perso"; PP.mode="list"; top(); }
+  else if(a==="pp-back"){ ST.view="carnet"; top(); }
+  else if(a==="pp-list"){ PP.mode="list"; PP.pick=false; clearTimeout(PP.saveT); if(ST.carnet.pp) await ppWrite("pp"); top(); }
+  else if(a==="pp-new"){ const S=ppNew(); PP.sid=S.id; PP.mode="edit"; PP.pick=true; PP.q=""; PP.mus=""; top(); }
+  else if(a==="pp-copy"){ const S0=M.sessions[+v]; if(!S0) return; let w=Math.min(M.cw,M.NSEM); while(w>1&&!S0.rows.some(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff)) w--;
+    const ex=S0.rows.filter(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff).map(r=>{ const pl=planSets(r.weeks[w]), d=ppDefaults(r.ex), ri=restInfo(r,r.weeks[w]); return {n:r.ex,s:pl.length||d.s,r:String((pl[pl.length-1]||{}).th||d.r),rest:ppRestOpts.reduce((best,[x])=>Math.abs(x-(ri.sec||d.rest))<Math.abs(best-(ri.sec||d.rest))?x:best,90)}; });
+    const S=ppNew(S0.name,ex); PP.sid=S.id; PP.mode="edit"; PP.pick=false; top(); toast("Séance copiée : tu peux la modifier"); }
+  else if(a==="pp-edit"){ PP.sid=v; PP.mode="edit"; PP.pick=false; top(); }
+  else if(a==="pp-del"){ const S=ppSes(v); if(!S||!confirm(`Supprimer la séance « ${S.name} » ?\n\nL'historique des séances déjà faites est conservé.`)) return; const D=ppData(); D.ses=D.ses.filter(x=>x.id!==v); ST.carnet.pp=D; await ppSave(true); }
+  else if(a==="pp-ro"){ const S=ppSes(v); if(!S) return; return roOpen(S.name,S.ex.map((x,i)=>({id:String(i),label:x.n,sub:`${x.s||""} × ${x.r||""}`})),async ids=>{ S.ex=ids.map(i=>S.ex[+i]); await ppSave(true); render(); toast("Ordre enregistré"); }); }
+  else if(a==="pp-pick"){ PP.pick=!PP.pick; PP.q=""; PP.mus=""; render(); if(PP.pick) setTimeout(()=>{ const q=document.getElementById("pp-q"); if(q) q.scrollIntoView({block:"center"}); },50); return; }
+  else if(a==="pp-mus"){ PP.mus=v; const r=document.getElementById("pp-res"); document.querySelectorAll('[data-act="pp-mus"]').forEach(x=>x.classList.toggle("on",x.dataset.v===v)); if(r){ r.innerHTML=ppResults(); r.scrollTop=0; } return; }
+  else if(a==="pp-add"){ const S=ppSes(PP.sid); if(!S) return; if(S.ex.some(x=>x.n===v)){ toast("Déjà dans la séance"); return; } S.ex.push(ppDefaults(v)); ppSave(); toast(`${v} ajouté`);
+    const r=document.getElementById("pp-res"), y=r?r.scrollTop:0; render(); const r2=document.getElementById("pp-res"); if(r2) r2.scrollTop=y; return; }
+  else if(a==="pp-rmex"){ const S=ppSes(PP.sid); S.ex.splice(+v,1); ppSave(); }
+  else if(a==="pp-run"){ PP.sid=v; PP.mode="run"; PP.d=todayISO(); const S=ppSes(v), k=ppLogKey(v,PP.d); if(!ST.carnet[k]){ ST.carnet[k]=Object.assign(ppLog(S,PP.d),{start:Date.now()}); ppWrite(k); } top(); }
+  else if(a==="pp-done"||a==="pp-sadd"||a==="pp-srm"||a==="pp-end"||a==="pp-reopen"){ const S=ppSes(PP.sid), d=PP.d||todayISO(), k=ppLogKey(S.id,d), L=ppLog(S,d); if(!L.start) L.start=Date.now();
+    if(a==="pp-done"){ const [ei,i]=v.split(".").map(Number), e=L.ex[ei], x=e.sets[i];
+      if(x.d) delete x.d; else { const P=S.ex.find(z=>z.n===e.n)||{}, pv=ppPrev(S.id,e.n,d)[i];
+        if(x.g==null&&pv&&pv.g!=null) x.g=pv.g; if(x.h==null){ const h0=pv&&pv.h!=null?pv.h:+String(P.r||"").split(/[-–]/)[0]; if(h0) x.h=h0; } x.d=1; if(P.rest) startRest(+P.rest); } }
+    else if(a==="pp-sadd"){ const e=L.ex[+v], last=e.sets[e.sets.length-1]||{}; e.sets.push(Object.assign({},last.g!=null?{g:last.g}:{},last.h!=null?{h:last.h}:{})); }
+    else if(a==="pp-srm"){ const e=L.ex[+v]; if(e.sets.length>1) e.sets.pop(); }
+    else if(a==="pp-end"){ L.end=Date.now(); stopRest(false); const n=L.ex.reduce((s,e)=>s+e.sets.filter(x=>x.d).length,0); toast(`Séance terminée : ${n} série${n>1?"s":""} 💪`); PP.mode="list"; top(); }
+    else if(a==="pp-reopen"){ delete L.end; }
+    ST.carnet[k]=L; ppWrite(k); }
+  render(); },true);
+document.addEventListener("input",e=>{ const el=e.target; if(el&&el.id==="pp-q"){ PP.q=el.value; const r=document.getElementById("pp-res"); if(r){ r.innerHTML=ppResults(); r.scrollTop=0; } } });
+document.addEventListener("change",e=>{ const el=e.target, ds=el&&el.dataset; if(!ds) return;
+  if(ds.pps!==undefined){ const S=ppSes(PP.sid); if(!S) return; S[ds.pps]=el.value.trim()||S[ds.pps]; ppSave(); return; }
+  if(ds.ppe!==undefined){ const S=ppSes(PP.sid); if(!S) return; const [i,f]=ds.ppe.split("."), x=S.ex[+i]; if(!x) return; let val=el.value.trim();
+    if(f==="s"||f==="rest"){ val=parseInt(val,10); if(!(val>0)) val=f==="s"?3:90; if(f==="s") val=Math.min(val,12); el.value=val; } x[f]=val; if(f==="note"&&!val) delete x.note; ppSave(); return; }
+  if(ds.ppl!==undefined){ const S=ppSes(PP.sid); if(!S) return; const d=PP.d||todayISO(), k=ppLogKey(S.id,d), L=ppLog(S,d), [ei,i,f]=ds.ppl.split("."), x=L.ex[+ei]&&L.ex[+ei].sets[+i]; if(!x) return;
+    const n=+String(el.value).replace(",",".").trim(); if(el.value.trim()===""||isNaN(n)) delete x[f]; else x[f]=n; if(!L.start) L.start=Date.now(); ST.carnet[k]=L; ppWrite(k); } });
+
 boot();
 
 </script>
