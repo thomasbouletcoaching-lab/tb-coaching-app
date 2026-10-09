@@ -113,14 +113,14 @@ const T = {
   'client : réorganiser une séance (glisser-déposer)': () => run('client', async (p, sc) => {
     await p.waitForTimeout(800); await p.evaluate(() => { ST.todayOn = false; ST.view = 'carnet'; render(); window.scrollTo(0, 0); }); await p.waitForTimeout(300);
     const names = async () => p.$$eval('#app .cx .linkbtn[data-act="cx-hist"]', a => a.map(x => x.textContent));
-    const before = await names(); await p.click('[data-act="ro-ses"]'); await p.waitForTimeout(300);
+    const before = await names(); const ses = (await p.getAttribute('[data-act="ro-ses"]', 'data-v')).split('.')[1]; await p.click('[data-act="ro-ses"]'); await p.waitForTimeout(300);
     ok(await p.$$eval('#ro-l .ro-it', a => a.length) === before.length, 'liste compacte avec tous les exercices');
     const h = await p.locator('#ro-l [data-rodrag]').nth(0).boundingBox(), t = await p.locator('#ro-l .ro-it').nth(2).boundingBox();
     await p.mouse.move(h.x + h.width / 2, h.y + h.height / 2); await p.mouse.down();
     for (let i = 1; i <= 12; i++) { await p.mouse.move(h.x + h.width / 2, h.y + h.height / 2 + (t.y + t.height * 0.8 - h.y - h.height / 2) * i / 12); await p.waitForTimeout(15); }
     await p.mouse.up(); await p.click('[data-act="ro-save"]'); await p.waitForTimeout(600); const after = await names();
     ok(after[2] === before[0] && after[0] === before[1], 'nouvel ordre affiché dans le carnet');
-    ok((sc.w || []).some(k => /^1_o_0$/.test(k)) && (sc.w || []).some(k => /^2_o_0$/.test(k)), 'ordre enregistré pour cette semaine et les suivantes');
+    ok((sc.w || []).includes('1_o_' + ses) && (sc.w || []).includes('2_o_' + ses), 'ordre enregistré pour cette semaine et les suivantes');
   }, clientPre(sc => (m, path, b, a, t) => { if (t === 'carnet' && m === 'POST') { (sc.w = sc.w || []).push(b.k); return []; } })),
 
   'coach : réorganiser le programme (historique déplacé avec l\'exercice)': () => run('coach', async (p, sc) => {
