@@ -210,6 +210,9 @@ const TAG50={ech:{e:"♨️",l:"Échauffement"},mg:{e:"📶",l:"Montée en gamme
 const TAGTOK50={ECH:"ech","ÉCH":"ech",ECHAUF:"ech","ÉCHAUF":"ech",MG:"mg",ECHEC:"f","ÉCHEC":"f",DS:"ds",DROP:"ds",PART:"pa",ISO:"iso",TRICHE:"ch"};
 // une série compte dans le volume : jamais l'échauffement ; RPE ≥ 7 ; RPE 6 seulement si charge ≥ 75 % du 1RM (série de force lourde mais propre)
 function countsSet50(tags,rpe,pu){ if((tags||[]).includes("ech")) return 0; if(rpe==null||isNaN(rpe)) return 1; if(rpe>=7) return 1; if(rpe>=6&&pu!=null&&pu>=0.75) return 1; return 0; }
+// tonnage d'une série : haltères × 2, exercices au poids du corps = poids de corps + lest, exercices en secondes exclus (pas de répétitions)
+function tonSet(x,name,r){ const h=num(x.h); if(h==null||!name) return 0; if(isTimed(name,r&&r.ex===name?r.E:null)) return 0; const type=typeOfName(name,r&&r.ex===name?r:null);
+  let g=num(x.g); if(g==null){ if(type!=="Lesté") return 0; g=0; } const pdc=(M&&+M.pdc)||0; return (type==="Haltères"?2*g:type==="Lesté"?g+pdc:g)*h; }
 // ---------- parseur de prescription
 function normalize(s){
   if(s===null||s===undefined) return "";
@@ -1383,7 +1386,7 @@ saveCarnet=async function(key){ const v=ST.carnet[key]||{}; const empty=["g","h"
   const {error}=await q; if(error) toast("Carnet non enregistré : "+error.message); };
 function carnetSession(S,w){ let rows=S.rows.filter(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff); if(!rows.length) return "";
   const ord=(ST.carnet[w+"_o_"+S.s]||{}).o; if(ord) rows=rows.slice().sort((a,b)=>{ const ia=ord.indexOf(a.i),ib=ord.indexOf(b.i); return (ia<0?99:ia)-(ib<0?99:ib); });
-  let done=0,tot=0,vol=0; rows.forEach(r=>{ const v=ST.carnet[w+"_"+r.key]; const ss=v&&v.sets&&v.sets.length?v.sets:planSets(r.weeks[w]); tot+=ss.length||0; (v&&v.sets||[]).forEach(x=>{ if(x.d){ done++; if(x.g!=null&&x.h!=null) vol+=(+x.g)*(+x.h); } }); });
+  let done=0,tot=0,vol=0; rows.forEach(r=>{ const v=ST.carnet[w+"_"+r.key]; const ss=v&&v.sets&&v.sets.length?v.sets:planSets(r.weeks[w]); tot+=ss.length||0; (v&&v.sets||[]).forEach(x=>{ if(x.d){ done++; vol+=tonSet(x,(v&&v.ex)||r.ex,r); } }); });
   let h=`<div class="card ses"><h3 style="margin-bottom:2px">${esc(S.name)} · ${esc(S.day)}</h3><div class="muted small">${done}/${tot} séries faites${vol?` · volume ${fmtN(Math.round(vol))} kg`:""} · ≡ pour réordonner</div><div class="cxlist" data-w="${w}" data-s="${S.s}">`;
   rows.forEach(r=>{ h+=carnetEx(r,w); });
   return h+`</div></div>`; }
@@ -1413,7 +1416,7 @@ function exHistory(name){ const byW={};
   Object.entries(ST.carnet).forEach(([k,v])=>{ const p=k.split("_"); if(p.length!==3||p[1]==="o"||p[1]==="t") return; const o=rowOf(k); if(!o.r) return; if((v.ex||o.r.ex)!==name) return;
     const sets=setsOf(v).filter(x=>x.g!=null&&x.h!=null); if(!sets.length) return; const add=sysAdd(typeOfName(name,v.ex?null:o.r),M.pdc);
     const e=byW[o.w]=byW[o.w]||{w:o.w,sets:[],best:0,vol:0,ses:[]}; e.ses.push(o.r&&M.sessions[o.s].name);
-    sets.forEach(x=>{ e.sets.push(x); e.vol+=(+x.g)*(+x.h); const s=sysOf(+x.g,+x.h,x.r,add)-add; if(s>e.best) e.best=s; }); });
+    const tm=isTimed(name,v.ex?null:o.r.E); sets.forEach(x=>{ e.sets.push(x); e.vol+=tonSet(x,name,v.ex?null:o.r); if(tm) return; const s=sysOf(+x.g,+x.h,x.r,add)-add; if(s>e.best) e.best=s; }); });
   return Object.values(byW).sort((a,b)=>a.w-b.w); }
 function vHist(name){ const H=exHistory(name); const t=typeOfName(name);
   let h=`<div class="row" style="margin:8px 0"><button class="ghost" data-act="cx-hist" data-v="">‹ Retour au carnet</button></div><h2>${esc(name)}</h2>`;
@@ -1757,7 +1760,7 @@ document.addEventListener("keydown",e=>{ if(e.target&&e.target.id==="msg-txt"&&e
 // ================= PACK 5 : démarrer / terminer la séance + chrono, décalage des semaines =================
 const fmtDur=ms=>{ const s=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return (h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0"); };
 const fmtDurTxt=ms=>{ const m=Math.round(ms/60000); return m>=60?Math.floor(m/60)+" h "+String(m%60).padStart(2,"0"):m+" min"; };
-function sessStats(S,w){ let done=0,vol=0; S.rows.forEach(r=>{ const v=ST.carnet[w+"_"+r.key]; (v&&v.sets||[]).forEach(x=>{ if(x.d){ done++; if(x.g!=null&&x.h!=null) vol+=(+x.g)*(+x.h); } }); }); return {done,vol}; }
+function sessStats(S,w){ let done=0,vol=0; S.rows.forEach(r=>{ const v=ST.carnet[w+"_"+r.key]; (v&&v.sets||[]).forEach(x=>{ if(x.d){ done++; vol+=tonSet(x,(v&&v.ex)||r.ex,r); } }); }); return {done,vol}; }
 function sessBar(S,w){ const k=w+"_t_"+S.s, t=ST.carnet[k]||{};
   if(!t.start) return `<div class="sessbar"><button class="ok" data-act="ses-start" data-v="${k}" style="width:100%">▶ Commencer la séance</button></div>`;
   if(!t.end) return `<div class="sessbar live"><div class="grow"><div class="muted small">Séance en cours depuis ${new Date(t.start).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</div><div class="stimer" data-start="${t.start}">${fmtDur(Date.now()-t.start)}</div></div><button data-act="ses-end" data-v="${k}">Terminer</button></div>`;
@@ -2578,11 +2581,11 @@ function effData(){ const NS=M.NSEM, add0=t=>sysAdd(t,M.pdc), W=[]; for(let w=1;
   const loadOf=(g,type)=>type==="Haltères"?2*g:type==="Lesté"?g+M.pdc:g;
   const addSet=(o,name,type,x)=>{ if(!x.d) return; const g=num(x.g), h=num(x.h), rp=num(x.r); o.sets++; const mP=(BASEMAP[name]||{}).mP; if(mP) o.mus[mP]=(o.mus[mP]||0)+1;
     const m=o.mov[name]=o.mov[name]||{ton:0,best:0,sets:0}; m.sets++;
-    if(g!=null&&h!=null){ const ld=loadOf(g,type)*h; o.ton+=ld; m.ton+=ld; const sys=sysOf(g,h,rp,add0(type)); if(sys) m.best=Math.max(m.best,sys-add0(type));
+    const tm=isTimed(name,x.__E); if(h!=null&&!tm){ const ld=tonSet(x,name,x.__r||null); o.ton+=ld; m.ton+=ld; } if(g!=null&&h!=null&&!tm){ const sys=sysOf(g,h,rp,add0(type)); if(sys) m.best=Math.max(m.best,sys-add0(type));
       const t=M.trackedByName[name]; if(t&&t.est){ o.intS+=(g+add0(type))/((t.work&&t.work[o.w])||t.est); o.intN++; } }
     if(rp!=null){ o.rpeS+=rp; o.rpeN++; } };
   Object.entries(ST.carnet).forEach(([k,v])=>{ const m=k.match(/^(\d+)_(\d+)_(\d+)$/); const hm=k.match(/^(\d+)_h_(\d+)$/); const w=+(m||hm||[])[1]; const o=W[w-1]; if(!o||!v) return;
-    if(m){ const r=rowAt(m[2],m[3]); if(!r) return; const name=v.ex||r.ex; if(!name) return; const type=typeOfName(name,r); setsOf(v).forEach(x=>addSet(o,name,type,x)); }
+    if(m){ const r=rowAt(m[2],m[3]); if(!r) return; const name=v.ex||r.ex; if(!name) return; const type=typeOfName(name,r); setsOf(v).forEach(x=>addSet(o,name,type,Object.assign({},x,{__E:v.ex?null:r.E,__r:v.ex?null:r}))); }
     else (v.list||[]).forEach(x=>{ const type=typeOfName(x.ex); (x.sets||[]).forEach(s=>addSet(o,x.ex,type,s)); }); });
   M.rows.forEach(r=>{ for(let w=1;w<=NS;w++){ const k=r.weeks[w]; if(r.ex&&k&&k.eff) W[w-1].plan+=planSets(k).length; } });
   return W; }
@@ -2599,7 +2602,7 @@ function vEff(){ if(!M||!M.rows) return ""; const W=effData(), last=Math.max(1,M
   if(mus.length){ const mu=MUSMAP[ST.effMu]||{};
     h+=`<div class="card"><h3>Par groupe musculaire</h3><div class="row">${mus.map(m=>`<button class="chip ${m===ST.effMu?"on":""}" data-act="eff-mu" data-v="${esc(m)}">${esc(m)}</button>`).join("")}</div></div>`;
     h+=chart(ST.effMu+" : séries faites (muscle principal)",labs,[{n:"Séries faites",v:V.map(o=>o.mus[ST.effMu]||0),c:"var(--blue)"}],[{n:"MEV",v:V.map(()=>mu.MEV),c:"var(--yellow)",dash:true},{n:"MRV",v:V.map(()=>mu.MRV),c:"var(--red)",dash:true}]); }
-  h+=`<p class="note">Tonnage = charge × répétitions (haltères : × 2 ; lesté : poids de corps + lest). % du 1RM = charge de la série ÷ 1RM de travail du mouvement suivi. RPE moyen sur l'échelle de gauche, % du 1RM à droite.</p>`;
+  h+=`<p class="note">Tonnage = charge × répétitions (haltères : × 2 ; poids du corps : poids de corps + lest éventuel ; exercices chronométrés non comptés). % du 1RM = charge de la série ÷ 1RM de travail du mouvement suivi. RPE moyen sur l'échelle de gauche, % du 1RM à droite.</p>`;
   return h; }
 function vHorsProg(w){ const out=[]; Object.entries(ST.carnet).forEach(([k,v])=>{ const m=k.match(/^(\d+)_(\d+)_(\d+)$/), hm=k.match(/^(\d+)_h_(\d+)$/);
     if(m&&+m[1]===w&&v&&v.ex){ const r=rowAt(m[2],m[3]); if(r) out.push(`${esc(v.ex)} <span class="muted small">à la place de ${esc(r.ex)} · ${esc((M.sessions[r.s]||{}).name||"")}</span>`); }
@@ -3084,9 +3087,9 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
 // ================= MODULE « MES RECORDS » =================
 function recordsAll(skip){ const R={};
   Object.entries(ST.carnet||{}).forEach(([k,v])=>{ if(k===skip||!/^\d+_\d+_\d+$/.test(k)) return; const o=rowOf(k); if(!o.r) return; const name=v.ex||o.r.ex; if(!name) return;
-    const sets=setsOf(v).filter(x=>x.g!=null&&x.g!==""&&x.h!=null&&x.h!==""&&+x.h>0); if(!sets.length) return; const type=typeOfName(name,v.ex?null:o.r), add=sysAdd(type,M.pdc);
-    const e=R[name]=R[name]||{name,type,n:0,e1:null,top:null,reps:null,first:null};
-    sets.forEach(x=>{ const g=+x.g, h=+x.h; e.n++; const s=sysOf(g,h,x.r==null||x.r===""?null:+x.r,add)-add;
+    const sets=setsOf(v).filter(x=>x.g!=null&&x.g!==""&&x.h!=null&&x.h!==""&&+x.h>0); if(!sets.length) return; const type=typeOfName(name,v.ex?null:o.r), add=sysAdd(type,M.pdc), tm=isTimed(name,v.ex?null:o.r.E);
+    const e=R[name]=R[name]||{name,type,n:0,e1:null,top:null,reps:null,first:null}; if(tm) e.timed=true;
+    sets.forEach(x=>{ const g=+x.g, h=+x.h; e.n++; const s=tm?0:sysOf(g,h,x.r==null||x.r===""?null:+x.r,add)-add; if(tm&&(!e.tmax||h>e.tmax.h)) e.tmax={h,g,w:o.w};
       if(!e.first||o.w<e.first.w||(o.w===e.first.w&&s<e.first.v)) e.first={v:s,w:o.w};
       if(!e.e1||s>e.e1.v+1e-9) e.e1={v:s,w:o.w,g,h,r:x.r};
       if(!e.top||g>e.top.g||(g===e.top.g&&h>e.top.h)) e.top={g,h,w:o.w};
@@ -3101,7 +3104,7 @@ function vRecords(){ const R=Object.values(recordsAll()); if(!R.length) return `
   const L=RCV.all?R:R.slice(0,8), nNew=R.filter(e=>recent(e.e1.w)||recent(e.top.w)).length;
   const it=e=>{ const gain=e.first&&e.e1.w>e.first.w&&e.first.v>0?Math.round((e.e1.v/e.first.v-1)*100):null;
     return `<div style="padding:8px 0;border-top:1px solid var(--line)"><div class="row" style="flex-wrap:nowrap"><b class="grow">${tr.has(e.name)?"⭐ ":""}${esc(e.name)}</b>${recent(e.e1.w)||recent(e.top.w)?`<span class="chip on">nouveau</span>`:""}</div>
-      <div class="small">Charge max : <b>${recU(e.type,e.top.g)} × ${fmtN(e.top.h)}</b> <span class="muted">(${recW(e.top.w)})</span>${e.reps&&e.type==="Lesté"?` · max au poids du corps : <b>${fmtN(e.reps.h)} reps</b>`:""}</div>
+      <div class="small">Charge max : <b>${recU(e.type,e.top.g)} × ${fmtN(e.top.h)}${e.timed?" s":""}</b> <span class="muted">(${recW(e.top.w)})</span>${e.tmax?` · durée max : <b>${fmtN(e.tmax.h)} s</b>`:""}${e.reps&&e.type==="Lesté"&&!e.timed?` · max au poids du corps : <b>${fmtN(e.reps.h)} reps</b>`:""}</div>
       ${e.e1.v>0?`<div class="small">1RM estimé : <b>${recU(e.type,round(e.e1.v,1))}</b> <span class="muted">(${recW(e.e1.w)}${gain!=null&&gain>0?` · +${gain} % depuis S${e.first.w}`:""})</span></div>`:""}
       <div class="row" style="margin-top:4px"><button class="ghost sm" data-act="rec-hist" data-v="${esc(e.name)}">Historique</button></div></div>`; };
   return `<div class="card" id="rec-card"><h3 style="margin-top:0">🏆 Mes records${nNew?` <span class="chip on">${nNew} récent${nNew>1?"s":""}</span>`:""}</h3>${L.map(it).join("")}
@@ -4468,7 +4471,7 @@ document.addEventListener("change",e=>{ const el=e.target, ds=el.dataset||{}; if
 // bilan de séance : séries effectives (règle du volume) et tonnage sans l'échauffement
 function sesCount50(S,w){ let eff=0,ton=0; S.rows.filter(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff).forEach(r=>{ const key=w+"_"+r.key, v=ST.carnet[key]; if(!v||!v.sets) return; const plan=planSets(r.weeks[w]), wk=r.weeks[w];
   const add=sysAdd(typeOfName(v.ex||r.ex,v.ex?null:r),M.pdc);
-  v.sets.forEach((x,i)=>{ if(!x.d) return; const t=x.t||(plan[i]&&plan[i].tags)||[]; if(t.includes("ech")) return; if(x.g!=null&&x.h!=null) ton+=(+x.g)*(+x.h);
+  v.sets.forEach((x,i)=>{ if(!x.d) return; const t=x.t||(plan[i]&&plan[i].tags)||[]; if(t.includes("ech")) return; ton+=tonSet(x,v.ex||r.ex,r);
     const p=plan[i]||plan[plan.length-1]||{}; const rpe=x.r!=null?+x.r:(p.tr!=null?p.tr:p.re); const pu=(x.g!=null&&wk.base)?(+x.g+add)/wk.base:p.pu; eff+=countsSet50(t,rpe,pu); }); });
   return {eff,ton}; }
 const _carnetSession50=carnetSession;
@@ -4507,6 +4510,31 @@ document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="dur-
 // à la fin d'une séance trop longue, proposer directement la correction
 window.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="ses-end"]'); if(!b) return; const k=b.dataset.v; setTimeout(()=>{ const t=ST.carnet[k]; if(!t||!t.end) return;
   const [w,,s]=k.split("_").map(Number), S=M&&M.sessions[s]; if(S&&longSes51(S,w,tDur(t))){ DUR51.open=k; render(); } },0); },true);
+
+// ================= MODULE CHRONO DE SÉRIE · CHRONO DE SÉRIE pour les exercices en secondes (gainage, farmer walk…) =================
+const TMR52={key:null,i:null,start:0,target:0,iv:null,buzzed:false};
+const _carnetExTmr=carnetEx;
+carnetEx=function(r,w){ let h=_carnetExTmr(r,w); const key=w+"_"+r.key, v=ST.carnet[key]||{}; if(!isTimed(v.ex||r.ex,v.ex?null:r.E)) return h;
+  return h.replace(/<td><input class="si" data-cs="([^"|]+)\|(\d+)\|h"([^>]*)><\/td>/g,(m,k,i,rest)=>{ const on=TMR52.key===k&&TMR52.i===+i;
+    return `<td><div class="tmw52"><input class="si" data-cs="${k}|${i}|h"${rest}><button class="tm52${on?" on":""}" data-act="tm-go" data-v="${k}|${i}" aria-label="${on?"Arrêter le chrono":"Lancer le chrono de la série"}">${on?"■":"⏱"}</button></div></td>`; }); };
+function tmrBar(){ let el=document.getElementById("tmbar52"); if(!TMR52.key){ if(el) el.remove(); return; }
+  if(!el){ document.body.insertAdjacentHTML("beforeend",`<div id="tmbar52"><div class="grow"><div class="muted small" id="tm52-l"></div><div class="stimer" id="tm52-t">0:00</div></div><button data-act="tm-go" data-v="">■ Stop</button></div>`); el=document.getElementById("tmbar52"); }
+  const s=Math.floor((Date.now()-TMR52.start)/1000); document.getElementById("tm52-t").textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+  document.getElementById("tm52-l").textContent=`Série ${TMR52.i+1}${TMR52.target?` · objectif ${TMR52.target} s`:""}${TMR52.target&&s>=TMR52.target?" ✓ atteint":""}`;
+  if(TMR52.target&&s>=TMR52.target&&!TMR52.buzzed){ TMR52.buzzed=true; try{ navigator.vibrate&&navigator.vibrate([200,100,200]); }catch(e){} toast("Objectif atteint 💪"); } }
+function tmrStop(save){ const {key,i,start}=TMR52; clearInterval(TMR52.iv); Object.assign(TMR52,{key:null,i:null,iv:null}); tmrBar(); if(!save||!key) return render();
+  const sec=Math.max(1,Math.round((Date.now()-start)/1000)), c=ensureSets(key); while(c.sets.length<=i) c.sets.push({}); c.sets[i].h=sec; saveCarnet(key); toast(`${sec} s enregistrées pour la série ${i+1}`); render(); }
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="tm-go"]'); if(!b) return; e.stopImmediatePropagation(); const v=b.dataset.v;
+  if(TMR52.key&&(!v||v===TMR52.key+"|"+TMR52.i)) return tmrStop(true);
+  if(TMR52.key) tmrStop(true);
+  const [key,i]=v.split("|"); const inp=document.querySelector(`[data-cs="${key}|${i}|h"]`); const tg=parseInt(((inp&&(inp.value||inp.placeholder))||"").split(/[-–]/)[0])||0;
+  Object.assign(TMR52,{key,i:+i,start:Date.now(),target:tg,buzzed:false}); TMR52.iv=setInterval(tmrBar,250); tmrBar(); render(); },true);
+const _cssTmr=document.createElement("style"); _cssTmr.textContent=`
+.tmw52{display:flex;gap:4px;align-items:center}.tmw52 input{min-width:44px}
+#app button.tm52{min-width:36px!important;min-height:36px!important;width:36px;height:36px;padding:0;border-radius:10px;background:var(--btn2);color:var(--accent);border:1px solid var(--line);font-size:1rem;flex:0 0 36px}
+#app button.tm52.on{background:var(--red);color:#fff;border-color:var(--red)}
+#tmbar52{position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom,0px));z-index:55;display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--ink);color:var(--paper);border-radius:18px 18px 0 0}
+#tmbar52 .muted{color:rgba(255,255,255,.7)}#tmbar52 button{background:var(--red);color:#fff;min-height:44px}`; document.head.appendChild(_cssTmr);
 
 boot();
 
