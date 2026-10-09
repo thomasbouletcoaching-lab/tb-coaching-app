@@ -1954,7 +1954,7 @@ document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="tpl-
   if(t.prog.days){ P.profile.days=t.prog.days.slice(); ch=true; } if(t.prog.source){ P.profile.source=t.prog.source; ch=true; } if(t.prog.overload){ P.overload=JSON.parse(JSON.stringify(t.prog.overload)); ch=true; } if(ch){ saveProg(); render(); } },300); });
 
 // ================= MODULE SÉCURITÉ, RGPD, NOTIFICATIONS, DÉMARRAGE =================
-const LINKS={booking:"https://calendly.com/thomboulet",privacy:"confidentialite.html"};
+const LINKS={booking:"https://calendly.com/thomboulet/30min",privacy:"confidentialite.html"};
 const X10={meta:{},ob:undefined,obCid:null,obLater:false,obEdit:false,obDraft:{},obT:null};
 const ls10={get:k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } },set:(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} }};
 const privacyLink=(t="politique de confidentialité")=>`<a href="${LINKS.privacy}" target="_blank" rel="noopener">${t}</a>`;
