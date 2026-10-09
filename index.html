@@ -2572,7 +2572,7 @@ document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); i
   else if(a==="hx-srm"){ const x=get().list[+li]; if(x.sets.length>1) x.sets.pop(); }
   else if(a==="hx-done"){ const s=get().list[+li].sets[+si]; if(s.d) delete s.d; else s.d=1; }
   saveCarnet(key); render(); });
-document.addEventListener("input",e=>{ if(e.target&&e.target.id==="hx-new") ST.hxNew=e.target.value; });
+document.addEventListener("input",e=>{ if(e.target&&e.target.id==="hx-new") ST.hxNew=e.target.value; if(e.target&&e.target.id==="na-name"&&NU.adj) NU.adj.n=e.target.value; });
 document.addEventListener("change",e=>{ const el=e.target; if(el&&el.id==="hx-new"){ ST.hxNew=el.value; return; } if(!el.dataset||el.dataset.hx===undefined) return; const [key,li,si,f]=el.dataset.hx.split("|");
   const o=ST.carnet[key]; if(!o) return; const s=o.list[+li].sets[+si]; const x=String(el.value).replace(",",".").trim(); if(x===""||isNaN(+x)) delete s[f]; else s[f]=+x; saveCarnet(key); });
 
@@ -2618,7 +2618,7 @@ x10After=function(){ _x10After15(); if(ST.bilan||!M) return; const app=$("#app")
 RES.aq=()=>fSearch(NU.aq).map(f=>`<button data-act="na-add" data-v="${f.id}">${esc(f.name)} <span class="muted small">${f.unit?"1 "+esc(f.unit)+" = "+r0(f.unit_g*f.kcal/100)+" kcal":r0(f.kcal)+" kcal/100 g"}</span></button>`).join("");
 const dTxt=(v,u="")=>{ const r=Math.round(v); return `<span class="${r>0?"up":r<0?"down":""}">${r>0?"+":r<0?"−":"±"}${Math.abs(r)}${u}</span>`; };
 function adjHTML(mi,o0){ const A=NU.adj, cur=mac(A.it), pl=optMac(o0);
-  return `<div class="adj"><b>Ce que tu as vraiment mangé</b>${A.it.map((i,ii)=>`<div class="it"><span class="grow">${esc(i.n)}<br><span class="muted small">${qtyTxt(i)} · ${r0(mac([i]).k)} kcal</span></span><button class="ghost sm" data-act="na-step" data-v="${ii}.-1" aria-label="Moins">−</button><button class="ghost sm" data-act="na-step" data-v="${ii}.1" aria-label="Plus">＋</button><button class="ghost sm" data-act="na-rm" data-v="${ii}" aria-label="Retirer">✕</button></div>`).join("")||`<p class="muted small">Aucun aliment.</p>`}
+  return `<div class="adj"><b>Ce que tu as vraiment mangé</b><label class="f" style="margin:6px 0 4px">Nom du repas<input id="na-name" value="${esc(A.n!=null?A.n:(o0.n||""))}" placeholder="${esc(o0.n||"Mon repas")}" autocomplete="off"></label>${A.it.map((i,ii)=>`<div class="it"><span class="grow">${esc(i.n)}<br><span class="muted small">${qtyTxt(i)} · ${r0(mac([i]).k)} kcal</span></span><button class="ghost sm" data-act="na-step" data-v="${ii}.-1" aria-label="Moins">−</button><button class="ghost sm" data-act="na-step" data-v="${ii}.1" aria-label="Plus">＋</button><button class="ghost sm" data-act="na-rm" data-v="${ii}" aria-label="Retirer">✕</button></div>`).join("")||`<p class="muted small">Aucun aliment.</p>`}
     <label class="f" style="margin-top:8px">Ajouter un aliment<input data-nuq="aq" data-res="nu-ares" value="${esc(NU.aq||"")}" placeholder="riz, poulet, pain…" autocomplete="off"></label><div class="res" id="nu-ares">${RES.aq()}</div>
     <div class="diff small" style="margin-top:8px">Prévu ${r0(pl.k)} kcal → mangé <b>${r0(cur.k)} kcal</b> (${dTxt(cur.k-pl.k," kcal")}) · P ${dTxt(cur.p-pl.p," g")} · G ${dTxt(cur.g-pl.g," g")} · L ${dTxt(cur.l-pl.l," g")}</div>
     <div class="row" style="margin-top:8px"><button class="ok sm" data-act="na-save" data-v="${mi}">Valider ce repas</button><button class="ghost sm" data-act="na-cancel">Annuler</button></div></div>`; }
@@ -2637,7 +2637,7 @@ document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); i
   else if(a==="na-rm") NU.adj.it.splice(+v,1);
   else if(a==="na-add"){ const f=NU.fmap[v]; if(f) NU.adj.it.push(fSnap(f,f.unit_g||100)); NU.aq=""; }
   else if(a==="na-save"){ const mi=+v, o=t.meals[mi].opts[0], L=dayLog(); const it=NU.adj.it.filter(i=>+i.q>0);
-    L.m[mi]={s:"alt",n:o.n+" (ajusté)",mac:mac(it),it}; NU.adj=null; nuSaveLog(NU.day); toast("Repas enregistré"); }
+    const nm=String(NU.adj.n!=null?NU.adj.n:"").trim(); L.m[mi]={s:"alt",n:nm&&nm!==o.n?nm:o.n+" (ajusté)",mac:mac(it),it}; NU.adj=null; nuSaveLog(NU.day); toast("Repas enregistré"); }
   else if(a==="na-all"){ const L=dayLog(); t.meals.forEach((m,mi)=>{ const o=m.opts[0]; if(!L.m[mi]&&o) L.m[mi]={s:"ok",n:o.n,mac:optMac(o)}; }); nuSaveLog(NU.day); toast("Journée validée ✅"); }
   render(); });
 
