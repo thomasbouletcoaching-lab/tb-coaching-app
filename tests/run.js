@@ -91,6 +91,19 @@ const T = {
     ok(sc.sent && sc.sent.body === 'Hors ligne', 'message envoyé au retour du réseau');
   }, clientPre(sc => (m, path, b, a, t) => { if (t === 'messages' && m === 'POST') { sc.sent = b; return []; } })),
 
+  'client : vidéos (enregistrer, suppression à 30 jours)': () => run('client', async (p) => {
+    await p.waitForTimeout(1000); await p.evaluate(() => msgOpen()); await p.waitForTimeout(800);
+    const t = await txt(p, '#mp-l');
+    ok(t.includes('Enregistrer') && t.includes('supprimée le'), 'vidéo récente : bouton Enregistrer et date de suppression');
+    ok(t.includes('Vidéo supprimée automatiquement après 30 jours'), 'vidéo expirée : message à la place de la vidéo');
+    ok((await txt(p, '.mp-c')).includes('supprimées après 30 jours'), 'information sous la zone d\'envoi');
+  }, clientPre(sc => (m, path, b, a, t) => {
+    if (path.startsWith('/storage/v1/object/sign/media')) return (b && b.paths || []).map(x => /vieille/.test(x) ? { path: x, error: 'Object not found', signedURL: null } : { path: x, signedURL: '/object/sign/media/' + x + '?token=t' });
+    if (t === 'messages' && m === 'GET') return [
+      { id: 'v1', client_id: sc.CID, sender: 'coach', from_coach: true, body: '', media: [{ path: sc.CID + '/recente.mp4', type: 'video' }], created_at: new Date().toISOString() },
+      { id: 'v2', client_id: sc.CID, sender: 'coach', from_coach: true, body: '', media: [{ path: sc.CID + '/vieille.mp4', type: 'video' }], created_at: '2026-08-01T10:00:00Z' } ];
+  })),
+
   'coach : activation et revue de la semaine': () => run('coach', async (p, sc) => {
     await p.waitForTimeout(1200); ok((await txt(p, '#app')).includes('Activation 3/5'), 'activation dans À traiter');
     await p.click('[data-act="act-open"]'); await p.waitForTimeout(1200);
@@ -155,17 +168,14 @@ const T = {
     ok(r.w > 330, 'texte sur toute la largeur'); ok(r.full, 'message entièrement visible'); ok(r.app === 'hidden', 'tableau de bord masqué derrière la messagerie');
   }, clientPre()),
 
-  'page publique : candidature': async () => {
-    const b = await chromium.launch({ executablePath: EXE }); const p = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage(); let posted = null; const errs = [];
-    p.on('pageerror', e => errs.push(e.message));
-    await p.route('https://*.supabase.co/**', async r => { posted = r.request().postDataJSON(); await r.fulfill({ status: 201, body: '', headers: { 'access-control-allow-origin': '*' } }); });
-    await p.goto(BASE + 'coaching.html'); await p.click('#go'); ok(posted === null, 'formulaire vide refusé');
-    await p.fill('[name=name]', 'Marc Exemple'); await p.fill('[name=email]', 'marc@exemple.fr'); await p.selectOption('[name=goal]', 'Gagner en force');
-    await p.fill('[name=practice]', 'Muscu 3x/sem'); await p.check('[name=consent]'); await p.click('#go'); await p.waitForTimeout(400);
-    ok(posted && posted.consent === true && posted.email === 'marc@exemple.fr', 'candidature envoyée'); ok(!errs.length, 'aucune erreur JavaScript'); await b.close(); },
+  'page publique : redirection vers le site': async () => {
+    const b = await chromium.launch({ executablePath: EXE }); const p = await (await b.newContext()).newPage(); let target = null;
+    await p.route('https://thomasbouletcoaching-lab.github.io/**', async r => { target = r.request().url(); await r.fulfill({ status: 200, contentType: 'text/html', body: '<p>site</p>' }); });
+    await p.goto(BASE + 'coaching.html'); await p.waitForTimeout(800);
+    ok(target && target.includes('/thomasboulet-coaching/coaching.html'), 'coaching.html redirige vers la page de vente du site'); await b.close(); },
 };
 
 (async () => {
-  for (const [name, fn] of Object.entries(T)) { console.log('▶', name); try { await fn(); } catch (e) { fails++; console.log('  ✗', e.message.split('\n')[0]); } }
+  for (const [name, fn] of Object.entries(T)) { if (process.env.ONLY && !name.includes(process.env.ONLY)) continue; console.log('▶', name); try { await fn(); } catch (e) { fails++; console.log('  ✗', e.message.split('\n')[0]); } }
   console.log(`\n${passed} vérifications réussies, ${fails} échec(s).`); process.exit(fails ? 1 : 0);
 })();

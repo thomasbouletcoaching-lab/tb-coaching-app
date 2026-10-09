@@ -30,9 +30,17 @@ hébergée **gratuitement** sur GitHub Pages.
 - Fonctions serveur (Edge Functions) :
   - `push` : envoie les notifications. Appelée uniquement par la base, protégée par un secret.
   - `delete-account` : suppression de compte d'un client (droit à l'effacement). Les factures sont conservées.
+  - `purge-media` : supprime chaque nuit (3 h 20 UTC) les vidéos de la messagerie de plus de 30 jours.
+    Les photos, vocaux et la bibliothèque d'exercices (`lib/`) ne sont jamais touchés. Appelée par la base, protégée par le même secret que `push`.
 - Tâches planifiées (pg_cron) : rappel « séance du jour » chaque matin (8 h 30 l'été, 7 h 30 l'hiver)
   et rappel « bilan de la semaine » le dimanche (19 h l'été, 18 h l'hiver).
 - Notification immédiate à chaque nouveau message (déclencheur sur `messages`).
+
+## Vidéos de la messagerie
+
+- Une seule série, 90 secondes maximum.
+- Toute vidéo de plus de 4 Mo est compressée sur le téléphone avant l'envoi (640p, environ 1 Mo par 10 secondes).
+- Supprimées automatiquement 30 jours après l'envoi : bouton « Enregistrer » sous chaque vidéo pour la garder sur son téléphone.
 
 ## Faire une modification
 
