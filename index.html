@@ -205,6 +205,11 @@ function bar(r,rpe){r=Math.min(20,Math.max(1,Math.round(r)));const j=RPES.indexO
 function estRPE(r,pu){r=Math.min(20,Math.max(1,Math.round(r)));let best=null;for(const rp of RPES){if(bar(r,rp)>=pu-1e-9) best=rp;}return best===null?10.5:best;} // plus petit RPE atteignant pu
 function roundPas(x,pas){return Math.round(x/pas+1e-9)*pas;}
 
+// ---------- types de séries (échauffement, dropset, échec…)
+const TAG50={ech:{e:"♨️",l:"Échauffement"},mg:{e:"📶",l:"Montée en gamme"},f:{e:"💀",l:"À l'échec"},ds:{e:"🔻",l:"Dropset"},pa:{e:"✂️",l:"Partielles"},iso:{e:"⏸️",l:"Isométrie"},ch:{e:"😈",l:"Reps trichées"}};
+const TAGTOK50={ECH:"ech","ÉCH":"ech",ECHAUF:"ech","ÉCHAUF":"ech",MG:"mg",ECHEC:"f","ÉCHEC":"f",DS:"ds",DROP:"ds",PART:"pa",ISO:"iso",TRICHE:"ch"};
+// une série compte dans le volume : jamais l'échauffement ; RPE ≥ 7 ; RPE 6 seulement si charge ≥ 75 % du 1RM (série de force lourde mais propre)
+function countsSet50(tags,rpe,pu){ if((tags||[]).includes("ech")) return 0; if(rpe==null||isNaN(rpe)) return 1; if(rpe>=7) return 1; if(rpe>=6&&pu!=null&&pu>=0.75) return 1; return 0; }
 // ---------- parseur de prescription
 function normalize(s){
   if(s===null||s===undefined) return "";
@@ -222,7 +227,8 @@ function parseBlock(bs){
   const tok=t=>{const m=bs.slice(bs.indexOf(t)+3)+"@";const x=m.slice(0,m.indexOf("@"));return /^\d+(\.\d+)?$/.test(x)?+x:NaN;};
   if(bs.includes("RPE")) o.rpe=tok("RPE"); else if(bs.includes("RIR")) o.rpe=10-tok("RIR");
   const kgt=bs.split("@").find(x=>/^\d+(\.\d+)?KG$/.test(x)); o.kg=kgt?parseFloat(kgt):null;
-  const ntok=bs.split("@").length, known=1+(bs.includes("%")?1:0)+((bs.includes("RPE")||bs.includes("RIR"))?1:0)+(kgt?1:0);
+  const tags=bs.split("@").map(x=>TAGTOK50[x]).filter(Boolean); o.tag=tags[0]||null; o.tags=tags;
+  const ntok=bs.split("@").length, known=1+(bs.includes("%")?1:0)+((bs.includes("RPE")||bs.includes("RIR"))?1:0)+(kgt?1:0)+tags.length;
   if(!(o.sets>=1)||!(o.rlo>=1)||Number.isNaN(o.pct)||Number.isNaN(o.rpe)||ntok!==known) o.ok=false;
   if(o.ok){ if(o.pct!==null) o.pu=o.pct/100; else if(o.rpe!==null) o.pu=bar(o.rlo,o.rpe); }
   return o;
@@ -378,12 +384,12 @@ function compute(prog,carnet,suivi,today){
         pp.blocks.forEach((b,k)=>{ if(!b.ok) return;
           b.load=b.kg!=null?b.kg:((b.pu!==null&&base)?roundPas(base*b.pu-add,r.pas):null);
           b.re=b.rpe!==null?b.rpe:(b.pu!==null?estRPE(b.rlo,b.pu):8);
-          sets+=b.sets*(b.re>=6.5?1:0.5);
+          sets+=b.sets*countsSet50(b.tags||[],b.re,b.pu);
           if(b.pu!==null){ if(b.pu>=0.85) s85+=b.sets; if(b.pu>=0.9) s90+=b.sets; sp+=b.sets*b.pu; swp+=b.sets;
             if(r.t) {inol+=b.sets*b.rlo/Math.max(1,100-100*b.pu); P.PRIL.forEach((z,zi)=>{if(b.pu>=z[0]&&b.pu<=z[1]) zones[zi]+=b.sets*b.rlo;});} }
           const tz=b.pu!==null?(b.pu>=0.85?P.T1:b.pu>=0.75?P.T2:(b.pu>=0.65?1:0.6)*P.T3):(b.rlo<=5?P.T1:b.rlo<=8?P.T2:P.T3);
           time+=b.sets*tz; cn+=b.sets*(0.5+0.125*(Math.min(10,b.re)-6));
-          let txt=b.sets+" × "+b.rt.replace("-","–");
+          let txt=(b.tags&&b.tags.length?b.tags.map(t=>TAG50[t].e).join("")+" ":"")+b.sets+" × "+b.rt.replace("-","–");
           if(b.load!==null) txt+=" @ "+loadText(b.load,r.type); else if(b.pct!==null) txt+=" @ ? (% sans 1RM : ajoute-le dans Athlète ou Outils)"; else txt+=" — charge à choisir, note-la";
           if(b.pu!==null) txt+=" ("+(b.pct!==null?fmtN(b.pct)+" %, ":(b.load!==null?Math.round(b.pu*100)+" %, ":""))+"RPE "+(b.rpe!==null?fmtN(b.rpe):"≈ "+(b.re>10?"10+":fmtN(b.re)))+")";
           parts.push(txt); });
@@ -709,7 +715,7 @@ function vProgramme(){ const S=M.sessions[ST.ses]; const fw=ST.focusW||1; const 
       ${r.weeks[fw]&&r.weeks[fw].eff?`<div class="decode ${r.weeks[fw].valid===false?"bad":""}">S${fw} → ${hiLoads(r.weeks[fw].text)}</div>`:""}</div>`; });
   h+=`<button class="ghost" data-act="all" data-v="${S.s}">${ST.showAll[S.s]?"Masquer les lignes vides":"Afficher les 15 lignes"}</button>`;
   const ag=M.W[fw-1].ses[S.s]; h+=`<div class="alert ${ag.dur>+P.profile.dmax+5||(ag.dur&&ag.dur<+P.profile.dmin-5)?"ko":"ok"}">S${fw} : ≈ ${Math.round(ag.dur)} min · ${fmtN(ag.sets)} séries dures · ${ag.s85} séries ≥ 85 %</div>`;
-  h+=`<p class="note">Case vide = calcul automatique (texte gris). Écris dans une case pour la forcer (orange). Rouge = format non reconnu. Syntaxe : 3x2@86% RPE7 + 3x8-10@RPE8 + 3x12 RIR2.</p>`;
+  h+=`<p class="note">Case vide = calcul automatique (texte gris). Écris dans une case pour la forcer (orange). Rouge = format non reconnu. Syntaxe : 3x2@86% RPE7 + 3x8-10@RPE8 + 3x12 RIR2. Types de séries : ajoute ECH (♨️ échauffement), MG (📶 montée en gamme), ECHEC (💀 à l'échec), DS (🔻 dropset), PART (✂️ partielles), ISO (⏸️ isométrie), TRICHE (😈 reps trichées). Ex. : 2x8@50% ECH + 3x5@80% + 1x10 DS. L'échauffement ne compte jamais dans le volume ; une série compte à partir de RPE 7, ou RPE 6 si ≥ 75 % du 1RM.</p>`;
   return h; }
 function vAthlete(){ const P=ST.prog; const pf=`profile`;
   let h=`<h2>Athlète</h2><div class="card"><h3>Profil</h3><div class="row">
@@ -1358,7 +1364,7 @@ function restInfo(r,wk){ const E=r.E||{}; let sec=null, txt="";
   else { const b=((wk&&wk.blocks)||[]).find(x=>x.ok); const reps=b?b.rlo:10; const heavy=b&&((b.pu!=null&&b.pu>=0.85)||reps<=3);
     sec=heavy?240:reps<=6?180:reps<=10?120:90; txt=fmtRest(sec); }
   return {sec,txt:txt+(r.ss?" · superset "+r.ss+" : enchaîne, puis repos":"")}; }
-function planSets(wk){ const out=[]; ((wk&&wk.blocks)||[]).forEach(b=>{ if(!b.ok) return; for(let i=0;i<b.sets;i++) out.push({tg:b.load,th:b.rt,tr:b.rpe}); }); return out; }
+function planSets(wk){ const out=[]; ((wk&&wk.blocks)||[]).forEach(b=>{ if(!b.ok) return; for(let i=0;i<b.sets;i++) out.push({tg:b.load,th:b.rt,tr:b.rpe,re:b.re,pu:b.pu,tags:b.tags||[]}); }); return out; }
 function typeOfName(n,r){ if(r&&r.ex===n) return r.type; const eq=(BASEMAP[n]||{}).eq; return eq==="Poids de corps"?"Lesté":eq==="Haltères"?"Haltères":eq==="Barre"?"Barre":"Machine"; }
 const rowOf=key=>{ const [w,s,i]=key.split("_").map(Number); const S=M&&M.sessions[s]; return {w,s,i,r:S&&S.rows[i]}; };
 function setsOf(v){ return (v&&v.sets&&v.sets.length)?v.sets:((v&&v.g!=null)?[{g:v.g,h:v.h,r:v.r,d:1}]:[]); }
@@ -1367,10 +1373,10 @@ function prevSets(r,w,name){ for(let w2=w-1;w2>=1;w2--){ const v=ST.carnet[w2+"_
   return []; }
 const sysOf=(g,h,rp,add)=>(g+add)/bar(Math.min(20,Math.max(1,h)),rp==null?10:rp);
 function ensureSets(key){ const {w,r}=rowOf(key); const v=ST.carnet[key]=Object.assign({},ST.carnet[key]);
-  if(!v.sets||!v.sets.length){ const n=planSets(r&&r.weeks[w]).length||3; v.sets=[...Array(n)].map(()=>({})); if(v.g!=null) v.sets[0]={g:v.g,h:v.h,r:v.r,d:1}; }
+  if(!v.sets||!v.sets.length){ const pl=planSets(r&&r.weeks[w]), n=pl.length||3; v.sets=[...Array(n)].map((_,i)=>pl[i]&&pl[i].tags.length?{t:pl[i].tags.slice()}:({})); if(v.g!=null) v.sets[0]={g:v.g,h:v.h,r:v.r,d:1}; }
   v.sets=v.sets.map(x=>Object.assign({},x)); return v; }
 function updateTop(key){ const {r}=rowOf(key); const v=ST.carnet[key]; if(!v) return; delete v.g; delete v.h; delete v.r; if(v.ex||!r) return;
-  const add=sysAdd(r.type,M.pdc); let best=null,bs=0; (v.sets||[]).forEach(x=>{ if(x.g==null||x.h==null) return; const s=sysOf(+x.g,+x.h,x.r,add); if(s>bs){bs=s;best=x;} });
+  const add=sysAdd(r.type,M.pdc); let best=null,bs=0; (v.sets||[]).forEach(x=>{ if(x.g==null||x.h==null||(x.t||[]).some(t=>t==="ech")) return; const s=sysOf(+x.g,+x.h,x.r,add); if(s>bs){bs=s;best=x;} });
   if(best){ v.g=best.g; v.h=best.h; if(best.r!=null) v.r=best.r; } }
 saveCarnet=async function(key){ const v=ST.carnet[key]||{}; const empty=["g","h","r","j","ex"].every(f=>v[f]===undefined||v[f]===""||v[f]===null)&&!(v.sets&&v.sets.some(x=>x.g!=null||x.h!=null||x.r!=null||x.d))&&!(v.o&&v.o.length); recompute();
   const q=empty?SB.from("carnet").delete().eq("client_id",CUR).eq("k",key):SB.from("carnet").upsert({client_id:CUR,k:key,data:v,updated_at:new Date().toISOString()});
@@ -4428,6 +4434,52 @@ document.addEventListener("change",e=>{ const el=e.target, ds=el&&el.dataset; if
     if(f==="s"||f==="rest"){ val=parseInt(val,10); if(!(val>0)) val=f==="s"?3:90; if(f==="s") val=Math.min(val,12); el.value=val; } x[f]=val; if(f==="note"&&!val) delete x.note; ppSave(); return; }
   if(ds.ppl!==undefined){ const S=ppSes(PP.sid); if(!S) return; const d=PP.d||todayISO(), k=ppLogKey(S.id,d), L=ppLog(S,d), [ei,i,f]=ds.ppl.split("."), x=L.ex[+ei]&&L.ex[+ei].sets[+i]; if(!x) return;
     const n=+String(el.value).replace(",",".").trim(); if(el.value.trim()===""||isNaN(n)) delete x[f]; else x[f]=n; if(!L.start) L.start=Date.now(); ST.carnet[k]=L; ppWrite(k); } });
+
+// ================= MODULE 50 · TYPES DE SÉRIES DANS LE CARNET (échauffement, dropset, échec, partielles, isométrie, triche) =================
+const ST50={open:null};
+const tagsOf50=(key,i)=>{ const v=ST.carnet[key]; const x=v&&v.sets&&v.sets[i]; if(x&&x.t) return x.t; const {w,r}=rowOf(key); const p=planSets(r&&r.weeks[w])[i]; return p?p.tags:[]; };
+function setDetail50(x){ const d=[]; const t=x.t||[];
+  if(t.includes("f")&&x.fr) d.push(`échec à la rep ${x.fr}`); if(t.includes("pa")&&x.pa) d.push(`+${x.pa} partielle${x.pa>1?"s":""}`);
+  if(t.includes("ch")&&x.ch) d.push(`+${x.ch} trichée${x.ch>1?"s":""}`); if(t.includes("iso")&&(x.is||x.ip)) d.push(`iso ${x.ip||""} ${x.is?x.is+" s":""}${x.ir?" à la rep "+x.ir:""}`.replace(/\s+/g," ").trim());
+  return d.join(" · "); }
+function setEditor50(key,i){ const v=ST.carnet[key]||{}, x=(v.sets&&v.sets[i])||{}, t=tagsOf50(key,i), f=(k,lab,ph)=>`<label class="f" style="flex:1 1 90px">${lab}<input class="si" inputmode="numeric" data-st="${key}|${i}|${k}" value="${esc(x[k]??"")}" placeholder="${ph||""}"></label>`;
+  return `<div class="edit st50"><div class="row" style="justify-content:space-between"><b>Série ${i+1} : type</b><button class="ghost sm" data-act="st-open" data-v="">Fermer</button></div>
+   <div class="row" style="gap:6px;margin:6px 0">${Object.entries(TAG50).map(([k,o])=>`<button class="chip ${t.includes(k)?"on":""}" data-act="st-tag" data-v="${key}|${i}|${k}">${o.e} ${o.l}</button>`).join("")}</div>
+   ${t.includes("f")?`<div class="row">${f("fr","💀 Échec à la rep n°","ex. 8")}</div>`:""}
+   ${t.includes("pa")?`<div class="row"><span class="muted small" style="flex:1 1 100%">Reps complètes = colonne Reps.</span>${f("pa","✂️ Partielles en plus","ex. 4")}</div>`:""}
+   ${t.includes("ch")?`<div class="row">${f("ch","😈 Reps en trichant","ex. 2")}</div>`:""}
+   ${t.includes("iso")?`<div class="row"><label class="f" style="flex:1 1 90px">⏸️ Position<select data-st="${key}|${i}|ip"><option value="">—</option><option ${x.ip==="en haut"?"selected":""}>en haut</option><option ${x.ip==="en bas"?"selected":""}>en bas</option><option ${x.ip==="à mi-course"?"selected":""}>à mi-course</option></select></label>${f("is","Durée (s)","ex. 5")}${f("ir","À la rep n°","ex. 6")}</div>`:""}
+   ${t.includes("ds")?`<div class="muted small">🔻 Enchaînée juste après la série précédente, sans repos, avec une charge plus légère.</div>`:""}
+   ${t.includes("ech")?`<div class="muted small">♨️ Ne compte pas dans le volume.</div>`:""}</div>`; }
+const _carnetEx50=carnetEx;
+carnetEx=function(r,w){ let h=_carnetEx50(r,w); const key=w+"_"+r.key, v=ST.carnet[key]||{};
+  h=h.replace(/<tr class="([^"]*)"><td><span class="sn">(\d+)<\/span><\/td>/g,(m,cls,n)=>{ const i=+n-1, t=tagsOf50(key,i), x=(v.sets&&v.sets[i])||{}, det=setDetail50(Object.assign({},x,{t}));
+    return `<tr class="${cls}${t.includes("ech")?" wu50":""}"><td><button class="sn50${ST50.open===key+"|"+i?" on":""}" data-act="st-open" data-v="${key}|${i}" aria-label="Type de la série ${n}"><span class="sn">${n}</span>${t.map(k=>TAG50[k]?TAG50[k].e:"").join("")||'<span class="add50">＋</span>'}</button>${det?`<div class="det50">${esc(det)}</div>`:""}</td>`; });
+  if(ST50.open&&ST50.open.startsWith(key+"|")){ const i=+ST50.open.split("|")[1]; h=h.replace("</table></div>","</table></div>"+setEditor50(key,i)); }
+  return h; };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="st-open"],[data-act="st-tag"]'); if(!b) return; e.stopImmediatePropagation(); const v=b.dataset.v||"";
+  if(b.dataset.act==="st-open") ST50.open=ST50.open===v?null:(v||null);
+  else { const [key,i,k]=v.split("|"); const c=ensureSets(key); while(c.sets.length<=+i) c.sets.push({}); const x=c.sets[+i]; const t=(x.t||tagsOf50(key,+i)).slice();
+    const j=t.indexOf(k); if(j>=0) t.splice(j,1); else t.push(k); if(t.length) x.t=t; else x.t=[]; saveCarnet(key); }
+  render(); },true);
+document.addEventListener("change",e=>{ const el=e.target, ds=el.dataset||{}; if(ds.st===undefined) return; const [key,i,f]=ds.st.split("|"); const c=ensureSets(key); while(c.sets.length<=+i) c.sets.push({});
+  const x=c.sets[+i], val=String(el.value).trim(); if(f==="ip"){ if(val) x.ip=val; else delete x.ip; } else { const n=parseFloat(val.replace(",",".")); if(isNaN(n)) delete x[f]; else x[f]=n; }
+  saveCarnet(key); render(); });
+// bilan de séance : séries effectives (règle du volume) et tonnage sans l'échauffement
+function sesCount50(S,w){ let eff=0,ton=0; S.rows.filter(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff).forEach(r=>{ const key=w+"_"+r.key, v=ST.carnet[key]; if(!v||!v.sets) return; const plan=planSets(r.weeks[w]), wk=r.weeks[w];
+  const add=sysAdd(typeOfName(v.ex||r.ex,v.ex?null:r),M.pdc);
+  v.sets.forEach((x,i)=>{ if(!x.d) return; const t=x.t||(plan[i]&&plan[i].tags)||[]; if(t.includes("ech")) return; if(x.g!=null&&x.h!=null) ton+=(+x.g)*(+x.h);
+    const p=plan[i]||plan[plan.length-1]||{}; const rpe=x.r!=null?+x.r:(p.tr!=null?p.tr:p.re); const pu=(x.g!=null&&wk.base)?(+x.g+add)/wk.base:p.pu; eff+=countsSet50(t,rpe,pu); }); });
+  return {eff,ton}; }
+const _carnetSession50=carnetSession;
+carnetSession=function(S,w){ let h=_carnetSession50(S,w); if(!h) return h; const c=sesCount50(S,w);
+  return h.replace(/(\d+\/\d+ séries faites)( · volume [^·<]*)?/,(m,a)=>`${a}${c.eff?` · ${fmtN(c.eff)} effective${c.eff>1?"s":""}`:""}${c.ton?` · volume ${fmtN(Math.round(c.ton))} kg`:""} `); };
+const _css50b=document.createElement("style"); _css50b.textContent=`
+.sn50{display:inline-flex;align-items:center;gap:1px;min-width:0!important;min-height:36px!important;padding:2px 4px!important;background:transparent!important;color:var(--ink)!important;border:1px dashed var(--line)!important;border-radius:10px!important;font-size:.95rem;white-space:nowrap}
+.sn50.on{border-style:solid!important;border-color:var(--accent)!important}.add50{color:var(--soft);font-size:.8rem;margin-left:2px}
+.det50{font-size:.66rem;color:var(--soft);line-height:1.15;margin-top:2px;max-width:76px;white-space:normal}
+tr.wu50 td{opacity:.6}tr.wu50 input.si{font-style:italic}
+.st50 .chip{font-size:.85rem;padding:6px 10px}`; document.head.appendChild(_css50b);
 
 boot();
 
