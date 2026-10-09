@@ -4481,6 +4481,33 @@ const _css50b=document.createElement("style"); _css50b.textContent=`
 tr.wu50 td{opacity:.6}tr.wu50 input.si{font-style:italic}
 .st50 .chip{font-size:.85rem;padding:6px 10px}`; document.head.appendChild(_css50b);
 
+// ================= MODULE 51 · CORRIGER LA DURÉE D'UNE SÉANCE (chrono oublié) =================
+const DUR51={open:null};
+const planDur51=(S,w)=>Math.round(((((M.W[w-1]||{}).ses||[])[S.s]||{}).dur)||0);
+const longSes51=(S,w,ms)=>{ const p=planDur51(S,w); return ms>Math.max(150,p?p*2:0)*60000; };
+const _sessBar51=sessBar;
+sessBar=function(S,w){ let h=_sessBar51(S,w); const k=w+"_t_"+S.s, t=ST.carnet[k]||{};
+  if(t.start&&!t.end&&!t.missed&&longSes51(S,w,tDur(t))) h+=`<div class="alert ko small">Le chrono tourne depuis ${fmtDurTxt(tDur(t))} : tu as peut-être oublié de l'arrêter. Termine la séance puis corrige sa durée.</div>`;
+  if(!(t.start&&t.end)||t.missed) return h;
+  const dur=tDur(t), lg=longSes51(S,w,dur)&&!t.fix;
+  h=h.replace(/(<button class="ghost sm" data-act="(?:ses-undo|ses-resume)")/,`<button class="ghost sm" data-act="dur-open" data-v="${k}">✏️ Durée</button>$1`);
+  if(t.fix) h=h.replace(" · "+fmtDurTxt(dur)," · "+fmtDurTxt(dur)+" (corrigée)");
+  if(lg&&DUR51.open!==k) h+=`<div class="alert ko small row" style="flex-wrap:nowrap;gap:8px"><span class="grow">${fmtDurTxt(dur)}, c'est long : chrono oublié ?</span><button class="ghost sm" data-act="dur-open" data-v="${k}">Corriger</button></div>`;
+  if(DUR51.open===k){ const p=planDur51(S,w), cur=t.manual?0:Math.round(dur/60000), sug=lg?(p||60):cur, hh=Math.floor(sug/60), mm=sug%60;
+    h+=`<div class="edit dur51"><b>Durée réelle de la séance</b><div class="muted small">${lg?"Valeur proposée : la durée prévue de la séance. Ajuste-la si besoin.":"Corrige si le chrono n'a pas été arrêté au bon moment."}</div>
+      <div class="row" style="margin-top:6px;flex-wrap:nowrap"><label class="f" style="flex:1 1 0">Heures<input id="dur-h" type="number" inputmode="numeric" min="0" max="6" value="${hh}"></label><label class="f" style="flex:1 1 0">Minutes<input id="dur-m" type="number" inputmode="numeric" min="0" max="59" step="5" value="${mm}"></label></div>
+      <div class="row" style="margin-top:8px"><button data-act="dur-save" data-v="${k}">Enregistrer</button><button class="ghost" data-act="dur-open" data-v="">Annuler</button></div></div>`; }
+  return h; };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="dur-open"],[data-act="dur-save"]'); if(!b) return; e.stopImmediatePropagation(); const k=b.dataset.v||"";
+  if(b.dataset.act==="dur-open"){ DUR51.open=DUR51.open===k?null:(k||null); return render(); }
+  const min=(+document.getElementById("dur-h").value||0)*60+(+document.getElementById("dur-m").value||0);
+  if(!(min>=5&&min<=360)) return toast("Indique une durée entre 5 min et 6 h");
+  const t=ST.carnet[k]=Object.assign({},ST.carnet[k]); delete t.pause; t.pz=0; t.start=t.end-min*60000; t.fix=1; delete t.manual;
+  DUR51.open=null; saveCarnet(k); toast(`Durée corrigée : ${fmtDurTxt(min*60000)}`); render(); },true);
+// à la fin d'une séance trop longue, proposer directement la correction
+window.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="ses-end"]'); if(!b) return; const k=b.dataset.v; setTimeout(()=>{ const t=ST.carnet[k]; if(!t||!t.end) return;
+  const [w,,s]=k.split("_").map(Number), S=M&&M.sessions[s]; if(S&&longSes51(S,w,tDur(t))){ DUR51.open=k; render(); } },0); },true);
+
 boot();
 
 </script>
