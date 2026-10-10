@@ -2554,10 +2554,14 @@ carnetEx=function(r,w){ let h=_carnetEx15(r,w); const key=w+"_"+r.key, v=ST.carn
 document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="cx-pick"]'); if(!b) return; const key=b.dataset.v, n=b.dataset.n; const c=ensureSets(key); const {r}=rowOf(key);
   if(n===r.ex) delete c.ex; else c.ex=n; updateTop(key); saveCarnet(key); ST.cxMenu=null; toast(`Remplacé par ${n}`); render(); });
 const hxKey=(w,s)=>w+"_h_"+s;
+// e1RM estimé à partir des séries notées (exercice remplacé ou hors programme) ; rien pour les exercices chronométrés
+function e1Chip(name,r,sets){ if(!name||!M||isTimed(name,r&&r.ex===name?r.E:null)) return ""; const type=typeOfName(name,r&&r.ex===name?r:null), add=sysAdd(type,M.pdc); let best=0,bx=null;
+  (sets||[]).forEach(x=>{ const g=num(x.g), h=num(x.h); if(g==null||!(h>0)||(x.t||[]).includes("ech")) return; const v=sysOf(g,h,num(x.r),add)-add; if(v>best){ best=v; bx=x; } });
+  if(!bx) return ""; return `<div class="row small" style="margin-top:6px"><span class="chip">e1RM ≈ ${fmtN(round(best,1))} kg${type==="Lesté"?" de lest":type==="Haltères"?" / haltère":""}</span><span class="chip">indicatif</span><span class="muted small">d'après ${fmtN(bx.g)} × ${fmtN(bx.h)}${bx.r!=null?" @ RPE "+fmtN(bx.r):""}</span></div>`; }
 function hxHTML(S,w){ const key=hxKey(w,S.s), L=(ST.carnet[key]||{}).list||[], open=ST.hxOpen===key;
   let h=L.map((x,li)=>`<div class="hx"><div class="row"><b class="grow">${esc(x.ex)}<span class="chip">hors programme</span></b><button class="ghost sm" data-act="hx-del" data-v="${key}|${li}" aria-label="Retirer l'exercice">✕</button></div>
     <div class="tbl"><table class="sets"><tr><th>Série</th><th class="n">Kg</th><th class="n">Reps</th><th class="n">RPE</th><th></th></tr>${(x.sets||[]).map((s,i)=>`<tr class="${s.d?"done":""}"><td><span class="sn">${i+1}</span></td>${["g","h","r"].map(f=>`<td><input class="si" data-hx="${key}|${li}|${i}|${f}" inputmode="decimal" value="${esc(s[f]??"")}"></td>`).join("")}<td><button class="chk ${s.d?"on":""}" data-act="hx-done" data-v="${key}|${li}|${i}" aria-label="Série faite">✓</button></td></tr>`).join("")}</table></div>
-    <div class="row" style="margin-top:6px"><button class="ghost sm grow" data-act="hx-sadd" data-v="${key}|${li}">＋ Ajouter une série</button><button class="ghost sm" data-act="hx-srm" data-v="${key}|${li}">− Retirer</button></div></div>`).join("");
+    ${e1Chip(x.ex,null,x.sets)}<div class="row" style="margin-top:6px"><button class="ghost sm grow" data-act="hx-sadd" data-v="${key}|${li}">＋ Ajouter une série</button><button class="ghost sm" data-act="hx-srm" data-v="${key}|${li}">− Retirer</button></div></div>`).join("");
   h+=open?`<div class="hx"><label class="f">Exercice fait en plus ou à la place<input id="hx-new" list="dl-ex" placeholder="Ex. Presse à cuisses" autocomplete="off" value="${esc(ST.hxNew||"")}"></label><div class="row" style="margin-top:6px"><button class="sm" data-act="hx-add" data-v="${key}">Ajouter</button><button class="ghost sm" data-act="hx-open" data-v="">Annuler</button></div></div>`
     :`<div class="row" style="margin-top:8px"><button class="ghost sm" data-act="hx-open" data-v="${key}">＋ Exercice hors programme</button></div>`;
   return h; }
@@ -4641,6 +4645,11 @@ const _cssEN=document.createElement("style"); _cssEN.textContent=`
 .macro-en{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.88rem;margin:4px 0 2px;color:var(--soft)}.macro-en b{color:var(--ink)}
 .en-t{width:100%;font-size:.9rem;margin-top:6px}.en-t td{padding:5px 2px}.en-x{font-size:.9rem;margin-left:4px;color:var(--red)!important;min-height:0!important;min-width:0!important}
 .en-acts{gap:6px;margin-top:4px}.en-acts .chip{font-size:.85rem;padding:6px 10px}`; document.head.appendChild(_cssEN);
+
+// ================= MODULE e1RM · exercice remplacé dans le carnet =================
+const _carnetExE1=carnetEx;
+carnetEx=function(r,w){ let h=_carnetExE1(r,w); const key=w+"_"+r.key, v=ST.carnet[key]||{}; if(!v.ex) return h; const chip=e1Chip(v.ex,null,v.sets); if(!chip) return h;
+  return h.replace(/(data-f="j"[^>]*><\/label>)/,"$1"+chip); };
 
 boot();
 
