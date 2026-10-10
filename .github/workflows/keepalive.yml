@@ -1,5 +1,6 @@
 # Empêche la mise en pause automatique du projet Supabase gratuit (après 7 jours sans activité).
-# Une petite lecture publique par jour suffit. N'utilise que la clé publique déjà présente dans index.html.
+# Une petite lecture par jour suffit (renvoie une liste vide sans connexion, mais touche bien la base).
+# N.B. : ne pas viser nutri_foods, sa règle RLS appelle is_client_of(), non autorisée pour le rôle anon.
 name: Keep-alive Supabase
 
 on:
@@ -17,7 +18,7 @@ jobs:
       - name: Interroger Supabase
         run: |
           code=$(curl -sS -o /dev/null -w "%{http_code}" \
-            "https://xtapitojdvicgcaygeqj.supabase.co/rest/v1/nutri_foods?select=id&limit=1" \
+            "https://xtapitojdvicgcaygeqj.supabase.co/rest/v1/nutri_dishes?select=id&limit=1" \
             -H "apikey: sb_publishable_c1EzH7XuWPwsCizxuFCUTg_G3Z82B_M")
           echo "Réponse Supabase : $code"
           test "$code" = "200"
