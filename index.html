@@ -1288,7 +1288,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   else if(a==="nu-day"){ const t=todayISO(); let d=+v===0?t:addDays(NU.day||t,+v); if(d<addDays(t,-90)) d=addDays(t,-90); if(d>addDays(t,7)) d=addDays(t,7); NU.day=d; NU.alt=null; NU.xOpen=false; }
   else if(a==="nu-dtype"){ const L=dayLog(); L.t=v; nuSaveLog(NU.day); }
   else if(a==="nu-ok"||a==="nu-skip"||a==="nu-swap"){ const t=ctxType(); const [mi,oi]=(a==="nu-swap"?v:v+".0").split(".").map(Number); const o=t.meals[mi].opts[oi]; const L=dayLog();
-    L.m[mi]=a==="nu-skip"?{s:"skip",mac:Z()}:{s:a==="nu-ok"?"ok":"alt",n:o.n,mac:optMac(o)}; NU.alt=null; nuSaveLog(NU.day); }
+    L.m[mi]=a==="nu-skip"?{s:"skip",mac:Z()}:{s:a==="nu-ok"?"ok":"alt",n:o.n,mac:optMac(o),it:(o.it||[]).map(i=>Object.assign({},i,{q:(+i.q||0)*(o.m||1)}))}; NU.alt=null; nuSaveLog(NU.day); }
   else if(a==="nu-altopen"){ NU.alt=NU.alt===+v?null:+v; }
   else if(a==="nu-mclear"){ const L=dayLog(); delete L.m[v]; nuSaveLog(NU.day); }
   else if(a==="nu-xopen"){ NU.xOpen=!NU.xOpen; NU.xq=""; }
@@ -4535,6 +4535,112 @@ const _cssTmr=document.createElement("style"); _cssTmr.textContent=`
 #app button.tm52.on{background:var(--red);color:#fff;border-color:var(--red)}
 #tmbar52{position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom,0px));z-index:55;display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--ink);color:var(--paper);border-radius:18px 18px 0 0}
 #tmbar52 .muted{color:rgba(255,255,255,.7)}#tmbar52 button{background:var(--red);color:#fff;min-height:44px}`; document.head.appendChild(_cssTmr);
+
+// ================= MODULE ÉNERGIE · repas détaillés, dépense estimée (pas, musculation, activités), bilan et projection =================
+// MET : Compendium of Physical Activities (Ainsworth et al., 2011). Dépense nette = (MET − 1) × poids × durée (le métabolisme de base est déjà compté).
+const ACT_EN=[["marche","🚶","Marche",3.5],["marche_r","🚶‍♂️","Marche rapide",4.3],["rando","🥾","Randonnée",6],["course8","🏃","Course lente (8 km/h)",8.3],["course10","🏃‍♂️","Course (10 km/h)",9.8],["course12","💨","Course rapide (12 km/h)",11.5],
+ ["velo","🚴","Vélo modéré",6.8],["velo_i","🚴‍♂️","Vélo soutenu",10],["vapp","🚲","Vélo d'appartement",6.8],["ellip","⚙️","Elliptique",5],["rameur","🚣","Rameur",7],["natation","🏊","Natation",6],["hiit","🔥","HIIT / circuit",8],["corde","🪢","Corde à sauter",11.8],
+ ["foot","⚽","Football",7],["basket","🏀","Basket",6.5],["tennis","🎾","Tennis",7.3],["padel","🏓","Padel / badminton",6],["boxe","🥊","Boxe / combat",7.8],["escalade","🧗","Escalade",7.5],["ski","⛷️","Ski",7],["danse","💃","Danse",5],["yoga","🧘","Yoga / mobilité",2.5],["menage","🧹","Ménage / jardinage",3.5]];
+const ACTM_EN=Object.fromEntries(ACT_EN.map(a=>[a[0],a]));
+const KCALKG_EN=7700; // ordre de grandeur classique : ≈ 7 700 kcal par kg de masse corporelle perdue ou prise
+const EN={pick:null,min:30,per:"w"};
+function profEN(){ const P=NU.plan||{}, f=P.prof||{}, ob=(X10&&X10.ob&&X10.ob.data)||{}; const num0=x=>{ const n=parseFloat(String(x??"").replace(",",".")); return isNaN(n)?null:n; };
+  const w=num0(f.w)||latestWeight()||num0(ob.weight)||75, h=num0(f.h)||num0(ob.height)||175, a=num0(f.age)||num0(ob.age)||35, sex=f.sex||(ob.sex==="Femme"?"F":"H");
+  const inv={1.2:3000,1.35:6500,1.5:10000,1.65:14000}; const steps=num0(f.steps)||num0(ob.steps_n)||inv[+f.neat]||(P.steps?+P.steps:6000);
+  return {w,h,a,sex,steps,met:num0(f.met)||5,bmr:10*w+6.25*h-5*a+(sex==="F"?-161:5)}; }
+function muscuMinEN(d){ let m=0; Object.entries(ST.carnet||{}).forEach(([k,t])=>{ if(!/^\d+_t_\d+$/.test(k)||!t||!t.end||t.missed||t.manual) return; if(isoD(new Date(t.end))!==d) return; m+=Math.min(180,tDur(t)/60000); }); return m; }
+function spendEN(d){ const p=profEN(), L=NU.logs[d]||{}, w=p.w; const base=p.bmr*1.2;
+  const stepsNoted=num(L.steps)!=null&&+L.steps>0, steps=stepsNoted?+L.steps:p.steps, stepK=steps*0.0005*w;
+  const mm=muscuMinEN(d), muscK=(p.met-1)*w*mm/60;
+  const acts=(L.act||[]).map(x=>{ const A=ACTM_EN[x.a]; return {x,A,k:A?Math.round((A[3]-1)*w*(+x.min||0)/60):0}; }); const actK=acts.reduce((s,o)=>s+o.k,0);
+  const P=planOn&&planOn(); let cardK0=0; Object.entries(L.c||{}).forEach(([i,lg])=>{ const c=P&&(P.cardio||[])[+i]; cardK0+=num(lg&&lg.k)!=null?+lg.k:(c?cardK(c,w):0); });
+  const total=Math.round(base+stepK+muscK+actK+cardK0);
+  return {p,base:Math.round(base),steps,stepsNoted,stepK:Math.round(stepK),mm:Math.round(mm),muscK:Math.round(muscK),acts,actK,cardK:Math.round(cardK0),total}; }
+function intakeEN(d){ const L=NU.logs[d]||{}; const P=planOn&&planOn(); const t=P&&P.types&&P.types.length?typeOf(L.t||P.week[DOW(d)]):null;
+  const got=consumed(L), nm=Object.keys(L.m||{}).length, nx=(L.x||[]).length; const any=nm||nx;
+  const complete=t&&t.meals&&t.meals.length?t.meals.every((m,i)=>!m.opts[0]||(L.m&&L.m[i])):!!any;
+  return {got,any:!!any,complete:!!(any&&complete)}; }
+// --- jour : aliments et macros des repas validés
+function mealItemsEN(st,mi,t){ if(st.it&&st.it.length) return st.it.map(i=>({n:i.n,q:qtyTxt(i)}));
+  const m=t&&t.meals[mi]; if(!m) return []; const o=(st.s==="ok"?m.opts[0]:m.opts.find(o=>o.n===st.n))||null; return o?(o.it||[]).map(i=>({n:i.n,q:qtyTxt(i,o.m||1)})):[]; }
+const _nJourEN=nJour;
+nJour=function(){ let h=_nJourEN(); const {d,L,t}=nDayCtx();
+  if(t&&t.meals) t.meals.forEach((m,mi)=>{ const st=L.m&&L.m[mi]; if(!st||st.s==="skip") return; const mc=st.mac||Z(), its=mealItemsEN(st,mi,t);
+    const lab=st.s==="ok"?"✅ Mangé comme prévu":"🔄 "+esc(st.n||""), old=`${lab} <span class="muted small">· ${r0(mc.k)} kcal</span></div>`;
+    const nw=`${lab}</div><div class="macro-en"><b>${r0(mc.k)} kcal</b><span>P ${r0(mc.p)} g</span><span>G ${r0(mc.g)} g</span><span>L ${r0(mc.l)} g</span></div>${its.length?`<ul class="its">${its.map(i=>`<li><span>${esc(i.n)}</span><span>${esc(i.q)}</span></li>`).join("")}</ul>`:""}`;
+    const i=h.indexOf(old); if(i>=0) h=h.slice(0,i)+nw+h.slice(i+old.length); });
+  const card=vSpendDayEN(d), at=h.indexOf(`<div class="card"><h3 style="margin-top:0">Comment tu te sens ?</h3>`);
+  return at>=0?h.slice(0,at)+card+h.slice(at):h+card; };
+function vSpendDayEN(d){ const S=spendEN(d), I=intakeEN(d), L=NU.logs[d]||{}, bal=Math.round(I.got.k-S.total);
+  let h=`<div class="card" id="en-day"><h3 style="margin-top:0">🔥 Dépense du jour (estimée)</h3>
+   <div class="row" style="align-items:baseline"><span class="kc">${fmtN(S.total)}</span><span class="muted">kcal dépensées</span></div>
+   <table class="en-t"><tr><td>Métabolisme + vie quotidienne</td><td class="n">${fmtN(S.base)}</td></tr>
+    <tr><td>Pas : ${fmtN(S.steps)}${S.stepsNoted?"":` <span class="muted small">(ta moyenne)</span>`}</td><td class="n">${fmtN(S.stepK)}</td></tr>
+    <tr><td>Musculation${S.mm?` : ${S.mm} min`:""}</td><td class="n">${S.muscK?fmtN(S.muscK):"—"}</td></tr>
+    ${S.cardK?`<tr><td>Cardio du plan</td><td class="n">${fmtN(S.cardK)}</td></tr>`:""}
+    ${S.acts.map((o,i)=>`<tr><td>${o.A?o.A[1]+" "+esc(o.A[2]):"Activité"} : ${o.x.min} min <button class="linkbtn en-x" data-act="en-del" data-v="${i}" aria-label="Retirer">✕</button></td><td class="n">${fmtN(o.k)}</td></tr>`).join("")}</table>
+   <label class="f" style="margin-top:8px">Pas aujourd'hui<input data-lf="steps" inputmode="numeric" value="${esc(L.steps??"")}" placeholder="${fmtN(S.p.steps)} (moyenne)"></label>`;
+  if(EN.pick){ const A=ACTM_EN[EN.pick]; h+=`<div class="edit"><b>${A[1]} ${esc(A[2])}</b><div class="row" style="margin-top:6px">${[15,20,30,45,60,90].map(m=>`<button class="chip ${EN.min===m?"on":""}" data-act="en-min" data-v="${m}">${m} min</button>`).join("")}</div>
+     <div class="row" style="margin-top:6px;flex-wrap:nowrap"><label class="f" style="flex:1 1 0">Autre durée (min)<input id="en-min" inputmode="numeric" value="${EN.min}"></label><button data-act="en-add">Ajouter · ≈ ${fmtN(Math.round((A[3]-1)*S.p.w*EN.min/60))} kcal</button></div>
+     <button class="ghost sm" data-act="en-pick" data-v="">Annuler</button></div>`; }
+  else if(!EN.open) h+=`<button class="ghost sm" style="margin-top:8px" data-act="en-open">＋ Ajouter une activité (cardio, sport…)</button>`;
+  else h+=`<div class="muted small" style="margin-top:8px">Choisis l'activité :</div><div class="row en-acts">${ACT_EN.map(a=>`<button class="chip" data-act="en-pick" data-v="${a[0]}">${a[1]} ${esc(a[2])}</button>`).join("")}</div>`;
+  if(I.any&&!I.complete) h+=`<div class="alert" style="margin-top:10px;background:var(--btn2)"><b>Bilan provisoire : ${fmtN(r0(I.got.k))} kcal mangées sur ${fmtN(S.total)} dépensées</b><br><span class="small">Le déficit ou surplus s'affiche quand tous les repas de la journée sont notés.</span></div>`;
+  else if(I.any) h+=`<div class="alert ${bal<0?"ok":"ko"}" style="margin-top:10px"><b>${bal<0?"Déficit":"Surplus"} du jour : ${bal>0?"+":"−"}${fmtN(Math.abs(bal))} kcal</b><br><span class="small">Apport ${fmtN(r0(I.got.k))} kcal − dépense ${fmtN(S.total)} kcal${I.complete?"":" · journée pas encore complète"}</span></div>`;
+  return h+`<p class="note">Estimation : métabolisme de base (Mifflin-St Jeor) × 1,2, pas, durée réelle des séances de musculation et activités (valeurs MET du Compendium of Physical Activities). C'est un ordre de grandeur, pas une mesure.</p></div>`; }
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act^="en-"]'); if(!b) return; const a=b.dataset.act, v=b.dataset.v; if(!/^en-(pick|min|add|del|per|open)$/.test(a)) return; e.stopImmediatePropagation();
+  const d=NU.day||todayISO(), log=()=>{ NU.logs[d]=Object.assign({},NU.logs[d]); NU.logs[d].act=(NU.logs[d].act||[]).slice(); return NU.logs[d]; };
+  if(a==="en-open") EN.open=true;
+  else if(a==="en-pick"){ EN.pick=v||null; EN.min=30; if(!v) EN.open=false; }
+  else if(a==="en-min") EN.min=+v;
+  else if(a==="en-add"){ const m=parseInt((document.getElementById("en-min")||{}).value)||EN.min; if(!(m>0&&m<=600)) return toast("Durée entre 1 et 600 min"); const L=log(); L.act.push({a:EN.pick,min:m}); EN.pick=null; EN.open=false; nuSaveLog(d); toast("Activité ajoutée"); }
+  else if(a==="en-del"){ const L=log(); L.act.splice(+v,1); nuSaveLog(d); }
+  else if(a==="en-per") EN.per=v;
+  render(); },true);
+document.addEventListener("input",e=>{ if(e.target&&e.target.id==="en-min"){ EN.min=parseInt(e.target.value)||EN.min; } });
+// --- récap semaine / mois, bilan, projection
+function periodsEN(per){ const out=[], today=todayISO(); if(per==="w"){ const mon=addDays(today,-DOW(today)); for(let k=0;k<8;k++){ const s=addDays(mon,-7*k); out.push({lab:k===0?"Cette semaine":k===1?"Semaine dernière":"Sem. du "+new Date(s+"T12:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short"}),short:new Date(s+"T12:00:00").toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"}),days:[...Array(7)].map((_,i)=>addDays(s,i)).filter(x=>x<=today)}); } }
+  else { const [Y,M]=today.split("-").map(Number); for(let k=0;k<4;k++){ const dt=new Date(Y,M-1-k,1), y=dt.getFullYear(), m=dt.getMonth(), n=new Date(y,m+1,0).getDate(), days=[]; for(let i=1;i<=n;i++){ const iso=y+"-"+String(m+1).padStart(2,"0")+"-"+String(i).padStart(2,"0"); if(iso<=today) days.push(iso); }
+    out.push({lab:dt.toLocaleDateString("fr-FR",{month:"long",year:"numeric"}),short:dt.toLocaleDateString("fr-FR",{month:"short"}),days}); } }
+  return out; }
+function weightAtEN(d,dir){ const ds=Object.keys(NU.mes||{}).filter(x=>NU.mes[x]&&num(NU.mes[x].poids)!=null).sort(); if(!ds.length) return null; const c=dir<0?ds.filter(x=>x<=d).pop():ds.find(x=>x>=d); return c?{d:c,w:+NU.mes[c].poids}:null; }
+function statsEN(days){ let n=0,k=0,p=0,g=0,l=0,sp=0,nc=0,bal=0; days.forEach(d=>{ const I=intakeEN(d); if(!I.any) return; n++; k+=I.got.k; p+=I.got.p; g+=I.got.g; l+=I.got.l; const S=spendEN(d); sp+=S.total; if(I.complete){ nc++; bal+=I.got.k-S.total; } });
+  const wd=days.length?Object.keys(NU.mes||{}).filter(x=>x>=days[0]&&x<=days[days.length-1]&&NU.mes[x]&&num(NU.mes[x].poids)!=null).sort():[]; const dw=wd.length>1?+NU.mes[wd[wd.length-1]].poids-(+NU.mes[wd[0]].poids):null;
+  return {n,nc,k:n?k/n:0,p:n?p/n:0,g:n?g/n:0,l:n?l/n:0,sp:n?sp/n:0,bal,kg:bal/KCALKG_EN,dw}; }
+function vEnergieEN(){ const per=EN.per, Ps=periodsEN(per), St=Ps.map(o=>Object.assign({},o,statsEN(o.days))), cur=St[0];
+  const sg=x=>(x>0?"+":x<0?"−":"±")+fmtN(Math.abs(round(x,x&&Math.abs(x)<10?2:0)));
+  let h=`<div class="seg45" style="margin-top:0">${[["w","Semaine"],["m","Mois"]].map(([v,l])=>`<button class="${per===v?"on":""}" data-act="en-per" data-v="${v}">${l}</button>`).join("")}</div>`;
+  h+=`<div class="card"><h3 style="margin-top:0">${esc(cur.lab)}</h3>${cur.n?`<div class="kpis"><div class="kpi"><b>${fmtN(r0(cur.k))}</b><span>kcal / jour (moy.)</span></div><div class="kpi"><b>${fmtN(r0(cur.sp))}</b><span>dépense / jour</span></div><div class="kpi"><b>${sg(r0(cur.bal))}</b><span>bilan cumulé (kcal)</span></div><div class="kpi"><b>${sg(cur.kg)} kg</b><span>équivalent estimé</span></div></div>
+    <div class="macro-en" style="margin-top:8px"><span>Moyenne / jour :</span><span>P ${r0(cur.p)} g</span><span>G ${r0(cur.g)} g</span><span>L ${r0(cur.l)} g</span></div>
+    <div class="muted small" style="margin-top:6px">${cur.n} jour${cur.n>1?"s":""} noté${cur.n>1?"s":""} · bilan calculé sur ${cur.nc} journée${cur.nc>1?"s":""} complète${cur.nc>1?"s":""}${cur.dw!=null?` · poids réel : <b>${sg(round(cur.dw,1))} kg</b>`:""}</div>`:`<p class="muted small">Pas encore de repas notés sur cette période.</p>`}</div>`;
+  const R=St.slice().reverse(), labs=R.map(o=>o.short);
+  if(St.some(o=>o.n)){ h+=chart("Calories : apport et dépense (moyenne / jour)",labs,[{n:"Apport",v:R.map(o=>o.n?Math.round(o.k):null),c:"var(--blue)"}],[{n:"Dépense",v:R.map(o=>o.n?Math.round(o.sp):null),c:"var(--red)"}]);
+    h+=`<div class="card"><h3 style="margin-top:0">${per==="w"?"Semaine par semaine":"Mois par mois"}</h3><div class="tbl"><table><tr><th>Période</th><th class="n">Apport</th><th class="n">P / G / L</th><th class="n">Bilan</th><th class="n">≈ kg</th><th class="n">Poids réel</th></tr>
+      ${St.filter(o=>o.n).map(o=>`<tr><td>${esc(o.lab)}</td><td class="n">${fmtN(r0(o.k))}</td><td class="n">${r0(o.p)} / ${r0(o.g)} / ${r0(o.l)}</td><td class="n">${o.nc?sg(r0(o.bal)):"—"}</td><td class="n">${o.nc?sg(round(o.kg,2)):"—"}</td><td class="n">${o.dw!=null?sg(round(o.dw,1)):"—"}</td></tr>`).join("")}</table></div><p class="note">Poids réel : écart entre la première et la dernière pesée de la période (il en faut au moins deux).</p>
+      <p class="note">Apport et macros : moyenne des jours notés. Bilan = apport − dépense estimée, uniquement sur les journées complètes (tous les repas notés). ≈ kg : bilan ÷ 7 700 kcal.</p></div>`; }
+  h+=vProjEN(); return h; }
+function vProjEN(){ const today=todayISO(); let n=0,bal=0; for(let i=0;i<21;i++){ const d=addDays(today,-i); const I=intakeEN(d); if(!I.complete) continue; n++; bal+=I.got.k-spendEN(d).total; }
+  const w=latestWeight(); if(n<3||!w) return `<div class="card"><h3 style="margin-top:0">📈 Projection</h3><p class="muted small">Note au moins 3 journées complètes et ton poids dans Mesures pour voir une projection.</p></div>`;
+  const avg=bal/n, kgDay=avg/KCALKG_EN, all=[[0,"Auj."],[30,"1 mois"],[91,"3 mois"],[182,"6 mois"],[365,"1 an"]].map(([dd,l])=>[l,w+kgDay*dd,dd]), perMonth=kgDay*30;
+  const pts=all.filter(p=>Math.abs(p[1]-w)<=0.15*w), cut=all.length-pts.length, fx=[0,30,91,182,365].slice(0,pts.length), xMax=fx[fx.length-1]||1;
+  const fmtP=i=>all[i]&&Math.abs(all[i][1]-w)<=0.15*w?fmtN(round(all[i][1],1))+" kg":"—";
+  const warn=Math.abs(avg)>1000?`<div class="alert ko small">${avg<0?"Déficit":"Surplus"} très important : vérifie que tous les repas et extras sont bien notés, et parles-en avec ton coach avant d'en tirer des conclusions.</div>`:"";
+  const W=320,H=130,pl=34,pr=10,pt=12,pb=22, ys=pts.map(p=>p[1]), y0=Math.min(...ys)-1, y1=Math.max(...ys)+1, X=i=>pl+(W-pl-pr)*fx[i]/xMax, Y=v=>pt+(H-pt-pb)*(1-(v-y0)/(y1-y0));
+  const svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Projection du poids"><polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="5 4" points="${pts.map((p,i)=>X(i).toFixed(1)+","+Y(p[1]).toFixed(1)).join(" ")}"/>${pts.map((p,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3.5" fill="var(--accent)"/><text x="${X(i).toFixed(1)}" y="${(Y(p[1])-7).toFixed(1)}" font-size="9" text-anchor="middle" fill="var(--ink)">${fmtN(round(p[1],1))}</text><text x="${X(i).toFixed(1)}" y="${H-6}" font-size="8" text-anchor="middle" fill="var(--soft)">${p[0]}</text>`).join("")}</svg>`;
+  return `<div class="card"><h3 style="margin-top:0">📈 Projection</h3><p>Sur tes ${n} dernières journées complètes, ${avg<0?"déficit":"surplus"} moyen de <b>${fmtN(Math.abs(Math.round(avg)))} kcal / jour</b>.</p>
+    ${warn}<p><b>À ce rythme : ${perMonth>0?"+":"−"}${fmtN(Math.abs(round(perMonth,1)))} kg par mois</b> · dans 3 mois ≈ ${fmtP(2)} · 6 mois ≈ ${fmtP(3)} · 1 an ≈ ${fmtP(4)}</p>${pts.length>1?svg:""}${cut?`<p class="muted small">« — » : écart de plus de 15 % du poids actuel, trop loin pour une projection qui ait du sens.</p>`:""}
+    <p class="note">Projection linéaire, à titre indicatif : en pratique la dépense s'adapte quand le poids change, l'eau et le glycogène font varier la balance, et les estimations d'apport et de dépense ont une marge d'erreur. Elle surestime souvent l'évolution sur plusieurs mois. Compare toujours avec ton poids réel.</p></div>`; }
+// onglet « Énergie » dans le Suivi (client et coach)
+const _vNutEN=vNutrition;
+vNutrition=function(){ const want=NU.nv==="energie"; if(want) NU.nv=coach()?"journal":"jour"; let h=_vNutEN(); if(!NU.loaded||!h.includes('data-act="nu-nv"')) { if(want) NU.nv="energie"; return h; }
+  const anchor=coach()?'data-v="journal">':'data-v="jour">'; const bi=h.indexOf(anchor); if(bi<0){ if(want) NU.nv="energie"; return h; } const be=h.indexOf("</button>",bi)+9;
+  h=h.slice(0,be)+`<button class="chip ${want?"on":""}" data-act="nu-nv" data-v="energie">⚡ Énergie</button>`+h.slice(be);
+  if(!want) return h; NU.nv="energie"; h=h.replace(/<button class="chip on" data-act="nu-nv" data-v="(jour|journal)">/,'<button class="chip" data-act="nu-nv" data-v="$1">');
+  const end=h.indexOf("</div>",h.indexOf('data-act="nu-nv"'))+6; return h.slice(0,end)+vEnergieEN(); };
+const _cssEN=document.createElement("style"); _cssEN.textContent=`
+.macro-en{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.88rem;margin:4px 0 2px;color:var(--soft)}.macro-en b{color:var(--ink)}
+.en-t{width:100%;font-size:.9rem;margin-top:6px}.en-t td{padding:5px 2px}.en-x{font-size:.9rem;margin-left:4px;color:var(--red)!important;min-height:0!important;min-width:0!important}
+.en-acts{gap:6px;margin-top:4px}.en-acts .chip{font-size:.85rem;padding:6px 10px}`; document.head.appendChild(_cssEN);
 
 boot();
 
