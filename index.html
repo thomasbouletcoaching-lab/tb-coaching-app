@@ -4679,7 +4679,8 @@ function eqQ62(i,f){ const fam=famOf62(i), ff=FAM62[f.cat||f.c]||null; let key=f
 function eqCands62(i,query){ if(!NU.foods) return []; const fam=famOf62(i), seen=new Set([nrm(i.n)]), out=[];
   (i.eq||[]).forEach(n=>{ const f=foodByName62(n); if(f&&!seen.has(nrm(f.name))){ seen.add(nrm(f.name)); out.push({f,coach:1}); } });
   const w=nrm(query||"").split(/\s+/).filter(Boolean);
-  let pool=NU.foods.filter(f=>!seen.has(nrm(f.name))&&(w.length?w.every(x=>nrm(f.name+" "+(f.cat||"")).includes(x)):fam&&FAM62[f.cat]===fam));
+  const key=fam?KEY62[fam]:"k", src=x=>key==="q"||key==="k"||(+x[key]||0)>=0.4*(+i[key]||0);
+  let pool=NU.foods.filter(f=>!seen.has(nrm(f.name))&&(w.length?w.every(x=>nrm(f.name+" "+(f.cat||"")).includes(x)):fam&&FAM62[f.cat]===fam&&src(f)));
   const base=mac([i]).k; pool=pool.map(f=>{ const {q}=eqQ62(i,f); return {f,d:Math.abs(mac([fSnap(f,q)]).k-base)}; }).sort((a,b)=>a.d-b.d).slice(0,w.length?12:8);
   return out.concat(pool.map(x=>({f:x.f}))); }
 function eqRow62(i,ii,c){ const {q,key}=eqQ62(i,c.f), s=fSnap(c.f,q), dk=Math.round(mac([s]).k-mac([i]).k);
@@ -4700,6 +4701,8 @@ adjHTML=function(mi,o0){ let h=_adjHTML62(mi,o0); const A=NU.adj;
   h=h.replace(`<label class="f" style="margin-top:8px">Ajouter un aliment`,fromOther62(mi)+`<label class="f" style="margin-top:8px">Ajouter un autre aliment`);
   const st=(nDayCtx().L.m||{})[mi];
   h=h.replace(`<button class="ghost sm" data-act="na-cancel">Annuler</button>`,`<button class="ghost sm" data-act="na-cancel">Annuler</button><button class="ghost sm" data-act="na-reset" data-v="${mi}">↺ Repartir du repas prévu</button>${st?`<button class="ghost sm" data-act="na-clear" data-v="${mi}">Effacer ce repas</button>`:""}`);
+  // quantité au clavier (grammes) dans tous les éditeurs, y compris « Modifier » d'un repas déjà noté
+  h=h.replace(/<button class="ghost sm" data-act="na-step" data-v="(\d+)\.-1"[^>]*>−<\/button><button class="ghost sm" data-act="na-step" data-v="\1\.1"[^>]*>＋<\/button>/g,(m,ii)=>{ const it=A&&A.it[+ii]; return it?qcHTML("a",+ii,it):m; });
   if(A&&A.from==="log") h=h.replace("<b>Ce que tu as vraiment mangé</b>",`<b>${coach()?"Ce que ton client a mangé":"Modifier ce que tu as noté"}</b><div class="muted small">Tu repars de ce qui est déjà noté.</div>`);
   return h; };
 const planItems62=o=>JSON.parse(JSON.stringify((o&&o.it)||[])).map(i=>{ i.q=(+i.q||0)*(o.m||1); return i; });
