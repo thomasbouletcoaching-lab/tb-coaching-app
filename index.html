@@ -1021,7 +1021,7 @@ function vNutrition(){
   if(NU.cid!==CUR||!NU.loaded){ nuEnsure(); return `<h2>Suivi</h2><div class="card">Chargement…</div>`; }
   if(NU.err) return `<h2>Suivi</h2><div class="alert x">Impossible de charger le suivi. Vérifie ta connexion puis appuie sur ↻.</div>`;
   const P=NU.plan, on=planOn();
-  const tabs=coach()?[["plan","Nutrition"],["cardio","Cardio"],["besoins","Besoins"],["journal","Journal"],["mesures","Mesures"],["courses","Courses"]]
+  const tabs=coach()?[["plan","Nutrition"],["cardio","Cardio"],["besoins","Besoins"],["journal","Journal"],["jour","Repas"],["mesures","Mesures"],["courses","Courses"]]
     :[["jour","Aujourd'hui"],["mesures","Mesures"],...(on&&(hasMeals(on)||(on.cardio||[]).length||on.steps)?[["plan","Mon plan"]]:[]),...(on&&hasMeals(on)?[["courses","Courses"]]:[])];
   if(NU.mode!=null&&NU.mode!==coach()) NU.nv=null; NU.mode=coach();
   if(!tabs.some(t=>t[0]===NU.nv)) NU.nv=tabs[0][0];
@@ -1029,7 +1029,7 @@ function vNutrition(){
   if(coach()&&!P&&["plan","cardio","besoins","courses"].includes(NU.nv)){ const others=CLIENTS.filter(c=>c.coach_id===UID&&c.id!==CUR);
     body=`<div class="card"><p>Pas encore de plan pour ce client. Le plan regroupe la nutrition, le cardio et les pas quotidiens.</p><div class="row"><button data-act="nu-create">Créer le plan</button></div>
       ${others.length?`<div class="row" style="margin-top:10px"><label class="f">Ou copier le plan d'un autre client<select id="nu-copyfrom"><option value=""></option>${others.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></label><button class="ghost" data-act="nu-copy">Copier</button></div>`:""}</div>`; }
-  else body=(coach()?{plan:nPlanCoach,cardio:nCardioCoach,besoins:nBesoins,journal:nJournal,mesures:nMesures,courses:nCourses}:{jour:nJour,mesures:nMesures,plan:nPlanClient,courses:nCourses})[NU.nv]();
+  else body=(coach()?{plan:nPlanCoach,cardio:nCardioCoach,besoins:nBesoins,journal:nJournal,jour:nJour,mesures:nMesures,courses:nCourses}:{jour:nJour,mesures:nMesures,plan:nPlanClient,courses:nCourses})[NU.nv]();
   return `<h2>Suivi</h2>`+subnav(tabs,NU.nv,"nu-nv")+body; }
 
 function nCardioCoach(){ const P=NU.plan, w=latestWeight(), C=P.cardio||(P.cardio=[]); let wk=0, ns=0;
@@ -4650,6 +4650,144 @@ const _cssEN=document.createElement("style"); _cssEN.textContent=`
 const _carnetExE1=carnetEx;
 carnetEx=function(r,w){ let h=_carnetExE1(r,w); const key=w+"_"+r.key, v=ST.carnet[key]||{}; if(!v.ex) return h; const chip=e1Chip(v.ex,null,v.sets); if(!chip) return h;
   return h.replace(/(data-f="j"[^>]*><\/label>)/,"$1"+chip); };
+
+
+// ================= MODULE SUIVI ALIMENTAIRE SANS FRICTION =================
+// 1. Remplacer un aliment par un équivalent (même famille, quantité recalculée sur le macro principal) ; équivalents choisis par le coach en premier.
+// 2. Modifier un repas déjà noté en repartant de ce qui a été noté (ou du repas prévu), sans rien perdre.
+// 3. Ajouter un aliment venant d'un autre repas de la journée.
+// 4. Photo du repas : le client photographie, le coach complète les quantités.
+const FAM62={"Féculents & céréales":"glu","Pains & viennoiseries":"glu","Fruits":"fru","Volailles & viandes":"pro","Poissons & fruits de mer":"pro","Œufs":"pro","Protéines végétales & légumineuses":"pro","Charcuterie":"pro","Nutrition sportive":"pro","Produits laitiers":"lai","Fromages":"lai","Matières grasses":"lip","Fruits secs & oléagineux":"lip","Légumes":"leg"};
+const KEY62={glu:"g",fru:"g",pro:"p",lai:"p",lip:"l",leg:"q"}, KLAB62={g:"glucides",p:"protéines",l:"lipides",q:"poids",k:"calories"};
+const NPH={target:null,busy:false,ph:{},phAt:0,phBusy:false};
+const foodByName62=n=>(NU.foods||[]).find(f=>nrm(f.name)===nrm(n));
+const catOf62=i=>i.c||((foodByName62(i.n)||{}).cat)||"";
+const famOf62=i=>FAM62[catOf62(i)]||null;
+function eqQ62(i,f){ const fam=famOf62(i), ff=FAM62[f.cat||f.c]||null; let key=fam&&ff===fam?KEY62[fam]:"k"; if(key==="q") return {q:+i.q||0,key};
+  const per=x=>key==="k"?(+x.k||+x.kcal||0):(+x[key]||0); if(!(per(f)>0.5)||!(per(i)>0.5)) key="k";
+  const pk=x=>key==="k"?(+x.k||+x.kcal||0):(+x[key]||0); let q=(+i.q||0)*pk(i)/Math.max(0.1,pk(f));
+  q=Math.max((+i.q||0)*0.25,Math.min((+i.q||0)*4,q)); q=q>=50?Math.round(q/5)*5:Math.max(1,Math.round(q)); return {q,key}; }
+function eqCands62(i,query){ if(!NU.foods) return []; const fam=famOf62(i), seen=new Set([nrm(i.n)]), out=[];
+  (i.eq||[]).forEach(n=>{ const f=foodByName62(n); if(f&&!seen.has(nrm(f.name))){ seen.add(nrm(f.name)); out.push({f,coach:1}); } });
+  const w=nrm(query||"").split(/\s+/).filter(Boolean);
+  let pool=NU.foods.filter(f=>!seen.has(nrm(f.name))&&(w.length?w.every(x=>nrm(f.name+" "+(f.cat||"")).includes(x)):fam&&FAM62[f.cat]===fam));
+  const base=mac([i]).k; pool=pool.map(f=>{ const {q}=eqQ62(i,f); return {f,d:Math.abs(mac([fSnap(f,q)]).k-base)}; }).sort((a,b)=>a.d-b.d).slice(0,w.length?12:8);
+  return out.concat(pool.map(x=>({f:x.f}))); }
+function eqRow62(i,ii,c){ const {q,key}=eqQ62(i,c.f), s=fSnap(c.f,q), dk=Math.round(mac([s]).k-mac([i]).k);
+  return `<button class="eq62" data-act="na-swp" data-v="${ii}|${c.f.id}"><span class="grow">${c.coach?"⭐ ":""}${esc(c.f.name)}</span><span class="muted small">${qtyTxt(s)} · ${dk>0?"+":dk<0?"−":"±"}${Math.abs(dk)} kcal</span></button>`; }
+RES.swq=()=>{ const A=NU.adj; if(!A||NPH.sw==null||!A.it[NPH.sw]) return ""; const i=A.it[NPH.sw]; const L=eqCands62(i,NU.swq);
+  return L.length?L.map(c=>eqRow62(i,NPH.sw,c)).join(""):`<p class="muted small">Aucun équivalent trouvé. Cherche un autre aliment.</p>`; };
+function swapPanel62(ii){ const i=NU.adj.it[ii], fam=famOf62(i), key=fam?KEY62[fam]:"k";
+  return `<div class="sw62"><div class="small"><b>Remplacer ${esc(i.n)}</b> <span class="muted">· quantité calculée pour garder les mêmes ${KLAB62[key]}</span></div>
+    <input data-nuq="swq" data-res="na-swres" value="${esc(NU.swq||"")}" placeholder="Chercher un autre aliment…" autocomplete="off" aria-label="Chercher un aliment équivalent">
+    <div id="na-swres">${RES.swq()}</div><button class="ghost sm" data-act="na-sw" data-v="${ii}">Fermer</button></div>`; }
+function fromOther62(mi){ const {t}=nDayCtx(); if(!t) return ""; const seen=new Set((NU.adj.it||[]).map(i=>nrm(i.n))), chips=[];
+  t.meals.forEach((m,mj)=>{ if(mj===mi) return; m.opts.forEach((o,oi)=>(o.it||[]).forEach((i,ii)=>{ const k=nrm(i.n); if(seen.has(k)) return; seen.add(k); chips.push(`<button class="chip" data-act="na-from" data-v="${mj}.${oi}.${ii}">＋ ${esc(i.n)} <span class="muted">${qtyTxt(i,o.m||1)}</span></button>`); })); });
+  return chips.length?`<details class="from62"><summary>Ajouter un aliment d'un autre repas</summary><div class="row" style="gap:6px;margin-top:6px">${chips.join("")}</div></details>`:""; }
+const _adjHTML62=adjHTML;
+adjHTML=function(mi,o0){ let h=_adjHTML62(mi,o0); const A=NU.adj;
+  // bouton ⇄ par aliment + panneau de remplacement
+  h=h.replace(/<button class="ghost sm" data-act="na-rm" data-v="(\d+)" aria-label="Retirer">✕<\/button><\/div>/g,(m,ii)=>`<button class="ghost sm" data-act="na-sw" data-v="${ii}" aria-label="Remplacer par un équivalent" title="Remplacer par un équivalent">⇄</button>${m}${NPH.sw===+ii?swapPanel62(+ii):""}`);
+  h=h.replace(`<label class="f" style="margin-top:8px">Ajouter un aliment`,fromOther62(mi)+`<label class="f" style="margin-top:8px">Ajouter un autre aliment`);
+  const st=(nDayCtx().L.m||{})[mi];
+  h=h.replace(`<button class="ghost sm" data-act="na-cancel">Annuler</button>`,`<button class="ghost sm" data-act="na-cancel">Annuler</button><button class="ghost sm" data-act="na-reset" data-v="${mi}">↺ Repartir du repas prévu</button>${st?`<button class="ghost sm" data-act="na-clear" data-v="${mi}">Effacer ce repas</button>`:""}`);
+  if(A&&A.from==="log") h=h.replace("<b>Ce que tu as vraiment mangé</b>",`<b>${coach()?"Ce que ton client a mangé":"Modifier ce que tu as noté"}</b><div class="muted small">Tu repars de ce qui est déjà noté.</div>`);
+  return h; };
+const planItems62=o=>JSON.parse(JSON.stringify((o&&o.it)||[])).map(i=>{ i.q=(+i.q||0)*(o.m||1); return i; });
+// clics : remplacement, autre repas, repartir du prévu, effacer, modifier sans perdre
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||"";
+  if(a==="nu-mclear"){ e.stopImmediatePropagation(); const {L,t}=nDayCtx(), mi=+v, st=(L.m||{})[mi], o=t&&t.meals[mi]&&t.meals[mi].opts[0];
+    const it=st&&st.it&&st.it.length?JSON.parse(JSON.stringify(st.it)):planItems62(o);
+    NU.adj={mi,d:NU.day,it,n:st&&st.s==="alt"&&!st.pend?st.n:undefined,from:"log"}; NU.aq=""; NU.alt=null; NU.eq=null; NPH.sw=null; return render(); }
+  if(!/^na-(sw|swp|from|reset|clear|open|cancel|save)$/.test(a)) return;
+  if(a==="na-open"||a==="na-cancel"||a==="na-save"){ NPH.sw=null; NU.swq=""; return; } // gérés par le module d'origine
+  e.stopImmediatePropagation(); const A=NU.adj, {t}=nDayCtx();
+  if(a==="na-sw"){ NPH.sw=NPH.sw===+v?null:+v; NU.swq=""; if(!NU.foods) nuFoods().then(scheduleRender); }
+  else if(a==="na-swp"&&A){ const [ii,id]=v.split("|"), i=A.it[+ii], f=NU.fmap&&NU.fmap[id]; if(i&&f){ const {q}=eqQ62(i,f); const n=fSnap(f,q); if(i.eq) n.eq=i.eq; n.was=i.was||i.n; A.it[+ii]=n; NPH.sw=null; NU.swq=""; toast(`${i.n} → ${f.name}`); } }
+  else if(a==="na-from"&&A){ const [mj,oi,ii]=v.split(".").map(Number), o=t&&t.meals[mj]&&t.meals[mj].opts[oi], i=o&&o.it[ii]; if(i){ const c=JSON.parse(JSON.stringify(i)); c.q=Math.round((+i.q||0)*(o.m||1)); A.it.push(c); toast("Ajouté : "+i.n); } }
+  else if(a==="na-reset"&&A){ const o=t&&t.meals[+v]&&t.meals[+v].opts[0]; A.it=planItems62(o); A.n=undefined; NPH.sw=null; }
+  else if(a==="na-clear"){ const d=NU.day; NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); NU.logs[d].m=Object.assign({},NU.logs[d].m); delete NU.logs[d].m[v]; NU.adj=null; nuSaveLog(d); toast("Repas effacé"); }
+  render(); },true);
+
+// ---------- photos des repas
+const phOf62=(L,mi)=>(L.ph||[]).filter(p=>p.mi===mi);
+function phStrip62(L,mi){ const P=phOf62(L,mi); if(!P.length) return ""; const need=P.map(p=>p.p).filter(p=>!MSG.urls[p]&&!MSG.gone[p]); if(need.length) signUrls(need).then(scheduleRender);
+  return `<div class="nph62">${P.map(p=>{ const u=MSG.urls[p.p]; return `<span class="nphi">${u?`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="Photo du repas"></a>`:`<span class="nphx">${MSG.gone[p.p]?"Photo indisponible":"…"}</span>`}<button class="nphd" data-act="nph-del" data-v="${mi}|${esc(p.p)}" aria-label="Retirer la photo">✕</button></span>`; }).join("")}</div>`; }
+const _nJour62=nJour;
+nJour=function(){ let h=_nJour62(); const {L,t,P}=nDayCtx(); if(!t||!hasMeals(P)) return h;
+  let pos=0; t.meals.forEach((m,mi)=>{ const st=L.m&&L.m[mi], o0=m.opts[0]; const ci=h.indexOf('<div class="card meal',pos); if(ci<0) return;
+    const he=h.indexOf("</h3>",ci); if(he<0) return; pos=he;
+    let add=`<button class="ghost sm nphb" data-act="nph-take" data-v="${mi}" aria-label="Photographier ce repas">📷</button>`;
+    h=h.slice(0,he+5)+add+h.slice(he+5);
+    // bandeau photo + état « à compléter »
+    const after=h.indexOf("</div>",he+5+add.length)+6; let strip=phStrip62(L,mi);
+    if(st&&st.pend) strip=`<div class="pend62">📷 ${coach()?"Photo envoyée : appuie sur Modifier pour mettre les vraies quantités.":"Photo envoyée. Compté comme prévu en attendant que ton coach complète les quantités."}</div>`+strip;
+    if(strip){ h=h.slice(0,after)+strip+h.slice(after); }
+    if(st&&NU.adj&&NU.adj.from==="log"&&NU.adj.mi===mi&&NU.adj.d===NU.day&&o0){ const mark=`data-act="nu-mclear" data-v="${mi}">Modifier</button></div>`; const k=h.indexOf(mark,ci); if(k>=0){ const e2=k+mark.length; h=h.slice(0,e2)+adjHTML(mi,o0)+h.slice(e2); } }
+    pos=h.indexOf('<div class="card meal',he)>=0?h.indexOf('<div class="card meal',he):h.length; });
+  if(!coach()) h=h.replace(/(repas sur \d+ notés[^<]*<\/div>)/,`$1<div class="muted small" style="margin-top:4px">Pas le temps de détailler ? Prends ton repas en photo (📷), ton coach s'occupe du reste.</div>`);
+  return h; };
+function phInput62(){ let f=document.getElementById("nph-file"); if(!f){ f=document.createElement("input"); f.type="file"; f.accept="image/*"; f.setAttribute("capture","environment"); f.id="nph-file"; f.hidden=true; document.body.appendChild(f);
+    f.addEventListener("change",async()=>{ const file=f.files&&f.files[0]; f.value=""; const T=NPH.target; if(!file||!T||!CUR) return; NPH.busy=true; toast("Envoi de la photo…");
+      try{ const blob=await compressImg(file,1280,0.75); const path=`${CUR}/repas/${T.d}_${T.mi}_${Date.now()}.jpg`;
+        const {error}=await SB.storage.from("media").upload(path,blob,{contentType:"image/jpeg",upsert:false}); if(error) throw error;
+        const d=T.d; NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); const L=NU.logs[d]; L.m=Object.assign({},L.m); L.ph=(L.ph||[]).concat([{mi:T.mi,p:path,at:new Date().toISOString(),by:coach()?"coach":"client"}]);
+        const {t}=nDayCtx(), o=t&&t.meals[T.mi]&&t.meals[T.mi].opts[0];
+        if(!L.m[T.mi]&&o&&!coach()) L.m[T.mi]={s:"alt",n:"📷 "+(o.n||"Repas")+" (en photo)",mac:optMac(o),it:planItems62(o),pend:1};
+        await nuSaveLog(d); toast(coach()?"Photo ajoutée":"Photo envoyée à ton coach ✅"); }
+      catch(err){ toast("Photo non envoyée : "+(err.message||err)); }
+      NPH.busy=false; render(); }); }
+  return f; }
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||"";
+  if(a==="nph-take"){ if(NPH.busy) return; NPH.target={d:NU.day,mi:+v}; phInput62().click(); }
+  else if(a==="nph-del"){ const [mi,p]=v.split("|"), d=NU.day, L=NU.logs[d]; if(!L) return; if(!b.dataset.sure){ b.dataset.sure=1; b.textContent="Sûr ?"; return; }
+    L.ph=(L.ph||[]).filter(x=>!(x.mi===+mi&&x.p===p)); nuSaveLog(d); SB.storage.from("media").remove([p]).catch(()=>{}); render(); }
+  else if(a==="nph-day"){ NU.day=v; NU.nv="jour"; NU.adj=null; render(); window.scrollTo(0,0); }
+  else if(a==="nph-go"){ const [id,d]=v.split("|"); await openClient(id); await nuEnsure(); ST.view="nutrition"; NU.nv="jour"; NU.day=d||todayISO(); OV.at=0; TD.at=0; render(); window.scrollTo(0,0); } });
+// coach : repas en photo à compléter (journal) et dans « À traiter aujourd'hui »
+const pendList62=()=>{ const out=[]; Object.keys(NU.logs||{}).sort().reverse().forEach(d=>{ const L=NU.logs[d]||{}; Object.entries(L.m||{}).forEach(([mi,st])=>{ if(st&&st.pend) out.push({d,mi:+mi,st,L}); }); }); return out; };
+const _nJournal62=nJournal;
+nJournal=function(){ let h=_nJournal62(); const P=pendList62().filter(x=>x.d>=addDays(todayISO(),-14)); if(!P.length) return h;
+  const {P:plan}=nDayCtx();
+  return `<div class="card"><h3 style="margin-top:0">📷 Repas en photo à compléter <span class="chip on">${P.length}</span></h3>${P.map(x=>{ const t=plan&&plan.types?typeOf(x.L.t||plan.week[DOW(x.d)]):null, m=t&&t.meals[x.mi];
+     return `<div class="row" style="padding:8px 0;border-top:1px solid var(--line);align-items:flex-start"><div class="grow"><b>${DLONG[DOW(x.d)]} ${x.d.slice(8)}/${x.d.slice(5,7)}</b> · ${esc(m?m.name:"Repas")}${phStrip62(x.L,x.mi)}</div><button class="sm" data-act="nph-day" data-v="${x.d}">Compléter</button></div>`; }).join("")}</div>`+h; };
+async function loadPh62(){ if(NPH.phBusy||Date.now()-NPH.phAt<60000) return; NPH.phBusy=true;
+  try{ const ids=CLIENTS.filter(c=>c.coach_id===UID&&!c.archived).map(c=>c.id); const P={};
+    if(ids.length){ const {data}=await SB.from("nutri_log").select("client_id,d,data").in("client_id",ids).gte("d",addDays(todayISO(),-7)).range(0,4999);
+      (data||[]).forEach(r=>{ const n=Object.values((r.data&&r.data.m)||{}).filter(x=>x&&x.pend).length; if(n){ const o=P[r.client_id]||(P[r.client_id]={n:0,d:r.d}); o.n+=n; if(r.d>o.d) o.d=r.d; } }); }
+    NPH.ph=P; NPH.phAt=Date.now(); }catch(e){ console.error(e); }
+  NPH.phBusy=false; render(); }
+const _loadTodo62=loadTodo; loadTodo=async function(){ loadPh62(); return _loadTodo62.apply(this,arguments); };
+const _todoItems62=todoItems;
+todoItems=function(){ const out=_todoItems62(); CLIENTS.filter(c=>c.coach_id===UID&&!c.archived).forEach(c=>{ const o=NPH.ph[c.id], k=c.id+":ph"; if(!o||tdDone(k)) return;
+    out.push({p:2,k,id:c.id,h:`<span style="font-size:1.2rem">📷</span><div class="grow"><b>${esc(c.name)}</b><div class="small">${o.n} repas en photo à compléter</div></div><button class="sm" data-act="nph-go" data-v="${c.id}|${o.d}">Compléter</button><button class="ghost sm" data-act="td-ok" data-v="${k}" aria-label="Marquer comme traité">✓</button>`}); });
+  return out.sort((a,b)=>a.p-b.p); };
+
+// ---------- coach : équivalents conseillés par aliment, dans le plan
+RES.eqq=()=>{ const K=NPH.pe; if(!K) return ""; const i=peItem62(K); if(!i) return ""; const w=nrm(NU.eqq||"").split(/\s+/).filter(Boolean), fam=famOf62(i), have=new Set((i.eq||[]).map(nrm).concat([nrm(i.n)]));
+  const L=(NU.foods||[]).filter(f=>!have.has(nrm(f.name))&&(w.length?w.every(x=>nrm(f.name+" "+(f.cat||"")).includes(x)):fam&&FAM62[f.cat]===fam)).slice(0,10);
+  return L.map(f=>{ const {q}=eqQ62(i,f); return `<button data-act="npe-add" data-v="${f.id}">${esc(f.name)} <span class="muted small">≈ ${qtyTxt(fSnap(f,q))}</span></button>`; }).join("")||`<p class="muted small">Aucun aliment trouvé.</p>`; };
+function peItem62(K){ const [ti,mi,oi,ii]=K.split(".").map(Number); const o=NU.plan&&NU.plan.types[ti]&&NU.plan.types[ti].meals[mi]&&NU.plan.types[ti].meals[mi].opts[oi]; return o&&o.it[ii]; }
+const _nPlanCoach62=nPlanCoach;
+nPlanCoach=function(){ let h=_nPlanCoach62();
+  h=h.replace(/(<button class="ghost sm" data-act="nu-idel" data-v="(\d+\.\d+\.\d+)\.(\d+)" aria-label="Retirer">✕<\/button><\/div>)/g,(m,all,key,ii)=>{ const K=key+"."+ii, i=peItem62(K); if(!i) return m; const open=NPH.pe===K, eq=i.eq||[];
+    const line=`<div class="peq62 small"><span class="muted">Équivalents :</span> ${eq.length?eq.map((n,k)=>`<span class="chip">${esc(n)}${open?` <button class="nphd" style="position:static" data-act="npe-del" data-v="${K}|${k}" aria-label="Retirer ${esc(n)}">✕</button>`:""}</span>`).join(" "):`<span class="muted">${famOf62(i)?"toute la famille "+esc(catOf62(i)):"aucun"}</span>`} <button class="ghost sm" data-act="npe-open" data-v="${K}">${open?"OK":"⇄ Choisir"}</button></div>`;
+    const panel=open?`<div class="sw62"><input data-nuq="eqq" data-res="npe-res" value="${esc(NU.eqq||"")}" placeholder="Ajouter un aliment équivalent…" autocomplete="off" aria-label="Chercher un équivalent"><div id="npe-res" class="res">${RES.eqq()}</div><p class="note" style="margin:4px 0 0">Ces aliments apparaissent en premier quand le client remplace celui-ci. La quantité est recalculée pour garder les mêmes ${KLAB62[famOf62(i)?KEY62[famOf62(i)]:"k"]}.</p></div>`:"";
+    return m.replace(/<\/div>$/,"")+`</div>`+line+panel; });
+  return h; };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||""; if(!/^npe-/.test(a)) return; e.stopImmediatePropagation();
+  if(a==="npe-open"){ NPH.pe=NPH.pe===v?null:v; NU.eqq=""; if(!NU.foods) nuFoods().then(scheduleRender); }
+  else if(a==="npe-add"){ const i=peItem62(NPH.pe), f=NU.fmap&&NU.fmap[v]; if(i&&f){ i.eq=(i.eq||[]).concat([f.name]); NU.eqq=""; nuSave(); } }
+  else if(a==="npe-del"){ const [K,k]=v.split("|"), i=peItem62(K); if(i&&i.eq){ i.eq.splice(+k,1); if(!i.eq.length) delete i.eq; nuSave(); } }
+  render(); },true);
+const _css62=document.createElement("style"); _css62.textContent=`
+.sw62{margin:4px 0 8px;padding:8px;border-radius:10px;background:var(--chalk);display:flex;flex-direction:column;gap:6px}.sw62 input{width:100%;box-sizing:border-box}
+.eq62{display:flex;gap:8px;align-items:center;width:100%;text-align:left;background:var(--paper);color:var(--ink);border:1px solid var(--line);min-height:44px}
+.from62{margin-top:8px}.from62 summary{cursor:pointer;font-weight:600;font-size:.9rem;min-height:32px;display:flex;align-items:center}.from62 .chip{font-size:.85rem}
+.nphb{margin-left:6px;min-width:44px}.nph62{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.nphi{position:relative;display:inline-block}.nphi img{width:72px;height:72px;object-fit:cover;border-radius:10px;display:block}
+.nphx{display:grid;place-items:center;width:72px;height:72px;border-radius:10px;background:var(--chalk);font-size:.7rem;color:var(--soft);text-align:center}
+.nphd{position:absolute;top:-6px;right:-6px;min-width:0!important;min-height:0!important;width:22px;height:22px;padding:0;border-radius:50%;font-size:.7rem;background:var(--ink);color:var(--paper)}
+.pend62{margin-top:6px;padding:6px 8px;border-radius:8px;background:var(--chalk);font-size:.85rem}.peq62{margin:2px 0 6px;display:flex;gap:4px;flex-wrap:wrap;align-items:center}`; document.head.appendChild(_css62);
 
 boot();
 
