@@ -4795,6 +4795,28 @@ const _css62=document.createElement("style"); _css62.textContent=`
 .phask62{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;padding:6px 8px;border-radius:8px;background:var(--chalk);font-size:.9rem}
 .pend62{margin-top:6px;padding:6px 8px;border-radius:8px;background:var(--chalk);font-size:.85rem}.peq62{margin:2px 0 6px;display:flex;gap:4px;flex-wrap:wrap;align-items:center}`; document.head.appendChild(_css62);
 
+
+// ================= MODULE HEURE DES REPAS =================
+// Chaque repas noté garde son heure (h, "HH:MM") : remplie avec l'heure actuelle quand on note le jour même, modifiable ensuite.
+const MT63={keep:{}};
+const nowHM63=()=>{ const n=new Date(); return String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0"); };
+const _nuSaveLog63=nuSaveLog;
+nuSaveLog=function(d){ const L=NU.logs[d];
+  if(L&&L.m) Object.entries(L.m).forEach(([mi,st])=>{ if(!st||st.s==="skip") return; const k=d+"_"+mi;
+    const kp=MT63.keep[k]; if(st.h) MT63.keep[k]=st.h; else if(kp==="-") return; else if(kp) st.h=kp; else if(d===todayISO()) st.h=MT63.keep[k]=nowHM63(); });
+  return _nuSaveLog63.apply(this,arguments); };
+const _nJour63=nJour;
+nJour=function(){ let h=_nJour63(); const {d,L,t,P}=nDayCtx(); if(!t||!hasMeals(P)) return h;
+  Object.entries(L.m||{}).forEach(([mi,st])=>{ if(st&&st.h) MT63.keep[d+"_"+mi]=st.h; });
+  t.meals.forEach((m,mi)=>{ const st=L.m&&L.m[mi]; if(!st||st.s==="skip") return;
+    const mark=`data-act="nu-mclear" data-v="${mi}">Modifier</button></div>`, k=h.indexOf(mark); if(k<0) return; const e=k+mark.length;
+    h=h.slice(0,e)+`<label class="mt63">🕐 Mangé à <input type="time" data-mt="${mi}" value="${esc(st.h||"")}" aria-label="Heure du repas ${esc(m.name)}"></label>`+h.slice(e); });
+  return h; };
+document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||el.dataset.mt===undefined) return; const d=NU.day, L=NU.logs[d], mi=el.dataset.mt; if(!L||!L.m||!L.m[mi]) return;
+  L.m=Object.assign({},L.m); L.m[mi]=Object.assign({},L.m[mi]); if(el.value){ L.m[mi].h=el.value; MT63.keep[d+"_"+mi]=el.value; } else { delete L.m[mi].h; MT63.keep[d+"_"+mi]="-"; }
+  nuSaveLog(d); toast(el.value?"Heure enregistrée : "+el.value:"Heure retirée"); });
+const _cssMT63=document.createElement("style"); _cssMT63.textContent=`.mt63{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:.9rem;color:var(--soft)}.mt63 input{width:auto!important;flex:0 0 auto;min-height:36px;padding:4px 8px}`; document.head.appendChild(_cssMT63);
+
 boot();
 
 </script>
