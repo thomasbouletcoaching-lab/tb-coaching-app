@@ -534,28 +534,29 @@ async function importFile(file){ try{ const obj=JSON.parse(await file.text()); c
 function vSetup(){ return `<h2>Configuration</h2><div class="card"><p>L'application n'est pas encore reliée à sa base de données.</p><p class="muted">Remplace __SUPABASE_URL__ et __SUPABASE_ANON_KEY__ en haut du fichier par l'URL et la clé « anon public » de ton projet Supabase.</p></div>`; }
 function vAuth(){ const m=AUTH.mode; const t={login:"Connexion",signup:"Créer mon compte",forgot:"Mot de passe oublié",newpass:"Nouveau mot de passe"}[m];
   return `<h2>${t}</h2><div class="card">
-   ${m!=="newpass"?`<label class="f">E-mail<input id="au-email" type="email" autocomplete="email" inputmode="email" value="${esc(AUTH.email||"")}"></label>`:""}
+   ${m!=="newpass"?`<label class="f">${m==="login"?"E-mail ou téléphone":"E-mail"}<input id="au-email" type="${m==="login"?"text":"email"}" autocomplete="username" autocapitalize="off" value="${esc(AUTH.email||"")}"></label>`:""}
    ${m!=="forgot"?`<label class="f" style="margin-top:8px">Mot de passe<input id="au-pass" type="password" autocomplete="${m==="login"?"current-password":"new-password"}"></label>`:""}
    <div class="row" style="margin-top:12px"><button data-act="au-go" ${AUTH.busy?"disabled":""}>${m==="login"?"Se connecter":m==="signup"?"Créer le compte":m==="forgot"?"Recevoir le lien":"Enregistrer"}</button></div>
    ${AUTH.msg?`<div class="alert ${AUTH.ok?"ok":"ko"}" style="margin-top:10px">${esc(AUTH.msg)}</div>`:""}
    <div class="row" style="margin-top:12px">${m!=="login"?`<button class="ghost" data-act="au-mode" data-v="login">J'ai déjà un compte</button>`:""}${m!=="signup"?`<button class="ghost" data-act="au-mode" data-v="signup">Créer un compte</button>`:""}${m==="login"?`<button class="ghost" data-act="au-mode" data-v="forgot">Mot de passe oublié</button>`:""}</div>${m==="login"?`<div class="row" style="margin-top:8px"><button class="ghost" data-act="au-magic">Recevoir un lien de connexion (sans mot de passe)</button></div>`:""}</div>
    <p class="note">Client : crée ton compte avec l'e-mail que ton coach a enregistré, ton programme apparaîtra automatiquement.</p>`; }
-async function authGo(){ const email=(document.getElementById("au-email")||{}).value, pass=(document.getElementById("au-pass")||{}).value; AUTH.email=email||AUTH.email; AUTH.busy=true; AUTH.msg=""; render();
+async function authGo(){ const email=telEmail((document.getElementById("au-email")||{}).value), pass=(document.getElementById("au-pass")||{}).value; AUTH.email=email||AUTH.email; AUTH.busy=true; AUTH.msg=""; render();
   const redirect=location.origin+location.pathname; let r;
   try{ if(AUTH.mode==="login") r=await SB.auth.signInWithPassword({email,password:pass});
     else if(AUTH.mode==="signup"){ r=await SB.auth.signUp({email,password:pass,options:{emailRedirectTo:redirect}}); if(!r.error){AUTH.ok=true;AUTH.msg=r.data.session?"Compte créé.":"Compte créé : confirme ton adresse avec le lien reçu par e-mail, puis connecte-toi.";} }
+    else if(AUTH.mode==="forgot"&&isTel(email)){ r={error:null}; AUTH.ok=false; AUTH.msg="Compte créé avec ton numéro : demande à ton coach un nouveau mot de passe provisoire."; }
     else if(AUTH.mode==="forgot"){ r=await SB.auth.resetPasswordForEmail(email,{redirectTo:redirect}); if(!r.error){AUTH.ok=true;AUTH.msg="Lien envoyé : ouvre l'e-mail pour choisir un nouveau mot de passe.";} }
     else { r=await SB.auth.updateUser({password:pass}); if(!r.error){AUTH.ok=true;AUTH.msg="Mot de passe enregistré.";AUTH.mode="login";} }
-    if(r.error){AUTH.ok=false;AUTH.msg=({"Invalid login credentials":"E-mail ou mot de passe incorrect.","Email not confirmed":"Confirme d'abord ton adresse avec le lien reçu par e-mail."})[r.error.message]||r.error.message;}
+    if(r.error){AUTH.ok=false;AUTH.msg=({"Invalid login credentials":"Identifiant ou mot de passe incorrect.","Email not confirmed":"Confirme d'abord ton adresse avec le lien reçu par e-mail."})[r.error.message]||r.error.message;}
   }catch(e){ AUTH.ok=false; AUTH.msg="Connexion impossible : "+e.message; }
   AUTH.busy=false; render(); }
 function vClients(){ const list=CLIENTS.filter(c=>c.coach_id===UID&&(SHOWARCH||!c.archived));
   let h=`<h2>Mes clients (${CLIENTS.filter(c=>c.coach_id===UID&&!c.archived).length})</h2>
-   <div class="card"><div class="row"><label class="f">Nom du client<input id="nc-name" placeholder="Prénom Nom"></label><label class="f">Son e-mail (accès à l'app)<input id="nc-email" type="email" inputmode="email" placeholder="client@email.com"></label></div>
+   <div class="card"><div class="row"><label class="f">Nom du client<input id="nc-name" placeholder="Prénom Nom"></label><label class="f">Son e-mail (accès à l'app)<input id="nc-email" type="email" inputmode="email" placeholder="client@email.com"></label><label class="f">ou son téléphone<input id="nc-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="06 12 34 56 78"></label></div><p class="note" style="margin:6px 0 0">Remplis l'un ou l'autre. Avec un téléphone, le client se connecte avec son numéro et le mot de passe provisoire que tu lui envoies (🔑 Créer l'accès).</p>
    <div class="row" style="margin-top:10px"><button data-act="nc-add">Nouveau client</button><label class="chip" style="cursor:pointer;padding:8px 12px">Importer une sauvegarde<input type="file" accept=".json,application/json" id="imp" style="display:none"></label></div></div>`;
   if(!list.length) h+=`<div class="card muted">Aucun client pour l'instant : crée ton premier dossier ci-dessus.</div>`;
-  list.forEach(c=>{ h+=`<div class="card ses"><div class="row"><div class="grow"><h3 style="margin:0">${esc(c.name)}${c.archived?" (archivé)":""}</h3><div class="muted small">${esc(c.email||"pas d'e-mail : le client ne peut pas se connecter")} · modifié le ${new Date(c.updated_at).toLocaleDateString("fr-FR")}</div></div><button data-act="open" data-v="${c.id}">Ouvrir</button></div>
-    <details style="margin-top:6px"><summary>Gérer</summary><div class="row" style="margin-top:6px"><label class="f">E-mail du client<input data-cemail="${c.id}" type="email" inputmode="email" value="${esc(c.email||"")}"></label></div>
+  list.forEach(c=>{ h+=`<div class="card ses"><div class="row"><div class="grow"><h3 style="margin:0">${esc(c.name)}${c.archived?" (archivé)":""}</h3><div class="muted small">${esc(c.email?idLabel(c.email):"ni e-mail ni téléphone : le client ne peut pas se connecter")} · modifié le ${new Date(c.updated_at).toLocaleDateString("fr-FR")}</div></div><button data-act="open" data-v="${c.id}">Ouvrir</button></div>
+    <details style="margin-top:6px"><summary>Gérer</summary><div class="row" style="margin-top:6px">${isTel(c.email)?`<label class="f">Téléphone du client<input data-cphone="${c.id}" type="tel" inputmode="tel" value="${esc(telOf(c.email))}"></label>`:`<label class="f">E-mail du client<input data-cemail="${c.id}" type="email" inputmode="email" value="${esc(c.email||"")}"></label>`}</div>
     <div class="row" style="margin-top:8px"><button class="ghost" data-act="dup" data-v="${c.id}">Dupliquer le programme</button><button class="ghost" data-act="exp" data-v="${c.id}">Exporter</button><button class="ghost" data-act="arch" data-v="${c.id}">${c.archived?"Désarchiver":"Archiver"}</button><button class="ghost" data-act="del" data-v="${c.id}">Supprimer</button></div></details></div>`; });
   h+=`<div class="row"><button class="ghost" data-act="sharch">${SHOWARCH?"Masquer les archivés":"Voir les archivés"}</button><button class="ghost" data-act="logout">Se déconnecter</button></div>
    <p class="note">Connecté : ${esc(EMAIL)}. Pour donner l'accès à un client : enregistre son e-mail, envoie-lui le lien de l'app ; il crée son compte avec cet e-mail et voit uniquement son programme.</p>`;
@@ -566,7 +567,8 @@ document.addEventListener("change",async e=>{ const el=e.target;
 document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act,v=b.dataset.v;
   if(a==="au-go") authGo(); else if(a==="au-mode"){AUTH.mode=v;AUTH.msg="";render();}
   else if(a==="open") openClient(v);
-  else if(a==="nc-add"){ const name=document.getElementById("nc-name").value.trim()||"Nouveau client", email=document.getElementById("nc-email").value.trim()||null; const id=await createClient({name,email}); if(id) openClient(id); }
+  else if(a==="nc-add"){ const name=document.getElementById("nc-name").value.trim()||"Nouveau client", ph=((document.getElementById("nc-phone")||{}).value||"").trim(); let email=document.getElementById("nc-email").value.trim()||null;
+    if(!email&&ph){ email=telEmail(ph); if(!isTel(email)) return toast("Numéro de téléphone incomplet"); } const id=await createClient({name,email}); if(id) openClient(id); }
   else if(a==="dup"){ const {data,error}=await SB.from("clients").select("name,program").eq("id",v).single(); if(error){toast(error.message);return;} const p=JSON.parse(JSON.stringify(data.program||{})); const id=await createClient({name:(data.name||"Client")+" (copie)",program:p}); if(id) toast("Programme dupliqué"); }
   else if(a==="exp") exportClient(v);
   else if(a==="arch"){ const c=CLIENTS.find(x=>x.id===v); const {error}=await SB.from("clients").update({archived:!c.archived}).eq("id",v); if(error) toast(error.message); await loadClients(false); }
@@ -826,7 +828,7 @@ function render(){
   if(!tabs.some(t=>t[0]===ST.view)&&!(ST.isCoach&&["athlete","outils","controles","reglages"].includes(ST.view))) ST.view=tabs[0][0];
   $("#tabs").innerHTML=tabs.map(([v,l])=>`<button class="${ST.view===v||(v==="plus"&&["athlete","outils","controles","reglages"].includes(ST.view))?"on":""}" data-act="view" data-v="${v}">${l}</button>`).join("");
   const V={nutrition:vNutrition,tableau:vTableau,programme:vProgramme,semaine:vSemaine,carnet:vCarnet,plus:vPlus,athlete:vAthlete,outils:vOutils,controles:vControles,reglages:vReglages,
-    objectifs:()=>`<h2>Objectifs</h2>`+weekStrip(ST.week)+`<div class="card">${objRecap()}</div>`,compte:()=>`<h2>Compte</h2><div class="card"><p>Connecté : ${esc(EMAIL)}</p><div class="row"><button class="ghost" data-act="theme">Clair / sombre</button><button data-act="logout">Se déconnecter</button></div><div class="row" style="margin-top:10px"><label class="f">Choisir / changer mon mot de passe<input id="cp-pass" type="password" autocomplete="new-password" placeholder="8 caractères minimum"></label><button class="ghost" data-act="cp-pass">Enregistrer</button></div></div>`};
+    objectifs:()=>`<h2>Objectifs</h2>`+weekStrip(ST.week)+`<div class="card">${objRecap()}</div>`,compte:()=>`<h2>Compte</h2><div class="card"><p>Connecté : ${esc(idLabel(EMAIL))}</p><div class="row"><button class="ghost" data-act="theme">Clair / sombre</button><button data-act="logout">Se déconnecter</button></div><div class="row" style="margin-top:10px"><label class="f">Choisir / changer mon mot de passe<input id="cp-pass" type="password" autocomplete="new-password" placeholder="8 caractères minimum"></label><button class="ghost" data-act="cp-pass">Enregistrer</button></div></div>`};
   try{ app.innerHTML=(V[ST.view]||vSemaine)(); }catch(e){ console.error(e); app.innerHTML=`<div class="alert x">Erreur d'affichage : ${esc(e.message)}</div>`; }
   const dl=$("#dl-ex"); if(dl.childElementCount!==Object.keys(BASEMAP).length) dl.innerHTML=Object.keys(BASEMAP).sort().map(n=>`<option value="${esc(n)}">`).join("");
   const ds=$("#dl-split"); if(!ds.childElementCount) ds.innerHTML=["AUTO",...LIB.SPLITS.map(s=>s[0])].map(n=>`<option value="${esc(n)}">`).join("");
@@ -1520,7 +1522,7 @@ openClient=async function(id,silent){ if(!navigator.onLine){ let c=null; try{ c=
 if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 
 // ---------- Invitation par e-mail
-async function inviteClient(email,name){ if(!email) return toast("Ajoute d'abord l'e-mail du client");
+async function inviteClient(email,name){ if(!email) return toast("Ajoute d'abord l'e-mail du client"); if(isTel(email)) return toast("Client avec téléphone : utilise 🔑 Créer l'accès");
   const {error}=await SB.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:APP_URL}});
   if(error){ toast("E-mail non envoyé ("+error.message+"). Utilise « Partager le lien »."); return false; }
   toast(`Invitation envoyée à ${email}`); return true; }
@@ -1553,7 +1555,12 @@ function vOverview(){ if(!OV.data){ loadOverview(); return `<div class="card mut
     const tags=[]; if(o.checkin) tags.push(`<span class="chip on">Bilan S${o.checkin} à lire</span>`); if(o.pain) tags.push(`<span class="chip" style="border-color:var(--red);color:var(--red)">Douleur signalée</span>`);
     return {lvl,h:`<div class="row ovr" style="padding:8px 0;border-top:1px solid var(--line)"><span class="dot l${lvl}"></span><div class="grow"><b>${esc(c.name)}</b><div class="muted small">${days==null?"aucune saisie depuis 14 jours":days===0?"actif aujourd'hui":`dernière saisie il y a ${days} j`} · ${o.ex7||0} exos notés · ${o.nut7||0} j de nutrition (7 j)</div>${tags.length?`<div class="row" style="margin-top:4px">${tags.join("")}</div>`:""}</div><button class="ghost sm" data-act="open" data-v="${c.id}">Ouvrir</button></div>`}; }).sort((a,b)=>b.lvl-a.lvl);
   const nAl=rows.filter(r=>r.lvl===2).length;
-  return `<div class="card"><h3 style="margin-top:0">Aperçu de la semaine</h3><div class="muted small">${nAl?`${nAl} client${nAl>1?"s":""} à relancer`:"Tout le monde est actif"} · trié par priorité</div>${rows.map(r=>r.h).join("")}</div>`; }
+  const T=L.map(c=>{ const o=OV.data[c.id]||{}; const days=o.last?Math.floor((Date.now()-new Date(o.last))/864e5):null; const lvl=days==null?2:days>=4?2:days>=2?1:0;
+      const al=[o.checkin?`<span class="chip on">Bilan S${o.checkin}</span>`:"",o.pain?`<span class="chip" style="border-color:var(--red);color:var(--red)">Douleur</span>`:""].join(" ");
+      return {lvl,days,h:`<tr><td><button class="ovn" data-act="open" data-v="${c.id}"><span class="dot l${lvl}"></span>${esc(c.name)}</button></td><td class="n">${days==null?"—":days===0?"auj.":days+" j"}</td><td class="n">${o.ex7||0}</td><td class="n">${o.nut7||0}/7</td><td>${al}</td></tr>`}; }).sort((a,b)=>b.lvl-a.lvl||(b.days??99)-(a.days??99));
+  return `<details class="card fold" id="ov-card"${FOLD.ov?" open":""}><summary><b>Aperçu de la semaine</b> <span class="muted small">${nAl?`${nAl} à relancer`:"tout le monde est actif"}</span></summary>
+    <div class="tbl ovt"><table><tr><th>Client</th><th class="n">Saisie</th><th class="n">Exos 7 j</th><th class="n">Nutri</th><th></th></tr>${T.map(r=>r.h).join("")}</table></div>
+    <p class="note">Trié par priorité : rouge = rien depuis 4 jours ou plus, orange = 2 à 3 jours. Appuie sur un nom pour ouvrir le dossier.</p></details>`; }
 
 // ---------- 11. Modèles de programme (stockés dans tes réglages business)
 async function tplList(){ if(!BZ.loaded) await bzEnsure(); return (BZ.set.templates||[]); }
@@ -1790,7 +1797,7 @@ document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||el.da
 
 
 document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act;
-  if(a==="au-magic"){ const email=((document.getElementById("au-email")||{}).value||"").trim(); if(!email){ AUTH.ok=false; AUTH.msg="Entre ton e-mail d'abord."; render(); return; } AUTH.email=email; AUTH.busy=true; render();
+  if(a==="au-magic"){ const email=((document.getElementById("au-email")||{}).value||"").trim(); if(!email){ AUTH.ok=false; AUTH.msg="Entre ton e-mail d'abord."; render(); return; } if(isTel(telEmail(email))){ AUTH.ok=false; AUTH.msg="Avec un numéro de téléphone, connecte-toi avec le mot de passe donné par ton coach."; render(); return; } AUTH.email=email; AUTH.busy=true; render();
     const {error}=await SB.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:APP_URL}}); AUTH.busy=false;
     if(error){ AUTH.ok=false; AUTH.msg=/rate limit/i.test(error.message)?"Trop d'e-mails envoyés pour le moment : réessaie dans une heure, ou connecte-toi avec ton mot de passe.":/not found|Signups not allowed/i.test(error.message)?"Aucun compte avec cet e-mail : demande à ton coach de t'inviter.":error.message; }
     else { AUTH.ok=true; AUTH.msg="Lien envoyé : ouvre l'e-mail sur ce téléphone pour te connecter (pense aux spams)."; } render(); }
@@ -2809,16 +2816,16 @@ nutriProposal=function(d,T){ const N=_nutriProposal18(d,T); const s=parseInt(Str
 // Le coach crée (ou réinitialise) l'accès d'un client : mot de passe provisoire à transmettre par SMS / WhatsApp.
 // Ne dépend d'aucun envoi d'e-mail et fonctionne directement dans l'app installée sur l'écran d'accueil.
 const ACC={};
-const accText=(name,email,pw)=>`Salut ${name?name.split(" ")[0]:""} ! Ton espace TB my Coach est prêt.\n\n1. Ouvre ce lien dans Safari : ${APP_URL}\n2. Ajoute-le à ton écran d'accueil (bouton Partager, puis « Sur l'écran d'accueil »), puis ouvre l'app depuis l'icône.\n3. Connecte-toi avec :\nE-mail : ${email}\nMot de passe provisoire : ${pw}\n\nTu pourras ensuite choisir ton propre mot de passe dans l'app.`;
-async function accessFor(id){ const c=CLIENTS.find(x=>x.id===id); if(!c) return; if(!c.email) return toast("Ajoute d'abord l'e-mail du client (Gérer)");
-  if(!confirm(`Créer un mot de passe provisoire pour ${c.name} (${c.email}) ?\n\nS'il avait déjà un mot de passe, il sera remplacé.`)) return false;
+const accText=(name,email,pw)=>`Salut ${name?name.split(" ")[0]:""} ! Ton espace TB my Coach est prêt.\n\n1. Ouvre ce lien dans Safari : ${APP_URL}\n2. Ajoute-le à ton écran d'accueil (bouton Partager, puis « Sur l'écran d'accueil »), puis ouvre l'app depuis l'icône.\n3. Connecte-toi avec :\n${isTel(email)?"Téléphone : "+telOf(email):"E-mail : "+email}\nMot de passe provisoire : ${pw}\n\nTu pourras ensuite choisir ton propre mot de passe dans l'app.`;
+async function accessFor(id){ const c=CLIENTS.find(x=>x.id===id); if(!c) return; if(!c.email) return toast("Ajoute d'abord l'e-mail ou le téléphone du client (Gérer)");
+  if(!confirm(`Créer un mot de passe provisoire pour ${c.name} (${idLabel(c.email)}) ?\n\nS'il avait déjà un mot de passe, il sera remplacé.`)) return false;
   toast("Création de l'accès…"); const {data,error}=await SB.functions.invoke("coach-access",{body:{client_id:id}});
   if(error||!data||!data.ok){ let m=error?error.message:"erreur inconnue"; try{ const j=error&&error.context&&await error.context.json(); if(j&&j.error) m=j.error; }catch(e){} toast(m); return false; }
   ACC.open={name:c.name,email:data.email,pw:data.password}; accRender(); return true; }
 function accRender(){ let el=document.getElementById("accmodal"); if(!ACC.open){ if(el) el.remove(); return; } if(!el){ el=document.createElement("div"); el.id="accmodal"; document.body.appendChild(el); }
   const A=ACC.open; el.innerHTML=`<div class="card" style="max-width:420px;margin:0 auto"><h3 style="margin-top:0">🔑 Accès de ${esc(A.name)}</h3>
    <p class="small">Envoie ces informations à ton client par SMS ou WhatsApp. Aucun e-mail n'est nécessaire.</p>
-   <div class="alert ok"><div class="small">E-mail</div><b>${esc(A.email)}</b><div class="small" style="margin-top:6px">Mot de passe provisoire</div><b style="font-size:1.4rem;letter-spacing:.05em;font-family:ui-monospace,monospace">${esc(A.pw)}</b></div>
+   <div class="alert ok"><div class="small">${isTel(A.email)?"Téléphone (identifiant)":"E-mail"}</div><b>${esc(idLabel(A.email))}</b><div class="small" style="margin-top:6px">Mot de passe provisoire</div><b style="font-size:1.4rem;letter-spacing:.05em;font-family:ui-monospace,monospace">${esc(A.pw)}</b></div>
    <div class="row" style="margin-top:8px"><button data-act="acc-share">Envoyer le message</button><button class="ghost" data-act="acc-copy">Copier</button><button class="ghost" data-act="acc-close">Fermer</button></div>
    <p class="note">Ce mot de passe n'est affiché qu'ici : en cas d'oubli, recrée simplement un accès. À sa connexion, l'app propose au client de choisir son propre mot de passe.</p></div>`; }
 const _css19=document.createElement("style"); _css19.textContent=`#accmodal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:flex;align-items:center;padding:16px}#accmodal .card{width:100%}`; document.head.appendChild(_css19);
@@ -2875,8 +2882,10 @@ function todoItems(){ const today=todayISO(), out=[];
   return out.sort((a,b)=>a.p-b.p); }
 function vTodo(){ if(!TD.data) loadTodo(); else setTimeout(loadTodo,0); if(!OV.data) return "";
   const L=todoItems();
-  return `<div class="card"><h3 style="margin-top:0">À traiter aujourd'hui${L.length?` <span class="chip on">${L.length}</span>`:""}</h3>${L.length?L.map(x=>`<div class="row" style="padding:8px 0;border-top:1px solid var(--line);flex-wrap:nowrap;gap:8px">${x.h}</div>`).join(""):`<p class="muted small">Rien en attente 👌 Tous tes clients sont à jour.</p>`}
-   ${L.length?`<p class="note">✓ = traité, masqué jusqu'à demain. Les messages et bilans disparaissent d'eux-mêmes une fois lus ou commentés.</p>`:""}</div>`; }
+  const MAX=4, shown=FOLD.tdAll?L:L.slice(0,MAX);
+  return `<details class="card fold" id="td-card"${FOLD.td?" open":""}><summary><b>À traiter aujourd'hui</b>${L.length?` <span class="chip on">${L.length}</span>`:` <span class="muted small">rien en attente</span>`}</summary>${L.length?shown.map(x=>`<div class="row tdr" style="padding:6px 0;border-top:1px solid var(--line);flex-wrap:nowrap;gap:8px">${x.h}</div>`).join(""):`<p class="muted small">Rien en attente 👌 Tous tes clients sont à jour.</p>`}
+   ${L.length>MAX?`<div class="row" style="margin-top:4px"><button class="ghost sm" data-act="fold-tdall">${FOLD.tdAll?"Voir moins":`Voir les ${L.length-MAX} autres`}</button></div>`:""}
+   ${L.length?`<p class="note">✓ = traité, masqué jusqu'à demain.</p>`:""}</details>`; }
 const _vClients20=vClients;
 vClients=function(){ return vTodo()+_vClients20(); };
 document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="td-go"&&a!=="td-ok") return;
@@ -3528,7 +3537,7 @@ document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="clm-
 const MP={data:null,at:0,busy:false,inv:null};
 async function mpLoad(force){ if(MP.busy||(!force&&MP.data&&Date.now()-MP.at<300000)) return; MP.busy=true; const {data,error}=await SB.rpc("my_payments"); MP.busy=false; MP.at=Date.now();
   if(error){ console.error(error); MP.data=MP.data||{pays:[],paylink:null}; return; } MP.data=data||{pays:[],paylink:null}; scheduleRender(); }
-const mpLink=()=>{ const L=((MP.data&&MP.data.paylink)||"").trim(); if(!/^https:\/\//.test(L)) return null; return /stripe\.com/.test(L)&&EMAIL?L+(L.includes("?")?"&":"?")+"prefilled_email="+encodeURIComponent(EMAIL):L; };
+const mpLink=()=>{ const L=((MP.data&&MP.data.paylink)||"").trim(); if(!/^https:\/\//.test(L)) return null; return /stripe\.com/.test(L)&&EMAIL&&!isTel(EMAIL)?L+(L.includes("?")?"&":"?")+"prefilled_email="+encodeURIComponent(EMAIL):L; };
 const mpDays=d=>Math.round((new Date(d+"T12:00:00")-new Date(todayISO()+"T12:00:00"))/864e5);
 function vMyPays(){ const P=(MP.data&&MP.data.pays)||[]; if(!P.length) return ""; const link=mpLink(), tot=P.reduce((a,p)=>a+(+p.amount||0),0), paid=P.filter(p=>p.status==="payé").reduce((a,p)=>a+(+p.amount||0),0);
   const row=p=>{ const dl=mpDays(p.due), late=p.status==="attendu"&&dl<0, soon=p.status==="attendu"&&dl>=0&&dl<=7;
@@ -3612,7 +3621,7 @@ const _vToday38=vToday;
 vToday=function(){ return _vToday38(); }; // l'heure de la séance est affichée directement dans la carte (module 45)
 
 // ================= MODULE AGENDA COACH (séances de tous les clients, jour par jour) =================
-const AG={rows:null,at:0,busy:false,w0:null,open:true};
+const AG={rows:null,at:0,busy:false,w0:null,open:(()=>{ try{ return localStorage.getItem("tb-ag-open")==="1"; }catch(e){ return false; } })()};
 const mondayOf=iso=>{ const d=new Date(iso+"T12:00:00"); return addDays(iso,-((d.getDay()+6)%7)); };
 async function agLoad(force){ if(AG.busy||(!force&&AG.rows&&Date.now()-AG.at<120000)) return; AG.busy=true;
   try{ const ids=CLIENTS.filter(c=>c.coach_id===UID&&!c.archived).map(c=>c.id); const rows=[];
@@ -3643,7 +3652,7 @@ function vAgenda(){ if(!AG.rows){ agLoad(); return `<div class="card muted small
 const _css39=document.createElement("style"); _css39.textContent=`.agd{padding:8px 0;border-top:1px solid var(--line)}.agd.now{background:color-mix(in srgb,var(--ink) 4%,transparent);border-radius:8px;padding:8px 6px}.agh{margin-bottom:4px}
 .agi{display:flex;gap:8px;align-items:center;width:100%;box-sizing:border-box;max-width:100%;overflow:hidden;text-align:left;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:4px 0;font-weight:400;font-family:inherit;font-size:.92rem}.agt{font-weight:700;min-width:44px;flex:0 0 auto;font-variant-numeric:tabular-nums}.agi .grow{min-width:0;overflow-wrap:anywhere}.agi .cs{white-space:nowrap;font-size:.8rem;flex:0 0 auto}`; document.head.appendChild(_css39);
 const _vTodo39=vTodo; vTodo=function(){ return vAgenda()+_vTodo39(); };
-document.addEventListener("toggle",e=>{ if(e.target&&e.target.id==="ag-card") AG.open=e.target.open; },true);
+document.addEventListener("toggle",e=>{ if(e.target&&e.target.id==="ag-card"){ AG.open=e.target.open; try{ localStorage.setItem("tb-ag-open",AG.open?"1":"0"); }catch(x){} } },true);
 document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="ag-w"&&a!=="ag-go") return;
   if(a==="ag-w"){ AG.w0=+b.dataset.v===0?mondayOf(todayISO()):addDays(AG.w0,+b.dataset.v); return render(); }
   const [id,w,iso]=b.dataset.v.split("|"); await openClient(id); AG.at=0; ST.view="semaine"; ST.week=+w; CAL.open=true; CAL.sel=iso; CAL.m=iso.slice(0,7); window.scrollTo(0,0); render();
@@ -4816,6 +4825,25 @@ document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||el.da
   L.m=Object.assign({},L.m); L.m[mi]=Object.assign({},L.m[mi]); if(el.value){ L.m[mi].h=el.value; MT63.keep[d+"_"+mi]=el.value; } else { delete L.m[mi].h; MT63.keep[d+"_"+mi]="-"; }
   nuSaveLog(d); toast(el.value?"Heure enregistrée : "+el.value:"Heure retirée"); });
 const _cssMT63=document.createElement("style"); _cssMT63.textContent=`.mt63{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:.9rem;color:var(--soft)}.mt63 input{width:auto!important;flex:0 0 auto;min-height:36px;padding:4px 8px}`; document.head.appendChild(_cssMT63);
+
+
+// ================= MODULE CLIENTS : sections pliables, identifiant téléphone =================
+const FOLD={td:true,tdAll:false,ov:false}; try{ const f=JSON.parse(localStorage.getItem("tb-fold")||"{}"); if(typeof f.td==="boolean") FOLD.td=f.td; if(typeof f.ov==="boolean") FOLD.ov=f.ov; }catch(e){}
+const foldSave=()=>{ try{ localStorage.setItem("tb-fold",JSON.stringify({td:FOLD.td,ov:FOLD.ov})); }catch(e){} };
+document.addEventListener("toggle",e=>{ const id=e.target&&e.target.id; if(id==="td-card"){ FOLD.td=e.target.open; foldSave(); } else if(id==="ov-card"){ FOLD.ov=e.target.open; foldSave(); } },true);
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(b&&b.dataset.act==="fold-tdall"){ FOLD.tdAll=!FOLD.tdAll; render(); } });
+// Un client sans e-mail reçoit un identifiant technique tel-<numéro>@tel.tbcoach.invalid (domaine réservé, aucun e-mail n'y est jamais envoyé).
+const TEL_DOM="@tel.tbcoach.invalid";
+function telDigits(s){ let d=String(s||"").replace(/[^\d+]/g,""); if(d.startsWith("+")) d=d.slice(1); else if(d.startsWith("00")) d=d.slice(2); else if(/^0\d{9}$/.test(d)) d="33"+d.slice(1); return d.replace(/\D/g,""); }
+function telEmail(s){ s=String(s||"").trim(); if(!s||s.includes("@")) return s; const d=telDigits(s); return d.length>=8&&d.length<=15?"tel-"+d+TEL_DOM:s; }
+function isTel(e){ return typeof e==="string"&&e.endsWith(TEL_DOM); }
+function telOf(e){ const d=String(e||"").replace(/^tel-/,"").replace(TEL_DOM,""); if(/^33\d{9}$/.test(d)) return ("0"+d.slice(2)).replace(/(\d{2})(?=\d)/g,"$1 "); return "+"+d; }
+function idLabel(e){ return isTel(e)?telOf(e):(e||""); }
+document.addEventListener("change",async e=>{ const el=e.target; if(!el.dataset||!el.dataset.cphone) return; const id=el.dataset.cphone, em=telEmail(el.value);
+  if(!isTel(em)) return toast("Numéro de téléphone incomplet");
+  const {error}=await SB.from("clients").update({email:em}).eq("id",id); if(error) return toast(error.message); const c=CLIENTS.find(x=>x.id===id); if(c) c.email=em; toast("Téléphone enregistré. Recrée l'accès (🔑) pour qu'il se connecte avec ce numéro."); });
+const _cssFold=document.createElement("style"); _cssFold.textContent=`details.fold>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;min-height:32px}details.fold>summary::-webkit-details-marker{display:none}details.fold[open]>summary{margin-bottom:6px}
+.tdr .small{font-size:.82rem}.ovt table{width:100%;font-size:.88rem}.ovt td,.ovt th{padding:5px 4px;white-space:nowrap}.ovt th{font-size:.78rem;color:var(--soft)}.ovt td{vertical-align:middle}.ovn{background:transparent;color:var(--ink);border:0;padding:0;min-height:36px;font-weight:600;display:inline-flex;align-items:center;gap:6px;text-align:left}`; document.head.appendChild(_cssFold);
 
 boot();
 
