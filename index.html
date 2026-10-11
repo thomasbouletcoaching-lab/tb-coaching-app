@@ -4712,7 +4712,7 @@ document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); i
 // ---------- photos des repas
 const phOf62=(L,mi)=>(L.ph||[]).filter(p=>p.mi===mi);
 function phStrip62(L,mi){ const P=phOf62(L,mi); if(!P.length) return ""; const need=P.map(p=>p.p).filter(p=>!MSG.urls[p]&&!MSG.gone[p]); if(need.length) signUrls(need).then(scheduleRender);
-  return `<div class="nph62">${P.map(p=>{ const u=MSG.urls[p.p]; return `<span class="nphi">${u?`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="Photo du repas"></a>`:`<span class="nphx">${MSG.gone[p.p]?"Photo indisponible":"…"}</span>`}<button class="nphd" data-act="nph-del" data-v="${mi}|${esc(p.p)}" aria-label="Retirer la photo">✕</button></span>`; }).join("")}</div>`; }
+  return `<div class="nph62">${P.map(p=>{ const u=MSG.urls[p.p]; return `<span class="nphi">${u?`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="Photo du repas"></a>`:`<span class="nphx">${MSG.gone[p.p]?"Photo indisponible":"…"}</span>`}<button class="nphd" data-act="nph-del" data-v="${mi}|${esc(p.p)}" aria-label="Supprimer la photo">✕</button></span>`; }).join("")}</div>${NPH.ask&&P.some(p=>p.p===NPH.ask)?`<div class="phask62"><span class="grow">Supprimer cette photo ?</span><button class="sm" data-act="nph-delok" data-v="${mi}|${esc(NPH.ask)}">Supprimer</button><button class="ghost sm" data-act="nph-delno">Annuler</button></div>`:""}`; }
 const _nJour62=nJour;
 nJour=function(){ let h=_nJour62(); const {L,t,P}=nDayCtx(); if(!t||!hasMeals(P)) return h;
   let pos=0; t.meals.forEach((m,mi)=>{ const st=L.m&&L.m[mi], o0=m.opts[0]; const ci=h.indexOf('<div class="card meal',pos); if(ci<0) return;
@@ -4740,8 +4740,13 @@ function phInput62(){ let f=document.getElementById("nph-file"); if(!f){ f=docum
   return f; }
 document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||"";
   if(a==="nph-take"){ if(NPH.busy) return; NPH.target={d:NU.day,mi:+v}; phInput62().click(); }
-  else if(a==="nph-del"){ const [mi,p]=v.split("|"), d=NU.day, L=NU.logs[d]; if(!L) return; if(!b.dataset.sure){ b.dataset.sure=1; b.textContent="Sûr ?"; return; }
-    L.ph=(L.ph||[]).filter(x=>!(x.mi===+mi&&x.p===p)); nuSaveLog(d); SB.storage.from("media").remove([p]).catch(()=>{}); render(); }
+  else if(a==="nph-del"){ e.preventDefault(); NPH.ask=v.split("|")[1]; render(); }
+  else if(a==="nph-delno"){ NPH.ask=null; render(); }
+  else if(a==="nph-delok"){ const [mi,p]=v.split("|"), d=NU.day, L=NU.logs[d]; NPH.ask=null; if(!L) return render();
+    L.ph=(L.ph||[]).filter(x=>!(x.mi===+mi&&x.p===p)); L.m=Object.assign({},L.m);
+    // repas créé uniquement par la photo (pas encore complété) : on le retire aussi
+    if(L.m[mi]&&L.m[mi].pend&&!L.ph.some(x=>x.mi===+mi)) delete L.m[mi];
+    nuSaveLog(d); SB.storage.from("media").remove([p]).catch(()=>{}); toast("Photo supprimée"); render(); }
   else if(a==="nph-day"){ NU.day=v; NU.nv="jour"; NU.adj=null; render(); window.scrollTo(0,0); }
   else if(a==="nph-go"){ const [id,d]=v.split("|"); await openClient(id); await nuEnsure(); ST.view="nutrition"; NU.nv="jour"; NU.day=d||todayISO(); OV.at=0; TD.at=0; render(); window.scrollTo(0,0); } });
 // coach : repas en photo à compléter (journal) et dans « À traiter aujourd'hui »
@@ -4786,7 +4791,8 @@ const _css62=document.createElement("style"); _css62.textContent=`
 .from62{margin-top:8px}.from62 summary{cursor:pointer;font-weight:600;font-size:.9rem;min-height:32px;display:flex;align-items:center}.from62 .chip{font-size:.85rem}
 .nphb{margin-left:6px;min-width:44px}.nph62{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.nphi{position:relative;display:inline-block}.nphi img{width:72px;height:72px;object-fit:cover;border-radius:10px;display:block}
 .nphx{display:grid;place-items:center;width:72px;height:72px;border-radius:10px;background:var(--chalk);font-size:.7rem;color:var(--soft);text-align:center}
-.nphd{position:absolute;top:-6px;right:-6px;min-width:0!important;min-height:0!important;width:22px;height:22px;padding:0;border-radius:50%;font-size:.7rem;background:var(--ink);color:var(--paper)}
+.nphd{position:absolute;top:-8px;right:-8px;min-width:0!important;min-height:0!important;width:30px;height:30px;padding:0;border-radius:50%;font-size:.8rem;background:var(--ink);color:var(--paper);border:2px solid var(--paper)}
+.phask62{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;padding:6px 8px;border-radius:8px;background:var(--chalk);font-size:.9rem}
 .pend62{margin-top:6px;padding:6px 8px;border-radius:8px;background:var(--chalk);font-size:.85rem}.peq62{margin:2px 0 6px;display:flex;gap:4px;flex-wrap:wrap;align-items:center}`; document.head.appendChild(_css62);
 
 boot();
