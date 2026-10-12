@@ -4949,6 +4949,470 @@ const _cssTd65=document.createElement("style"); _cssTd65.textContent=`.td65{disp
 .td65.ok .tdt65{text-decoration:line-through;color:var(--soft)}.tdc65{flex:0 0 auto;width:30px;height:30px;min-width:0!important;min-height:0!important;padding:0;border-radius:8px;border:2px solid var(--accent,var(--blue));background:transparent;color:var(--accent,var(--blue));font-weight:800}
 .td65.ok .tdc65{background:var(--accent,var(--blue));color:var(--paper)}.late65{border-color:var(--red)!important;color:var(--red)!important}`; document.head.appendChild(_cssTd65);
 
+// ================= MODULE 66 : MÉTHODE TB — programmes par profil, charge conseillée, modèles alimentaires, base de connaissances =================
+// ---------- programmes par profil : la progression est écrite semaine par semaine (12 semaines, 3 blocs de 4)
+const R66=(sch,rpes)=>rpes.map(x=>`${sch} RPE${x}`);
+const PH66=["Accumulation","Accumulation","Accumulation","Accumulation","Transmutation","Transmutation","Transmutation","Transmutation","Réalisation","Réalisation","Réalisation","Réalisation"];
+const SC66={
+  // débutant / reprise : jamais à l'échec, double progression, les reps baissent d'un bloc à l'autre
+  deb:{P:["2x10-12 RPE7",...R66("3x10-12",[7,7.5,8]),...R66("3x8-10",[7,7.5,8,8]),...R66("3x6-8",[7,7.5,8,8])],
+       I:["2x12-15 RPE7",...R66("3x12-15",[7.5,8,8]),...R66("3x10-12",[7.5,8,8,8.5]),...R66("3x10-12",[8,8,8.5,8.5])],
+       C:["3x20-30 RPE7","3x20-30 RPE7","3x30-40 RPE7","3x30-40 RPE8","3x30-40 RPE7","3x40-45 RPE7.5","3x40-45 RPE8","3x45-60 RPE8","3x45-60 RPE7","3x45-60 RPE7.5","3x45-60 RPE8","3x45-60 RPE8"]},
+  // intermédiaire : blocs de 4 semaines RPE 7 → 8 → 9 → on pousse, sans deload planifié
+  int:{P:[...R66("3x8-10",[7,8,9,9]),...R66("4x6-8",[7,8,9,9]),...R66("4x5-7",[7,8,8.5,9])],
+       S:[...R66("3x10-12",[7,8,9,9]),...R66("3x8-10",[7,8,9,9]),...R66("3x8-10",[7,8,9,9.5])],
+       I:[...R66("3x12-15",[7,8,9]),"2x12-15 RPE9 + 1x12-15 RPE10 DS",...R66("3x10-12",[7,8,9]),"2x10-12 RPE9 + 1x10-12 RPE10 DS",...R66("3x10-15",[7,8,9]),"2x10-15 RPE9.5 + 1x10-15 RPE10 DS"]},
+  // avancé hypertrophie : plus de séries, techniques d'intensification en fin de bloc
+  adv:{P:[...R66("4x8-10",[7,8,9,9]),...R66("4x6-8",[7,8,9,9.5]),...R66("4x5-7",[7,8,9,9.5])],
+       S:[...R66("3x10-12",[7,8,9,9.5]),...R66("4x8-10",[7,8,9,9.5]),...R66("3x8-10",[7,8,9,9.5])],
+       I:[...R66("3x12-15",[7,8,9]),"2x12-15 RPE9.5 + 1x12-15 RPE10 DS",...R66("3x10-12",[7,8,9]),"3x10-12 RPE10 + 1x5-8 PART",...R66("4x10-15",[7,8,9]),"3x10-15 RPE10 + 1x10-15 RPE10 DS"]},
+  // avancé powerbuilding : force en % du 1RM (méthode TB), secondaires 6-8, isolation 10-15
+  pb:{F:["4x6@72%","4x6@74%","4x6@76%","4x6@78%","1x3@85% + 4x5@75%","1x3@87% + 4x5@77%","1x3@89% + 4x5@79%","1x3@91% + 4x5@80%","1x1@90% + 3x3@80%","1x1@92% + 3x3@82%","1x1@94% + 3x3@84%","1x1 RPE10"],
+      S:[...R66("3x6-8",[7,8,8.5,9]),...R66("3x6-8",[7,8,8.5,9]),...R66("3x6-8",[7,8,8.5,8])],
+      I:[...R66("3x12-15",[7,8,9]),"2x12-15 RPE9 + 1x12-15 RPE10 DS",...R66("3x10-12",[7,8,9]),"2x10-12 RPE9 + 1x10-12 RPE10 DS",...R66("3x10-12",[7,8,8.5,8])]}
+};
+const TBP66=[
+ {id:"tb-rep3",name:"Reprise · Perte de ventre · Full body 3 j",lvl:"Débutant",split:"Full body",days:DAYS3,sc:"deb",
+  prof:"Débutant ou reprise après une longue pause, 30 à 55 ans, du ventre à perdre, 3 créneaux de 45 à 60 min.",
+  desc:"12 semaines sur machines et haltères, technique d'abord, la charge monte chaque semaine. Cardio zone 2 après chaque séance.",
+  why:"Ce programme construit d'abord tes bases : apprendre les mouvements, renforcer tes articulations et faire monter tes charges sans jamais te mettre dans le rouge. C'est la musculation qui protège ton muscle pendant que tu perds du gras ; le cardio et les pas augmentent la dépense ; l'alimentation fait le reste.",
+  rules:["Garde toujours 2 à 3 répétitions en réserve (RPE 7 à 8). Pas d'échec pendant ces 12 semaines.",
+   "Double progression : vise le haut de la fourchette sur toutes les séries. Quand c'est fait à RPE 8 ou moins, la séance suivante ajoute la plus petite charge possible (+2,5 kg barre ou machine, +1 à 2 kg par haltère) et repars du bas de la fourchette.",
+   "Bloc 1 (S1 à S4) : 10 à 12 reps pour apprendre. Bloc 2 (S5 à S8) : 8 à 10 reps, la charge monte. Bloc 3 (S9 à S12) : 6 à 8 reps sur les gros mouvements.",
+   "Si tu rates le bas de la fourchette deux séances de suite, baisse la charge de 5 % et remonte.",
+   "Après chaque séance : 20 min de cardio en zone 2 (tu peux parler en phrases courtes).",
+   "Tous les jours : 8 000 pas minimum. C'est le levier le plus sous-estimé pour le ventre."],
+  cardio:[{mach:"Vélo",dur:20,days:"ses"}],steps:8000,kb:["priorites","ventre","surcharge","rpe"],
+  s:[["Full body A","Lundi",[["Leg press","P"],["Développé machine convergente","P"],["Tirage vertical poulie","P"],["Leg curl assis","I"],["Élévation latérale haltères","I"],["Gainage lesté (planche)","C","Sans lest au début : dos plat, fessiers serrés"]]],
+     ["Full body B","Mercredi",[["Goblet squat","P"],["Rowing assis machine","P"],["Développé épaules machine","P"],["Hip thrust machine","P"],["Curl haltères alterné debout","I",null,"A"],["Extension triceps corde poulie","I",null,"A"]]],
+     ["Full body C","Vendredi",[["Soulevé de terre roumain haltères","P","Dos neutre, hanches en arrière, étirement des ischios"],["Développé incliné haltères","P"],["Tirage vertical prise neutre","P"],["Fentes inversées haltères","P"],["Face pull","I"],["Crunch poulie","I"]]]]},
+ {id:"tb-rep2",name:"Reprise express · Full body 2 j",lvl:"Débutant",split:"Full body",days:[true,false,false,true,false,false,false],sc:"deb",
+  prof:"Débutant ou reprise avec un emploi du temps chargé (travail, enfants) : 2 séances d'une heure + de la marche.",
+  desc:"Le minimum efficace : 2 séances complètes par semaine, une grande marche le week-end, progression simple.",
+  why:"Deux séances bien faites valent mieux que quatre séances ratées. Chaque muscle est travaillé deux fois par semaine, ce qui suffit largement pour progresser quand on (re)commence. La régularité sur 12 semaines est ton seul objectif.",
+  rules:["Garde 2 à 3 répétitions en réserve (RPE 7 à 8) : tu dois sortir de la séance en forme, pas lessivé.",
+   "Double progression : haut de la fourchette sur toutes les séries à RPE 8 ou moins, alors la charge monte d'un cran la fois suivante.",
+   "Les répétitions baissent de bloc en bloc (10-12, puis 8-10, puis 6-8) : c'est normal que la charge monte.",
+   "Une séance ratée ? Décale-la dans la semaine, ne la saute pas.",
+   "Après chaque séance : 20 min de cardio en zone 2. Le samedi : 45 min de marche.",
+   "8 000 pas par jour en moyenne sur la semaine."],
+  cardio:[{mach:"Vélo",dur:20,days:"ses"},{mach:"Marche extérieure",dur:45,days:[false,false,false,false,false,true,false]}],steps:8000,kb:["priorites","ventre","surcharge"],
+  s:[["Full body A","Lundi",[["Leg press","P"],["Développé machine convergente","P"],["Tirage vertical poulie","P"],["Soulevé de terre roumain haltères","P","Dos neutre, hanches en arrière"],["Élévation latérale haltères","I"],["Gainage lesté (planche)","C","Sans lest au début"]]],
+     ["Full body B","Jeudi",[["Goblet squat","P"],["Développé incliné haltères","P"],["Rowing assis machine","P"],["Hip thrust machine","P"],["Leg curl assis","I"],["Curl haltères alterné debout","I",null,"A"],["Extension triceps corde poulie","I",null,"A"]]]]},
+ {id:"tb-int3",name:"Recomposition · Full body 3 j (3 h/semaine)",lvl:"Intermédiaire",split:"Full body",days:DAYS3,sc:"int",
+  prof:"Pratiquant de 1 à 4 ans qui stagne ou manque de plan, 3 séances d'une heure : perdre du gras et prendre du muscle en même temps.",
+  desc:"Blocs de 4 semaines RPE 7 → 9 puis on pousse, sans deload planifié. Gros mouvements à chaque séance.",
+  why:"Tu as déjà des bases : il te faut maintenant une progression organisée. Chaque bloc de 4 semaines commence léger pour récupérer, puis l'intensité monte jusqu'à une semaine où l'on pousse vraiment. D'un bloc à l'autre, les répétitions baissent et les charges montent.",
+  rules:["Blocs de 4 semaines : semaine 1 à RPE 7 (elle sert de récupération), puis RPE 8, RPE 9, et la semaine 4 on pousse.",
+   "Polyarticulaires (squat, développés, tirages) : jamais au-delà de RPE 9, garde au moins une répétition en réserve.",
+   "Isolation : la semaine 4 de chaque bloc, dernière série à l'échec suivie d'une dégressive (−20 à −30 % de charge, sans repos).",
+   "À l'intérieur d'une semaine, double progression : haut de la fourchette à l'RPE demandé, alors la charge monte la fois suivante.",
+   "D'un bloc à l'autre : 8-10 reps, puis 6-8, puis 5-7 sur les gros mouvements. La charge doit être plus lourde à chaque bloc.",
+   "Pas de semaine de décharge planifiée. Si tes perfs baissent deux semaines de suite ou si une articulation se plaint, préviens ton coach : on allège une semaine.",
+   "Cardio : 2 fois 20 min en zone 2 par semaine, 8 000 pas par jour."],
+  cardio:[{mach:"Vélo elliptique",dur:20,days:[true,false,false,false,true,false,false]}],steps:8000,kb:["surcharge","periodisation","volume","reps"],
+  s:[["Full body A","Lundi",[["Squat barre","P"],["Développé couché haltères","P"],["Tirage vertical poulie","S"],["Leg curl assis","I"],["Élévation latérale haltères","I"],["Crunch poulie","I"]]],
+     ["Full body B","Mercredi",[["Soulevé de terre roumain barre","P","Dos neutre, barre contre les cuisses"],["Rowing assis machine","P"],["Développé militaire assis haltères","S"],["Fentes marchées haltères","S"],["Curl haltères alterné debout","I",null,"A"],["Extension triceps corde poulie","I",null,"A"]]],
+     ["Full body C","Vendredi",[["Leg press","P"],["Développé incliné haltères","P"],["Rowing haltère unilatéral","S"],["Hip thrust machine","S"],["Élévation latérale unilatérale poulie","I"],["Face pull","I"]]]]},
+ {id:"tb-int4",name:"Hypertrophie · Haut / Bas 4 j",lvl:"Intermédiaire",split:"Haut / Bas",days:DAYS4,sc:"int",
+  prof:"Pratiquant de 1 à 4 ans, 4 séances par semaine, objectif muscle et recomposition.",
+  desc:"Chaque muscle 2 fois par semaine, blocs de 4 semaines RPE 7 → 9 puis on pousse, sans deload planifié.",
+  why:"Avec 4 séances, chaque muscle est travaillé deux fois par semaine avec assez de volume pour grossir. La progression se fait par blocs de 4 semaines : on récupère en début de bloc, on pousse en fin de bloc, et les charges montent d'un bloc à l'autre.",
+  rules:["Blocs de 4 semaines : semaine 1 à RPE 7, puis RPE 8, RPE 9, et la semaine 4 on pousse.",
+   "Polyarticulaires : RPE 9 maximum. L'échec est réservé à l'isolation, en fin de bloc, avec une dégressive.",
+   "Double progression à chaque exercice : haut de la fourchette à l'RPE demandé, alors la charge monte la fois suivante.",
+   "D'un bloc à l'autre, les répétitions baissent et les charges montent.",
+   "Volume visé : 10 à 16 séries dures par muscle et par semaine.",
+   "Pas de deload planifié : allège une semaine seulement si les perfs baissent deux semaines de suite.",
+   "Cardio : 2 fois 20 min en zone 2, 8 000 pas par jour."],
+  cardio:[{mach:"Vélo elliptique",dur:20,days:[true,false,false,true,false,false,false]}],steps:8000,kb:["surcharge","periodisation","volume","techniques"],
+  s:[["Haut A","Lundi",[["Développé couché haltères","P"],["Tirage vertical poulie","P"],["Développé militaire assis haltères","S"],["Rowing assis machine","S"],["Élévation latérale haltères","I"],["Curl haltères alterné debout","I",null,"A"],["Extension triceps corde poulie","I",null,"A"]]],
+     ["Bas A","Mardi",[["Squat barre","P"],["Soulevé de terre roumain haltères","S"],["Leg press","S"],["Leg curl assis","I"],["Mollets debout machine","I"]]],
+     ["Haut B","Jeudi",[["Développé incliné haltères","P"],["Rowing haltère unilatéral","P"],["Développé machine convergente","S"],["Tirage vertical prise neutre","S"],["Élévation latérale unilatérale poulie","I"],["Face pull","I"],["Curl marteau haltères","I",null,"A"],["Extension triceps overhead unilatérale poulie","I",null,"A"]]],
+     ["Bas B","Vendredi",[["Soulevé de terre roumain barre","P"],["Fentes marchées haltères","S"],["Hip thrust machine","S"],["Leg extension","I"],["Leg curl allongé","I"],["Crunch poulie","I"]]]]},
+ {id:"tb-adv5",name:"Hypertrophie avancée · Haut / Bas / Push / Pull / Legs 5 j",lvl:"Avancé",split:"Mixte",days:[true,true,true,false,true,true,false],sc:"adv",
+  prof:"Pratiquant de plus de 4 ans, déjà fort, qui veut continuer à prendre du muscle : 5 séances de 60 à 75 min.",
+  desc:"12 à 18 séries par muscle et par semaine, blocs de 4 semaines jusqu'à l'échec en isolation, dégressives et partielles.",
+  why:"À ton niveau, le muscle ne répond plus qu'à un volume et une intensité bien dosés. Chaque bloc démarre à RPE 7 pour faire baisser la fatigue, monte jusqu'à l'échec sur l'isolation en semaine 4, et les charges des polyarticulaires montent d'un bloc à l'autre.",
+  rules:["Blocs de 4 semaines : RPE 7, 8, 9 puis semaine 4 à fond (échec + dégressive ou partielles sur l'isolation).",
+   "Polyarticulaires : 6 à 10 reps, RPE 9,5 maximum, technique identique à chaque répétition.",
+   "Isolation : 10 à 15 reps, c'est là qu'on va chercher l'échec, pas sur le squat.",
+   "Double progression sur chaque exercice ; d'un bloc à l'autre, reps plus basses et charges plus lourdes.",
+   "Volume : 12 à 18 séries dures par muscle et par semaine, en comptant une demi-série pour un muscle secondaire (les triceps sur le développé).",
+   "Semaine allégée (séries ÷ 2, RPE 6) seulement si les perfs baissent deux semaines de suite, si le sommeil se dégrade ou si une articulation se plaint.",
+   "Cardio : 2 fois 20 min en zone 2, 8 000 à 10 000 pas par jour."],
+  cardio:[{mach:"Vélo",dur:20,days:[false,true,false,false,false,true,false]}],steps:9000,kb:["volume","reps","periodisation","techniques"],
+  s:[["Haut","Lundi",[["Développé couché barre","P"],["Tractions pronation (poids de corps)","P"],["Développé militaire assis haltères","S"],["Rowing assis machine","S"],["Élévation latérale haltères","I"],["Curl barre EZ","I",null,"A"],["Extension triceps poulie haute","I",null,"A"]]],
+     ["Bas","Mardi",[["Squat barre","P"],["Soulevé de terre roumain barre","P"],["Leg press","S"],["Leg curl assis","I"],["Mollets debout machine","I"]]],
+     ["Push","Mercredi",[["Développé incliné haltères","P"],["Développé machine convergente","S"],["Dips (poids de corps)","S"],["Élévation latérale unilatérale poulie","I"],["Écarté poulie basse croisé","I"],["Extension triceps overhead unilatérale poulie","I"]]],
+     ["Pull","Vendredi",[["Rowing barre Pendlay","P"],["Tirage vertical prise neutre","S"],["Chest supported row machine","S"],["Reverse pec deck","I"],["Curl incliné assis haltères","I"],["Curl marteau haltères","I"]]],
+     ["Legs","Samedi",[["Hack squat machine","P"],["Hip thrust barre","S"],["Fentes marchées haltères","S"],["Leg extension","I"],["Leg curl allongé","I"],["Mollets assis machine (soléaire)","I"],["Crunch poulie","I"]]]]},
+ {id:"tb-pb4",name:"Powerbuilding · Force + muscle · Haut / Bas 4 j",lvl:"Avancé",split:"Haut / Bas",days:DAYS4,sc:"pb",ph:[...PH66.slice(0,11),"Test"],
+  prof:"Pratiquant avancé et déjà fort qui veut monter ses 1RM au développé couché, squat, soulevé de terre et militaire, tout en gardant du volume.",
+  desc:"Force en vagues (6 → 5 → 3 → 1 rép) en % du 1RM, secondaires en 6-8, isolation en 10-15, test en semaine 12.",
+  why:"Pour un pratiquant fort, la force maximale se travaille avec des charges lourdes (1 à 5 répétitions) : c'est spécifique. Le muscle, lui, se construit avec le volume des exercices secondaires et de l'isolation. Les pourcentages montent de 2 % par semaine et repartent plus haut à chaque bloc.",
+  rules:["Mouvements de force : charges calculées en % de ton 1RM (renseigné dans Athlète, mis à jour automatiquement avec ton carnet).",
+   "Bloc 1 : 4 × 6 de 72 à 78 %. Bloc 2 : un triple lourd puis 4 × 5. Bloc 3 : un single à 90 % (+2 % par semaine) puis 3 × 3 à 80 % (+2 % par semaine). Semaine 12 : test.",
+   "Le single doit rester propre (RPE 8 à 9). S'il passe à RPE 9,5 ou plus, garde la même charge la semaine suivante.",
+   "Exercices secondaires : 6 à 8 reps, RPE 7 à 9, double progression.",
+   "Isolation : 10 à 15 reps, échec et dégressive seulement en fin de bloc 1 et 2 ; bloc 3 plus léger pour garder de la fraîcheur pour le lourd.",
+   "Pas de deload planifié avant le test : la semaine 1 de chaque bloc est plus légère. Allège si les perfs baissent deux semaines de suite.",
+   "Échauffement : montées progressives (50, 70, 80 % puis la série de travail), jamais comptées dans le volume."],
+  cardio:[{mach:"Vélo",dur:20,days:[false,false,true,false,false,true,false]}],steps:8000,kb:["reps","periodisation","rpe","volume"],
+  s:[["Haut A","Lundi",[["Développé couché barre","F"],["Tractions lestées (pronation)","S"],["Développé incliné haltères","S"],["Rowing haltère unilatéral","S"],["Élévation latérale haltères","I"],["Extension triceps corde poulie","I",null,"A"],["Curl barre EZ","I",null,"A"]]],
+     ["Bas A","Mardi",[["Squat barre","F"],["Soulevé de terre roumain barre","S"],["Leg press","S"],["Leg curl assis","I"],["Mollets debout machine","I"],["Crunch poulie","I"]]],
+     ["Haut B","Jeudi",[["Développé militaire barre (OHP)","F"],["Développé couché barre avec pause","S","Pause de 1 s sur la poitrine"],["Rowing barre Pendlay","S"],["Tirage vertical prise neutre","S"],["Élévation latérale unilatérale poulie","I"],["Face pull","I"],["Curl incliné assis haltères","I",null,"A"],["Extension triceps overhead unilatérale poulie","I",null,"A"]]],
+     ["Bas B","Vendredi",[["Soulevé de terre","F"],["Squat barre avec pause","S","Pause de 2 s en bas"],["Fentes marchées haltères","S"],["Hip thrust barre","S"],["Leg extension","I"],["Mollets assis machine (soléaire)","I"]]]]}
+];
+const ROLE66={P:"Polyarticulaire principal",S:"Polyarticulaire secondaire",I:"Isolation",C:"Gainage",F:"Mouvement de force (% du 1RM)"};
+TBP66.forEach(p=>{ const sc=SC66[p.sc];
+  BANK.unshift({id:p.id,name:p.name,cat:"Méthode TB",lvl:p.lvl,split:p.split,nd:p.days.filter(Boolean).length,desc:p.desc,days:p.days.slice(),phases:(p.ph||PH66).slice(),ov:{},tb:p,
+    s:p.s.map(([n,day,ex])=>[n,day,ex.map(([name,role,note,ss])=>{ const wk=sc[role]||sc.I||sc.P; return Object.assign({name,mode:"Auto",weeks:[null,...wk]},note?{note}:{},ss?{ss}:{}); })])}); });
+BANK.sort((a,b)=>(b.cat==="Méthode TB")-(a.cat==="Méthode TB"));
+const method66=()=>{ const id=ST.prog&&ST.prog.method&&ST.prog.method.id; return id?TBP66.find(p=>p.id===id)||null:null; };
+function cardioOf66(p){ const days=(ST.prog&&ST.prog.profile&&ST.prog.profile.days)||p.days; return (p.cardio||[]).map(c=>({mach:c.mach,int:c.int||"LISS",dur:c.dur,days:(c.days==="ses"?days:c.days).map(Boolean),tb66:1})); }
+function cardioToPlan66(P,p){ if(!P||!p) return; P.cardio=(P.cardio||[]).filter(c=>!c.tb66).concat(cardioOf66(p)); if(!P.steps&&p.steps) P.steps=p.steps; }
+// appliquer un programme de la méthode : on garde la référence pour afficher les règles au client
+const _applyBank66=applyBank;
+applyBank=function(id){ _applyBank66(id); const b=BANK.find(x=>x.id===id); if(!b||!ST.prog) return; const P=ST.prog;
+  if(b.tb){ P.method={id:b.id,at:todayISO()}; if(NU.plan&&NU.cid===CUR&&NU.loaded){ cardioToPlan66(NU.plan,b.tb); nuSave(); } } else delete P.method;
+  saveProg(); };
+// le générateur du questionnaire propose en priorité un programme de la méthode
+const _trainProposal66=trainProposal;
+trainProposal=function(d){ const T=_trainProposal66(d); if(T.lieu!=="Salle") return T; const force=d.obj==="Gagner en force", n=T.nd; let id=null;
+  if(T.level==="Débutant") id=n<=2?"tb-rep2":n===3?"tb-rep3":null;
+  else if(T.level==="Intermédiaire"&&!force) id=n<=3?"tb-int3":n===4?"tb-int4":null;
+  else if(T.level==="Avancé") id=force?(n>=4?"tb-pb4":null):(n>=5?"tb-adv5":n===4?"tb-pb4":n===3?"tb-int3":null);
+  const b=id&&BANK.find(x=>x.id===id); if(b&&b.nd<=n){ T.bank=b; T.why=`Méthode TB : ${T.level.toLowerCase()}, ${n} séance${n>1?"s":""} disponible${n>1?"s":""}${force?", objectif force":""}`; }
+  return T; };
+// ---------- carte « méthode » (règles du programme) côté coach et client
+function vMethod66(open){ const p=method66(); if(!p) return ""; const cd=cardioOf66(p), DN=["lun.","mar.","mer.","jeu.","ven.","sam.","dim."];
+  return `<details class="card mc66" id="mc66" ${open?"open":""}><summary><b>📘 ${coach()?"Méthode du programme":"Ma méthode de progression"}</b><div class="muted small">${esc(p.name)}</div></summary>
+   ${coach()?`<p class="small"><b>Profil visé :</b> ${esc(p.prof)}</p>`:""}<p class="small">${esc(p.why)}</p>
+   <ol class="r66">${p.rules.map(r=>`<li>${esc(r)}</li>`).join("")}</ol>
+   ${cd.length?`<div class="small muted">Cardio prévu : ${cd.map(c=>`${esc(c.mach)} ${c.dur} min (${c.days.map((v,i)=>v?DN[i]:null).filter(Boolean).join(", ")})`).join(" · ")}${p.steps?` · ${fmtN(p.steps)} pas par jour`:""}</div>`:""}
+   <div class="row" style="margin-top:8px">${p.kb.map(k=>{ const c=KB66.find(x=>x.id===k); return c?`<button class="ghost sm" data-act="kb66-go" data-v="${k}">${c.ic} ${esc(c.t)}</button>`:""; }).join("")}</div>
+   ${coach()?`<div class="row" style="margin-top:6px"><button class="ghost sm" data-act="mc66-cardio">Mettre ce cardio dans le plan Suivi</button></div>`:""}</details>`; }
+const _vProg66=vProgramme;
+vProgramme=function(){ const h=_vProg66(); const c=coach()?vMethod66(false):""; if(!c) return h; const i=h.indexOf("</h2>"); return i<0?c+h:h.slice(0,i+5)+c+h.slice(i+5); };
+const _vSem66=vSemaine;
+vSemaine=function(){ const h=_vSem66(); if(coach()) return h; const c=vMethod66(false); if(!c) return h; const i=h.indexOf("</h2>"); return i<0?c+h:h.slice(0,i+5)+c+h.slice(i+5); };
+
+// ---------- charge conseillée pour la séance (double progression), dans le Carnet
+function next66(r,w){ const key=w+"_"+r.key, v=ST.carnet[key]||{}, name=v.ex||r.ex, wk=r.weeks&&r.weeks[w];
+  if(!name||!wk||!wk.blocks||!wk.blocks.length||isTimed(name,v.ex?null:r.E)) return null;
+  const bl=wk.blocks.filter(b=>b.ok&&!(b.tags||[]).length); if(!bl.length||wk.blocks.some(b=>b.pct!=null||b.kg!=null)) return null;
+  const b=bl[0], parts=String(b.rt).split("-").map(Number), lo=parts[0], hi=parts[1]||parts[0]; if(!(lo>0)) return null;
+  let s=null, w2=0; for(let x=w-1;x>=1;x--){ const pv=ST.carnet[x+"_"+r.key]; if(pv&&(pv.ex||r.ex)===name){ const ss=setsOf(pv).filter(z=>num(z.g)!=null&&num(z.h)>0); if(ss.length){ s=ss; w2=x; break; } } }
+  if(!s) return null;
+  const type=typeOfName(name,r), add=sysAdd(type,M.pdc), P=M.P, step=type==="Haltères"?P.PDB:type==="Lesté"?P.PLES:type==="Machine"?P.PMAC:P.PBAR;
+  const gmax=Math.max(...s.map(z=>+z.g)), top=s.filter(z=>+z.g===gmax), tgt=b.rpe!=null?b.rpe:8, fmt=x=>loadText(x,type);
+  const pw=r.weeks[w2], pb=pw&&pw.blocks&&pw.blocks.find(z=>z.ok&&!(z.tags||[]).length), range=b.rt.replace("-","–");
+  if(pb&&pb.rt&&pb.rt!==b.rt){ const best=s.reduce((m,z)=>Math.max(m,(+z.g+add)*(1+(+z.h)/30)),0), rir=Math.max(0,10-tgt);
+    const t=roundPas(best/(1+(hi+rir)/30)-add,step); return {g:t,c:"new",t:`🎯 Nouvelle fourchette (${range} reps) : commence vers ${fmt(t)}.`}; }
+  if(top.every(z=>+z.h>=hi)&&top.every(z=>num(z.r)==null||+z.r<=tgt+0.5)) return {g:gmax+step,c:"up",t:`⬆ Charge conseillée : ${fmt(gmax+step)}. La dernière fois : ${hi} reps ou plus sur toutes tes séries à ${fmt(gmax)}.`};
+  if(top.some(z=>+z.h<lo)){ let dn=roundPas((gmax+add)*0.95-add,step); if(dn>=gmax) dn=gmax-step; return {g:gmax,c:"hold",t:`⏸ Reste à ${fmt(gmax)} et vise ${lo} reps sur chaque série. Si ça bloque encore, passe à ${fmt(dn)}.`}; }
+  return {g:gmax,c:"keep",t:`➡ Garde ${fmt(gmax)} et ajoute 1 rép par série (objectif : ${hi} partout${b.rpe!=null?" à RPE "+fmtN(b.rpe):""}).`}; }
+const _carnetEx66=carnetEx;
+carnetEx=function(r,w){ let h=_carnetEx66(r,w); let n=null; try{ n=next66(r,w); }catch(e){ console.error(e); } if(!n) return h;
+  const key=w+"_"+r.key, v=ST.carnet[key]||{}, sets=v.sets||[];
+  h=h.replace("charge à choisir, note-la","charge conseillée ci-dessous");
+  const line=`<div class="nx66 ${n.c}">${esc(n.t)}</div>`; const i=h.indexOf(`<div class="rest">`); h=i>=0?h.slice(0,i)+line+h.slice(i):h+line;
+  // la charge conseillée devient la valeur proposée dans les cases vides
+  if(n.g!=null&&isFinite(n.g)) h=h.replace(new RegExp(`(data-cs="${key}\\|(\\d+)\\|g" inputmode="decimal" value="" placeholder=")[^"]*(")`,"g"),(m,a,i2,c)=>sets[+i2]&&sets[+i2].g!=null?m:a+esc(fmtN(n.g))+c)
+    .replace(new RegExp(`(data-act="cx-done" data-v="${key}\\|(\\d+)" data-pg=")[^"]*(")`,"g"),(m,a,i2,c)=>sets[+i2]&&sets[+i2].g!=null?m:a+esc(String(n.g))+c);
+  return h; };
+// ---------- base de connaissances : version client (principes) et version coach (théorie complète, sources)
+const KB66=[
+ {id:"priorites",ic:"🎯",t:"Les priorités",
+  cli:`<p>Pour changer ton corps, tout ne se vaut pas. Dans l'ordre :</p>
+   <ol><li><b>La régularité.</b> Le meilleur programme est celui que tu tiens 12 semaines. Une séance faite vaut mieux qu'une séance parfaite.</li>
+   <li><b>Les calories.</b> Pour perdre du gras, il faut manger un peu moins que ce que tu dépenses. Rien ne remplace ça.</li>
+   <li><b>Les protéines.</b> Environ 2 g par kilo de poids de corps par jour : elles protègent ton muscle et coupent la faim.</li>
+   <li><b>La musculation avec une charge qui monte.</b> C'est elle qui garde (et construit) ton muscle pendant que le gras part.</li>
+   <li><b>Les pas.</b> 8 000 par jour : c'est souvent plus de dépense que le cardio lui-même.</li>
+   <li><b>Le sommeil.</b> 7 heures minimum : moins de sommeil, c'est plus de faim et plus de muscle perdu.</li>
+   <li><b>Le cardio.</b> Utile pour le cœur et la dépense, mais il vient en complément, pas à la place.</li></ol>`,
+  co:`<p><b>Hiérarchie retenue</b> (inspirée de la pyramide nutrition/entraînement d'Helms) : adhérence → bilan énergétique → apport protéique → entraînement en résistance avec surcharge progressive → NEAT → sommeil → cardio structuré → répartition des repas et suppléments.</p>
+   <ul><li>L'adhérence prime : un plan à 3 séances tenu bat un plan à 5 abandonné en semaine 3. Pour la cible 30-45 ans actifs, partir de leur temps réel (souvent 3 h/semaine).</li>
+   <li>Ne pas viser la force maximale chez le débutant : il progresse en force et en masse quelle que soit la plage de reps. La double progression suffit pendant des mois ; une périodisation en blocs complexes n'apporte rien à ce stade.</li>
+   <li>Le cardio n'est pas « en soutien » de manière secondaire pour la santé : il améliore la capacité aérobie et la sensibilité à l'insuline. Mais pour la composition corporelle, déficit + protéines + muscu restent les leviers principaux.</li>
+   <li>Chez le débutant en surpoids, une recomposition (perte de gras et gain de muscle simultanés) est réaliste ; elle devient de plus en plus difficile avec le niveau.</li></ul>
+   <p class="muted small">Références : Helms E., Valdez A., Morgan A. <i>The Muscle and Strength Pyramids</i> ; Morton et al., Br J Sports Med, 2018 (protéines).</p>`},
+ {id:"ventre",ic:"🔥",t:"Perdre du ventre",
+  cli:`<p><b>On ne choisit pas où le gras part.</b> Les abdos renforcent la sangle abdominale, mais ils ne font pas fondre le gras du ventre. Le ventre part quand le gras part de tout le corps.</p>
+   <p>Ce qui fait vraiment baisser le tour de taille :</p>
+   <ul><li>un déficit calorique modéré et régulier (perdre 0,5 à 1 % de ton poids par semaine) ;</li>
+   <li>la musculation 2 à 4 fois par semaine pour garder ton muscle ;</li>
+   <li>des pas tous les jours et un peu de cardio ;</li>
+   <li>moins d'alcool : il s'ajoute aux calories et freine l'utilisation des graisses ;</li>
+   <li>du sommeil et un stress maîtrisé.</li></ul>
+   <p>Le ventre est souvent le dernier à partir chez l'homme : c'est normal, continue. Mesure ton tour de taille chaque semaine, c'est un meilleur indicateur que la balance.</p>`,
+  co:`<ul><li><b>Pas de perte localisée</b> : l'entraînement des abdominaux seul ne réduit pas la graisse abdominale (Vispute et al., J Strength Cond Res, 2011). La lipolyse est systémique ; la répartition du stockage dépend surtout du sexe, de l'âge et de la génétique.</li>
+   <li><b>Graisse viscérale</b> : elle répond bien au déficit et à l'activité physique (cardio comme musculation). C'est elle qui porte l'essentiel du risque métabolique, d'où l'intérêt du tour de taille comme suivi (mesuré à l'ombilic, à jeun, même heure).</li>
+   <li><b>Vitesse</b> : 0,5 à 1 % du poids par semaine. Une perte plus lente préserve mieux la masse maigre chez les pratiquants (Garthe et al., Int J Sport Nutr Exerc Metab, 2011). Chez un client très en surpoids, on peut tenir le haut de la fourchette les premières semaines.</li>
+   <li><b>Ordre de grandeur</b> : un déficit de 300 à 500 kcal par jour pour la cible 30-55 ans. 200-400 kcal est prudent mais donne peu de résultats visibles, ce qui nuit à l'adhésion.</li>
+   <li><b>Alcool</b> : 7 kcal/g, et l'oxydation de l'éthanol est prioritaire, ce qui met en pause l'oxydation des graisses. Viser un plafond hebdomadaire négocié plutôt qu'une interdiction.</li>
+   <li>La « zone 2 pour brûler les graisses » est un argument faible : la part de lipides oxydés pendant la séance ne prédit pas la perte de gras ; c'est le bilan énergétique sur la semaine qui compte.</li></ul>`},
+ {id:"surcharge",ic:"📈",t:"La surcharge progressive",
+  cli:`<p>Ton corps s'adapte à ce qu'on lui demande. Pour continuer à progresser, il faut lui en demander <b>un peu plus</b> au fil des semaines : plus de charge, ou plus de répétitions à la même charge.</p>
+   <p><b>La règle de l'app : la double progression.</b></p>
+   <ol><li>Chaque exercice a une fourchette, par exemple 8 à 10 reps.</li>
+   <li>Tu gardes la même charge et tu ajoutes des répétitions d'une séance à l'autre.</li>
+   <li>Quand tu atteins le haut de la fourchette (10) sur <b>toutes</b> les séries, à l'effort demandé, tu ajoutes la plus petite charge possible la fois suivante.</li>
+   <li>Tu repars du bas de la fourchette et tu recommences.</li></ol>
+   <p>Dans ton carnet, sous chaque exercice, l'app t'indique la <b>charge conseillée</b> à partir de ta dernière séance : ⬆ monter, ➡ garder et gagner une rép, ⏸ consolider.</p>
+   <p>Note toujours tes charges, tes reps et ton RPE : sans carnet, pas de progression mesurable.</p>`,
+  co:`<p>Variables de surcharge, par ordre d'usage : <b>répétitions</b> à charge égale → <b>charge</b> → <b>séries</b> (volume) → densité, amplitude, tempo. La tension mécanique sur des séries proches de l'échec est le stimulus principal de l'hypertrophie.</p>
+   <h4>Règles codées dans l'app (charge conseillée du carnet)</h4>
+   <ul><li>Fourchette atteinte sur toutes les séries à la charge maximale, RPE ≤ RPE cible + 0,5 → <b>+1 incrément</b> (barre/machine 2,5 kg, haltères 2 kg, lest 1,25 kg ; réglables dans Réglages).</li>
+   <li>Une série sous le bas de la fourchette → on garde la charge ; si ça se répète, −5 %.</li>
+   <li>Sinon → même charge, +1 rép par série.</li>
+   <li>Nouvelle fourchette (changement de bloc) → charge estimée par Epley : 1RM estimé = charge × (1 + reps/30), puis charge = 1RM / (1 + (reps haut + RIR)/30).</li>
+   <li>Les exercices prescrits en % du 1RM ne sont pas concernés : la charge vient du 1RM, recalculé automatiquement depuis le carnet (mode Auto).</li></ul>
+   <h4>Par niveau</h4>
+   <ul><li><b>Débutant</b> : double progression simple, RPE 7-8, la fourchette descend de bloc en bloc (10-12 → 8-10 → 6-8).</li>
+   <li><b>Intermédiaire</b> : blocs de 4 semaines à RPE croissant (7 → 8 → 9 → poussée) et charges plus lourdes d'un bloc à l'autre.</li>
+   <li><b>Avancé force</b> : progression en % (+2 %/semaine, +2 % au départ de chaque phase), auto-régulée par le RPE du single.</li></ul>`},
+ {id:"rpe",ic:"🎚️",t:"RPE et répétitions en réserve",
+  cli:`<p>Le <b>RPE</b> (de 1 à 10) mesure la difficulté d'une série. Le plus simple : compte les répétitions que tu aurais encore pu faire.</p>
+   <table class="kb66t"><tr><th>RPE</th><th>Ce que ça veut dire</th></tr><tr><td>10</td><td>Plus une seule rép possible (échec)</td></tr><tr><td>9</td><td>Encore 1 rép en réserve</td></tr><tr><td>8</td><td>Encore 2 reps</td></tr><tr><td>7</td><td>Encore 3 reps, la vitesse reste bonne</td></tr><tr><td>6 ou moins</td><td>Échauffement, facile</td></tr></table>
+   <p>Si le programme dit « 3 × 10 RPE 8 », choisis une charge avec laquelle tu ferais 12 reps et arrête-toi à 10. Au début on se trompe souvent : c'est normal, ça s'apprend en quelques semaines.</p>`,
+  co:`<ul><li>Échelle RPE basée sur les répétitions en réserve (RIR) : Zourdos et al., J Strength Cond Res, 2016. Précision faible chez le débutant, meilleure près de l'échec et chez les pratiquants entraînés : on éduque avec des séries tests (aller réellement à l'échec sur une machine sûre de temps en temps).</li>
+   <li>Proximité de l'échec : l'hypertrophie augmente quand on se rapproche de l'échec, mais l'échec strict n'apporte pas d'avantage net et coûte plus de fatigue (Refalo et al., Sports Med, 2023). D'où : polyarticulaires à 1-3 RIR, échec réservé à l'isolation en fin de bloc.</li>
+   <li>Dans l'app, une série compte comme « dure » à partir de RPE 7 (ou RPE 6 si ≥ 75 % du 1RM) ; l'échauffement n'est jamais compté.</li>
+   <li>La table % ↔ reps ↔ RPE de l'app (onglet Outils) sert à convertir un RPE en charge et à estimer un 1RM.</li></ul>`},
+ {id:"reps",ic:"🔢",t:"Force ou muscle : combien de répétitions ?",
+  cli:`<p><b>Pour le muscle</b>, toutes les fourchettes de 5 à 30 reps fonctionnent si la série est proche de l'échec. On utilise surtout :</p>
+   <ul><li>6 à 10 reps sur les gros mouvements (squat, développés, tirages) ;</li>
+   <li>10 à 15 reps sur l'isolation (biceps, triceps, épaules, mollets) : plus sûr pour les coudes et les épaules.</li></ul>
+   <p><b>Pour la force maximale</b>, il faut soulever lourd : 1 à 5 reps. C'est utile si ton objectif est de monter ton développé couché ou ton squat, pas obligatoire pour prendre du muscle.</p>`,
+  co:`<ul><li><b>Hypertrophie</b> : à volume égal et séries proches de l'échec, gains similaires entre charges lourdes et légères (≈ 30 à 85 % du 1RM). Schoenfeld et al., J Strength Cond Res, 2017. Les charges très légères demandent d'aller plus près de l'échec et sont plus inconfortables.</li>
+   <li><b>Force</b> : principe de spécificité, les charges lourdes (> 80 %) produisent plus de gains de 1RM (même méta-analyse). Le 1-5 reps est donc primordial pour un objectif de force, pas pour l'hypertrophie.</li>
+   <li>« Plus de 1RM = plus de tension en 6-8 » est vrai à la marge mais n'est pas le facteur n°1 : la tension par série effective est déjà élevée en 6-12.</li>
+   <li><b>Isolation en 6-8</b> : déconseillé sur élévations latérales, extensions triceps, écartés (contraintes articulaires, technique dégradée) ; acceptable sur leg curl, presse à mollets, certaines machines guidées.</li>
+   <li><b>Cadre retenu</b> : débutant 8-15 ; intermédiaire 6-10 poly / 10-15 iso ; avancé force : vagues 1-5 sur 1-2 mouvements principaux + 6-10 secondaires + 10-20 isolation.</li></ul>`},
+ {id:"volume",ic:"📊",t:"Le volume d'entraînement",
+  cli:`<p>Le volume, c'est le nombre de <b>séries dures</b> (proches de l'échec) par muscle et par semaine.</p>
+   <ul><li>Débutant : 6 à 10 séries par muscle suffisent pour progresser.</li>
+   <li>Intermédiaire : 10 à 16.</li>
+   <li>Avancé : 12 à 20, à condition de bien récupérer.</li></ul>
+   <p>Plus n'est pas toujours mieux : au-delà de ce que tu récupères, tu stagnes. Mieux vaut travailler chaque muscle <b>2 fois par semaine</b> que tout faire le même jour.</p>`,
+  co:`<ul><li>Relation dose-réponse : plus de séries hebdomadaires → plus d'hypertrophie, avec des rendements décroissants (Schoenfeld, Ogborn &amp; Krieger, J Sports Sci, 2017 ; méta-régression de Pelland et al., 2024). Pour la force, le volume compte moins que la spécificité et l'intensité.</li>
+   <li>Repères type Renaissance Periodization (Israetel) : MV (maintien) ≈ 4-8 séries, <b>MEV</b> = Minimum Effective Volume (et non « volume effectif moyen »), MAV = zone d'adaptation, MRV = maximum récupérable. Ce sont des repères pratiques, pas des seuils validés ; ils varient selon le muscle et la personne (les valeurs par muscle de l'app sont dans la bibliothèque, onglet Tableau).</li>
+   <li><b>Comptage fractionné</b> : une série compte 1 pour le muscle principal et 0,5 pour un muscle secondaire (triceps sur le développé, biceps sur le tirage). Sans ça, on surestime le volume réel.</li>
+   <li>Plus le pratiquant est fort, plus chaque série coûte cher en fatigue : les très forts progressent souvent mieux au bas de la fourchette (12-15 séries) avec une qualité maximale.</li>
+   <li>Fréquence : 2 fois par muscle et par semaine est le bon défaut, surtout pour répartir le volume (Schoenfeld et al., Sports Med, 2016).</li></ul>`},
+ {id:"periodisation",ic:"🗓️",t:"Périodiser : les blocs",
+  cli:`<p>Ton programme est découpé en <b>blocs de 4 semaines</b>. Dans chaque bloc :</p>
+   <ul><li>semaine 1 : plus léger, pour récupérer et bien placer la technique ;</li>
+   <li>semaines 2 et 3 : l'effort monte ;</li>
+   <li>semaine 4 : on pousse.</li></ul>
+   <p>D'un bloc à l'autre, les répétitions baissent et les charges montent. Au bout de 12 semaines, tu dois soulever nettement plus lourd qu'au départ.</p>
+   <p>Si tu es très fatigué plusieurs semaines de suite, dis-le : on allège une semaine. Ce n'est pas un échec, c'est ce qui permet de repartir plus fort.</p>`,
+  co:`<h4>Parti pris TB (hypertrophie + force, pas powerlifting)</h4>
+   <ul><li>Pas de deload systématique : on enchaîne des blocs d'accumulation de 4 semaines ; la 1re semaine de chaque bloc à RPE 7 fait office de régénération, puis montée jusqu'à RPE ~10 avec techniques d'intensification sur l'isolation ; charges plus lourdes d'un bloc à l'autre.</li>
+   <li>Deload réactif (séries ÷ 2, RPE 6, −10 % sur les barres) si : perfs en baisse 2 semaines de suite, sommeil dégradé, douleur articulaire, ou avant un test.</li></ul>
+   <h4>Débutant</h4><p>Progression linéaire (double progression) ; la fourchette descend de bloc en bloc. Pas besoin de périodisation ondulante.</p>
+   <h4>Avancé force (méthode TB)</h4>
+   <ul><li>Bloc volume : 4 × 6 à 72-78 % (+2 %/semaine).</li>
+   <li>Bloc intensification : 1 × 3 lourd + 4 × 5 back-off.</li>
+   <li>Bloc réalisation : single à 90 % +2 %/semaine, back-off 3 × 3 à 80 % +2 %/semaine sur 4 semaines ; départ +2 % à chaque nouvelle phase ; test en semaine 12.</li>
+   <li>Auto-régulation : si le single dépasse RPE 9,5, la charge ne monte pas la semaine suivante.</li></ul>
+   <h4>Autre modèle courant</h4><p>Un mésocycle de 5 semaines avec volume croissant (10 → 18 séries) et deload en S5. C'est un modèle classique (type RP) valable ; on lui préfère ici des blocs de 4 semaines sans deload planifié, plus simples à tenir pour des clients à 3-4 séances.</p>`},
+ {id:"cardio",ic:"❤️",t:"Cardio, pas et zone 2",
+  cli:`<ul><li><b>Les pas</b> : vise 8 000 par jour. Marcher après les repas, prendre les escaliers, aller au travail à pied : c'est la dépense la plus facile à tenir.</li>
+   <li><b>La zone 2</b> : un effort où tu peux encore parler en phrases courtes (environ 60 à 70 % de ta fréquence cardiaque max). Vélo, tapis incliné, elliptique, rameur : 20 à 40 min.</li>
+   <li><b>Quand ?</b> Après la musculation ou un autre jour, jamais avant une séance de jambes lourde.</li>
+   <li><b>Le fractionné (HIIT)</b> : efficace mais fatigant ; pas avant d'avoir plusieurs semaines de base, et une fois par semaine maximum.</li></ul>`,
+  co:`<ul><li>Interférence entraînement concurrent : réelle surtout sur la puissance et quand le cardio est volumineux, en course à pied, juste avant les jambes ; faible chez le débutant (Wilson et al., J Strength Cond Res, 2012). Préférer vélo/elliptique, séparer de 6 h ou placer après la muscu.</li>
+   <li>Zone 2 : estimation simple FC max ≈ 220 − âge (imprécis), ou test de la parole. Bénéfices : capacité aérobie, récupération entre séries, santé cardio-métabolique.</li>
+   <li>Pas : la mortalité baisse avec le nombre de pas jusqu'à un plateau autour de 6 000-8 000 chez les plus de 60 ans et 8 000-10 000 chez les plus jeunes (Paluch et al., Lancet Public Health, 2022). Le NEAT diminue spontanément en déficit : le fixer par un objectif de pas.</li>
+   <li>Dans l'app : le cardio prescrit (Suivi → Cardio) est compté dans la dépense (valeurs MET du Compendium), et le client note ses pas dans son journal.</li></ul>`},
+ {id:"nutrition",ic:"🍽️",t:"Nutrition : calories et macros",
+  cli:`<ul><li><b>Calories</b> : ton plan est calculé à partir de ton poids, ta taille, ton âge et ton activité. Pour perdre du gras, il est un peu en dessous de tes besoins. On l'ajuste selon tes résultats réels.</li>
+   <li><b>Protéines</b> : environ 2 g par kilo par jour, réparties sur 3 à 4 repas (25 à 40 g par repas). Viande, poisson, œufs, laitages, skyr, légumineuses, tofu.</li>
+   <li><b>Lipides</b> : au moins 0,8 g par kilo : ils sont indispensables aux hormones. Huile d'olive, oléagineux, poissons gras, avocat.</li>
+   <li><b>Glucides</b> : le reste. Ils sont ton carburant pour l'entraînement : un peu plus les jours de séance, un peu moins les jours de repos.</li>
+   <li><b>Légumes et fruits</b> à chaque repas : volume, fibres, satiété.</li>
+   <li><b>Pas de régime</b> : des plats que tu aimes, aux bonnes quantités. Tu peux remplacer un plat par un équivalent dans l'app.</li></ul>`,
+  co:`<ul><li>Besoins : Mifflin-St Jeor (Mifflin et al., Am J Clin Nutr, 1990) × facteur d'activité hors séances, + dépense des séances et du cardio (MET). Ce n'est qu'un point de départ : on corrige avec la tendance de poids sur 2-3 semaines.</li>
+   <li>Protéines : bénéfice sur la masse maigre jusqu'à environ 1,6 g/kg/j en moyenne, avec un intervalle de confiance jusqu'à 2,2 g/kg (Morton et al., Br J Sports Med, 2018). En déficit chez un sujet sec : 2,3-3,1 g/kg de masse maigre (Helms et al., JISSN, 2014). Défaut de l'app : 2 g/kg, 1,8 en prise de masse.</li>
+   <li>Lipides : 0,8 à 1 g/kg ; ne pas descendre durablement sous ~20 % des calories.</li>
+   <li>Glucides : le reste ; jours de repos −10 à −15 % (cycle simple, sert surtout l'adhésion).</li>
+   <li>Ajustements : perte &lt; 0,25 %/semaine sur 2 semaines (poids moyen) → −100 à −150 kcal ou +2 000 pas ; perte &gt; 1 %/semaine ou perfs qui s'effondrent → +100 à 150 kcal. Prise de masse : viser +0,25 à 0,5 %/semaine.</li>
+   <li>Pauses diététiques (1 à 2 semaines au maintien) possibles après 8-12 semaines de déficit pour l'adhésion.</li>
+   <li>Modèles par profil : Suivi → Nutrition → « Modèles par profil » ; ils s'individualisent avec le questionnaire (sexe, âge, taille, poids, activité, régime, exclusions, aliments refusés).</li></ul>`},
+ {id:"recup",ic:"😴",t:"Récupération et sommeil",
+  cli:`<ul><li><b>7 à 9 heures de sommeil.</b> C'est là que tu récupères et que ton muscle se construit. Mal dormir augmente la faim et fait perdre plus de muscle pendant une sèche.</li>
+   <li>Une routine simple : mêmes horaires, écran coupé 30 min avant, chambre fraîche et sombre.</li>
+   <li>Avec un bébé ou des enfants jeunes : on adapte. Une nuit courte ? Garde la séance mais vise le bas de la fourchette d'effort (RPE 7).</li>
+   <li><b>Courbatures</b> : normales au début, elles ne mesurent pas la qualité d'une séance.</li>
+   <li><b>Douleur articulaire</b> (pas musculaire) : arrête l'exercice et préviens ton coach, on le remplace.</li></ul>`,
+  co:`<ul><li>Restriction de sommeil en déficit : plus de perte de masse maigre et moins de perte de gras à déficit égal (Nedeltcheva et al., Ann Intern Med, 2010).</li>
+   <li>Indicateurs à surveiller dans le journal : sommeil, humeur, stress, énergie ; perfs dans le carnet. Deux semaines de baisse simultanée → semaine allégée ou retour au maintien.</li>
+   <li>Jeunes parents : réduire le volume (−30 %) plutôt que l'intensité, garder les gros mouvements, accepter le maintien temporaire.</li></ul>`},
+ {id:"techniques",ic:"⚡",t:"Techniques d'intensification",
+  cli:`<p>En fin de bloc, sur l'isolation, ton programme peut contenir :</p>
+   <ul><li><b>🔻 Dégressive (DS)</b> : à l'échec, baisse la charge de 20 à 30 % et continue sans repos.</li>
+   <li><b>✂️ Partielles (PART)</b> : à l'échec, continue avec des demi-amplitudes dans la partie étirée.</li>
+   <li><b>💀 Échec</b> : la dernière rép est vraiment la dernière possible, technique propre.</li></ul>
+   <p>Jamais sur le squat, le soulevé de terre ou le développé couché sans pareur.</p>`,
+  co:`<ul><li>Utiles pour ajouter du stimulus sans allonger la séance ; coût en fatigue élevé : réservées à l'isolation et aux machines, semaine 4 des blocs.</li>
+   <li>Partielles en position étirée : données encourageantes (gains au moins équivalents à l'amplitude complète sur certains muscles) ; à utiliser après l'échec en amplitude complète.</li>
+   <li>Syntaxe de prescription dans l'app : <code>2x10-12 RPE9 + 1x10-12 RPE10 DS</code>, <code>1x5-8 PART</code>, <code>ECHEC</code>, <code>ISO</code> ; l'échauffement (<code>ECH</code>) n'est jamais compté.</li></ul>`},
+ {id:"suivi",ic:"📏",t:"Mesurer ses progrès et ajuster",
+  cli:`<ul><li><b>Poids</b> : pèse-toi le matin, à jeun, 3 à 7 fois par semaine. Seule la moyenne de la semaine compte : le poids d'un jour varie de 1 à 2 kg avec l'eau et le sel.</li>
+   <li><b>Tour de taille</b> : une fois par semaine, au niveau du nombril.</li>
+   <li><b>Photos</b> : toutes les 4 semaines, même lumière, même tenue.</li>
+   <li><b>Carnet</b> : si tes charges montent pendant que ton poids baisse, tu perds du gras et pas du muscle.</li>
+   <li><b>Bilan du dimanche</b> : 30 secondes dans l'app pour que ton coach ajuste ton plan.</li></ul>`,
+  co:`<ul><li>Décision sur 2-3 semaines de tendance (moyennes hebdomadaires), jamais sur une pesée.</li>
+   <li>Grille rapide : tour de taille ↓ et charges ↑ → on ne touche à rien ; poids stable + tour de taille stable 2 semaines → −100 à −150 kcal ou +pas ; charges ↓ + énergie ↓ → +100 à 150 kcal ou semaine allégée.</li>
+   <li>Recomposition : le poids peut stagner alors que le tour de taille baisse et les charges montent ; d'où le suivi multi-indicateurs.</li></ul>`},
+ {id:"profils",ic:"🧭",t:"Quel programme pour quel profil",
+  cli:`<ul><li><b>Tu (re)commences</b> : 2 ou 3 séances complètes (full body) sur machines et haltères, 10-12 reps, beaucoup de technique, charges qui montent chaque semaine.</li>
+   <li><b>Tu t'entraînes depuis 1 à 4 ans mais tu stagnes</b> : 3 ou 4 séances, blocs de 4 semaines, plus d'intensité et de suivi des charges.</li>
+   <li><b>Tu es déjà fort</b> : plus de volume, techniques d'intensification, et du travail lourd (1 à 5 reps) si ton objectif est la force.</li></ul>
+   <p>Dans tous les cas : les mêmes fondamentaux (calories, protéines, pas, sommeil).</p>`,
+  co:`<table class="kb66t"><tr><th>Profil</th><th>Programme</th><th>Alimentation</th></tr>
+   <tr><td>Débutant / reprise, ventre, 3 créneaux</td><td>Reprise · Perte de ventre · Full body 3 j</td><td>Perte de ventre (−20 %) ou en douceur (−12 %)</td></tr>
+   <tr><td>Débutant, 2 créneaux (jeune parent)</td><td>Reprise express · Full body 2 j</td><td>Emploi du temps chargé · 3 repas</td></tr>
+   <tr><td>Intermédiaire qui stagne, 3 h/semaine</td><td>Recomposition · Full body 3 j</td><td>Recomposition (maintien, 2 g/kg)</td></tr>
+   <tr><td>Intermédiaire, 4 séances</td><td>Hypertrophie · Haut / Bas 4 j</td><td>Recomposition ou prise propre</td></tr>
+   <tr><td>Avancé, objectif muscle</td><td>Hypertrophie avancée 5 j</td><td>Prise propre (+8 %) ou recomposition</td></tr>
+   <tr><td>Avancé, objectif force</td><td>Powerbuilding 4 j</td><td>Performance / force</td></tr>
+   <tr><td>50 ans et plus</td><td>Full body 2-3 j, machines</td><td>50 ans et plus (2 g/kg, 30-40 g par repas)</td></tr></table>
+   <p class="small">Le générateur du questionnaire choisit automatiquement le programme selon le niveau, le nombre de séances et l'objectif ; la Banque de programmes → filtre « Méthode TB » les regroupe. Les modèles alimentaires sont dans Suivi → Nutrition.</p>`}
+];
+// ---------- modèles alimentaires par profil (individualisés ensuite avec le questionnaire du client)
+const NM66=[
+ {id:"ventre",ic:"🔥",name:"Perte de ventre · homme actif",adj:-20,pk:2,lk:0.8,rest:0.85,meals:"3 repas + 1 collation",steps:8000,
+  prof:"Homme 30-55 ans, du ventre à perdre, travail et famille, 3 séances par semaine.",
+  why:"Ton plan crée un déficit d'environ 20 % : assez pour voir ton tour de taille baisser chaque semaine, sans te couper de tes plats habituels. Les protéines sont hautes (2 g/kg) pour garder ton muscle et limiter la faim. Un peu moins de glucides les jours sans séance.",
+  tips:["Une source de protéines à chaque repas.","La moitié de l'assiette en légumes, midi et soir.","L'alcool se compte : vise 2 verres maximum par semaine pendant ces 12 semaines.","Une collation protéinée plutôt que le grignotage de l'après-midi."]},
+ {id:"douce",ic:"🌱",name:"Perte de gras en douceur · reprise",adj:-12,pk:1.8,lk:0.9,rest:0.85,meals:"3 repas + 1 collation",steps:7000,
+  prof:"Reprise après une longue pause, peu de kilos à perdre, ou besoin de souplesse (déplacements, repas de famille).",
+  why:"Un déficit léger (environ 12 %) : tu perds moins vite, mais sans faim ni fatigue, et tes charges continuent de monter. C'est le plan idéal pour reprendre de bonnes habitudes.",
+  tips:["Garde 1 ou 2 repas libres par semaine, sans culpabiliser.","Pèse-toi 3 fois par semaine : seule la moyenne compte.","Hydrate-toi : 2 litres d'eau par jour en plus du café."]},
+ {id:"recompo",ic:"⚖️",name:"Recomposition · perdre du gras et prendre du muscle",adj:0,pk:2,lk:0.9,rest:0.85,meals:"3 repas + 1 collation",steps:8000,
+  prof:"Débutant ou pratiquant qui reprend, poids correct mais peu de muscle ; ou intermédiaire qui veut se dessiner sans perdre de force.",
+  why:"Tu manges à tes besoins, avec beaucoup de protéines. Avec un entraînement qui progresse, ton corps peut perdre du gras et gagner du muscle en même temps : le poids bouge peu, mais le tour de taille baisse et les charges montent.",
+  tips:["Juge tes progrès au tour de taille et au carnet, pas à la balance.","Des glucides autour de la séance (repas avant et après).","Si le tour de taille ne bouge pas en 3 semaines, on passera en léger déficit."]},
+ {id:"prise",ic:"💪",name:"Prise de muscle propre",adj:8,pk:1.8,lk:1,rest:0.9,meals:"3 repas + 2 collations",steps:7000,
+  prof:"Profil mince ou intermédiaire/avancé qui veut prendre du muscle en limitant le gras.",
+  why:"Un léger surplus (environ 8 %) donne à ton corps l'énergie pour construire du muscle. On vise +0,25 à 0,5 % du poids par semaine : plus vite, ce serait surtout du gras.",
+  tips:["Des glucides à chaque repas, surtout autour des séances.","Si tu manques d'appétit : boissons (lait, smoothie), oléagineux, plats plus denses.","Pèse-toi chaque semaine : on ajuste si la prise dépasse 0,5 % par semaine."]},
+ {id:"force",ic:"🏋️",name:"Performance / force",adj:0,pk:1.8,lk:1,rest:0.85,meals:"3 repas + 1 collation",steps:8000,
+  prof:"Pratiquant avancé en cycle de force (powerbuilding, street lifting) : priorité aux performances.",
+  why:"Tu manges à tes besoins pour avoir toute ton énergie sur les séances lourdes. Les glucides sont placés autour des séances : ce sont eux qui alimentent les séries lourdes.",
+  tips:["Repas riche en glucides 2 à 3 h avant la séance.","Protéines + glucides dans l'heure qui suit.","Pas de déficit pendant un bloc de réalisation ou avant un test."]},
+ {id:"femme",ic:"🌸",name:"Perte de gras · femme",adj:-12,pk:1.8,lk:1,rest:0.85,meals:"3 repas + 1 collation",steps:8000,
+  prof:"Femme qui veut perdre du gras en gardant (ou en construisant) du muscle.",
+  why:"Un déficit modéré (environ 12 %), des protéines élevées et des lipides suffisants (1 g/kg) pour préserver ton équilibre hormonal et ton énergie au fil du cycle.",
+  tips:["Le poids varie avec le cycle : compare les mêmes semaines d'un mois à l'autre.","Ne descends pas sous ce plan sans en parler : trop peu de calories fatigue et dérègle le cycle.","Fer et calcium : viande rouge ou légumineuses, laitages ou équivalents enrichis."]},
+ {id:"senior",ic:"🧓",name:"50 ans et plus · préserver le muscle",adj:-12,pk:2,lk:0.9,rest:0.9,meals:"3 repas + 1 collation",steps:8000,
+  prof:"50 ans et plus : perdre du gras sans perdre de muscle, garder force et autonomie.",
+  why:"Après 50 ans, le muscle répond moins bien aux protéines : il en faut davantage à chaque repas (30 à 40 g). Le déficit reste modéré pour protéger ton muscle et ton énergie.",
+  tips:["30 à 40 g de protéines à chaque repas, y compris au petit-déjeuner.","Calcium et vitamine D : laitages, poissons gras, exposition au soleil.","Ne saute pas de repas."]},
+ {id:"vege",ic:"🥗",name:"Végétarien · perte de gras",adj:-12,pk:2,lk:0.9,rest:0.85,meals:"3 repas + 1 collation",diet:"Végétarien",steps:8000,
+  prof:"Client végétarien (œufs et laitages oui, ni viande ni poisson) qui veut perdre du gras.",
+  why:"Ton plan s'appuie sur les œufs, les laitages (skyr, fromage blanc), les légumineuses et le tofu pour atteindre 2 g de protéines par kilo sans viande ni poisson.",
+  tips:["Associe céréales et légumineuses dans la journée.","Skyr ou fromage blanc : la collation protéinée la plus simple.","Pense au fer (lentilles + agrume) et à la vitamine B12."]},
+ {id:"vegan",ic:"🌿",name:"Vegan · recomposition",adj:0,pk:2,lk:0.9,rest:0.85,meals:"3 repas + 2 collations",diet:"Vegan",steps:8000,
+  prof:"Client vegan qui veut se recomposer (perdre du gras, prendre du muscle).",
+  why:"Les protéines végétales sont un peu moins bien assimilées : on vise 2 g/kg, réparties sur 5 prises, avec tofu, tempeh, légumineuses, soja et une protéine végétale en poudre si besoin.",
+  tips:["Une source de protéines à chaque prise, y compris les collations.","Supplément de vitamine B12 indispensable.","Oméga-3 : noix, lin, chia, ou huile d'algue."]},
+ {id:"charge",ic:"⏱️",name:"Emploi du temps chargé · 3 repas",adj:-12,pk:2,lk:0.9,rest:0.85,meals:"3 repas",steps:8000,
+  prof:"Peu de temps pour cuisiner ou manger (jeune parent, déplacements) : 3 repas simples, pas de collation.",
+  why:"Trois repas simples et rassasiants, sans collation à gérer. Les plats sont faciles à préparer à l'avance ou à acheter, et chacun a des équivalents si tu manges dehors.",
+  tips:["Cuisine en double le soir pour le déjeuner du lendemain.","Garde une option de secours : sandwich jambon-crudités ou salade composée avec une source de protéines.","Petit-déjeuner protéiné en 2 min : skyr, fruits, flocons d'avoine."]}
+];
+function nmRec66(){ const d=(X10.obCid===CUR&&X10.ob&&X10.ob.data)||{}, age=parseInt(d.age)||null, m=method66();
+  if(d.diet==="Vegan") return "vegan"; if(d.diet==="Végétarien") return "vege";
+  if(m&&m.id==="tb-pb4") return "force";
+  if(d.nobj==="Prendre du muscle") return "prise"; if(d.nobj==="Maintenir / recomposition") return "recompo";
+  if(age&&age>=50) return "senior"; if(d.sex==="Femme"&&/^Perdre/.test(d.nobj||"")) return "femme";
+  if(d.meals==="3 repas"&&/^Perdre/.test(d.nobj||"")) return "charge";
+  if(d.nobj==="Perdre du gras en douceur") return "douce"; if(d.nobj==="Perdre du gras") return "ventre";
+  return m&&m.lvl==="Débutant"?"ventre":"recompo"; }
+const NM66S={open:false};
+function vNM66(){ const cur=NU.plan&&NU.plan.model&&NU.plan.model.id, rec=nmRec66(), ob=X10.obCid===CUR&&X10.ob&&X10.ob.submitted_at;
+  return `<details class="card" id="nm66" ${NM66S.open?"open":""}><summary><b>🍽️ Modèles par profil</b><div class="muted small">${cur?`Plan actuel : ${esc((NM66.find(x=>x.id===cur)||{}).name||"")}`:"Choisis un profil : le plan s'adapte ensuite à ce client"}</div></summary>
+   <p class="muted small">Chaque modèle fixe l'objectif calorique, les protéines, les lipides, la structure des repas et l'activité. Il est ensuite individualisé avec ${ob?"le questionnaire de ce client (sexe, âge, taille, poids, activité, régime, exclusions, aliments refusés, nombre de repas)":"le profil de ce client (questionnaire pas encore rempli : valeurs par défaut à corriger dans Besoins)"}. Tout reste modifiable.</p>
+   ${NM66.map(m=>`<div class="nm66 ${m.id===cur?"on":""}"><div class="grow"><b>${m.ic} ${esc(m.name)}</b>${m.id===rec?` <span class="chip on">Recommandé</span>`:""}${m.id===cur?` <span class="chip">Actuel</span>`:""}
+     <div class="muted small">${esc(m.prof)}</div><div class="small">${m.adj>0?"+":""}${m.adj} % · protéines ${fmtN(m.pk)} g/kg · lipides ${fmtN(m.lk)} g/kg · ${esc(m.meals)}${m.diet?" · "+esc(m.diet):""} · ${fmtN(m.steps)} pas</div></div>
+     <button class="ghost sm" data-act="nm66-apply" data-v="${m.id}">Appliquer</button></div>`).join("")}</details>`; }
+async function nmApply66(id){ const m=NM66.find(x=>x.id===id); if(!m||!coach()) return;
+  await Promise.all([nuFoods(),nuDishes()]); if(NU.cid!==CUR||!NU.loaded) await nuEnsure();
+  const has=!!(NU.plan&&NU.plan.types&&NU.plan.types.some(t=>t.meals.some(x=>x.opts.length)));
+  if(has&&!confirm(`Remplacer le plan alimentaire actuel par « ${m.name} » ? Les mesures et le journal du client sont conservés.`)) return;
+  const d=Object.assign({},(X10.obCid===CUR&&X10.ob&&X10.ob.data)||{}), pr=ST.prog.profile||{}, old=(NU.plan&&NU.plan.prof)||{}, oldC=(NU.plan&&NU.plan.cardio)||[];
+  if(m.diet) d.diet=m.diet; if(!d.meals) d.meals=m.meals; if(!d.weight&&pr.pdc) d.weight=String(pr.pdc);
+  const days=(pr.days||[]).map(Boolean), nd=days.filter(Boolean).length; const T={nd:nd||3,dmax:+pr.dmax||75,days:days.length===7&&nd?days:DAYS3.slice()};
+  const N=nutriProposal(d,T); if(!N.R.length) return toast("Aucun repas compatible : ajoute des plats dans Nutrition → Plats");
+  ["sex","age","h","w","neat"].forEach(k=>{ if(N.prof[k]==null&&old[k]!=null) N.prof[k]=old[k]; });
+  Object.assign(N.prof,{adj:m.adj,pk:m.pk,lk:m.lk});
+  applyNutri(N,T); const P=NU.plan;
+  P.cardio=oldC.filter(c=>!c.tb66&&!c.nm66); const tb=method66(); if(tb) P.cardio=P.cardio.concat(cardioOf66(tb));
+  P.steps=(tb&&tb.steps)||m.steps; P.model={id:m.id,at:todayISO()};
+  nBesoins(); P.tgt=Object.assign({},NU.calc); P.types.forEach(t=>{ if(t.id==="R") t.g=Math.round(P.tgt.g*m.rest); }); P.types.forEach(t=>{ try{ fitType(t); }catch(e){ console.error(e); } });
+  NU.nv="plan"; NM66S.open=false; nuSave(); toast(`« ${m.name} » : ${P.tgt.k} kcal, ${P.tgt.p} g de protéines`); render(); }
+const _nPlanCoach66=nPlanCoach;
+nPlanCoach=function(){ return vNM66()+_nPlanCoach66(); };
+const _vNut66=vNutrition;
+vNutrition=function(){ let h=_vNut66(); if(!coach()||!NU.loaded||NU.err||NU.cid!==CUR||NU.plan||NU.nv!=="plan"||h.includes('id="nm66"')) return h; return h+vNM66(); };
+function vWhyPlan66(){ const P=planOn(), m=P&&P.model&&NM66.find(x=>x.id===P.model.id); if(!m) return "";
+  return `<details class="card" id="wp66"><summary><b>💡 Pourquoi ce plan</b><div class="muted small">${esc(m.name)}</div></summary><p class="small">${esc(m.why)}</p>
+   <ul class="small">${m.tips.map(t=>`<li>${esc(t)}</li>`).join("")}</ul><div class="row"><button class="ghost sm" data-act="kb66-go" data-v="nutrition">🍽️ Comprendre la nutrition</button></div></details>`; }
+const _nPlanClient66=nPlanClient;
+nPlanClient=function(){ return vWhyPlan66()+_nPlanClient66(); };
+
+// ---------- vue « Méthode » : la base de connaissances
+const KBS66={v:"co",open:null};
+function vKB66(){ const co=coach()&&KBS66.v==="co";
+  let h=`<h2>📘 ${coach()?"Méthode & théorie":"La méthode"}</h2>`;
+  if(coach()) h+=`<div class="row" style="margin:4px 0 8px"><button class="chip ${co?"on":""}" data-act="kb66-v" data-v="co">Version coach</button><button class="chip ${co?"":"on"}" data-act="kb66-v" data-v="cli">Version client</button></div>`;
+  h+=`<p class="muted small">${co?"Ta théorie complète : principes, règles chiffrées appliquées par l'app, sources. Tes clients voient la version simplifiée.":"Les principes derrière ton programme et ton plan alimentaire. Pas besoin de tout lire d'un coup : un chapitre à la fois."}</p>`;
+  const p=method66(); if(p&&CUR&&!co) h+=`<div class="alert ok small">Ton programme : <b>${esc(p.name)}</b>. Les règles de progression sont dans l'onglet Semaine (📘 Ma méthode de progression).</div>`;
+  h+=KB66.map(c=>`<details class="card kb66" id="kb66-${c.id}" ${KBS66.open===c.id?"open":""}><summary><b>${c.ic} ${esc(c.t)}</b></summary><div class="kbb66">${c.cli}${co?`<div class="kbco66"><div class="muted small" style="margin-bottom:4px">🎓 Pour le coach</div>${c.co}</div>`:""}</div></details>`).join("");
+  h+=`<p class="note">${co?"Contenu rédigé à partir des méta-analyses et consensus actuels (références dans chaque chapitre). Les chiffres sont des repères à individualiser.":"Une question sur un chapitre ? Écris à ton coach dans la messagerie."}</p>`;
+  return h; }
+const _render66=render;
+render=function(){ if(ST.view!=="methode"||!ST.ready||(MODE!=="coach"&&(!CUR||!M))){ return _render66(); }
+  const cl=MODE==="client"&&!coach(), base=!CUR?"clients":(cl?"compte":"plus");
+  ST.view=base; try{ _render66(); } finally{ ST.view="methode"; }
+  if(cl&&ST.todayOn) return; const app=$("#app"); if(!app) return;
+  try{ app.innerHTML=vKB66(); }catch(e){ console.error(e); app.innerHTML=`<div class="alert x">Erreur d'affichage : ${esc(e.message)}</div>`; }
+  if(KBS66.open){ const el=document.getElementById("kb66-"+KBS66.open); if(el) setTimeout(()=>el.scrollIntoView({block:"start"}),30); } };
+// accès : menu Plus du coach, accueil et compte du client
+const _vPlus66=vPlus;
+vPlus=function(){ return _vPlus66().replace(`<div class="menu">`,`<div class="menu"><button data-act="kb66-go" data-v="">📘 Méthode & théorie</button>`); };
+const _vClients66=vClients;
+vClients=function(){ return `<div class="row" style="margin:0 0 8px"><button class="ghost sm" data-act="kb66-go" data-v="">📘 Méthode & théorie</button></div>`+_vClients66(); };
+const _vToday66=vToday;
+vToday=function(){ const h=_vToday66(); if(coach()) return h; const p=method66();
+  const card=`<div class="card"><div class="muted small">Comprendre</div><h3 style="margin:2px 0">📘 La méthode</h3><div class="muted small">${p?"Pourquoi ton programme est construit comme ça, et comment progresser.":"Les principes : progression, calories, protéines, cardio, sommeil."}</div><div class="row" style="margin-top:8px"><button class="ghost sm" data-act="kb66-go" data-v="">Lire</button>${p?`<button class="ghost sm" data-act="kb66-go" data-v="surcharge">📈 La progression</button>`:""}</div></div>`;
+  return h.includes(`<div id="x10-pushnudge"></div>`)?h.replace(`<div id="x10-pushnudge"></div>`,card+`<div id="x10-pushnudge"></div>`):h+card; };
+const _x10After66=x10After;
+x10After=function(){ _x10After66(); if(MODE!=="client"||coach()||ST.view!=="compte"||ST.todayOn) return; const c=document.getElementById("nav44c"); if(c&&!c.querySelector('[data-act="kb66-go"]')) c.insertAdjacentHTML("beforeend",`<button class="ghost" data-act="kb66-go" data-v="">📘 La méthode</button>`); };
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||""; if(!/^(kb66-|nm66-|mc66-)/.test(a)) return;
+  e.stopImmediatePropagation(); e.preventDefault();
+  if(a==="kb66-go"){ ST.todayOn=false; ST.view="methode"; KBS66.open=v||null; if(!v) window.scrollTo(0,0); return render(); }
+  if(a==="kb66-v"){ KBS66.v=v; return render(); }
+  if(a==="nm66-apply") return nmApply66(v);
+  if(a==="mc66-cardio"){ const p=method66(); if(!p) return; if(!(NU.plan&&NU.cid===CUR)) return toast("Crée d'abord le plan dans Suivi → Nutrition");
+    cardioToPlan66(NU.plan,p); nuSave(); return toast("Cardio et objectif de pas ajoutés au plan Suivi"); } },true);
+document.addEventListener("toggle",e=>{ const t=e.target; if(t&&t.id==="nm66") NM66S.open=t.open; if(t&&t.classList&&t.classList.contains("kb66")&&t.open) KBS66.open=t.id.replace("kb66-",""); },true);
+const _css66=document.createElement("style"); _css66.textContent=`.mc66 summary,.kb66 summary,#nm66 summary,#wp66 summary{cursor:pointer}
+.r66{margin:8px 0 6px;padding-left:20px}.r66 li{margin:4px 0;font-size:.92rem;line-height:1.4}
+.nx66{margin-top:6px;padding:6px 10px;border-radius:8px;background:var(--chalk);font-size:.88rem;line-height:1.35}.nx66.up{border-left:3px solid var(--green)}.nx66.hold{border-left:3px solid var(--yellow)}.nx66.new{border-left:3px solid var(--accent,var(--blue))}.nx66.keep{border-left:3px solid var(--line)}
+.nm66{display:flex;gap:8px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}.nm66 .grow{min-width:0}.nm66.on b{color:var(--accent,var(--blue))}
+.kbb66{line-height:1.5}.kbb66 p,.kbb66 li{font-size:.94rem}.kbb66 ul,.kbb66 ol{padding-left:20px}.kbb66 h4{margin:12px 0 4px}
+.kbco66{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--chalk)}
+.kb66t{width:100%;border-collapse:collapse;font-size:.88rem;margin:6px 0}.kb66t th,.kb66t td{text-align:left;padding:5px 6px;border-top:1px solid var(--line);vertical-align:top}
+.kbb66 code{font-size:.82rem;overflow-wrap:anywhere}`; document.head.appendChild(_css66);
+
 boot();
 
 </script>

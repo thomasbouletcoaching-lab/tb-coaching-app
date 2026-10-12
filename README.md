@@ -36,6 +36,19 @@ hébergée **gratuitement** sur GitHub Pages.
   et rappel « bilan de la semaine » le dimanche (19 h l'été, 18 h l'hiver).
 - Notification immédiate à chaque nouveau message (déclencheur sur `messages`).
 
+## Méthode TB (programmes, charge conseillée, nutrition, théorie)
+
+- **Banque de programmes → « Méthode TB »** : 6 programmes par profil (reprise/ventre 2 ou 3 j, recomposition 3 j,
+  hypertrophie 4 j, hypertrophie avancée 5 j, powerbuilding 4 j), progression écrite semaine par semaine sur 12 semaines.
+  Les règles du programme s'affichent au client (Semaine → « Ma méthode de progression ») et au coach (Programme).
+  Le questionnaire propose automatiquement le bon programme.
+- **Charge conseillée** dans le Carnet : double progression calculée depuis la dernière séance (hors exercices en %).
+- **Suivi → Nutrition → « Modèles par profil »** : 10 modèles (objectif, protéines, lipides, repas, pas),
+  individualisés avec le questionnaire du client. Le client voit « Pourquoi ce plan ».
+- **📘 Méthode** : base de connaissances, version coach (théorie complète, sources) et version client (principes).
+  Accès : Plus (coach), Accueil et Compte (client).
+- Le contenu est dans `index.html`, module 66 (`TBP66`, `NM66`, `KB66`).
+
 ## Vidéos de la messagerie
 
 - Une seule série, 90 secondes maximum.

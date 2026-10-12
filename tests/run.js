@@ -168,6 +168,58 @@ const T = {
     ok(r.w > 330, 'texte sur toute la largeur'); ok(r.full, 'message entièrement visible'); ok(r.app === 'hidden', 'tableau de bord masqué derrière la messagerie');
   }, clientPre()),
 
+  'coach : méthode TB — programme par profil, règles, modèle alimentaire': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(id => openClient(id), sc.CID); await p.waitForTimeout(1200);
+    const chk = await p.evaluate(() => { const L = BANK.filter(b => b.tb); const miss = [], bad = [];
+      L.forEach(b => { applyBank(b.id); recompute(); b.s.forEach(s => s[2].forEach(e => { if (!BASEMAP[e.name]) miss.push(e.name); }));
+        M.rows.forEach(r => { for (let w = 1; w <= 12; w++) { const k = r.weeks[w]; if (r.ex && k && k.eff && k.valid === false) bad.push(b.id + ' ' + r.ex + ' S' + w); } }); });
+      return { n: L.length, miss, bad, first: BANK[0].cat }; });
+    ok(chk.n === 6 && chk.first === 'Méthode TB', '6 programmes Méthode TB en tête de la banque');
+    ok(!chk.miss.length, 'tous les exercices existent dans la bibliothèque' + (chk.miss.length ? ' : ' + chk.miss.join(', ') : ''));
+    ok(!chk.bad.length, 'toutes les prescriptions des 12 semaines sont valides' + (chk.bad.length ? ' : ' + chk.bad.slice(0, 3).join(', ') : ''));
+    const tp = await p.evaluate(() => [trainProposal({ years: "Moins d'1 an", n_ses: '3', obj: 'Améliorer ma composition corporelle' }).bank.id, trainProposal({ years: 'Plus de 5 ans', n_ses: '4', obj: 'Gagner en force' }).bank.id]);
+    ok(tp[0] === 'tb-rep3' && tp[1] === 'tb-pb4', 'le questionnaire propose le programme de la méthode adapté');
+    await p.evaluate(() => { applyBank('tb-rep3'); ST.view = 'programme'; render(); }); await p.waitForTimeout(400);
+    ok(await p.evaluate(() => ST.prog.method && ST.prog.method.id === 'tb-rep3' && !!document.getElementById('mc66')), 'règles de la méthode affichées dans Programme');
+    await p.evaluate(() => { ST.view = 'nutrition'; NU.nv = 'plan'; render(); }); await p.waitForTimeout(1200);
+    ok(!!(await p.$('#nm66 [data-act="nm66-apply"][data-v="ventre"]')), 'modèles alimentaires par profil proposés');
+    ok(await p.evaluate(() => /Recommandé/.test(document.getElementById('nm66').textContent)), 'un modèle recommandé selon le questionnaire');
+    await p.click('#nm66 summary'); await p.click('[data-act="nm66-apply"][data-v="ventre"]'); await p.waitForTimeout(1200);
+    const pl = await p.evaluate(() => ({ m: NU.plan.model && NU.plan.model.id, pk: NU.plan.prof.pk, adj: NU.plan.prof.adj, k: NU.plan.tgt.k, c: (NU.plan.cardio || []).length, st: NU.plan.steps }));
+    ok(pl.m === 'ventre' && pl.pk === 2 && pl.adj === -20 && pl.k > 1500, 'plan créé et individualisé (' + pl.k + ' kcal)');
+    ok(pl.c >= 1 && pl.st === 8000, 'cardio et objectif de pas du programme ajoutés au plan');
+  }, coachPre(sc => { getDb().onboarding = [{ client_id: sc.CID, data: { diet: 'Omnivore', sex: 'Homme', age: '41', height: '178', weight: '92', nobj: 'Perdre du gras', activity: 'Plutôt assis' }, submitted_at: '2026-10-01T10:00:00Z' }];
+    return (m, path, b, a, t) => { if (t === 'nutri_dishes' && m === 'GET') return [...DISHES, { id: 'd2', name: 'Riz au lait', cat: 'Petit-déjeuner', items: [{ f: 'fr', q: 150 }] }, { id: 'd3', name: 'Poulet avocat', cat: 'Collation', items: [{ f: 'fp', q: 80 }, { f: 'fa', q: 50 }] }]; }; })),
+
+  'client : charge conseillée, méthode et base de connaissances': () => run('client', async (p) => {
+    await p.waitForTimeout(1000);
+    const n = await p.evaluate(() => { applyBank('tb-rep3'); ST.prog.profile.start = isoD(new Date(Date.now() - (7 + (new Date().getDay() + 6) % 7) * 864e5)); recompute();
+      const r = i => M.rows.find(x => x.s === 0 && x.i === i);
+      ST.carnet['1_' + r(0).key] = { sets: [{ g: 100, h: 12, r: 7, d: 1 }, { g: 100, h: 12, r: 7.5, d: 1 }] };
+      ST.carnet['1_' + r(1).key] = { sets: [{ g: 40, h: 9, r: 8, d: 1 }, { g: 40, h: 8, r: 8.5, d: 1 }] };
+      ST.carnet['1_' + r(2).key] = { sets: [{ g: 50, h: 11, r: 8, d: 1 }] };
+      recompute(); ST.todayOn = false; ST.view = 'carnet'; ST.week = 2; ST.ses = 0; render();
+      return [...document.querySelectorAll('.nx66')].map(x => x.className + '|' + x.textContent); });
+    ok(n.length === 3 && /up\|.*102,5 kg/.test(n[0]), 'haut de fourchette atteint : +2,5 kg conseillés');
+    ok(/hold/.test(n[1]) && /keep/.test(n[2]), 'sous la fourchette : on consolide ; sinon +1 rép');
+    ok(await p.evaluate(() => document.querySelector('input.si[data-cs$="|g"]').placeholder === '102,5'), 'charge conseillée proposée dans la case');
+    await p.evaluate(() => { ST.view = 'semaine'; render(); }); await p.waitForTimeout(300);
+    ok(!!(await p.$('#mc66')), 'carte « Ma méthode de progression » dans Semaine');
+    await p.click('#mc66 summary'); await p.locator('#mc66 [data-act="kb66-go"]').first().click(); await p.waitForTimeout(400);
+    ok((await txt(p, '#app h2')).includes('La méthode') && !(await p.$('.kbco66')), 'base de connaissances en version client (sans la partie coach)');
+    ok(await p.evaluate(() => document.getElementById('kb66-priorites').open), 'chapitre lié ouvert');
+  }, clientPre()),
+
+  'coach : méthode & théorie depuis Plus, version coach et client': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(id => openClient(id), sc.CID); await p.waitForTimeout(1000);
+    await p.evaluate(() => { ST.view = 'plus'; render(); }); await p.waitForTimeout(300);
+    await p.click('.menu [data-act="kb66-go"]'); await p.waitForTimeout(400);
+    ok((await txt(p, '#app h2')).includes('Méthode & théorie') && (await p.$$('.kb66')).length >= 12, 'chapitres affichés');
+    ok((await p.$$('.kbco66')).length >= 12, 'version coach avec la théorie complète');
+    await p.click('[data-act="kb66-v"][data-v="cli"]'); await p.waitForTimeout(200);
+    ok(!(await p.$('.kbco66')), 'aperçu de la version client');
+  }, coachPre()),
+
   'page publique : redirection vers le site': async () => {
     const b = await chromium.launch({ executablePath: EXE }); const p = await (await b.newContext()).newPage(); let target = null;
     await p.route('https://thomasbouletcoaching-lab.github.io/**', async r => { target = r.request().url(); await r.fulfill({ status: 200, contentType: 'text/html', body: '<p>site</p>' }); });
