@@ -655,7 +655,7 @@ function warmup(load,r){ const P=M.P,pdc=M.pdc,add=sysAdd(r.type,pdc),bar=20; co
     let pl="—"; if(r.type==="Barre"){ let side=(v-bar)/2; const u=[]; plates.forEach(p=>{ const n=Math.floor(round(side,2)/p); if(n>0){u.push(n+"×"+fmtN(p)); side-=n*p;} }); pl=u.length?u.join(" "):"barre seule"; }
     h+=`<tr><td>${Math.round(p*100)} %</td><td class="n">${rp}</td><td class="n"><b>${t}</b></td><td>${pl}</td></tr>`; });
   return h+`<tr><td colspan="4" class="muted">Puis 1re série : ${esc(loadText(load,r.type))}</td></tr></table>`; }
-function vCarnet(){ const w=ST.week; if(ST.histEx) return vHist(ST.histEx); let h=`<h2>Carnet · S${w}</h2>`+weekStrip(w)+`<p class="note">Note chaque série : charge (lest pour les lestés, 0 = poids de corps), reps, RPE, puis ✓. Appuie sur le nom d'un exercice pour voir son historique.</p>`;
+function vCarnet(){ const w=ST.week; if(ST.histEx) return vHist(ST.histEx); let h=`<h2>Carnet · S${w}</h2>`+weekStrip(w)+`<p class="note">Note chaque série : charge (lest pour les lestés, 0 = poids de corps), reps, RPE, puis ✓. Appuie sur le nom d'un exercice pour voir son historique. Appuie sur le numéro d'une série pour indiquer son type, ajouter une note ou la vidéo de la série.</p>`;
   const SS=M.sessions.filter(S=>S.rows.some(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff));
   if(SS.length){ if(ST.cses==null||ST.csesW!==w||!SS.some(S=>S.s===ST.cses)){ const td=(new Date().getDay()+6)%7; const m=w===M.cw?SS.find(S=>S.dayOff===td):null; ST.cses=(m||SS.find(S=>{ const v=Object.keys(ST.carnet).some(k=>k.startsWith(w+"_"+S.s+"_")); return !v; })||SS[0]).s; ST.csesW=w; }
     h+=`<div class="row cses" style="margin:6px 0 4px">${SS.map(S=>{ const nd=S.rows.filter(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff).every(r=>{ const v=ST.carnet[w+"_"+r.key]; return v&&((v.sets||[]).some(x=>x.d)||v.g!=null); }); return `<button class="chip ${S.s===ST.cses?"on":""}" data-act="cses" data-v="${S.s}">${nd?"✓ ":""}${esc(S.name)} · ${esc(S.day.slice(0,3))}.</button>`; }).join("")}</div>`;
@@ -4847,6 +4847,63 @@ document.addEventListener("change",async e=>{ const el=e.target; if(!el.dataset|
   const {error}=await SB.from("clients").update({email:em}).eq("id",id); if(error) return toast(error.message); const c=CLIENTS.find(x=>x.id===id); if(c) c.email=em; toast("Téléphone enregistré. Recrée l'accès (🔑) pour qu'il se connecte avec ce numéro."); });
 const _cssFold=document.createElement("style"); _cssFold.textContent=`details.fold>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;min-height:32px}details.fold>summary::-webkit-details-marker{display:none}details.fold[open]>summary{margin-bottom:6px}
 .tdr .small{font-size:.82rem}.ovt table{width:100%;font-size:.88rem}.ovt td,.ovt th{padding:5px 4px;white-space:nowrap}.ovt th{font-size:.78rem;color:var(--soft)}.ovt td{vertical-align:middle}.ovn{background:transparent;color:var(--ink);border:0;padding:0;min-height:36px;font-weight:600;display:inline-flex;align-items:center;gap:6px;text-align:left}`; document.head.appendChild(_cssFold);
+
+
+// ================= MODULE CARNET : vidéo et note par série, notes spacieuses =================
+// Série : x.n (note) et x.v ([{path}] vidéo). Exercice : v.j (grande zone). Séance : clé w_n_s {j} (ressenti global).
+const SV64={target:null,up:null};
+const _saveCarnet64=saveCarnet;
+saveCarnet=async function(key){ const v=ST.carnet[key]||{};
+  if((v.sets||[]).some(x=>x&&(x.n||(x.v&&x.v.length)))){ recompute(); const {error}=await SB.from("carnet").upsert({client_id:CUR,k:key,data:v,updated_at:new Date().toISOString()}); if(error) toast("Carnet non enregistré : "+error.message); return; }
+  return _saveCarnet64.apply(this,arguments); };
+const _setEditor64=setEditor50;
+setEditor50=function(key,i){ let h=_setEditor64(key,i); const v=ST.carnet[key]||{}, x=(v.sets&&v.sets[i])||{}, V=x.v||[];
+  const need=V.map(m=>m.path).filter(p=>!MSG.urls[p]&&!MSG.gone[p]); if(need.length) signUrls(need).then(scheduleRender);
+  const vids=V.map((m,k)=>{ const u=MSG.urls[m.path]; return `<div class="sv64">${u?`<video src="${esc(u)}" controls playsinline preload="metadata"></video>`:`<div class="mph">${MSG.gone[m.path]?"Vidéo supprimée automatiquement après "+VID_KEEP_DAYS+" jours":"Chargement…"}</div>`}<button class="ghost sm" data-act="sv-del" data-v="${key}|${i}|${k}">Supprimer la vidéo</button></div>`; }).join("");
+  const extra=`<label class="f" style="margin-top:8px">📝 Note sur cette série<textarea class="big64" rows="3" data-sn="${key}|${i}" placeholder="Ex. dernière rep lente, genou qui rentre, très bonne vitesse…">${esc(x.n||"")}</textarea></label>
+   ${vids}<div class="row" style="margin-top:6px">${SV64.up===key+"|"+i?`<span class="muted small">${esc(SV64.msg||"Envoi de la vidéo…")}</span>`:`<button class="ghost sm" data-act="sv-take" data-v="${key}|${i}">🎥 ${V.length?"Ajouter une autre vidéo":"Ajouter la vidéo de cette série"}</button>`}</div>
+   <div class="muted small">Une seule série par vidéo, ${VID_MAX_S} s maximum. Les vidéos sont supprimées après ${VID_KEEP_DAYS} jours.</div>`;
+  return h.replace(/<b>Série (\d+) : type<\/b>/,"<b>Série $1 : type, note, vidéo</b>").replace(/<\/div>$/,extra+"</div>"); };
+const _carnetEx64=carnetEx;
+carnetEx=function(r,w){ let h=_carnetEx64(r,w); const key=w+"_"+r.key, v=ST.carnet[key]||{};
+  // repères 📝 / 🎥 sur le numéro de série et ligne d'aperçu sous la série
+  (v.sets||[]).forEach((x,i)=>{ if(!x||!(x.n||(x.v&&x.v.length))) return;
+    const ic=(x.n?"📝":"")+(x.v&&x.v.length?"🎥":"");
+    h=h.replace(new RegExp(`(data-act="st-open" data-v="${key}\\|${i}"[^>]*>[\\s\\S]*?)(</button>)`),`$1<span class="ic64">${ic}</span>$2`);
+    const mk=`data-act="cx-done" data-v="${key}|${i}"`, k=h.indexOf(mk); if(k<0) return; const e=h.indexOf("</tr>",k); if(e<0) return;
+    h=h.slice(0,e+5)+`<tr class="sx64"><td colspan="6"><button class="linkbtn" data-act="st-open" data-v="${key}|${i}">${x.v&&x.v.length?"🎥 Vidéo ":""}${x.n?"📝 "+esc(x.n.length>90?x.n.slice(0,90)+"…":x.n):""}</button></td></tr>`+h.slice(e+5); });
+  // note de l'exercice : grande zone de texte
+  h=h.replace(/<label class="f" style="margin-top:6px">Note<input data-c="([^"]+)" data-f="j" value="([^"]*)"><\/label>/,(m,k,val)=>`<label class="f" style="margin-top:8px">📝 Note sur l'exercice <span class="muted small">(sensations, technique, douleurs, matériel…)</span><textarea class="big64" rows="3" data-c="${k}" data-f="j" placeholder="Écris tout ce qui compte pour ton coach.">${val}</textarea></label>`);
+  return h; };
+const _carnetSession64=carnetSession;
+carnetSession=function(S,w){ let h=_carnetSession64(S,w); if(!h) return h; const k=w+"_n_"+S.s, v=ST.carnet[k]||{};
+  const box=`<label class="f ses64">📝 Ressenti global de la séance<textarea class="big64" rows="4" data-c="${k}" data-f="j" placeholder="Énergie, sommeil de la veille, sensations, ce qui a bien ou moins bien marché…">${esc(v.j||"")}</textarea></label>`;
+  return h.replace(/<\/div><\/div>$/,`</div>${box}</div>`); };
+document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||!el.dataset.sn) return; const [key,i]=el.dataset.sn.split("|"); const c=ensureSets(key); while(c.sets.length<=+i) c.sets.push({});
+  const val=String(el.value).trim(); if(val) c.sets[+i].n=val; else delete c.sets[+i].n; saveCarnet(key); render(); });
+document.addEventListener("input",e=>{ const el=e.target; if(el.classList&&el.classList.contains("big64")){ el.style.height="auto"; el.style.height=Math.max(el.scrollHeight,90)+"px"; } });
+function svInput64(){ let f=document.getElementById("sv-file"); if(f) return f; f=document.createElement("input"); f.type="file"; f.accept="video/*"; f.id="sv-file"; f.hidden=true; document.body.appendChild(f);
+  f.addEventListener("change",async()=>{ let file=f.files&&f.files[0]; f.value=""; const T=SV64.target; if(!file||!T||!CUR) return; const [key,i]=T.split("|");
+    const dur=await videoDuration(file); if(dur>VID_MAX_S+2) return toast(`Vidéo trop longue (${Math.round(dur)} s) : une seule série, ${VID_MAX_S} s maximum.`);
+    SV64.up=T; SV64.msg="Préparation de la vidéo…"; render();
+    try{ if(file.size>4*1024*1024){ try{ file=await compressVideo(file,p=>{ SV64.msg=`Compression… ${Math.round(p*100)} %`; const x=document.querySelector(".sv-msg"); if(x) x.textContent=SV64.msg; },{short:640,bps:1200000}); }
+        catch(err){ if(file.size>30*1024*1024) throw new Error("vidéo trop lourde : filme une seule série, en 720p si possible"); } }
+      SV64.msg="Envoi de la vidéo…"; render(); const m=await uploadMedia(file); if(!m) throw new Error(MSG.err||"envoi impossible");
+      MSG.urls[m.path]=URL.createObjectURL(file); const c=ensureSets(key); while(c.sets.length<=+i) c.sets.push({}); const x=c.sets[+i]; x.v=(x.v||[]).concat([{path:m.path}]);
+      await saveCarnet(key); toast("Vidéo ajoutée à la série "+(+i+1)+" ✅"); }
+    catch(err){ toast("Vidéo non envoyée : "+(err.message||err)); }
+    SV64.up=null; SV64.msg=""; render(); });
+  return f; }
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||""; if(a!=="sv-take"&&a!=="sv-del") return; e.stopImmediatePropagation();
+  if(a==="sv-take"){ if(SV64.up) return; SV64.target=v; svInput64().click(); return; }
+  const [key,i,k]=v.split("|"); if(b.dataset.sure!=="1"){ b.dataset.sure="1"; b.textContent="Confirmer la suppression"; b.classList.remove("ghost"); return; }
+  const c=ensureSets(key), x=c.sets[+i]; if(!x||!x.v) return; const m=x.v.splice(+k,1)[0]; if(!x.v.length) delete x.v; saveCarnet(key);
+  if(m) SB.storage.from("media").remove([m.path]).catch(()=>{}); toast("Vidéo supprimée"); render(); },true);
+const _css64=document.createElement("style"); _css64.textContent=`
+textarea.big64{width:100%;box-sizing:border-box;min-height:90px;resize:vertical;font-size:16px;line-height:1.4;padding:10px 12px}
+.sv64{margin-top:8px}.sv64 video{width:100%;max-height:60vh;border-radius:10px;background:#000;display:block;margin-bottom:6px}
+.ic64{margin-left:2px;font-size:.8rem}.sx64 td{padding:0 4px 6px!important;border-top:0!important}.sx64 .linkbtn{font-size:.82rem;text-align:left;white-space:normal;color:var(--soft);min-height:0}
+.ses64{margin:10px 0 2px}`; document.head.appendChild(_css64);
 
 boot();
 
