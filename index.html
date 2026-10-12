@@ -4905,6 +4905,50 @@ textarea.big64{width:100%;box-sizing:border-box;min-height:90px;resize:vertical;
 .ic64{margin-left:2px;font-size:.8rem}.sx64 td{padding:0 4px 6px!important;border-top:0!important}.sx64 .linkbtn{font-size:.82rem;text-align:left;white-space:normal;color:var(--soft);min-height:0}
 .ses64{margin:10px 0 2px}`; document.head.appendChild(_css64);
 
+
+// ================= MODULE MA TO-DO (coach) =================
+// Liste personnelle du coach, synchronisée sur tous ses appareils (biz_settings.data.todo). Tâche : {id,t,c?(client),d?(échéance),ok?,at}
+const TD65={open:(()=>{ try{ return localStorage.getItem("tb-todo-open")!=="0"; }catch(e){ return true; } })(),showDone:false,cl:"",due:""};
+const todo65=()=>(BZ.set&&Array.isArray(BZ.set.todo))?BZ.set.todo:[];
+async function todoSave65(){ const {error}=await SB.from("biz_settings").upsert({coach_id:UID,data:BZ.set,updated_at:new Date().toISOString()}); if(error) toast("To-do non enregistrée : "+error.message); }
+function todoRow65(x,showClient){ const c=x.c&&CLIENTS.find(k=>k.id===x.c), late=x.d&&!x.ok&&x.d<todayISO(), today=x.d===todayISO();
+  return `<div class="td65${x.ok?" ok":""}"><button class="tdc65" data-act="td65-ok" data-v="${x.id}" aria-label="${x.ok?"Remettre à faire":"Marquer comme fait"}">${x.ok?"✓":""}</button>
+    <div class="grow"><div class="tdt65">${esc(x.t)}</div>${(showClient&&c)||x.d?`<div class="row" style="gap:6px;margin-top:2px">${showClient&&c?`<button class="chip" data-act="open" data-v="${c.id}">👤 ${esc(c.name)}</button>`:""}${x.d?`<span class="chip${late?" late65":today?" on":""}">📅 ${today?"aujourd'hui":new Date(x.d+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})}</span>`:""}</div>`:""}</div>
+    <button class="ghost sm" data-act="td65-del" data-v="${x.id}" aria-label="Supprimer la tâche">✕</button></div>`; }
+const sort65=L=>L.slice().sort((a,b)=>(a.d||"9999")<(b.d||"9999")?-1:(a.d||"9999")>(b.d||"9999")?1:a.at-b.at);
+function vTodoList65(cid){ if(!BZ.loaded){ if(!BZ.busy&&!TD65.loading){ TD65.loading=true; bzEnsure().then(()=>{ TD65.loading=false; scheduleRender(); }); } return `<div class="card muted small">Chargement de ta to-do…</div>`; }
+  const all=todo65(), L=cid?all.filter(x=>x.c===cid):all, open=L.filter(x=>!x.ok), done=L.filter(x=>x.ok);
+  const own=CLIENTS.filter(c=>c.coach_id===UID&&!c.archived);
+  const form=`<div class="row" style="gap:6px;margin-top:6px"><input id="td65-t" class="grow" style="flex:1 1 200px" value="${esc(TD65.t||"")}" placeholder="${cid?"À faire pour ce client…":"Ex. Modifier le programme de Julie (S5)"}" autocomplete="off" enterkeyhint="done">
+    ${cid?"":`<select id="td65-c" aria-label="Client concerné" style="flex:1 1 140px"><option value="">Aucun client</option>${own.map(c=>`<option value="${c.id}" ${TD65.cl===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}</select>`}
+    <input id="td65-d" type="date" aria-label="Échéance (facultatif)" value="${esc(TD65.due)}" style="flex:0 1 150px"><button class="sm" data-act="td65-add" data-v="${cid||""}">Ajouter</button></div>`;
+  const body=(open.length?sort65(open).map(x=>todoRow65(x,!cid)).join(""):`<p class="muted small" style="margin:8px 0 0">${cid?"Rien à faire pour ce client.":"Rien dans ta liste. Ajoute ce que tu dois faire : programmes à modifier, bilans, messages…"}</p>`)
+    +(done.length?`<div class="row" style="margin-top:6px;gap:6px"><button class="ghost sm" data-act="td65-done">${TD65.showDone?"Masquer":"Voir"} les terminées (${done.length})</button>${TD65.showDone?`<button class="ghost sm" data-act="td65-clear" data-v="${cid||""}">Effacer les terminées</button>`:""}</div>${TD65.showDone?done.map(x=>todoRow65(x,!cid)).join(""):""}`:"");
+  if(cid) return `<div class="card"><h3 style="margin-top:0">📋 Ma to-do pour ce client${open.length?` <span class="chip on">${open.length}</span>`:""}</h3>${body}${form}</div>`;
+  return `<details class="card fold" id="td65-card"${TD65.open?" open":""}><summary><b>📋 Ma to-do</b>${open.length?` <span class="chip on">${open.length}</span>`:` <span class="muted small">vide</span>`}${open.some(x=>x.d&&x.d<=todayISO())?` <span class="chip late65">à faire aujourd'hui</span>`:""}</summary>${body}${form}</details>`; }
+const _vClients65=vClients; vClients=function(){ return vTodoList65()+_vClients65(); };
+const _vTableau65=vTableau; vTableau=function(){ const h=_vTableau65(); if(!coach()||!CUR) return h; const has=todo65().some(x=>x.c===CUR&&!x.ok);
+  return (has?vTodoList65(CUR):`<div class="row" style="margin:0 0 8px"><button class="ghost sm" data-act="td65-here">📋 Ajouter une tâche pour ce client</button></div>${TD65.here===CUR?vTodoList65(CUR):""}`)+h; };
+document.addEventListener("toggle",e=>{ if(e.target&&e.target.id==="td65-card"){ TD65.open=e.target.open; try{ localStorage.setItem("tb-todo-open",TD65.open?"1":"0"); }catch(x){} } },true);
+document.addEventListener("input",e=>{ if(e.target&&e.target.id==="td65-t") TD65.t=e.target.value; });
+document.addEventListener("change",e=>{ const id=e.target&&e.target.id; if(id==="td65-c") TD65.cl=e.target.value; if(id==="td65-d") TD65.due=e.target.value; });
+async function todoAdd65(cid){ const el=document.getElementById("td65-t"), t=(el&&el.value||"").trim(); if(!t) return toast("Écris la tâche d'abord");
+  const c=cid||((document.getElementById("td65-c")||{}).value)||"", d=(document.getElementById("td65-d")||{}).value||"";
+  BZ.set.todo=[...todo65(),Object.assign({id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),t,at:Date.now()},c?{c}:{},d?{d}:{})];
+  TD65.due=""; TD65.t=""; TD65.cl=""; render(); await todoSave65(); const n=document.getElementById("td65-t"); if(n) n.focus(); }
+document.addEventListener("keydown",e=>{ if(e.key==="Enter"&&e.target&&e.target.id==="td65-t"){ e.preventDefault(); const b=document.querySelector('[data-act="td65-add"]'); todoAdd65(b?b.dataset.v:""); } });
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b||!/^td65-/.test(b.dataset.act)) return; const a=b.dataset.act, v=b.dataset.v||"";
+  if(a==="td65-add") return todoAdd65(v);
+  if(a==="td65-here"){ TD65.here=TD65.here===CUR?null:CUR; return render(); }
+  if(a==="td65-done"){ TD65.showDone=!TD65.showDone; return render(); }
+  if(a==="td65-ok") BZ.set.todo=todo65().map(x=>x.id===v?Object.assign({},x,{ok:!x.ok}):x);
+  else if(a==="td65-del"){ if(b.dataset.sure!=="1"){ b.dataset.sure="1"; b.textContent="Supprimer ?"; return; } BZ.set.todo=todo65().filter(x=>x.id!==v); }
+  else if(a==="td65-clear") BZ.set.todo=todo65().filter(x=>!(x.ok&&(!v||x.c===v)));
+  render(); await todoSave65(); });
+const _cssTd65=document.createElement("style"); _cssTd65.textContent=`.td65{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}.td65 .grow{min-width:0}.tdt65{white-space:pre-wrap;overflow-wrap:anywhere}
+.td65.ok .tdt65{text-decoration:line-through;color:var(--soft)}.tdc65{flex:0 0 auto;width:30px;height:30px;min-width:0!important;min-height:0!important;padding:0;border-radius:8px;border:2px solid var(--accent,var(--blue));background:transparent;color:var(--accent,var(--blue));font-weight:800}
+.td65.ok .tdc65{background:var(--accent,var(--blue));color:var(--paper)}.late65{border-color:var(--red)!important;color:var(--red)!important}`; document.head.appendChild(_cssTd65);
+
 boot();
 
 </script>
