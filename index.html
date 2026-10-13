@@ -5783,6 +5783,73 @@ document.addEventListener("pointercancel",()=>{ if(DR73.g){ DR73.g.remove(); DR7
 const _render73=render;
 render=function(){ _render73(); if(!M||!CUR||ST.bilan||ST.todayOn||ST.view!=="semaine"||ST.printProg) return; const app=$("#app"); if(app&&!app.querySelector(".seg45")) app.insertAdjacentHTML("afterbegin",seg45("semaine")); };
 
+// ================= MODULE 74 · FORCE À LA CARTE : MOUVEMENTS PRINCIPAUX AU CHOIX =================
+// Squat / développé couché / soulevé de terre ne sont plus imposés : le coach coche les mouvements principaux et leur fréquence.
+const LIFT74=Object.assign({},LIFT47,{
+ T:{lab:"Tractions lestées",ex:["Tractions lestées (pronation)","Tractions lestées (pronation)","Tractions supination lestées"],tag:["lourd","volume","variante"],
+    rx:[["4x4@78%","5x3@83%","1x2@90% + 4x3@82%"],["3x8@65%","4x6@72%","5x5@75%"],["3x6@65%","4x5@70%","5x4@72%"]]},
+ K:{lab:"Dips lestés",ex:["Dips lestés","Dips lestés"],tag:["lourd","volume"],rx:[["4x5@75%","5x4@80%","1x2@88% + 4x3@82%"],["3x8@65%","4x6@72%","5x5@75%"]]},
+ M:{lab:"Développé militaire",ex:["Développé militaire barre (OHP)","Développé militaire barre (OHP)","Développé militaire assis barre"],tag:["lourd","volume","variante"],
+    rx:[["4x5@75%","5x4@80%","1x3@85% + 4x3@80%"],["3x8@65%","4x6@72%","5x5@75%"],["3x8@62%","4x6@68%","4x6@70%"]]},
+ F:{lab:"Front squat",ex:["Front squat","Front squat"],tag:["lourd","volume"],rx:[["4x5@72%","5x4@77%","1x3@83% + 4x3@78%"],["3x8@62%","4x6@68%","5x5@72%"]]},
+ H:{lab:"Hip thrust",ex:["Hip thrust barre","Hip thrust barre"],tag:["lourd","volume"],rx:[["4x6@75%","4x5@80%","5x5@80%"],["3x10@65%","4x8@70%","4x8@72%"]]},
+ R:{lab:"Rowing barre",ex:["Rowing barre Pendlay","Rowing barre Pendlay"],tag:["lourd","volume"],rx:[["4x6@75%","5x5@78%","5x4@80%"],["3x10@65%","4x8@70%","4x8@72%"]]}});
+const KIND74={S:"low",D:"low",F:"low",H:"low",B:"push",K:"push",M:"push",T:"pull",R:"pull"}, ORD74="SFDBMKTRH";
+LIFT74.S.lab="Squat"; LIFT74.B.lab="Développé couché"; LIFT74.D.lab="Soulevé de terre";
+function layout74(L,nd,cap){ const load=Array(nd).fill(0), has=[...Array(nd)].map(()=>[]), keys=Object.keys(L).filter(k=>L[k]>0).sort((a,b)=>L[b]-L[a]||ORD74.indexOf(a)-ORD74.indexOf(b));
+  keys.forEach((k,ki)=>{ const c=L[k], off=(ki*nd/Math.max(1,keys.length))%nd;
+    for(let i=0;i<c;i++){ const ideal=(i*nd/c+off)%nd; let best=-1,bs=1e9;
+      for(let d=0;d<nd;d++){ if(load[d]>=cap||has[d].some(x=>x[0]===k)) continue; const dist=Math.min(Math.abs(d-ideal),nd-Math.abs(d-ideal)), prev=has[(d+nd-1)%nd]||[];
+        const sc=dist+load[d]*1.6+(KIND74[k]==="low"&&has[d].some(x=>KIND74[x[0]]==="low")?1.4:0)+(KIND74[k]!=="low"&&has[d].some(x=>KIND74[x[0]]===KIND74[k])?0.6:0)+(k==="D"&&d>0&&prev.some(x=>x[0]==="S")?0.8:0);
+        if(sc<bs){ bs=sc; best=d; } }
+      if(best<0) for(let d=0;d<nd;d++) if(!has[d].some(x=>x[0]===k)){ best=d; break; }
+      if(best>=0){ has[best].push([k,i]); load[best]++; } } });
+  const rank={}; has.forEach(Ls=>Ls.forEach(x=>{ x[1]=rank[x[0]]=(rank[x[0]]==null?0:rank[x[0]]+1); })); // 1re séance de la semaine = lourde, puis volume…
+  return has.map(Ls=>Ls.sort((a,b)=>ORD74.indexOf(a[0])-ORD74.indexOf(b[0]))); }
+function forceProg74(L,nd0,lv){ const lvl=Math.max(0,LV47.indexOf(lv)), keys=Object.keys(L).filter(k=>L[k]>0), tot=keys.reduce((s,k)=>s+L[k],0), cap=tot>12?3:2;
+  const nd=Math.min(6,Math.max(nd0,...keys.map(k=>L[k]),Math.ceil(tot/cap)));
+  const lay=layout74(L,nd,cap), days=DN47[nd], mainNames=new Set(keys.flatMap(k=>LIFT74[k].ex)), cnt={pull:0,push:0,low:0,iso:0};
+  const pool=k=>ACC47[k].filter(n=>!mainNames.has(n)), take=k=>{ const p=pool(k); return p[cnt[k]++%p.length]; };
+  const nAcc=lvl===0?2:3, ses=lay.map((lifts,d)=>{ const ex=lifts.map(([k,i])=>{ const Lf=LIFT74[k], j=Math.min(i,Lf.ex.length-1); return X(Lf.ex[j],Lf.rx[j][lvl]); });
+    const kinds=new Set(lifts.map(x=>KIND74[x[0]])), acc=[];
+    if(kinds.has("push")&&!kinds.has("pull")) acc.push(X(take("pull"),"4x8-10 RPE8"));
+    if(kinds.has("low")) acc.push(X(take("low"),"3x8-10 RPE8"));
+    if(kinds.has("pull")&&!kinds.has("push")&&acc.length<nAcc) acc.push(X(take("push"),"3x8-10 RPE8"));
+    if(!lifts.length){ acc.push(X(take("pull"),"3x10 RPE8")); acc.push(X(take("push"),"3x10 RPE8")); }
+    while(acc.length<nAcc) acc.push(X(take("iso"),"3x12-15 RPE8"));
+    const name=lifts.map(([k,i])=>LIFT74[k].lab+" "+LIFT74[k].tag[Math.min(i,LIFT74[k].tag.length-1)]).join(" · ")||"Accessoires";
+    return [name,days[d],ex.concat(acc)]; });
+  const desc=keys.sort((a,b)=>ORD74.indexOf(a)-ORD74.indexOf(b)).map(k=>`${LIFT74[k].lab.toLowerCase()} ${L[k]}×`).join(", ");
+  return {id:"fx",hidden:true,name:`Force · ${keys.map(k=>`${LIFT74[k].lab} ${L[k]}×`).join(" / ")} · ${nd} j · ${lv}`,cat:"Force",lvl:lv,nd,split:"Spécifique force",
+   desc:`Fréquence par semaine : ${desc}. Une séance lourde par mouvement, les autres en volume ou en variante, périodisation par blocs jusqu'au test.`,
+   days:daysSet47(nd),phases:PH12.slice(),ov:{},s:ses,main:keys.map(k=>LIFT74[k].ex[0])}; }
+FX.L=FX.L||{B:FX.B,S:FX.S,D:FX.D};
+fxEntry=function(){ const i=BANK.findIndex(b=>b.id==="fx"), p=forceProg74(FX.L,FX.nd,FX.lv); if(i>=0) BANK[i]=p; else BANK.push(p); return p; };
+vForceCard=function(){ const p=fxEntry(), ch=(k,opts)=>opts.map(v=>`<button class="chip ${String(FX[k])===String(v)?"on":""}" data-act="fx" data-k="${k}" data-v="${v}">${k==="nd"?v+" j":esc(v)}</button>`).join("");
+  const lift=k=>{ const on=FX.L[k]>0; return `<div class="row fx74" style="gap:4px;margin:2px 0;align-items:center;flex-wrap:nowrap"><button class="chip ${on?"on":""}" data-act="fx74t" data-v="${k}" style="flex:0 0 auto;min-width:150px;text-align:left" aria-pressed="${on}">${on?"✓ ":""}${esc(LIFT74[k].lab)}</button>
+    ${on?[1,2,3,4].map(n=>`<button class="chip ${FX.L[k]===n?"on":""}" data-act="fx74n" data-v="${k}|${n}">${n}×</button>`).join(""):`<span class="muted small">non travaillé</span>`}</div>`; };
+  const none=!Object.values(FX.L).some(n=>n>0);
+  return `<div class="card" id="fx-card" style="margin:8px 0"><b>Force à la carte</b><div class="muted small">Coche les mouvements principaux (squat, développé couché et soulevé de terre ne sont pas obligatoires) et choisis combien de fois par semaine les travailler : le programme se construit tout seul (un jour lourd par mouvement, les autres en volume ou en variante).</div>
+   <div style="margin:6px 0">${ORD74.split("").map(lift).join("")}</div>
+   <div class="row" style="gap:4px;margin:4px 0"><span class="muted small" style="min-width:74px">Jours</span>${ch("nd",[3,4,5,6])}</div><div class="row" style="gap:4px;margin:4px 0"><span class="muted small" style="min-width:74px">Niveau</span>${ch("lv",LV47)}</div>
+   ${!none&&!Object.keys(FX.L).some(k=>FX.L[k]>0&&KIND74[k]==="low")?`<div class="muted small">Aucun mouvement de jambes coché : pas d'accessoire jambes non plus. Coche-en un si le client doit aussi travailler le bas du corps.</div>`:""}
+   ${none?`<div class="alert ko small">Coche au moins un mouvement principal.</div>`:p.nd!==FX.nd?`<div class="alert ko small">Il faut au moins ${p.nd} jours pour placer ces mouvements : programme sur ${p.nd} jours.</div>`:""}
+   <div class="muted small" style="margin:6px 0">${p.s.map(s=>`<b>${esc(s[1].slice(0,3))}.</b> ${esc(s[0])}`).join(" · ")}</div>
+   <div class="row bkacts"><button class="ghost sm" data-act="bank-prev" data-v="fx">${ST.bankPrev==="fx"?"Masquer":"Aperçu"}</button><button class="ghost sm" data-act="bank-apply" data-v="fx" ${none?"disabled":""}>Appliquer</button></div>
+   ${ST.bankPrev==="fx"?progPreview(p.s.map(([name,day,ex])=>({name,day,ex})),p.phases,p.days):""}
+   <p class="note">Les % se calculent sur le 1RM de chaque mouvement principal : à l'application, ces mouvements sont ajoutés aux « Mouvements suivis » (Athlète) pour y saisir leur 1RM. Sans 1RM, les charges sont proposées dès que la S1 est notée dans le carnet.</p></div>`; };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="fx74t"],[data-act="fx74n"]'); if(!b) return; e.stopImmediatePropagation();
+  if(b.dataset.act==="fx74t"){ const k=b.dataset.v; FX.L[k]=FX.L[k]>0?0:(KIND74[k]==="low"&&k!=="S"?1:2); }
+  else { const [k,n]=b.dataset.v.split("|"); FX.L[k]=+n; } render(); },true);
+// à l'application : les mouvements principaux rejoignent les mouvements suivis (pour leurs %)
+const _applyBank74=applyBank;
+applyBank=function(id){ _applyBank74(id); const b=BANK.find(x=>x.id===id); if(!b||!b.main) return; const P=ST.prog; P.tracked=P.tracked||[];
+  const have=new Set(P.tracked.filter(t=>t&&t.name).map(t=>t.name)), add=b.main.filter(n=>!have.has(n));
+  if(!add.length) return; add.forEach(n=>{ const eq=(BASEMAP[n]||{}).eq; const i=P.tracked.findIndex(t=>!t||!t.name); const t={name:n,type:/lest/i.test(n)||eq==="Poids de corps"?"Lesté":eq==="Haltères"?"Haltères":"Barre",mode:"Auto",rm:{}};
+    if(i>=0) P.tracked[i]=t; else if(P.tracked.length<NT) P.tracked.push(t); });
+  saveProg(); toast(`Ajouté aux mouvements suivis : ${add.join(", ")}. Renseigne leur 1RM dans Athlète.`); };
+BANK.forEach(b=>{ if(/^fx-/.test(b.id)&&!b.main) b.main=["Squat barre","Développé couché barre","Soulevé de terre"]; });
+
 boot();
 
 </script>
