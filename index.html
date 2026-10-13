@@ -5850,6 +5850,74 @@ applyBank=function(id){ _applyBank74(id); const b=BANK.find(x=>x.id===id); if(!b
   saveProg(); toast(`Ajouté aux mouvements suivis : ${add.join(", ")}. Renseigne leur 1RM dans Athlète.`); };
 BANK.forEach(b=>{ if(/^fx-/.test(b.id)&&!b.main) b.main=["Squat barre","Développé couché barre","Soulevé de terre"]; });
 
+// ================= MODULE 75 · SURCHARGE PROGRESSIVE AUTO + RÉESTIMATION DU 1RM + RÈGLES EXPLICITES =================
+// 1) Série notée sans RPE : RPE 9 supposé (hypothèse prudente : 1RM estimé plus bas) pour que les charges suivantes se calculent dès la S1.
+const _recompute75=recompute;
+recompute=function(){ const C=ST.carnet||{}, inj=[];
+  Object.keys(C).forEach(k=>{ if(!/^\d+_\d+_\d+$/.test(k)) return; const v=C[k]; if(v&&v.g!=null&&v.h!=null&&(v.r==null||v.r==="")&&!v.ex){ v.r=9; inj.push(k); } });
+  try{ _recompute75(); } finally{ inj.forEach(k=>{ if(C[k]) delete C[k].r; }); }
+  if(M&&M.cEntries&&inj.length){ const S=new Set(inj); M.cEntries.forEach(c=>{ if(S.has(c.w+"_"+c.s+"_"+c.i)){ c.r=null; c.assumed=true; } }); } };
+// 2) Force à la carte : % semaine par semaine (bloc accumulation → transmutation → réalisation → décharge → test)
+const WK75={H:["5x5@72%","5x5@74%","5x5@76%","5x5@78%","5x3@80%","5x3@82%","5x3@84%","5x3@86%","3x2@88%","1x1@92% + 2x2@85%","3x3@70%","1x1@RPE9.5"],
+ V:["4x8@65%","4x8@67%","4x8@69%","4x8@71%","4x6@72%","4x6@74%","4x6@76%","4x6@78%","3x4@78%","3x3@80%","2x5@60%","2x3@60%"],
+ T:["4x4@65%","4x4@66%","4x4@67%","4x4@68%","4x3@70%","4x3@71%","4x3@72%","4x3@73%","3x2@72%","3x2@72%","2x3@60%","2x2@60%"]};
+function weeks75(tag,lvl){ const role=tag==="lourd"?"H":tag==="volume"?"V":"T", d=lvl===0?-4:lvl===2?2:0, ds=lvl===0?-1:0;
+  return [null,...WK75[role].map((s,i)=>{ let x=s.replace(/@(\d+(?:\.\d+)?)%/g,(m,p)=>"@"+(+p+d)+"%").replace(/(^|\+ )(\d+)x/g,(m,a,n)=>a+(+n>1?Math.max(2,+n+ds):1)+"x");
+    if(lvl===0&&role==="H"&&i===9) x="3x2@84%"; if(lvl===0&&i===11&&role==="H") x="1x2@RPE9"; return x; })]; }
+const _forceProg74b=forceProg74;
+forceProg74=function(L,nd0,lv){ const p=_forceProg74b(L,nd0,lv), lvl=Math.max(0,LV47.indexOf(lv));
+  const tagOf=new Map(); Object.keys(L).filter(k=>L[k]>0).forEach(k=>LIFT74[k].ex.forEach((n,j)=>{ if(!tagOf.has(n)) tagOf.set(n,LIFT74[k].tag[j]); }));
+  p.s.forEach(([name,day,ex])=>{ const tags=name.split(" · ").map(x=>x.split(" ").pop()); let mi=0;
+    ex.forEach(e=>{ if(!/%/.test(((e.weeks||[])[1])||"")) return; const tag=tags[mi++]||tagOf.get(e.name)||"volume"; e.weeks=weeks75(tag,lvl); e.mode="Manuel";
+      e.note=e.note||(tag==="lourd"?"S12 : test — monter par paliers jusqu'à un single propre (RPE 9-9,5), sans aller à l'échec":""); }); });
+  p.desc+=" Les % montent chaque semaine (5×5 → 5×3 → doubles/single), décharge en S11, test en S12."; return p; };
+BANK.forEach((b,i)=>{ const m=/^fx-(\d)(\d)(\d)-(\d)-(\d)$/.exec(b.id); if(!m) return; const p=forceProg74({B:+m[1],S:+m[2],D:+m[3]},+m[4],LV47[+m[5]]); delete p.hidden; p.id=b.id; p.name=b.name; BANK[i]=p; });
+// 3) carte coach : surcharge auto, réestimation du 1RM, règles
+const RE75={w:null};
+function nextBlock75(){ for(let w=M.cw;w<=M.NSEM;w++){ const ph=M.phases[w-1]; if(ph&&M.wip[w-1]===1&&!["Deload","Test","Transition"].includes(ph)&&w>1) return w; } return M.cw; }
+function carnetEst75(name,w){ const E=M.cEntries.filter(c=>c.ex===name&&c.sys&&c.fiable&&c.w<w&&c.w>=w-3); if(!E.length) return null; return E.reduce((a,c)=>c.sys>a.sys?c:a); }
+function vReest75(){ const L=M.tracked.filter(t=>t.name); if(!L.length) return `<p class="muted small">Aucun mouvement suivi : ajoute-les dans Athlète (ou via le générateur) pour réestimer leur 1RM.</p>`;
+  const w=RE75.w||nextBlock75(); let rows="", any=false;
+  L.forEach(t=>{ const add=sysAdd(t.type,M.pdc), cur=(t.work&&t.work[w])||t.est, ce=carnetEst75(t.name,w), u=t.type==="Lesté"?" kg de lest":" kg";
+    const nv=ce?round(ce.sys-add,1):null, d=cur&&ce?Math.round((ce.sys/cur-1)*100):null; if(nv!=null&&d!=null&&d!==0&&t.est) any=true;
+    rows+=`<tr><td>${esc(t.name)}</td><td class="n">${cur?fmtN(round(cur-add,1))+u:"—"}</td><td class="n">${ce?`<b>${fmtN(nv)}${u}</b><div class="muted small">${fmtN(ce.g)} × ${fmtN(ce.h)} @RPE ${ce.r==null?"9 supposé":fmtN(ce.r)} · S${ce.w}</div>`:`<span class="muted small">pas de série fiable sur S${Math.max(1,w-3)}–S${w-1}</span>`}</td>
+      <td class="n">${ce&&!t.est?`<span class="muted small">pas de 1RM saisi : les % suivent déjà le carnet</span>`:ce&&d!==0?`<span class="${d>0?"up":"down"}">${d>0?"+":""}${d} %</span><br><button class="ghost sm" data-act="re75" data-v="${esc(t.name)}|${w}|${nv}">Appliquer</button>`:""}</td></tr>`; });
+  return `<div class="row" style="gap:6px;align-items:center;margin-bottom:6px"><span class="small">Nouveau 1RM à partir de la semaine</span>${sel(Array.from({length:M.NSEM},(_,j)=>j+1),w,'data-re75w style="width:auto"',false)}</div>
+    <div class="tbl"><table class="bil"><tr><th>Mouvement</th><th class="n">1RM utilisé</th><th class="n">Estimé carnet (3 dern. sem.)</th><th class="n"></th></tr>${rows}</table></div>
+    ${any?`<div class="row" style="margin-top:6px"><button class="sm" data-act="re75all" data-v="${w}">Appliquer tous les nouveaux 1RM à partir de S${w}</button></div>`:""}
+    <p class="note">Le 1RM estimé vient de la meilleure série fiable (charge, reps, RPE) notée sur les 3 semaines précédentes. « Appliquer » crée un réajustement (visible dans Plus › Outils › Réajustements du 1RM) : tous les % de ce mouvement sont recalculés à partir de cette semaine. Rien n'est changé sans ton clic.</p>`; }
+function vAuto75(){ const w=ST.week||M.cw; const L=M.act.filter(r=>{ const k=r.weeks[w]; return k&&k.eff&&k.blocks&&k.blocks.some(b=>b.pu!=null); }); if(!L.length) return "";
+  const src=r=>{ if(r.t&&r.t.work&&r.t.work[w]) return r.t.est&&r.t.work[w]>r.t.est+1e-9?"1RM suivi, relevé par le carnet":"1RM suivi"; if(M.refs[r.ex]) return "référence renfo";
+    const c=M.cEntries.filter(c=>c.ex===r.ex&&c.w<w&&c.fiable&&c.sys).reduce((a,c)=>!a||c.sys>a.sys?c:a,null); return c?`carnet S${c.w} (${fmtN(c.g)} × ${fmtN(c.h)}${c.assumed?", RPE 9 supposé":""})`:"—"; };
+  return `<div class="tbl"><table class="bil"><tr><th>Exercice</th><th>Base du calcul</th><th class="n">S${w}</th></tr>${L.map(r=>{ const k=r.weeks[w]; return `<tr><td>${esc(r.ex)}</td><td class="small">${esc(src(r))}</td><td class="n small">${k.load1!=null?`<b>${esc(loadText(k.load1,r.type))}</b>`:`<span class="muted">à noter en S${Math.max(1,w-1)}</span>`}<div class="muted">${esc(k.eff)}</div></td></tr>`; }).join("")}</table></div>`; }
+const RULES75=`<details class="card"><summary><b>📐 Règles de % et de surcharge appliquées par l'app</b></summary>
+ <h4>Calcul commun</h4><ul class="small">
+  <li><b>Charge proposée</b> = 1RM de base × % prescrit (ou × coefficient reps/RPE quand la prescription est en RPE), arrondie au pas du matériel (barre 2,5 kg · haltères 2 kg · lest 1,25 kg · machine 2,5 kg, réglables dans Paramètres).</li>
+  <li><b>1RM de base</b>, dans cet ordre : mouvement suivi (1RM saisi, relevé automatiquement par le carnet en mode Auto, jamais sous ${Math.round((DEFAULT_PARAMS.AFL||0.92)*100)} % du 1RM saisi) → référence renfo → meilleure série fiable notée dans le carnet.</li>
+  <li><b>Dès la S1</b> : sans 1RM, les charges apparaissent la semaine suivant la première série notée. Une série sans RPE est comptée à RPE 9 (hypothèse prudente).</li>
+  <li><b>Exercices lestés</b> (tractions, dips) : les % portent sur poids du corps + lest, la charge affichée est le lest (négatif = assistance).</li>
+  <li><b>Décharge</b> (réglages par défaut) : séries × 0,5, % −10 points, RPE −2.</li></ul>
+ <h4>Force / powerlifting (générateur « Force à la carte »)</h4><ul class="small">
+  <li>Jour lourd : 5×5 de 72 à 78 % (S1-4) → 5×3 de 80 à 86 % (S5-8) → 3×2 à 88 % puis single à 92 % + 2×2 à 85 % (S9-10) → 3×3 à 70 % (S11) → test S12.</li>
+  <li>Jour volume : 4×8 de 65 à 71 % → 4×6 de 72 à 78 % → 3×4 à 78 %, 3×3 à 80 % → décharge.</li>
+  <li>Jour technique / variante : 4×4 de 65 à 68 % → 4×3 de 70 à 73 % → 3×2 à 72 %.</li>
+  <li>Niveau débutant : −4 points et une série de moins ; avancé : +2 points.</li></ul>
+ <h4>Street lifting</h4><ul class="small"><li>Mêmes règles en % sur (poids du corps + lest) pour tractions et dips lestés ; le muscle-up est prescrit en RPE.</li></ul>
+ <h4>Bodybuilding / hypertrophie</h4><ul class="small">
+  <li>Prescription en fourchette de reps + RPE/RIR. La charge proposée suit le 1RM estimé à partir des séries notées : plus de reps ou plus lourd au même RPE → la charge proposée monte à la séance suivante.</li>
+  <li>Surcharge par phase (réglable ci-dessus) : <i>intensité</i> = RPE +0,5 par semaine ; <i>volume</i> = +1 série toutes les 1 à 3 semaines jusqu'au maximum ; <i>mixte</i> = les deux.</li></ul>
+ <p class="note">Ces règles sont des choix de programmation de l'app, modifiables semaine par semaine : une semaine saisie à la main reste toujours prioritaire. Les résultats dépendent de chaque personne (récupération, régularité, historique).</p></details>`;
+const _vOverload75=vOverload;
+vOverload=function(){ if(!M) return _vOverload75(); return _vOverload75()+`<details class="card" id="au75"${RE75.open?" open":""}><summary><b>⚙️ Surcharge automatique · S${ST.week||M.cw}</b> <span class="muted small">charges calculées depuis le carnet</span></summary>${vAuto75()||`<p class="muted small">Aucun exercice en % ou en RPE cette semaine.</p>`}</details>
+  <details class="card" id="re75"${RE75.reo?" open":""}><summary><b>🔁 Réestimer le 1RM en cours de cycle</b></summary>${vReest75()}</details>${RULES75}`; };
+document.addEventListener("toggle",e=>{ if(e.target.id==="au75") RE75.open=e.target.open; if(e.target.id==="re75") RE75.reo=e.target.open; },true);
+document.addEventListener("change",e=>{ if(e.target.matches&&e.target.matches("[data-re75w]")){ RE75.w=+e.target.value; render(); } });
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="re75"],[data-act="re75all"]'); if(!b) return; e.stopImmediatePropagation(); const P=ST.prog; P.readj=(P.readj||[]).filter(r=>r&&r.name);
+  const put=(name,w,v)=>{ P.readj=P.readj.filter(r=>!(r.name===name&&+r.w===w)); P.readj.push({name,w,v}); };
+  if(b.dataset.act==="re75"){ const [name,w,v]=b.dataset.v.split("|"); put(name,+w,+v); toast(`${name} : 1RM ${fmtN(+v)} à partir de S${w}`); }
+  else { const w=+b.dataset.v; let n=0; M.tracked.filter(t=>t.name&&t.est).forEach(t=>{ const ce=carnetEst75(t.name,w); if(!ce) return; const cur=(t.work&&t.work[w])||t.est; if(cur&&Math.abs(ce.sys/cur-1)<0.005) return; put(t.name,w,round(ce.sys-sysAdd(t.type,M.pdc),1)); n++; }); toast(`${n} 1RM réestimé${n>1?"s":""} à partir de S${w}`); }
+  RE75.reo=true; saveProg(); render(); },true);
+
 boot();
 
 </script>
