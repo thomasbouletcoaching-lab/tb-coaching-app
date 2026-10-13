@@ -5443,6 +5443,48 @@ function fixAssistAsst(){ if(!ST.carnet||!M) return; const changed=[];
   if(changed.length){ changed.forEach(k=>saveCarnet(k)); recompute(); } }
 const _openClientAsst=openClient; openClient=async function(){ const r=await _openClientAsst.apply(this,arguments); try{ fixAssistAsst(); }catch(e){ console.error(e); } return r; };
 
+
+// ================= MODULE BASE D'ALIMENTS ÉLARGIE =================
+// 1. Table Ciqual 2020 (ANSES, Licence Ouverte) : data/ciqual.json, ajoutée à la base de l'app (aliments génériques et plats).
+// 2. Open Food Facts (ODbL) : recherche en direct des produits de marque (glaces, biscuits, fast-food…).
+const FD67={cq:null,cqBusy:null,off:{},offBusy:{}};
+async function loadCiqual67(){ if(FD67.cq) return FD67.cq; if(FD67.cqBusy) return FD67.cqBusy;
+  FD67.cqBusy=fetch("data/ciqual.json").then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }).then(j=>FD67.cq=(j.foods||[]).map(x=>({id:"cq:"+nrm(x[0]),name:x[0],cat:x[1],kcal:x[2],p:x[3],g:x[4],l:x[5],fib:x[6],src:"ciqual"})))
+    .catch(()=>{ FD67.cqBusy=null; return []; }); // réessayé au prochain chargement
+  return FD67.cqBusy; }
+const _nuFoods67=nuFoods;
+nuFoods=async function(){ await _nuFoods67.apply(this,arguments); if(!NU.foods||NU.foods._cq) return; const cq=await loadCiqual67(); if(!NU.foods||NU.foods._cq) return;
+  if(!cq.length) return; const have=new Set(NU.foods.map(f=>nrm(f.name))); cq.forEach(f=>{ if(have.has(nrm(f.name))) return; NU.foods.push(f); NU.fmap[f.id]=f; }); NU.foods._cq=true; };
+// recherche : base TB d'abord, puis noms qui commencent par le mot cherché, puis noms courts ; produits de marque déjà cherchés inclus
+fSearch=function(q,n=12){ const w=nrm(q).split(/\s+/).filter(Boolean); if(!w.length||!NU.foods) return [];
+  const hit=f=>{ const t=nrm(f.name+" "+(f.cat||"")); return w.every(x=>t.includes(x)); }, nm=f=>nrm(f.name);
+  const sc=f=>(f.src==="off"?2:f.src==="ciqual"?1:0)*1000+(nm(f).startsWith(w[0])?0:300)+Math.min(nm(f).length,200);
+  const local=NU.foods.filter(f=>f.src!=="off"&&hit(f)).sort((a,b)=>sc(a)-sc(b));
+  const off=(FD67.off[w.join(" ")]||[]);
+  return off.length?local.slice(0,Math.max(4,n-off.length)).concat(off.slice(0,12)):local.slice(0,n); };
+async function offSearch67(q){ const k=nrm(q).split(/\s+/).filter(Boolean).join(" "); if(!k||FD67.off[k]) return FD67.off[k]||[];
+  const u="https://world.openfoodfacts.org/cgi/search.pl?search_terms="+encodeURIComponent(q)+"&search_simple=1&action=process&json=1&page_size=24&lc=fr&fields=code,product_name,product_name_fr,brands,nutriments,serving_quantity";
+  const r=await fetch(u); if(!r.ok) throw new Error("Open Food Facts indisponible"); const j=await r.json();
+  const seen=new Set(), out=[];
+  (j.products||[]).forEach(p=>{ const n=p.nutriments||{}; const k=+n["energy-kcal_100g"]||(+n.energy_100g||0)/4.184; const nm=(p.product_name_fr||p.product_name||"").trim(); if(!nm||!(k>0)) return;
+    const brand=(p.brands||"").split(",")[0].trim(); const name=nm+(brand&&!nrm(nm).includes(nrm(brand))?" – "+brand:""); if(seen.has(nrm(name))) return; seen.add(nrm(name));
+    const sq=+p.serving_quantity||null; const f={id:"off:"+p.code,name,cat:"Produits de marque",kcal:Math.round(k),p:+n.proteins_100g||0,g:+n.carbohydrates_100g||0,l:+n.fat_100g||0,fib:n.fiber_100g!=null?+n.fiber_100g:null,unit:sq?"portion":null,unit_g:sq,src:"off"};
+    out.push(f); if(NU.fmap) NU.fmap[f.id]=f; });
+  FD67.off[k]=out; return out; }
+// bouton « marques » sous chaque liste de résultats de recherche d'aliment
+["aq","xq","iq"].forEach(key=>{ const orig=RES[key]; if(typeof orig!=="function") return;
+  RES[key]=function(){ const h=orig.apply(this,arguments), q=String(NU[key]||"").trim(); if(q.length<2) return h; const k=nrm(q).split(/\s+/).filter(Boolean).join(" ");
+    const done=FD67.off[k], busy=FD67.offBusy[k];
+    return h+(done?(done.length?"":`<div class="muted small off67">Aucun produit de marque trouvé pour « ${esc(q)} ».</div>`)
+      :`<button class="ghost sm off67b" data-act="off-q" data-k="${key}" ${busy?"disabled":""}>${busy?"Recherche dans les marques…":`🔎 Chercher « ${esc(q)} » dans les marques`}</button>`)
+      +`<div class="muted small off67">Sources : base TB, Table Ciqual 2020 (ANSES)${done&&done.length?", Open Food Facts":""}.</div>`; }; });
+document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act="off-q"]'); if(!b) return; e.preventDefault(); e.stopImmediatePropagation();
+  const key=b.dataset.k, q=String(NU[key]||"").trim(), k=nrm(q).split(/\s+/).filter(Boolean).join(" "); if(!q) return;
+  const inp=document.querySelector(`[data-nuq="${key}"]`), box=inp&&document.getElementById(inp.dataset.res); FD67.offBusy[k]=1; if(box) box.innerHTML=RES[key]();
+  try{ await offSearch67(q); }catch(err){ toast("Recherche dans les marques impossible (réseau ?)"); } delete FD67.offBusy[k];
+  const inp2=document.querySelector(`[data-nuq="${key}"]`), box2=inp2&&document.getElementById(inp2.dataset.res); if(box2) box2.innerHTML=RES[key](); },true);
+const _cssFd67=document.createElement("style"); _cssFd67.textContent=`.off67b{margin-top:6px;width:100%}.off67{margin-top:6px}`; document.head.appendChild(_cssFd67);
+
 boot();
 
 </script>

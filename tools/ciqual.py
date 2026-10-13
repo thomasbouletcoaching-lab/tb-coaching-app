@@ -73,7 +73,7 @@ def main():
              ("Tartare de saumon (cru, nature)", "Saumon, cru"), ("Poke bowl : saumon cru (ingrédient)", "Saumon, cru")]
     by = {nrm(f[0]): f for f in out}
     for a_, src in ALIAS:
-        f = by.get(nrm(src))
+        f = by.get(nrm(src)) or next((x for k_, x in by.items() if k_.startswith(nrm(src))), None)
         if f and nrm(a_) not in seen: seen.add(nrm(a_)); out.append([a_ + " – valeurs Ciqual « " + f[0] + " »", f[1]] + f[2:])
     json.dump({"source": "Table de composition nutritionnelle des aliments Ciqual 2020, ANSES (Licence Ouverte Etalab 2.0)", "url": "https://ciqual.anses.fr/", "foods": out},
               open("data/ciqual.json", "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
