@@ -173,6 +173,7 @@ header.top h1{display:flex;align-items:center;gap:8px}header.top h1::before{cont
 .pr72svg{width:100%;height:auto;display:block;margin:4px 0}.pr72svg text{font-size:10px;fill:var(--soft)}.pr72svg line.g{stroke:var(--line);stroke-width:1}.pr72k{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}#pr72 select{width:100%}
 .pl73d{display:flex;gap:8px;align-items:flex-start;padding:6px 4px;border-top:1px solid var(--line);border-radius:10px;min-height:48px}.pl73d.now .pl73l{color:var(--accent)}.pl73d.over{background:color-mix(in srgb,var(--accent) 12%,transparent)}.pl73l{flex:0 0 42px;font-size:.8rem;color:var(--soft);display:flex;flex-direction:column;align-items:center;padding-top:6px}.pl73l b{font-size:1rem;color:inherit}.pl73s{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;justify-content:center;min-height:40px}.pl73c{display:flex;align-items:center;gap:6px;background:var(--chalk);border:1px solid var(--line);border-radius:12px;padding:0 8px 0 0;min-height:44px}.pl73c.over{outline:2px dashed var(--accent)}.pl73c.co{border-color:#d97706}.pl73c.pl73src{opacity:.35}.pl73h{flex:0 0 32px;align-self:stretch;display:flex;align-items:center;justify-content:center;color:var(--soft);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;font-size:1.1rem}.pl73n{flex:1;min-width:0;text-align:left;background:none;border:0;padding:8px 0;color:var(--ink);font:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pl73g{position:fixed;z-index:999;pointer-events:none;box-shadow:0 10px 24px rgba(0,0,0,.2);opacity:.95}.pl73a{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 8px 50px}.pl73a .on{border-color:#d97706}.co73{font-style:normal}.mo73w{padding:8px 0;border-top:1px solid var(--line)}.mo73w.now b{color:var(--accent)}.mo73s{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .wk77sum{display:flex;gap:8px;margin:8px 0}.wk77sum div{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:8px;text-align:center}.wk77sum b{display:block;font-size:1.15rem}.wk77sum span{font-size:.75rem;color:var(--soft)}.wk77d{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:10px 12px;margin:8px 0}.wk77d.now{border:2px solid var(--accent)}.wk77d.off77{padding:6px 12px;background:transparent;border-style:dashed}.wk77d.over{background:color-mix(in srgb,var(--accent) 12%,transparent)}.wk77h{display:flex;align-items:baseline;gap:6px;font-size:1rem;text-transform:uppercase;letter-spacing:.02em}.wk77h b{font-size:1.05rem}.wk77s{margin-top:8px}.wk77s .pl73c{background:var(--chalk)}.wk77s.co .pl73c{border-color:#d97706}.wk77st{color:var(--soft);white-space:nowrap}.wk77s.done .wk77st{color:var(--green,#16a34a);font-weight:600}.wk77s.miss .wk77st{color:var(--red,#dc2626)}.wk77l{margin:4px 0 0 4px}.wk77e{display:flex;gap:8px;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:.88rem}.wk77e:last-child{border-bottom:0}.wk77e .n{flex:1;min-width:0}.wk77e .p{text-align:right;white-space:nowrap;color:var(--soft)}.wk77e .p b{color:var(--ink)}.jr77e .exn{display:flex;align-items:center;gap:6px}.jr77i{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--on-accent,#fff);font-size:.75rem;align-items:center;justify-content:center;flex:none}
+.r79r{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}.r79i{flex:0 0 32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--chalk);font-size:1rem}.r79r.ok .r79i{background:var(--green,#16a34a);color:#fff;font-weight:800}.r79l{flex:1;min-width:0}.r79c{flex:none;display:flex;align-items:center}.r79in{width:96px!important;text-align:right}.r79s{font-weight:700;font-size:.9rem}.r79dots{display:flex;gap:3px;justify-content:flex-end;margin-top:4px}.r79d{width:10px;height:10px;border-radius:3px;background:var(--line)}.r79d.s1{background:color-mix(in srgb,var(--green,#16a34a) 30%,var(--line))}.r79d.s2{background:color-mix(in srgb,var(--green,#16a34a) 60%,var(--line))}.r79d.s3,.r79d.s4{background:var(--green,#16a34a)}
 </style>
 </head>
 <body>
@@ -6099,6 +6100,57 @@ document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act
   render(); },true);
 document.addEventListener("input",e=>{ const el=e.target; if(!MY78.edit||!el.dataset) return; if(el.dataset.my78n!==undefined) MY78.edit.n=el.value; });
 document.addEventListener("change",e=>{ const el=e.target; if(!MY78.edit||!el.dataset||el.dataset.my78q===undefined) return; const q=parseFloat(String(el.value).replace(",",".")); const i=MY78.edit.it[+el.dataset.my78q]; if(i&&q>0){ i.q=q; render(); } });
+
+// ================= MODULE 79 · ROUTINE DU JOUR (poids, pas, sommeil, nutrition) + « JOURNÉE COMME PRÉVUE » EN UN GESTE =================
+const RT79={busy:false};
+function dayType79(P,d){ const L=NU.logs[d]||{}; return P.types.find(x=>x.id===(L.t||P.week[DOW(d)]))||P.types[0]; }
+function nutDone79(d){ const L=NU.logs[d]||{}; return Object.keys(L.m||{}).length>0||(L.x||[]).length>0; }
+function routineOf79(d){ const L=NU.logs[d]||{}, m=NU.mes[d]||{};
+  return {poids:m.poids!=null&&m.poids!=="", pas:L.steps!=null&&L.steps!=="", sommeil:L.r&&L.r.sh!=null&&L.r.sh!=="", nut:nutDone79(d)}; }
+const score79=d=>Object.values(routineOf79(d)).filter(Boolean).length;
+function streak79(){ let n=0, d=todayISO(); if(score79(d)<2) d=addDays(d,-1); while(score79(d)>=2&&n<365){ n++; d=addDays(d,-1); } return n; }
+function avgW79(endD){ const v=[]; for(let i=0;i<7;i++){ const p=(NU.mes[addDays(endD,-i)]||{}).poids; if(p!=null&&p!=="") v.push(+p); } return v.length?v.reduce((a,b)=>a+b,0)/v.length:null; }
+// valide tous les repas encore non notés comme prévu
+async function asPlanned79(d){ const P=planOn(); if(!P) return 0; const t=dayType79(P,d); NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); NU.logs[d].m=Object.assign({},NU.logs[d].m); let n=0;
+  t.meals.forEach((m,mi)=>{ const o=m.opts[0]; if(!o||NU.logs[d].m[mi]) return; NU.logs[d].m[mi]={s:"ok",n:o.n,mac:optMac(o),it:(o.it||[]).map(i=>Object.assign({},i,{q:(+i.q||0)*(o.m||1)}))}; n++; });
+  if(n){ render(); await nuSaveLog(d); } return n; }
+function vRoutine79(){ if(!(NU.loaded&&NU.cid===CUR)) return ""; const d=todayISO(), R=routineOf79(d), L=NU.logs[d]||{}, m=NU.mes[d]||{}, P=planOn(), n=Object.values(R).filter(Boolean).length, st=streak79();
+  const dots=[...Array(7)].map((_,i)=>{ const x=addDays(d,i-6), s=score79(x); return `<i class="r79d s${Math.min(4,s)}" title="${new Date(x+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long"})} : ${s}/4"></i>`; }).join("");
+  const aw=avgW79(d), pw=avgW79(addDays(d,-7)), dw=aw!=null&&pw!=null?Math.round((aw-pw)*10)/10:null;
+  const row=(ok,ic,lab,ctl,sub)=>`<div class="r79r${ok?" ok":""}"><span class="r79i" aria-hidden="true">${ok?"✓":ic}</span><div class="r79l"><b>${lab}</b>${sub?`<div class="muted small">${sub}</div>`:""}</div><div class="r79c">${ctl}</div></div>`;
+  const inp=(k,v,ph,mode)=>`<input class="r79in" data-r79="${k}" inputmode="${mode}" value="${esc(v??"")}" placeholder="${ph}" aria-label="${ph}">`;
+  let nutCtl="", nutSub="";
+  if(P&&hasMeals(P)){ const t=dayType79(P,d), done=t.meals.filter((x,i)=>L.m&&L.m[i]).length, tot=t.meals.filter(x=>x.opts.length).length;
+    nutSub=`${done}/${tot} repas notés`; nutCtl=done<tot?`<button class="ok sm" data-act="r79-plan">${done?"Le reste comme prévu":"Comme prévu"}</button>`:`<button class="ghost sm" data-act="tdy-go" data-v="nut:jour">Voir</button>`; }
+  else { nutSub=R.nut?"noté":"pas encore noté"; nutCtl=`<button class="ghost sm" data-act="tdy-go" data-v="nut:jour">Noter</button>`; }
+  return `<div class="card r79" id="r79"><div class="row" style="flex-wrap:nowrap;align-items:center"><div class="grow"><div class="lb45"><span>Ma routine du jour</span></div><b>${n}/4</b> <span class="muted small">· 20 secondes</span></div>
+      <div style="text-align:right">${st?`<div class="r79s">🔥 ${st} jour${st>1?"s":""}</div>`:""}<div class="r79dots" aria-label="7 derniers jours">${dots}</div></div></div>
+    ${row(R.poids,"⚖️","Poids",`${inp("poids",m.poids,"kg","decimal")}`,aw!=null?`moyenne 7 j : ${fmtN(Math.round(aw*10)/10)} kg${dw!=null&&dw!==0?` (${dw>0?"+":""}${fmtN(dw)} vs sem. préc.)`:""}`:"le matin, à jeun")}
+    ${row(R.pas,"👣","Pas",inp("pas",L.steps,"pas","numeric"),P&&P.steps?`objectif ${fmtN(+P.steps)}`:"")}
+    ${row(R.sommeil,"😴","Sommeil",inp("sommeil",L.r&&L.r.sh,"heures","decimal"),"nuit dernière")}
+    ${row(R.nut,"🍽","Nutrition",nutCtl,nutSub)}
+    <p class="note" style="margin:6px 0 0">Une journée compte dans la série dès que 2 des 4 cases sont remplies. Le poids se lit en moyenne sur 7 jours : les variations d'un jour à l'autre sont normales.</p></div>`; }
+const _vToday79=vToday;
+vToday=function(){ const h=_vToday79(); if(coach()||MODE!=="client") return h; if(!(NU.loaded&&NU.cid===CUR)){ if(typeof nuEnsure==="function"&&RT79.req!==CUR){ RT79.req=CUR; nuEnsure().then(()=>{ if(NU.loaded) scheduleRender(); }); } return h; }
+  const c=vRoutine79(); if(!c) return h; const i=h.indexOf('<div class="card ses45">'); const j=i>=0?h.indexOf('<div class="card',i+10):-1; return j>=0?h.slice(0,j)+c+h.slice(j):h+c; };
+// saisies
+document.addEventListener("change",async e=>{ const el=e.target; if(!el.dataset||el.dataset.r79===undefined) return; const d=todayISO(), k=el.dataset.r79; let v=String(el.value).replace(",",".").trim(); v=v===""?"":+v;
+  if(v!==""&&(isNaN(v)||v<0)) return toast("Valeur non reconnue");
+  if(k==="poids"){ if(v!==""&&(v<30||v>300)) return toast("Poids en kg, par exemple 82,4"); const cur=Object.assign({},NU.mes[d]); if(v==="") delete cur.poids; else cur.poids=v; NU.mes[d]=cur; render();
+    await safeWrite("mesures",{client_id:CUR,d,data:cur,updated_at:new Date().toISOString()},{client_id:CUR,d},"upsert"); if(v!=="") toast("Poids noté"); return; }
+  NU.logs[d]=Object.assign({},NU.logs[d]);
+  if(k==="pas"){ if(v==="") delete NU.logs[d].steps; else NU.logs[d].steps=Math.round(v); }
+  if(k==="sommeil"){ if(v!==""&&v>16) return toast("Sommeil en heures, par exemple 7,5"); NU.logs[d].r=Object.assign({},NU.logs[d].r); if(v==="") delete NU.logs[d].r.sh; else NU.logs[d].r.sh=v; }
+  render(); await nuSaveLog(d); });
+document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act="r79-plan"],[data-act="nu-allok"]'); if(!b) return; e.stopImmediatePropagation(); const d=b.dataset.act==="nu-allok"?(NU.day||todayISO()):todayISO();
+  const n=await asPlanned79(d); toast(n?`${n} repas noté${n>1?"s":""} comme prévu. Tu peux modifier un repas à tout moment.`:"Tous les repas sont déjà notés"); },true);
+// Suivi › Jour : bouton « journée comme prévue » en tête des repas
+const _nJour79=nJour;
+nJour=function(){ const h=_nJour79(); const {d,L,t,P}=nDayCtx(); if(!t||!hasMeals(P)) return h; const left=t.meals.filter((m,i)=>m.opts.length&&!(L.m&&L.m[i])).length; if(!left) return h;
+  const btn=`<div class="row" style="margin:8px 0"><button class="ok" data-act="nu-allok" style="flex:1">✅ ${left===t.meals.filter(m=>m.opts.length).length?"Journée comme prévue":`Le reste comme prévu (${left} repas)`}</button></div><p class="muted small" style="margin:-4px 0 6px;text-align:center">Un écart sur un repas ? Valide d'abord, puis « Modifier » ce repas.</p>`;
+  const i=h.indexOf('<div class="card meal'); return i>=0?h.slice(0,i)+btn+h.slice(i):h; };
+// rappel du soir des repas activé par défaut (n'arrive que si rien n'est noté ce jour-là)
+RM_DEF.meals.on=true;
 
 boot();
 
