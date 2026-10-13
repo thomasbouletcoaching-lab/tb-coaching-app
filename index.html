@@ -169,6 +169,7 @@ header.top h1{display:flex;align-items:center;gap:8px}header.top h1::before{cont
 @media print{#msgfab,#msgpanel{display:none!important}}
 @media print{.printdoc{color:#000}table.pt tr{break-inside:avoid}#restbar,#offbar{display:none!important}}
 @media print{header.top,nav.tabs,.noprint,.toast{display:none!important}:root{padding:0}html,body{background:#fff}body{padding:0}main{max-width:none;padding:0}.inv{border:0;padding:0}}
+.ac71{position:relative;z-index:30;margin-top:4px;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12);padding:6px}.ac71m{gap:4px;align-items:center;flex-wrap:wrap}.ac71m select{flex:1 1 120px;min-width:0;font-size:.85rem}.ac71m .chip{margin:0;min-height:32px;cursor:pointer}.ac71l{max-height:42vh;overflow:auto;margin-top:6px;-webkit-overflow-scrolling:touch}.ac71l button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:9px 6px;min-height:44px;color:var(--ink);font:inherit}.ac71l button small{display:block;color:var(--soft);font-size:.75rem}
 </style>
 </head>
 <body>
@@ -5617,6 +5618,40 @@ document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="cx-s
   const [key,i]=b.dataset.v.split("|"); const c=ensureSets(key); c.sets.splice(+i,1); if(!c.sets.length) c.sets.push({}); ST50.open=null; updateTop(key); saveCarnet(key); toast("Série supprimée"); render(); },true);
 const _css70=document.createElement("style"); _css70.textContent=`.sdrag70{display:inline-flex;align-items:center;justify-content:center;width:16px;min-height:36px;margin-right:2px;color:var(--soft);font-weight:800;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;vertical-align:middle}
 tr.sdragging{position:relative;z-index:3;background:var(--paper);box-shadow:0 8px 20px rgba(0,0,0,.2)}.hx70 .chip{font-size:.72rem}`; document.head.appendChild(_css70);
+
+// ---------- sélecteur d'exercice : par muscle + suggestions pendant la saisie (tous les champs « exercice »)
+const AC71={inp:null,mus:null,box:null};
+const acRef71=inp=>{ if(inp.dataset.crep!==undefined){ try{ const {r}=rowOf(inp.dataset.crep); return r.ex; }catch(e){ return ""; } } return inp.dataset.acref||""; };
+const acNames71=()=>{ const s=new Set(Object.keys(BASEMAP)); try{ (((ST.prog||{}).rows)||[]).forEach(r=>r&&r.ex&&s.add(r.ex)); }catch(e){} return [...s]; };
+function acList71(q,mus){ const nq=nrm(q).trim(), words=nq.split(/\s+/).filter(Boolean); let L=acNames71();
+  if(mus) L=L.filter(n=>{ const b=BASEMAP[n]; return b&&(b.mP===mus||(nq&&(b.s1===mus||b.s2===mus))); });
+  if(words.length) L=L.filter(n=>{ const x=nrm(n); return words.every(w=>x.includes(w)); });
+  const sc=n=>{ const x=nrm(n); return (nq&&x.startsWith(nq)?0:nq&&x.includes(" "+words[0])?1:2)*1000+(BASEMAP[n]&&BASEMAP[n].mP===mus?0:500)+x.length; };
+  return (nq?L.sort((a,b)=>sc(a)-sc(b)||a.localeCompare(b,"fr")):L.sort((a,b)=>a.localeCompare(b,"fr"))).slice(0,nq?40:80); }
+function acHTML71(){ const inp=AC71.inp, ref=acRef71(inp), refM=(BASEMAP[ref]||{}).mP||"", mus=AC71.mus, q=inp.value===ref&&inp.dataset.crep!==undefined?"":inp.value;
+  const L=acList71(q,mus);
+  const chip=(m,l)=>`<button type="button" class="chip${(mus||"")===m?" on":""}" data-acm="${esc(m)}">${esc(l)}</button>`;
+  return `<div class="row ac71m">${refM?chip(refM,"Même muscle · "+refM):""}${chip("","Tous les muscles")}<select data-acms aria-label="Choisir un muscle"><option value="">Autre muscle…</option>${MUSCLES().map(m=>`<option ${m===mus&&m!==refM?"selected":""}>${esc(m)}</option>`).join("")}</select></div>
+    <div class="ac71l">${L.length?L.map(n=>{ const b=BASEMAP[n]; return `<button type="button" data-acv="${esc(n)}"><b>${esc(n)}</b>${b?`<small>${esc([b.mP,b.eq].filter(Boolean).join(" · "))}</small>`:""}</button>`; }).join(""):`<div class="muted small" style="padding:8px">Aucun exercice de la liste ne correspond${q.trim()?` : « ${esc(q.trim())} » sera enregistré tel quel`:""}.</div>`}</div>`; }
+function acClose71(){ if(AC71.box) AC71.box.remove(); AC71.box=null; AC71.inp=null; }
+function acShow71(){ const inp=AC71.inp; if(!inp||!inp.isConnected) return acClose71();
+  if(!AC71.box||!AC71.box.isConnected){ AC71.box=document.createElement("div"); AC71.box.className="ac71"; }
+  const anc=inp.closest("label")||inp.parentElement.closest("div[style*='display:flex']")||inp; if(AC71.box.previousElementSibling!==anc) anc.insertAdjacentElement("afterend",AC71.box);
+  AC71.box.innerHTML=acHTML71(); }
+function acOpen71(inp){ if(AC71.inp===inp&&AC71.box&&AC71.box.isConnected) return;
+  acClose71(); inp.removeAttribute("list"); inp.setAttribute("autocomplete","off"); AC71.inp=inp;
+  const ref=acRef71(inp); AC71.mus=(BASEMAP[ref]||BASEMAP[inp.value]||{}).mP||null; if(inp.dataset.crep===undefined&&!ref&&!BASEMAP[inp.value]) AC71.mus=null;
+  acShow71(); setTimeout(()=>{ if(AC71.inp!==inp) return; const vh=(window.visualViewport||{}).height||innerHeight; if(inp.getBoundingClientRect().bottom>vh*.4) try{ window.scrollBy(0,inp.getBoundingClientRect().top-70); }catch(e){} },300); }
+const acIsEx71=el=>el&&el.tagName==="INPUT"&&(el.getAttribute("list")==="dl-ex"||el.dataset.ac71!==undefined);
+document.addEventListener("focusin",e=>{ const el=e.target; if(acIsEx71(el)){ el.dataset.ac71=""; acOpen71(el); } else if(AC71.box&&!AC71.box.contains(el)) acClose71(); });
+document.addEventListener("input",e=>{ if(e.target===AC71.inp) acShow71(); });
+document.addEventListener("pointerdown",e=>{ if(!AC71.box) return; if(AC71.box.contains(e.target)){ if(e.target.tagName!=="SELECT") e.preventDefault(); return; } if(e.target!==AC71.inp) acClose71(); },true);
+document.addEventListener("change",e=>{ if(e.target.matches&&e.target.matches("select[data-acms]")){ e.stopImmediatePropagation(); AC71.mus=e.target.value||null; acShow71(); AC71.inp&&AC71.inp.focus(); } },true);
+document.addEventListener("click",e=>{ if(!AC71.box||!AC71.box.contains(e.target)) return; const m=e.target.closest("[data-acm]"), v=e.target.closest("[data-acv]"); e.stopPropagation(); if(e.target.tagName!=="SELECT"&&e.target.tagName!=="OPTION") e.preventDefault();
+  if(m){ AC71.mus=m.dataset.acm||null; acShow71(); AC71.inp.focus(); return; }
+  if(v){ const inp=AC71.inp; inp.value=v.dataset.acv; acClose71(); inp.dispatchEvent(new Event("input",{bubbles:true})); inp.dispatchEvent(new Event("change",{bubbles:true})); try{ inp.blur(); }catch(x){} } },true);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&AC71.box) acClose71(); });
+document.addEventListener("mousedown",e=>{ if(AC71.box&&AC71.box.contains(e.target)&&e.target.tagName!=="SELECT"&&e.target.tagName!=="OPTION") e.preventDefault(); },true);
 
 boot();
 
