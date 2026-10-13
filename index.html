@@ -5485,6 +5485,139 @@ document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act
   const inp2=document.querySelector(`[data-nuq="${key}"]`), box2=inp2&&document.getElementById(inp2.dataset.res); if(box2) box2.innerHTML=RES[key](); },true);
 const _cssFd67=document.createElement("style"); _cssFd67.textContent=`.off67b{margin-top:6px;width:100%}.off67{margin-top:6px}`; document.head.appendChild(_cssFd67);
 
+
+// ================= MODULE BARRE DU BAS STABLE (iPhone) =================
+// Sur iPhone, quand le clavier s'ouvre puis se ferme, la barre fixée en bas peut rester « collée » au milieu de l'écran.
+// Clavier ouvert : la barre est masquée (elle ne flotte plus). Clavier fermé : on force Safari à recalculer la mise en page.
+(function(){ const vv=window.visualViewport; let full=window.innerHeight;
+  const typing=()=>{ const a=document.activeElement; return !!(a&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable)&&!/^(checkbox|radio|button|submit|file|range|color)$/.test(a.type||"")); };
+  const nudge=()=>{ const y=window.scrollY; window.scrollTo(window.scrollX,y+1); window.scrollTo(window.scrollX,y); document.body.style.transform="translateZ(0)"; requestAnimationFrame(()=>{ document.body.style.transform=""; }); };
+  const check=()=>{ const h=vv?vv.height:window.innerHeight; if(!typing()&&h>full) full=h; const kb=typing()&&h<full*0.8;
+    const was=document.body.classList.contains("kb-on"); document.body.classList.toggle("kb-on",kb); if(was&&!kb) setTimeout(nudge,60); };
+  if(vv){ vv.addEventListener("resize",check); vv.addEventListener("scroll",()=>{ if(!typing()&&vv.offsetTop>0) nudge(); }); }
+  window.addEventListener("orientationchange",()=>{ full=0; setTimeout(check,300); });
+  document.addEventListener("focusin",()=>setTimeout(check,300));
+  document.addEventListener("focusout",()=>setTimeout(()=>{ check(); if(!typing()) nudge(); },250));
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ full=0; check(); nudge(); } });
+  const css=document.createElement("style"); css.textContent=`body.kb-on nav.tabs,body.kb-on #msgfab,body.kb-on #aifab{display:none!important}`; document.head.appendChild(css); })();
+
+
+// ================= MODULE SON DE FIN DE RÉCUPÉRATION =================
+// Carillon doux (deux notes, sinus avec fondu) à la fin du repos. Activable/désactivable depuis la barre de repos (🔔/🔕).
+const SND69={ctx:null,on:(()=>{ try{ return localStorage.getItem("tb-rest-sound")!=="0"; }catch(e){ return true; } })()};
+function sndUnlock69(){ try{ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return; if(!SND69.ctx) SND69.ctx=new AC(); if(SND69.ctx.state==="suspended") SND69.ctx.resume(); }catch(e){} }
+function chime69(){ if(!SND69.on||!SND69.ctx) return; const c=SND69.ctx, t0=c.currentTime+0.02;
+  [[659.25,0],[987.77,0.16],[1318.5,0.32]].forEach(([f,dt])=>{ const o=c.createOscillator(), g=c.createGain(); o.type="sine"; o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t0+dt); g.gain.exponentialRampToValueAtTime(0.18,t0+dt+0.03); g.gain.exponentialRampToValueAtTime(0.0001,t0+dt+0.9);
+    o.connect(g); g.connect(c.destination); o.start(t0+dt); o.stop(t0+dt+1); }); }
+const _startRest69=startRest;
+startRest=function(sec){ sndUnlock69(); _startRest69.apply(this,arguments); const el=document.getElementById("restbar"); if(!el) return; const x=el.querySelector('[data-act="rt-x"]');
+  if(x&&!el.querySelector('[data-act="rt-snd"]')){ const b=document.createElement("button"); b.className="ghost sm"; b.dataset.act="rt-snd"; b.setAttribute("aria-label",SND69.on?"Couper le son":"Activer le son"); b.textContent=SND69.on?"🔔":"🔕"; x.before(b); } };
+const _stopRest69=stopRest;
+stopRest=function(end){ if(end) chime69(); return _stopRest69.apply(this,arguments); };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="rt-snd"]'); if(!b) return; e.stopImmediatePropagation(); SND69.on=!SND69.on; try{ localStorage.setItem("tb-rest-sound",SND69.on?"1":"0"); }catch(x){}
+  b.textContent=SND69.on?"🔔":"🔕"; b.setAttribute("aria-label",SND69.on?"Couper le son":"Activer le son"); if(SND69.on){ sndUnlock69(); chime69(); } toast(SND69.on?"Son de fin de repos activé":"Son coupé"); },true);
+
+
+// ================= MODULE CARNET : ordre libre, séries déplaçables, hors programme complet =================
+// - ≡ ouvre « Réorganiser » (glisser vers le haut, le bas, tout en haut, tout en bas), exercices hors programme inclus.
+// - Chaque série se déplace par glisser-déposer (⋮) et se supprime individuellement (éditeur de la série).
+// - Exercice hors programme : mêmes outils que les autres (types de série, note, vidéo, note d'exercice, durée pour les exos chronométrés).
+const CX70={hset:null};
+// ---------- hors programme : carte complète
+hxHTML=function(S,w){ const key=hxKey(w,S.s), L=(ST.carnet[key]||{}).list||[], open=ST.hxOpen===key;
+  let h=L.map((x,li)=>{ const timed=isTimed(x.ex,null), type=typeOfName(x.ex,null), unit=isAssistEx(x.ex)?"Aide (−)":type==="Lesté"?"Lest":type==="Haltères"?"Kg/h.":"Kg";
+    const rows=(x.sets||[]).map((s,i)=>{ const t=s.t||[], ic=t.map(k=>TAG50[k]?TAG50[k].e:"").join("")+(s.n?"📝":"")+(s.v&&s.v.length?"🎥":"");
+      return `<tr class="${s.d?"done":""}${t.includes("ech")?" wu50":""}" data-hk="${key}|${li}" data-si="${i}"><td><button class="sn50${CX70.hset===key+"|"+li+"|"+i?" on":""}" data-act="hx-set" data-v="${key}|${li}|${i}" aria-label="Série ${i+1} : type, note, vidéo"><span class="sn">${i+1}</span>${ic||'<span class="add50">＋</span>'}</button></td>
+        ${["g","h","r"].map(f=>`<td><input class="si" data-hx="${key}|${li}|${i}|${f}" inputmode="${f==="h"?"numeric":"decimal"}" value="${esc(s[f]??"")}"></td>`).join("")}<td><button class="chk ${s.d?"on":""}" data-act="hx-done" data-v="${key}|${li}|${i}" aria-label="Série faite">✓</button></td></tr>`
+        +(s.n?`<tr class="sx64"><td colspan="5"><button class="linkbtn" data-act="hx-set" data-v="${key}|${li}|${i}">📝 ${esc(s.n.length>90?s.n.slice(0,90)+"…":s.n)}</button></td></tr>`:""); }).join("");
+    const ed=CX70.hset&&CX70.hset.startsWith(key+"|"+li+"|")?hxSetEditor70(key,+li,+CX70.hset.split("|")[2]):"";
+    return `<div class="cx hx70" data-i="h${li}" data-hk="${key}|${li}"><div class="cx-h"><span class="drag" data-act="ro-ses2" data-v="${w}.${S.s}" aria-label="Réorganiser">≡</span>
+      <div class="grow"><button class="linkbtn" data-act="cx-hist" data-v="${esc(x.ex)}">${esc(x.ex)}</button> <span class="chip">hors programme</span></div><button class="ghost sm" data-act="hx-del" data-v="${key}|${li}" aria-label="Retirer l'exercice">✕</button></div>
+      ${isAssistEx(x.ex)?`<div class="muted small">🪶 Exercice assisté : l'aide compte en délestage (20 kg d'aide = −20 kg).</div>`:""}
+      <div class="tbl"><table class="sets"><tr><th>Série</th><th class="n">${unit}</th><th class="n">${timed?"Durée (s)":"Reps"}</th><th class="n">RPE</th><th></th></tr>${rows}</table></div>${ed}
+      ${e1Chip(x.ex,null,x.sets)}<div class="row" style="margin-top:6px"><button class="ghost sm grow" data-act="hx-sadd" data-v="${key}|${li}">＋ Ajouter une série</button></div>
+      <label class="f" style="margin-top:8px">📝 Note sur l'exercice<textarea class="big64" rows="3" data-hxj="${key}|${li}" placeholder="Sensations, technique, matériel…">${esc(x.j||"")}</textarea></label></div>`; }).join("");
+  h+=open?`<div class="hx"><label class="f">Exercice fait en plus ou à la place<input id="hx-new" list="dl-ex" placeholder="Ex. Presse à cuisses" autocomplete="off" value="${esc(ST.hxNew||"")}"></label><div class="row" style="margin-top:6px"><button class="sm" data-act="hx-add" data-v="${key}">Ajouter</button><button class="ghost sm" data-act="hx-open" data-v="">Annuler</button></div></div>`
+    :`<div class="row" style="margin-top:8px"><button class="ghost sm" data-act="hx-open" data-v="${key}">＋ Exercice hors programme</button></div>`;
+  return h; };
+function hxSetEditor70(key,li,i){ const x=((ST.carnet[key]||{}).list||[])[li]; const s=x&&x.sets[i]; if(!s) return ""; const t=s.t||[], V=s.v||[];
+  const need=V.map(m=>m.path).filter(p=>!MSG.urls[p]&&!MSG.gone[p]); if(need.length) signUrls(need).then(scheduleRender);
+  return `<div class="edit st50"><div class="row" style="justify-content:space-between"><b>Série ${i+1} : type, note, vidéo</b><button class="ghost sm" data-act="hx-set" data-v="">Fermer</button></div>
+    <div class="row" style="gap:6px;margin:6px 0">${Object.entries(TAG50).map(([k,o])=>`<button class="chip ${t.includes(k)?"on":""}" data-act="hx-tag" data-v="${key}|${li}|${i}|${k}">${o.e} ${o.l}</button>`).join("")}</div>
+    <label class="f">📝 Note sur cette série<textarea class="big64" rows="3" data-hxn="${key}|${li}|${i}">${esc(s.n||"")}</textarea></label>
+    ${V.map((m,k)=>{ const u=MSG.urls[m.path]; return `<div class="sv64">${u?`<video src="${esc(u)}" controls playsinline preload="metadata"></video>`:`<div class="mph">Chargement…</div>`}<button class="ghost sm" data-act="hx-vdel" data-v="${key}|${li}|${i}|${k}">Supprimer la vidéo</button></div>`; }).join("")}
+    <div class="row" style="margin-top:6px;gap:6px"><button class="ghost sm" data-act="hx-vid" data-v="${key}|${li}|${i}">🎥 Ajouter la vidéo de cette série</button><button class="ghost sm" data-act="hx-sdel" data-v="${key}|${li}|${i}">🗑 Supprimer cette série</button></div></div>`; }
+const hxGet70=key=>ST.carnet[key]=Object.assign({list:[]},ST.carnet[key]);
+document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||""; if(!/^hx-(set|tag|sdel|vid|vdel|sadd|done)$/.test(a)) return; e.stopImmediatePropagation();
+  const [key,li,si,k]=v.split("|");
+  if(a==="hx-set"){ CX70.hset=CX70.hset===v||!v?null:v; return render(); }
+  const o=hxGet70(key), x=o.list[+li]; if(!x) return; x.sets=x.sets||[];
+  if(a==="hx-sadd"){ const last=x.sets[x.sets.length-1]||{}; x.sets.push({g:last.g,h:last.h,r:last.r}); }
+  else if(a==="hx-done"){ const s=x.sets[+si]; if(s.d) delete s.d; else { s.d=1; startRest(90); } }
+  else if(a==="hx-tag"){ const s=x.sets[+si], t=(s.t||[]).slice(), j=t.indexOf(k); if(j>=0) t.splice(j,1); else t.push(k); s.t=t; }
+  else if(a==="hx-sdel"){ if(b.dataset.sure!=="1"){ b.dataset.sure="1"; b.textContent="Confirmer la suppression"; return; } x.sets.splice(+si,1); CX70.hset=null; toast("Série supprimée"); }
+  else if(a==="hx-vdel"){ if(b.dataset.sure!=="1"){ b.dataset.sure="1"; b.textContent="Confirmer"; return; } const s=x.sets[+si], m=(s.v||[]).splice(+k,1)[0]; if(s.v&&!s.v.length) delete s.v; if(m) SB.storage.from("media").remove([m.path]).catch(()=>{}); }
+  else if(a==="hx-vid"){ hxVideo70(key,+li,+si); return; }
+  saveCarnet(key); render(); },true);
+document.addEventListener("change",e=>{ const el=e.target, d=el.dataset||{}; if(d.hxj===undefined&&d.hxn===undefined) return; const [key,li,si]=(d.hxj||d.hxn).split("|"); const o=hxGet70(key), x=o.list[+li]; if(!x) return;
+  const val=String(el.value).trim(); if(d.hxj!==undefined){ if(val) x.j=val; else delete x.j; } else { const s=x.sets[+si]; if(val) s.n=val; else delete s.n; } saveCarnet(key); render(); });
+function hxVideo70(key,li,si){ let f=document.getElementById("hxv-file"); if(!f){ f=document.createElement("input"); f.type="file"; f.accept="video/*"; f.id="hxv-file"; f.hidden=true; document.body.appendChild(f); }
+  f.onchange=async()=>{ let file=f.files&&f.files[0]; f.value=""; if(!file) return; const dur=await videoDuration(file); if(dur>VID_MAX_S+2) return toast(`Vidéo trop longue (${Math.round(dur)} s)`); toast("Envoi de la vidéo…");
+    try{ if(file.size>4*1024*1024){ try{ file=await compressVideo(file,null,{short:640,bps:1200000}); }catch(err){ if(file.size>30*1024*1024) throw new Error("vidéo trop lourde"); } }
+      const m=await uploadMedia(file); if(!m) throw new Error(MSG.err||"envoi impossible"); MSG.urls[m.path]=URL.createObjectURL(file); const s=hxGet70(key).list[li].sets[si]; s.v=(s.v||[]).concat([{path:m.path}]); await saveCarnet(key); toast("Vidéo ajoutée ✅"); }
+    catch(err){ toast("Vidéo non envoyée : "+(err.message||err)); } render(); };
+  f.click(); }
+// ---------- réorganiser (≡ ou bouton) : programme + hors programme
+function sesItems70(S,w){ const ord=((ST.carnet[w+"_o_"+S.s]||{}).o||[]).map(String), rows=S.rows.filter(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff), L=(ST.carnet[hxKey(w,S.s)]||{}).list||[];
+  const items=rows.map(r=>{ const v=ST.carnet[w+"_"+r.key]||{}; return {id:String(r.i),label:v.ex||r.ex,sub:String(r.weeks[w].text||r.weeks[w].eff||"").replace(/<[^>]+>/g,"").split(" — ")[0]}; })
+    .concat(L.map((x,li)=>({id:"h"+li,label:x.ex,sub:"hors programme"})));
+  const pos=id=>{ const k=ord.indexOf(id); return k<0?(id[0]==="h"?900+(+id.slice(1)):500+(+id)):k; };
+  return items.sort((a,b)=>pos(a.id)-pos(b.id)); }
+window.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="ro-ses2"],[data-act="ro-ses"]'); if(!b) return; e.preventDefault(); e.stopImmediatePropagation();
+  const [w,s]=b.dataset.v.split(".").map(Number), S=M.sessions.find(x=>x.s===s); if(!S) return;
+  const more=w<M.NSEM?`<label class="ro-x"><input type="checkbox" data-rox="next" checked style="width:20px;height:20px;margin:0"> Garder cet ordre pour les semaines suivantes</label>`:"";
+  roOpen(S.name+" · semaine "+w,sesItems70(S,w),async(ids,x)=>{ const o=ids.map(id=>id[0]==="h"?id:Number(id)); const ws=[w];
+    if(x.next) for(let w2=w+1;w2<=M.NSEM;w2++) if(S.rows.some(r=>r.ex&&r.weeks[w2]&&r.weeks[w2].eff)) ws.push(w2);
+    ws.forEach(w2=>{ ST.carnet[w2+"_o_"+s]={o:w2===w?o:o.filter(id=>typeof id==="number")}; }); render(); toast("Ordre enregistré"); for(const w2 of ws) await saveCarnet(w2+"_o_"+s); },more); },true);
+// ≡ d'un exercice du programme : ouvre la même fenêtre (glisser dans les deux sens, jusqu'aux extrémités)
+document.addEventListener("pointerdown",e=>{ const hd=e.target.closest("[data-drag]"); if(!hd) return; const list=hd.closest(".cxlist"); if(!list) return; e.preventDefault(); e.stopImmediatePropagation();
+  const b=document.createElement("button"); b.dataset.act="ro-ses2"; b.dataset.v=list.dataset.w+"."+list.dataset.s; b.hidden=true; document.body.appendChild(b); setTimeout(()=>{ b.click(); b.remove(); },0); },true);
+// après chaque rendu : exercices hors programme placés dans la liste selon l'ordre ; poignées ⋮ sur les séries
+const _x10After70=x10After;
+x10After=function(){ _x10After70(); document.querySelectorAll(".cxlist").forEach(list=>{ const w=+list.dataset.w, s=+list.dataset.s, ord=((ST.carnet[w+"_o_"+s]||{}).o||[]).map(String);
+    const hx=[...list.parentElement.querySelectorAll(":scope > .hx70")]; if(!hx.length) return;
+    hx.forEach(card=>{ const id=card.dataset.i, k=ord.indexOf(id); let before=null;
+      if(k>=0) for(let j=k+1;j<ord.length&&!before;j++){ before=list.querySelector(`:scope > .cx[data-i="${ord[j]}"]`); }
+      if(before) list.insertBefore(card,before); else list.appendChild(card); }); });
+  document.querySelectorAll("table.sets tr").forEach(tr=>{ if(tr.querySelector(".sdrag70")) return; const inp=tr.querySelector("input[data-cs],input[data-hx]"); if(!inp) return;
+    const p=(inp.dataset.cs||inp.dataset.hx).split("|"); tr.dataset.sk=inp.dataset.cs?"c|"+p[0]:"h|"+p[0]+"|"+p[1]; tr.dataset.si=inp.dataset.cs?p[1]:p[2];
+    const td=tr.querySelector("td"); if(td) td.insertAdjacentHTML("afterbegin",`<span class="sdrag70" data-sdrag aria-label="Glisser pour déplacer la série">⋮</span>`); }); };
+// glisser-déposer d'une série
+let SD70=null;
+document.addEventListener("pointerdown",e=>{ const hd=e.target.closest("[data-sdrag]"); if(!hd) return; const tr=hd.closest("tr"); if(!tr) return; e.preventDefault();
+  const tb=tr.parentElement; tb.querySelectorAll("tr.sx64").forEach(x=>x.style.display="none");
+  SD70={tr,tb,y0:e.clientY,sk:tr.dataset.sk}; tr.classList.add("sdragging"); try{ hd.setPointerCapture(e.pointerId); }catch(err){} },true);
+document.addEventListener("pointermove",e=>{ if(!SD70) return; e.preventDefault(); const y=e.clientY, D=SD70; const sibs=[...D.tb.children].filter(x=>x!==D.tr&&x.dataset.sk===D.sk);
+  let before=null; for(const s of sibs){ const rc=s.getBoundingClientRect(); if(y<rc.top+rc.height/2){ before=s; break; } }
+  const last=sibs[sibs.length-1]; const target=before||(last?last.nextSibling:null);
+  if(target!==D.tr&&target!==D.tr.nextSibling){ const t0=D.tr.getBoundingClientRect().top; D.tb.insertBefore(D.tr,target); D.y0+=D.tr.getBoundingClientRect().top-t0; try{ navigator.vibrate&&navigator.vibrate(8); }catch(x){} }
+  D.tr.style.transform=`translateY(${y-D.y0}px)`; },{passive:false});
+const sdEnd70=()=>{ if(!SD70) return; const D=SD70; SD70=null; D.tr.classList.remove("sdragging"); D.tr.style.transform="";
+  const order=[...D.tb.children].filter(x=>x.dataset.sk===D.sk).map(x=>+x.dataset.si); if(order.every((v,i)=>v===i)) return render();
+  const p=D.sk.split("|");
+  if(p[0]==="c"){ const key=p[1], c=ensureSets(key); const old=c.sets.slice(); c.sets=order.map(i=>old[i]||{}).concat(old.slice(order.length)); updateTop(key); saveCarnet(key); }
+  else { const key=p[1], x=hxGet70(key).list[+p[2]]; const old=x.sets.slice(); x.sets=order.map(i=>old[i]||{}).concat(old.slice(order.length)); saveCarnet(key); }
+  toast("Ordre des séries modifié"); render(); };
+document.addEventListener("pointerup",sdEnd70); document.addEventListener("pointercancel",()=>{ if(SD70){ SD70.tr.style.transform=""; SD70=null; render(); } });
+// supprimer une série précise (programme) depuis l'éditeur de la série
+const _setEditor70=setEditor50;
+setEditor50=function(key,i){ return _setEditor70(key,i).replace(/<\/div>$/,`<div class="row" style="margin-top:8px"><button class="ghost sm" data-act="cx-sdel70" data-v="${key}|${i}">🗑 Supprimer cette série</button></div></div>`); };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="cx-sdel70"]'); if(!b) return; e.stopImmediatePropagation(); if(b.dataset.sure!=="1"){ b.dataset.sure="1"; b.textContent="Confirmer la suppression"; return; }
+  const [key,i]=b.dataset.v.split("|"); const c=ensureSets(key); c.sets.splice(+i,1); if(!c.sets.length) c.sets.push({}); ST50.open=null; updateTop(key); saveCarnet(key); toast("Série supprimée"); render(); },true);
+const _css70=document.createElement("style"); _css70.textContent=`.sdrag70{display:inline-flex;align-items:center;justify-content:center;width:16px;min-height:36px;margin-right:2px;color:var(--soft);font-weight:800;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;vertical-align:middle}
+tr.sdragging{position:relative;z-index:3;background:var(--paper);box-shadow:0 8px 20px rgba(0,0,0,.2)}.hx70 .chip{font-size:.72rem}`; document.head.appendChild(_css70);
+
 boot();
 
 </script>
