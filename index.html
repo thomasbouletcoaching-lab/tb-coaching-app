@@ -172,6 +172,7 @@ header.top h1{display:flex;align-items:center;gap:8px}header.top h1::before{cont
 .ac71{position:relative;z-index:30;margin-top:4px;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12);padding:6px}.ac71m{gap:4px;align-items:center;flex-wrap:wrap}.ac71m select{flex:1 1 120px;min-width:0;font-size:.85rem}.ac71m .chip{margin:0;min-height:32px;cursor:pointer}.ac71l{max-height:42vh;overflow:auto;margin-top:6px;-webkit-overflow-scrolling:touch}.ac71l button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:9px 6px;min-height:44px;color:var(--ink);font:inherit}.ac71l button small{display:block;color:var(--soft);font-size:.75rem}
 .pr72svg{width:100%;height:auto;display:block;margin:4px 0}.pr72svg text{font-size:10px;fill:var(--soft)}.pr72svg line.g{stroke:var(--line);stroke-width:1}.pr72k{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}#pr72 select{width:100%}
 .pl73d{display:flex;gap:8px;align-items:flex-start;padding:6px 4px;border-top:1px solid var(--line);border-radius:10px;min-height:48px}.pl73d.now .pl73l{color:var(--accent)}.pl73d.over{background:color-mix(in srgb,var(--accent) 12%,transparent)}.pl73l{flex:0 0 42px;font-size:.8rem;color:var(--soft);display:flex;flex-direction:column;align-items:center;padding-top:6px}.pl73l b{font-size:1rem;color:inherit}.pl73s{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;justify-content:center;min-height:40px}.pl73c{display:flex;align-items:center;gap:6px;background:var(--chalk);border:1px solid var(--line);border-radius:12px;padding:0 8px 0 0;min-height:44px}.pl73c.over{outline:2px dashed var(--accent)}.pl73c.co{border-color:#d97706}.pl73c.pl73src{opacity:.35}.pl73h{flex:0 0 32px;align-self:stretch;display:flex;align-items:center;justify-content:center;color:var(--soft);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;font-size:1.1rem}.pl73n{flex:1;min-width:0;text-align:left;background:none;border:0;padding:8px 0;color:var(--ink);font:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pl73g{position:fixed;z-index:999;pointer-events:none;box-shadow:0 10px 24px rgba(0,0,0,.2);opacity:.95}.pl73a{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 8px 50px}.pl73a .on{border-color:#d97706}.co73{font-style:normal}.mo73w{padding:8px 0;border-top:1px solid var(--line)}.mo73w.now b{color:var(--accent)}.mo73s{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.wk77sum{display:flex;gap:8px;margin:8px 0}.wk77sum div{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:8px;text-align:center}.wk77sum b{display:block;font-size:1.15rem}.wk77sum span{font-size:.75rem;color:var(--soft)}.wk77d{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:10px 12px;margin:8px 0}.wk77d.now{border:2px solid var(--accent)}.wk77d.off77{padding:6px 12px;background:transparent;border-style:dashed}.wk77d.over{background:color-mix(in srgb,var(--accent) 12%,transparent)}.wk77h{display:flex;align-items:baseline;gap:6px;font-size:1rem;text-transform:uppercase;letter-spacing:.02em}.wk77h b{font-size:1.05rem}.wk77s{margin-top:8px}.wk77s .pl73c{background:var(--chalk)}.wk77s.co .pl73c{border-color:#d97706}.wk77st{color:var(--soft);white-space:nowrap}.wk77s.done .wk77st{color:var(--green,#16a34a);font-weight:600}.wk77s.miss .wk77st{color:var(--red,#dc2626)}.wk77l{margin:4px 0 0 4px}.wk77e{display:flex;gap:8px;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:.88rem}.wk77e:last-child{border-bottom:0}.wk77e .n{flex:1;min-width:0}.wk77e .p{text-align:right;white-space:nowrap;color:var(--soft)}.wk77e .p b{color:var(--ink)}.jr77e .exn{display:flex;align-items:center;gap:6px}.jr77i{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--on-accent,#fff);font-size:.75rem;align-items:center;justify-content:center;flex:none}
 </style>
 </head>
 <body>
@@ -5993,6 +5994,111 @@ recompute=function(){ _recompute76(); if(!M||!M.rows||!ST.prog) return; const pr
         wk.text=txt+(capped?`  ·  ⚠ plus lourd que ${kb?"la kettlebell":"les haltères"} dispo (${fmtN(list[list.length-1])} kg) : ajoute des reps ou ralentis la descente (3-4 s)`:""); }
       if(band&&h.bands.length&&!/élastique (fin|moyen|large)/i.test(wk.text)){ const L=h.bands, pick=HEAVYB76.test(r.ex)?L[L.length-1]:L.length>2?L[1]:L[0];
         wk.text+=`  ·  élastique ${pick.toLowerCase()}${L.indexOf(pick)<L.length-1?" (passe au suivant quand tu atteins le haut de la fourchette)":""}`; } }); }); };
+
+// ================= MODULE 77 · SEMAINE : « Aujourd'hui » = détail de la séance du jour ; « Semaine » = vue d'ensemble jour par jour =================
+ST.sv73="jour"; ST.d77=null;
+const _seg45_77=seg45;
+seg45=function(cur){ if(cur!=="semaine") return _seg45_77(cur);
+  return `<div class="seg45" role="tablist">${[["jour","Aujourd'hui"],["sem","Semaine"],["mois","Mois"]].map(([v,l])=>{ const on=v===ST.sv73; return `<button role="tab" aria-selected="${on}" class="${on?"on":""}" data-act="sv73" data-v="${v}">${l}</button>`; }).join("")}</div>`; };
+// prescription courte : « 5×5 · 100 kg »
+function short77(r,k){ if(!k||!k.eff) return ""; if(!k.valid||!k.blocks) return esc(k.eff); const tm=r.timed||isTimed(r.ex,r.E);
+  return k.blocks.filter(b=>b.ok).map(b=>{ let t=`${b.sets}×${String(b.rt).replace("-","–")}${tm?" s":""}`;
+    if(b.load!=null) t+=` · <b>${esc(loadText(b.load,r.type))}</b>`; else if(b.pct!=null) t+=` · ${fmtN(b.pct)} %`; else if(b.rpe!=null) t+=` · RPE ${fmtN(b.rpe)}`; return t; }).join(" + "); }
+const rowsOf77=(S,w)=>S.rows.filter(r=>r.ex&&r.weeks[w]&&r.weeks[w].eff);
+const ST77={done:"✓ faite",miss:"✗ loupée",run:"⏱ en cours",past:"non notée",today:"aujourd'hui",todo:""};
+function vWeek77(w){ const d0=isoD(M.dateOf(w)), act=M.sessions.filter(S=>sActive(w,S)), agg=M.W[w-1]||{ses:[]};
+  const tot=act.reduce((a,S)=>{ const x=agg.ses[S.s]||{}; a.n++; a.sets+=x.sets||0; a.dur+=x.dur||0; return a; },{n:0,sets:0,dur:0});
+  let h=`<h2>Semaine ${w}${M.phases[w-1]?" · "+esc(M.phases[w-1]):""}</h2>`+weekStrip(w)+
+    `<div class="wk77sum"><div><b>${tot.n}</b><span>séance${tot.n>1?"s":""}</span></div><div><b>${fmtN(Math.round(tot.sets))}</b><span>séries dures</span></div><div><b>≈ ${Math.round(tot.dur/60*10)/10||0} h</b><span>au total</span></div></div>
+    <p class="muted small" style="margin:4px 0 8px">Glisse ⠿ sur un autre jour pour déplacer une séance (ou sur une autre séance pour échanger). Appuie sur le nom pour le détail.</p><div id="pl73">`;
+  DAYS.forEach((dn,i)=>{ const iso=addDays(d0,i), L=act.filter(S=>sDay(w,S)===i).sort((a,b)=>a.s-b.s), now=iso===todayISO();
+    if(!L.length){ h+=`<div class="wk77d off77${now?" now":""}" data-pday="${i}"><div class="wk77h"><b>${dn}</b> <span class="muted">${+iso.slice(8)}/${+iso.slice(5,7)}</span><span class="grow"></span><span class="muted small">Repos</span></div></div>`; return; }
+    h+=`<div class="wk77d${now?" now":""}" data-pday="${i}"><div class="wk77h"><b>${dn}</b> <span class="muted">${+iso.slice(8)}/${+iso.slice(5,7)}</span>${now?` <span class="chip on">aujourd'hui</span>`:""}</div>`;
+    L.forEach(S=>{ const st=sesStatus(w,S,iso), co=withCoach73(w,S), x=agg.ses[S.s]||{}, tm=typeof sTime==="function"?sTime(w,S):"";
+      h+=`<div class="wk77s ${st}${co?" co":""}"><div class="pl73c ${st}" data-pl73="${w}_${S.s}"><span class="pl73h" data-pl73h aria-label="Glisser vers un autre jour">⠿</span><button class="pl73n" data-act="pl73go" data-v="${w}_${S.s}"><b>${esc(S.name)}</b> <span class="muted small">${tm?esc(tm)+" · ":""}≈ ${Math.round(x.dur||0)} min</span></button>${ST77[st]?`<span class="small wk77st">${ST77[st]}</span>`:""}${co?`<i class="co73" title="Séance faite avec le coach">🤝</i>`:""}<button class="ghost sm" data-act="pl73o" data-v="${w}_${S.s}" aria-label="Options">⋯</button></div>`;
+      if(PL73.open===w+"_"+S.s) h+=`<div class="pl73a"><button class="ghost sm${co?" on":""}" data-act="pl73co" data-v="${w}_${S.s}">🤝 ${co?"Faite avec le coach ✓":"Faite avec le coach"}</button>${sMove(w,S)!=null?`<button class="ghost sm" data-act="pl73rs" data-v="${w}_${S.s}">Remettre le ${DAYS[S.dayOff].toLowerCase()}</button>`:""}</div>`;
+      h+=`<div class="wk77l">${rowsOf77(S,w).map(r=>`<div class="wk77e"><span class="n">${r.ss?`<span class="ss">${esc(r.ss)}</span> `:""}${esc(r.ex)}</span><span class="p">${short77(r,r.weeks[w])}</span></div>`).join("")}</div></div>`; });
+    h+=`</div>`; });
+  return h+`</div><p class="note">✓ faite · ✗ loupée · 🤝 avec le coach · les charges sont calculées à partir de ton 1RM et de ton carnet.</p>`; }
+function vJour77(){ const iso=ST.d77||todayISO(), today=todayISO(), L=sesOnDate(iso);
+  const nav=`<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><button class="ghost sm" data-act="d77" data-v="-1" aria-label="Jour précédent">‹</button><b style="text-transform:capitalize;text-align:center">${iso===today?"Aujourd'hui · ":""}${new Date(iso+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})}</b><button class="ghost sm" data-act="d77" data-v="1" aria-label="Jour suivant">›</button></div>${iso!==today?`<div class="row" style="justify-content:center;margin-top:4px"><button class="chip" data-act="d77" data-v="0">Revenir à aujourd'hui</button></div>`:""}`;
+  let h=`<h2>${iso===today?"Séance du jour":"Séance du jour choisi"}</h2>`+nav;
+  if(!L.length){ let nx=null; for(let k=1;k<=21&&!nx;k++){ const d=addDays(iso,k), S=sesOnDate(d); if(S.length) nx={d,S:S[0].S}; }
+    return h+`<div class="card" style="text-align:center"><h3 style="margin:4px 0">😴 Repos</h3><p class="muted small">Pas de séance prévue ce jour-là.</p>${nx?`<button class="ghost sm" data-act="d77go" data-v="${nx.d}">Prochaine séance : ${esc(new Date(nx.d+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric"}))} · ${esc(nx.S.name)}</button>`:""}</div>`; }
+  L.forEach(({S,w})=>{ const st=sesStatus(w,S,iso), x=(M.W[w-1]||{ses:[]}).ses[S.s]||{}, co=withCoach73(w,S), tm=typeof sTime==="function"?sTime(w,S):"", rows=rowsOf77(S,w);
+    h+=`<div class="card ses jr77"><div class="row" style="flex-wrap:nowrap;align-items:flex-start"><div class="grow"><h3 style="margin:0">${esc(S.name)}</h3><div class="muted small">Semaine ${w}${M.phases[w-1]?" · "+esc(M.phases[w-1]):""}${tm?" · "+esc(tm):""} · ≈ ${Math.round(x.dur||0)} min · ${fmtN(Math.round(x.sets||0))} séries dures · ${rows.length} exercices</div></div>${ST77[st]?`<span class="chip ${st==="done"?"on":""}">${ST77[st]}</span>`:""}${co?` <span title="Séance faite avec le coach">🤝</span>`:""}</div>
+      ${iso<=today?`<div class="row" style="margin:8px 0 4px"><button class="sm" data-act="d77carnet" data-v="${w}_${S.s}">${st==="done"?"Voir dans le carnet":"▶ Noter la séance dans le carnet"}</button></div>`:""}`;
+    rows.forEach((r,ri)=>{ const k=r.weeks[w], key=w+"_"+r.key;
+      h+=`<div class="ex jr77e"><div class="exn"><span class="jr77i">${ri+1}</span>${r.ss?`<span class="ss">${esc(r.ss)}</span>`:""}${esc(r.ex)}</div>
+        <div class="presc ${k.valid===false?"bad":""}">${hiLoads(k.text||k.eff)}</div>
+        ${r.cons?`<div class="muted small">💬 ${esc(r.cons)}</div>`:""}${r.E&&r.E.note&&r.E.note!==r.cons?`<div class="muted small">💬 ${esc(r.E.note)}</div>`:""}
+        <div class="muted small">Dernière perf : ${esc(lastPerf(r.ex,w))} · ${demoLink(r.ex)}</div>${techChips(r.E||{},w)}
+        ${k.load1!=null&&(r.type==="Barre"||r.type==="Lesté"||r.type==="Haltères")?`<button class="ghost sm" style="margin-top:6px" data-act="warm" data-v="${key}">${ST.warm[key]?"Masquer l'échauffement":"Échauffement"}</button>`:""}${ST.warm[key]?warmup(k.load1,r):""}</div>`; });
+    h+=`</div>`; });
+  return h; }
+const _vSemaine77=vSemaine;
+vSemaine=function(){ if(ST.printProg) return _vSemaine77(); if(ST.sv73==="mois") return _vSemaine77(); const mc=coach()||typeof vMethod66!=="function"?"":vMethod66(false);
+  if(ST.sv73==="jour") return vJour77()+mc; const h=vWeek77(ST.week||M.cw), i=h.indexOf("</h2>"); return mc&&i>=0?h.slice(0,i+5)+mc+h.slice(i+5):h; };
+window.addEventListener("click",e=>{ const b=e.target.closest('[data-act="pl73go"],[data-act="d77"],[data-act="d77go"],[data-act="d77carnet"],[data-act="sv73"]'); if(!b) return; const a=b.dataset.act, v=b.dataset.v;
+  if(a==="sv73"){ if(v!=="jour") return; e.stopImmediatePropagation(); ST.sv73="jour"; ST.d77=null; ST.todayOn=false; ST.view="semaine"; window.scrollTo(0,0); return render(); }
+  e.stopImmediatePropagation();
+  if(a==="d77"){ ST.d77=+v===0?null:addDays(ST.d77||todayISO(),+v); return render(); }
+  if(a==="d77go"){ ST.d77=v; window.scrollTo(0,0); return render(); }
+  const [w,s]=v.split("_").map(Number), S=M.sessions.find(x=>x.s===s); if(!S) return;
+  if(a==="pl73go"){ if(DR73.moved) return; ST.d77=addDays(isoD(M.dateOf(w)),sDay(w,S)); ST.sv73="jour"; PL73.open=null; window.scrollTo(0,0); return render(); }
+  if(a==="d77carnet"){ ST.todayOn=false; ST.view="carnet"; ST.week=w; ST.cses=s; ST.csesW=w; window.scrollTo(0,0); return render(); } },true);
+
+// ================= MODULE 78 · NUTRITION : « MES REPAS » CRÉÉS PAR LE CLIENT =================
+// Stockés dans le carnet du client, clé « nu_my » = {list:[{id,n,it:[aliments]}]} (visible par le coach).
+const MY78={edit:null,use:null};
+const myList78=()=>((ST.carnet||{}).nu_my||{}).list||[];
+async function mySave78(list){ ST.carnet.nu_my={list,at:new Date().toISOString()}; cacheClient&&cacheClient(); render();
+  await safeWrite("carnet",{client_id:CUR,k:"nu_my",data:ST.carnet.nu_my,updated_at:new Date().toISOString()},{client_id:CUR,k:"nu_my"},"upsert"); }
+const myMacTxt78=it=>{ const m=mac(it); return `${r0(m.k)} kcal · P ${r0(m.p)} · G ${r0(m.g)} · L ${r0(m.l)}`; };
+RES.myq=()=>fSearch(NU.myq||"").map(f=>`<button data-act="my78-add" data-v="${esc(f.id)}">${esc(f.name)}<br><span class="muted small">${esc(f.cat||"")} · ${r0(f.kcal)} kcal/100 g</span></button>`).join("");
+function myEditor78(){ const D=MY78.edit;
+  return `<div class="edit" id="my78ed"><label class="f">Nom du repas<input data-my78n value="${esc(D.n||"")}" placeholder="ex. Bowl poulet riz avocat" autocomplete="off"></label>
+    ${D.it.map((i,ii)=>`<div class="it row" style="flex-wrap:nowrap;gap:6px;margin:6px 0"><span class="grow">${esc(i.n)}<br><span class="muted small">${r0(mac([i]).k)} kcal</span></span><label class="row small" style="gap:4px;flex:none"><input style="width:72px" inputmode="decimal" data-my78q="${ii}" value="${esc(String(r0(+i.q||0)))}"> g</label><button class="ghost sm" data-act="my78-rm" data-v="${ii}" aria-label="Retirer">✕</button></div>`).join("")||`<p class="muted small">Ajoute les aliments de ton repas ci-dessous.</p>`}
+    ${D.it.length?`<div class="small" style="margin:4px 0"><b>Total :</b> ${myMacTxt78(D.it)}</div>`:""}
+    <label class="f" style="margin-top:8px">Ajouter un aliment<input data-nuq="myq" data-res="nu-myres" value="${esc(NU.myq||"")}" placeholder="riz, poulet, avocat…" autocomplete="off"></label><div class="res" id="nu-myres">${RES.myq()}</div>
+    <div class="row" style="margin-top:8px"><button class="ok sm" data-act="my78-save">Enregistrer</button><button class="ghost sm" data-act="my78-cancel">Annuler</button>${D.id?`<button class="ghost sm" data-act="my78-del">🗑 Supprimer</button>`:""}</div></div>`; }
+function myCard78(){ const L=myList78(), {t,P}=nDayCtx(), meals=t&&hasMeals(P)?t.meals:[], lg=(NU.logs[NU.day||todayISO()]||{}).m||{};
+  let h=`<div class="card" id="my78"><div class="row"><h3 class="grow" style="margin:0">📒 Mes repas</h3>${MY78.edit?"":`<button class="ghost sm" data-act="my78-new">＋ Créer un repas</button>`}</div>
+    <p class="muted small" style="margin:4px 0">Tes repas habituels, enregistrés une fois et notés en un geste.</p>`;
+  if(MY78.edit&&!MY78.edit.id) h+=myEditor78();
+  if(!L.length&&!MY78.edit) h+=`<p class="muted small">Aucun repas enregistré. Crée-en un, ou utilise « ⭐ Enregistrer dans mes repas » quand tu ajustes un repas.</p>`;
+  L.forEach(r=>{ if(MY78.edit&&MY78.edit.id===r.id){ h+=myEditor78(); return; }
+    h+=`<div class="opt" style="margin-top:8px"><div class="row" style="flex-wrap:nowrap"><b class="grow">${esc(r.n)}</b><button class="ghost sm" data-act="my78-edit" data-v="${r.id}">Modifier</button></div>
+      <div class="muted small">${myMacTxt78(r.it)}</div><div class="small">${esc(r.it.map(i=>`${i.n} ${qtyTxt(i)}`).join(" · "))}</div>
+      ${MY78.use===r.id?`<div class="small muted" style="margin-top:6px">Je l'ai mangé à la place de :</div><div class="row" style="gap:4px;margin-top:4px">${meals.map((m,mi)=>`<button class="chip${lg[mi]?" muted":""}" data-act="my78-log" data-v="${r.id}|${mi}">${esc(m.name)}${lg[mi]?" (déjà noté)":""}</button>`).join("")}<button class="chip" data-act="my78-log" data-v="${r.id}|x">En extra</button><button class="ghost sm" data-act="my78-use" data-v="">Annuler</button></div>`
+        :`<div class="row" style="margin-top:6px"><button class="ok sm" data-act="my78-use" data-v="${r.id}">✅ J'ai mangé ça</button></div>`}</div>`; });
+  return h+`</div>`; }
+const _nJour78=nJour;
+nJour=function(){ const h=_nJour78(); const mark='<div class="card"><h3 style="margin-top:0">Extras & écarts</h3>'; const c=myCard78(); const i=h.indexOf(mark);
+  if(i>=0) return h.slice(0,i)+c+h.slice(i); const j=h.indexOf('<div class="card"><h3 style="margin-top:0">Comment tu te sens ?</h3>'); return j>=0?h.slice(0,j)+c+h.slice(j):h+c; };
+// depuis l'éditeur « Ajuster / Modifier » d'un repas : l'enregistrer dans mes repas
+const _adjHTML78=adjHTML;
+adjHTML=function(mi,o0){ const h=_adjHTML78(mi,o0); return h.replace(/<button class="ghost sm" data-act="na-cancel">Annuler<\/button>/,m=>m+`<button class="ghost sm" data-act="my78-fromadj" data-v="${mi}">⭐ Enregistrer dans mes repas</button>`); };
+document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act^="my78-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v||""; const L=myList78().slice();
+  if((a==="my78-new"||a==="my78-edit")&&!NU.foods) nuFoods().then(()=>render());
+  if(a==="my78-new"){ MY78.edit={n:"",it:[]}; NU.myq=""; }
+  else if(a==="my78-edit"){ const r=L.find(x=>x.id===v); MY78.edit=JSON.parse(JSON.stringify(r)); NU.myq=""; }
+  else if(a==="my78-cancel") MY78.edit=null;
+  else if(a==="my78-add"){ const f=NU.fmap[v]; if(f){ MY78.edit.it.push(fSnap(f,f.unit_g||100)); NU.myq=""; } }
+  else if(a==="my78-rm") MY78.edit.it.splice(+v,1);
+  else if(a==="my78-save"){ const D=MY78.edit, n=(D.n||"").trim(); if(!n) return toast("Donne un nom à ce repas"); if(!D.it.length) return toast("Ajoute au moins un aliment");
+    const r={id:D.id||("m"+Date.now().toString(36)),n,it:D.it}; const i=L.findIndex(x=>x.id===r.id); if(i>=0) L[i]=r; else L.push(r); MY78.edit=null; await mySave78(L); return toast(`« ${n} » enregistré dans tes repas`); }
+  else if(a==="my78-del"){ if(!confirm("Supprimer ce repas de ta liste ?")) return; const id=MY78.edit.id; MY78.edit=null; await mySave78(L.filter(x=>x.id!==id)); return toast("Repas supprimé"); }
+  else if(a==="my78-use") MY78.use=v||null;
+  else if(a==="my78-log"){ const [id,slot]=v.split("|"), r=L.find(x=>x.id===id); if(!r) return; const d=NU.day||todayISO();
+    NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); NU.logs[d].m=Object.assign({},NU.logs[d].m); NU.logs[d].x=[...(NU.logs[d].x||[])]; const it=r.it.map(i=>Object.assign({},i));
+    if(slot==="x") NU.logs[d].x.push(...it); else NU.logs[d].m[+slot]={s:"alt",n:r.n,mac:mac(it),it};
+    MY78.use=null; render(); await nuSaveLog(d); return toast(slot==="x"?"Ajouté en extra":"Repas noté"); }
+  else if(a==="my78-fromadj"){ const A=NU.adj; if(!A||!A.it||!A.it.length) return toast("Ajoute d'abord des aliments"); const nm=((document.getElementById("na-name")||{}).value||A.n||"").trim()||"Mon repas";
+    L.push({id:"m"+Date.now().toString(36),n:nm,it:A.it.map(i=>Object.assign({},i))}); await mySave78(L); return toast(`⭐ « ${nm} » ajouté à tes repas`); }
+  render(); },true);
+document.addEventListener("input",e=>{ const el=e.target; if(!MY78.edit||!el.dataset) return; if(el.dataset.my78n!==undefined) MY78.edit.n=el.value; });
+document.addEventListener("change",e=>{ const el=e.target; if(!MY78.edit||!el.dataset||el.dataset.my78q===undefined) return; const q=parseFloat(String(el.value).replace(",",".")); const i=MY78.edit.it[+el.dataset.my78q]; if(i&&q>0){ i.q=q; render(); } });
 
 boot();
 

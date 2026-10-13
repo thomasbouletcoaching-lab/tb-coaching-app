@@ -17,13 +17,18 @@ const T = {
     ok((await txt(p, '#tabs')).startsWith('Accueil'), 'onglet Accueil en premier');
     ok((await txt(p, '#app h2')).startsWith('Bonjour'), 'vue Accueil affichée');
     await p.click('nav.tabs [data-v="semaine"]'); await p.waitForTimeout(300);
+    ok((await txt(p, '#app h2')).startsWith('Séance du jour'), 'Semaine › Aujourd\'hui montre la séance du jour (pas l\'Accueil)');
+    await p.click('[data-act="sv73"][data-v="sem"]'); await p.waitForTimeout(300);
+    ok((await p.$$('.wk77d')).length === 7, 'Semaine : les 7 jours séparés');
     ok(!!(await p.$('#pl73')), 'planning de la semaine présent dans Semaine');
     await p.click('[data-act="sv73"][data-v="mois"]'); await p.waitForTimeout(300);
     ok(!!(await p.$('#cal-card')), 'calendrier présent dans Mois');
     await p.click('[data-act="sv73"][data-v="sem"]'); await p.waitForTimeout(300);
-    await p.locator('[data-act="mv-open"]').first().click(); await p.locator('[data-act="mv-set"]').nth(6).click(); await p.waitForTimeout(400);
+    const hd = p.locator('.wk77s .pl73h').first(); await hd.scrollIntoViewIfNeeded(); const b1 = await hd.boundingBox();
+    const sun = p.locator('.wk77d').nth(1); await sun.scrollIntoViewIfNeeded(); const b1b = await hd.boundingBox(), b2 = await sun.boundingBox();
+    await p.mouse.move(b1b.x + 8, b1b.y + 10); await p.mouse.down(); await p.mouse.move(b2.x + 100, b2.y + b2.height / 2, { steps: 10 }); await p.mouse.up(); await p.waitForTimeout(400);
     ok(/_d_/.test((sc.lastWrite || {}).k || ''), 'déplacement enregistré dans le carnet');
-    ok((await p.$$eval('.card.ses h3', a => a.map(x => x.textContent))).pop().includes('Dimanche'), 'séance déplacée affichée le dimanche');
+    ok((await p.locator('.wk77d').nth(1).locator('.wk77s').count()) === 1, 'séance déplacée affichée le mardi');
   }, clientPre(sc => (m, path, body, acc, t) => { if (t === 'carnet' && m === 'POST') { sc.lastWrite = body; return []; } })),
 
   'client : records': () => run('client', async (p) => {
