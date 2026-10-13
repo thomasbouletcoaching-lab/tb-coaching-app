@@ -1,6 +1,6 @@
 """Convertit la Table Ciqual 2020 (ANSES, Licence Ouverte Etalab 2.0) en data/ciqual.json pour l'app.
 Format compact : [nom, catégorie, kcal, protéines, glucides, lipides, fibres] pour 100 g."""
-import json, re, sys, unicodedata, urllib.request, xlrd
+import json, os, re, sys, unicodedata, urllib.request, xlrd
 
 URL = "https://ciqual.anses.fr/cms/sites/default/files/inline-files/Table%20Ciqual%202020_FR_2020%2007%2007.xls"
 
@@ -61,6 +61,7 @@ def main():
         if not cat or k is None: continue
         seen.add(nrm(name)); r1 = lambda x: round(x or 0, 1)
         out.append([name, cat, round(k), r1(val(row[C["p"]])), r1(val(row[C["gl"]])), r1(val(row[C["l"]])), r1(val(row[C["f"]]))])
+    os.makedirs("data", exist_ok=True)
     json.dump({"source": "Table de composition nutritionnelle des aliments Ciqual 2020, ANSES (Licence Ouverte Etalab 2.0)", "url": "https://ciqual.anses.fr/", "foods": out},
               open("data/ciqual.json", "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     print(len(out), "aliments")
