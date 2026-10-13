@@ -556,7 +556,8 @@ function vClients(){ const list=CLIENTS.filter(c=>c.coach_id===UID&&(SHOWARCH||!
    <div class="row" style="margin-top:10px"><button data-act="nc-add">Nouveau client</button><label class="chip" style="cursor:pointer;padding:8px 12px">Importer une sauvegarde<input type="file" accept=".json,application/json" id="imp" style="display:none"></label></div></div>`;
   if(!list.length) h+=`<div class="card muted">Aucun client pour l'instant : crée ton premier dossier ci-dessus.</div>`;
   list.forEach(c=>{ h+=`<div class="card ses"><div class="row"><div class="grow"><h3 style="margin:0">${esc(c.name)}${c.archived?" (archivé)":""}</h3><div class="muted small">${esc(c.email?idLabel(c.email):"ni e-mail ni téléphone : le client ne peut pas se connecter")} · modifié le ${new Date(c.updated_at).toLocaleDateString("fr-FR")}</div></div><button data-act="open" data-v="${c.id}">Ouvrir</button></div>
-    <details style="margin-top:6px"><summary>Gérer</summary><div class="row" style="margin-top:6px">${isTel(c.email)?`<label class="f">Téléphone du client<input data-cphone="${c.id}" type="tel" inputmode="tel" value="${esc(telOf(c.email))}"></label>`:`<label class="f">E-mail du client<input data-cemail="${c.id}" type="email" inputmode="email" value="${esc(c.email||"")}"></label>`}</div>
+    <details style="margin-top:6px"><summary>Gérer</summary><div class="row" style="margin-top:6px"><label class="f">E-mail du client<input data-cemail="${c.id}" type="email" inputmode="email" value="${esc(isTel(c.email)?"":(c.email||""))}" placeholder="client@email.com"></label><label class="f">ou son téléphone<input data-cphone="${c.id}" type="tel" inputmode="tel" value="${esc(isTel(c.email)?telOf(c.email):"")}" placeholder="06 12 34 56 78"></label>
+    <p class="note" style="flex-basis:100%;margin:4px 0 0">Identifiant de connexion du client : ${c.email?`<b>${esc(idLabel(c.email))}</b>`:"aucun"}. Mets un téléphone pour qu'il se connecte avec son numéro (le mot de passe provisoire est créé dans la foulée).</p></div>
     <div class="row" style="margin-top:8px"><button class="ghost" data-act="dup" data-v="${c.id}">Dupliquer le programme</button><button class="ghost" data-act="exp" data-v="${c.id}">Exporter</button><button class="ghost" data-act="arch" data-v="${c.id}">${c.archived?"Désarchiver":"Archiver"}</button><button class="ghost" data-act="del" data-v="${c.id}">Supprimer</button></div></details></div>`; });
   h+=`<div class="row"><button class="ghost" data-act="sharch">${SHOWARCH?"Masquer les archivés":"Voir les archivés"}</button><button class="ghost" data-act="logout">Se déconnecter</button></div>
    <p class="note">Connecté : ${esc(EMAIL)}. Pour donner l'accès à un client : enregistre son e-mail, envoie-lui le lien de l'app ; il crée son compte avec cet e-mail et voit uniquement son programme.</p>`;
@@ -3757,7 +3758,7 @@ const ACT_MSG={pw:n=>`Salut ${n} ! Pense à choisir ton mot de passe dans l'app 
   ob:n=>`Salut ${n} ! Peux-tu remplir ton questionnaire de démarrage dans l'app ? Il me sert à construire ton programme et ton plan. Tu le retrouves à l'ouverture de l'app (ou Compte → « Revoir mes réponses »).`,
   cgv:n=>`Salut ${n} ! À l'ouverture de l'app, merci de lire et d'accepter les conditions générales du coaching. Une question ? Écris-moi.`};
 function actSteps(c,r){ r=r||{}; const n=(c.name||"").split(" ")[0];
-  return [["Compte créé",r.has_account,c.email?`<button class="sm" data-act="acc-make" data-v="${c.id}">🔑 Créer l'accès</button>`:`<span class="muted small">Ajoute d'abord son e-mail (Gérer)</span>`],
+  return [["Compte créé",r.has_account,c.email?`<button class="sm" data-act="acc-make" data-v="${c.id}">🔑 Créer l'accès</button>`:`<span class="muted small">Ajoute d'abord son e-mail ou son téléphone (Gérer)</span>`],
     ["App ouverte",r.new_app,`<button class="ghost sm" data-act="pn-newlink" data-v="${c.id}">Envoyer le lien</button>`],
     ["Mot de passe choisi",r.pw_set,`<button class="ghost sm" data-act="act-msg" data-v="${c.id}" data-k="pw">Relancer</button>`],
     ["Notifications activées",r.devices>0,`<button class="ghost sm" data-act="pn-help" data-v="${c.id}">Expliquer</button>`],
@@ -4844,7 +4845,10 @@ function telOf(e){ const d=String(e||"").replace(/^tel-/,"").replace(TEL_DOM,"")
 function idLabel(e){ return isTel(e)?telOf(e):(e||""); }
 document.addEventListener("change",async e=>{ const el=e.target; if(!el.dataset||!el.dataset.cphone) return; const id=el.dataset.cphone, em=telEmail(el.value);
   if(!isTel(em)) return toast("Numéro de téléphone incomplet");
-  const {error}=await SB.from("clients").update({email:em}).eq("id",id); if(error) return toast(error.message); const c=CLIENTS.find(x=>x.id===id); if(c) c.email=em; toast("Téléphone enregistré. Recrée l'accès (🔑) pour qu'il se connecte avec ce numéro."); });
+  const c=CLIENTS.find(x=>x.id===id); if(c&&c.email===em) return;
+  if(c&&c.email&&!isTel(c.email)&&!confirm(`${c.name} se connectait avec ${c.email}.\n\nPasser à la connexion par téléphone (${telOf(em)}) ? Son ancien identifiant ne donnera plus accès à son dossier.`)){ el.value=""; return; }
+  const {error}=await SB.from("clients").update({email:em}).eq("id",id); if(error) return toast(error.message); if(c) c.email=em; render();
+  toast("Téléphone enregistré"); setTimeout(()=>accessFor(id),300); });
 const _cssFold=document.createElement("style"); _cssFold.textContent=`details.fold>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;min-height:32px}details.fold>summary::-webkit-details-marker{display:none}details.fold[open]>summary{margin-bottom:6px}
 .tdr .small{font-size:.82rem}.ovt table{width:100%;font-size:.88rem}.ovt td,.ovt th{padding:5px 4px;white-space:nowrap}.ovt th{font-size:.78rem;color:var(--soft)}.ovt td{vertical-align:middle}.ovn{background:transparent;color:var(--ink);border:0;padding:0;min-height:36px;font-weight:600;display:inline-flex;align-items:center;gap:6px;text-align:left}`; document.head.appendChild(_cssFold);
 
