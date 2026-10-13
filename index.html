@@ -171,6 +171,7 @@ header.top h1{display:flex;align-items:center;gap:8px}header.top h1::before{cont
 @media print{header.top,nav.tabs,.noprint,.toast{display:none!important}:root{padding:0}html,body{background:#fff}body{padding:0}main{max-width:none;padding:0}.inv{border:0;padding:0}}
 .ac71{position:relative;z-index:30;margin-top:4px;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12);padding:6px}.ac71m{gap:4px;align-items:center;flex-wrap:wrap}.ac71m select{flex:1 1 120px;min-width:0;font-size:.85rem}.ac71m .chip{margin:0;min-height:32px;cursor:pointer}.ac71l{max-height:42vh;overflow:auto;margin-top:6px;-webkit-overflow-scrolling:touch}.ac71l button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:9px 6px;min-height:44px;color:var(--ink);font:inherit}.ac71l button small{display:block;color:var(--soft);font-size:.75rem}
 .pr72svg{width:100%;height:auto;display:block;margin:4px 0}.pr72svg text{font-size:10px;fill:var(--soft)}.pr72svg line.g{stroke:var(--line);stroke-width:1}.pr72k{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}#pr72 select{width:100%}
+.pl73d{display:flex;gap:8px;align-items:flex-start;padding:6px 4px;border-top:1px solid var(--line);border-radius:10px;min-height:48px}.pl73d.now .pl73l{color:var(--accent)}.pl73d.over{background:color-mix(in srgb,var(--accent) 12%,transparent)}.pl73l{flex:0 0 42px;font-size:.8rem;color:var(--soft);display:flex;flex-direction:column;align-items:center;padding-top:6px}.pl73l b{font-size:1rem;color:inherit}.pl73s{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;justify-content:center;min-height:40px}.pl73c{display:flex;align-items:center;gap:6px;background:var(--chalk);border:1px solid var(--line);border-radius:12px;padding:0 8px 0 0;min-height:44px}.pl73c.over{outline:2px dashed var(--accent)}.pl73c.co{border-color:#d97706}.pl73c.pl73src{opacity:.35}.pl73h{flex:0 0 32px;align-self:stretch;display:flex;align-items:center;justify-content:center;color:var(--soft);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;font-size:1.1rem}.pl73n{flex:1;min-width:0;text-align:left;background:none;border:0;padding:8px 0;color:var(--ink);font:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pl73g{position:fixed;z-index:999;pointer-events:none;box-shadow:0 10px 24px rgba(0,0,0,.2);opacity:.95}.pl73a{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 8px 50px}.pl73a .on{border-color:#d97706}.co73{font-style:normal}.mo73w{padding:8px 0;border-top:1px solid var(--line)}.mo73w.now b{color:var(--accent)}.mo73s{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 </style>
 </head>
 <body>
@@ -5701,17 +5702,86 @@ function vCharts72(){ if(!M) return ""; const D=prData72(), names=Object.keys(D)
     <select data-pr72ex aria-label="Exercice">${names.map(n=>`<option value="${esc(n)}" ${n===PR72.ex?"selected":""}>${tr.has(n)?"⭐ ":""}${esc(n)} (${cnt(n)} série${cnt(n)>1?"s":""})</option>`).join("")}</select>
     <div class="row" style="gap:4px;margin:8px 0">${mets.map(([k,l])=>`<button class="chip${k===m?" on":""}" data-act="pr72m" data-v="${k}">${l}</button>`).join("")}</div>
     ${body}${note?`<p class="note">${note}</p>`:""}</div>`; }
+window.addEventListener("click",e=>{ const b=e.target.closest('[data-act="seg45"]'); if(!b||!coach()||!["carnet","objectifs"].includes(b.dataset.v)) return; e.stopImmediatePropagation(); PR72.coach=b.dataset.v==="objectifs"; ST.view="carnet"; window.scrollTo(0,0); render(); },true);
+document.addEventListener("click",e=>{ const b=e.target.closest("#tabs button"); if(b&&coach()) PR72.coach=false; },true);
 document.addEventListener("change",e=>{ if(e.target.matches&&e.target.matches("[data-pr72ex]")){ PR72.ex=e.target.value; render(); } });
 document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="pr72m"],[data-act="pr72go"]'); if(!b) return; e.stopImmediatePropagation();
   if(b.dataset.act==="pr72m"){ PR72.m=b.dataset.v; return render(); }
-  PR72.ex=b.dataset.v; ST.todayOn=false; ST.view="objectifs"; render(); setTimeout(()=>{ const c=document.getElementById("pr72"); if(c) c.scrollIntoView({block:"start"}); },50); },true);
+  PR72.ex=b.dataset.v; ST.todayOn=false; if(coach()){ PR72.coach=true; ST.view="carnet"; } else ST.view="objectifs"; render(); setTimeout(()=>{ const c=document.getElementById("pr72"); if(c) c.scrollIntoView({block:"start"}); },50); },true);
 const _render72=render;
 render=function(){ _render72(); if(!M||!CUR||ST.bilan||ST.todayOn) return; const app=$("#app"); if(!app) return;
-  if(["carnet","objectifs"].includes(ST.view)&&!app.querySelector(".seg45")) app.insertAdjacentHTML("afterbegin",seg45(ST.view));
+  if(coach()&&ST.view==="carnet"&&PR72.coach){ app.innerHTML=seg45("objectifs")+`<h2>Progrès</h2>`+vCharts72()+vRecords(); return; }
+  if(["carnet","objectifs"].includes(ST.view)&&!app.querySelector(".seg45")) app.insertAdjacentHTML("afterbegin",seg45(coach()&&ST.view==="carnet"&&PR72.coach?"objectifs":ST.view));
   if(ST.view==="objectifs"){ const tabs=$("#tabs"); if(tabs){ tabs.querySelectorAll("button.on").forEach(b=>b.classList.remove("on")); const c=tabs.querySelector('[data-v="carnet"]'); if(c) c.classList.add("on"); }
     const h2=app.querySelector("h2"); if(h2&&/Objectifs/.test(h2.textContent)) h2.textContent="Progrès";
     if(!document.getElementById("pr72")){ const rc=document.getElementById("rec-card"); if(rc) rc.insertAdjacentHTML("beforebegin",vCharts72()); else if(h2) h2.insertAdjacentHTML("afterend",vCharts72()); else app.insertAdjacentHTML("beforeend",vCharts72()); }
     document.querySelectorAll('#rec-card [data-act="rec-hist"]').forEach(b=>{ if(b.nextElementSibling&&b.nextElementSibling.dataset.act==="pr72go") return; b.insertAdjacentHTML("afterend",`<button class="ghost sm" data-act="pr72go" data-v="${esc(b.dataset.v)}">📈 Courbes</button>`); }); } };
+
+// ================= MODULE 73 · SEMAINE : vues Aujourd'hui / Semaine (glisser les séances) / Mois + séances avec le coach =================
+// Séance faite avec le coach : clé carnet « w_c_s » = {coach:1,at}.
+ST.sv73=ST.sv73||"sem";
+const withCoach73=(w,S)=>!!(ST.carnet[w+"_c_"+S.s]||{}).coach;
+const _saveCarnet73=saveCarnet;
+saveCarnet=async function(key){ if(!/^\d+_c_\d+$/.test(key)) return _saveCarnet73(key); const v=ST.carnet[key]; recompute(); cacheClient();
+  await safeWrite("carnet",v?{client_id:CUR,k:key,data:v,updated_at:new Date().toISOString()}:null,{client_id:CUR,k:key},v?"upsert":"delete"); };
+const _seg45_73=seg45;
+seg45=function(cur){ if(cur!=="semaine") return _seg45_73(cur); const L=[...(coach()?[]:[["today","Aujourd'hui"]]),["sem","Semaine"],["mois","Mois"]];
+  return `<div class="seg45" role="tablist">${L.map(([v,l])=>{ const on=v===ST.sv73; return `<button role="tab" aria-selected="${on}" class="${on?"on":""}" data-act="${v==="today"?"seg45":"sv73"}" data-v="${v}">${l}</button>`; }).join("")}</div>`; };
+const ICS73={done:"✓",miss:"✗",run:"⏱",past:"·",today:"●",todo:"●"};
+function chip73(w,S,iso){ const st=sesStatus(w,S,iso), co=withCoach73(w,S), tm=typeof sTime==="function"?sTime(w,S):"";
+  return `<div class="pl73c ${st}${co?" co":""}" data-pl73="${w}_${S.s}"><span class="pl73h" data-pl73h aria-label="Glisser vers un autre jour">⠿</span><button class="pl73n" data-act="pl73o" data-v="${w}_${S.s}"><b>${esc(S.name)}</b>${tm?` <span class="muted small">${esc(tm)}</span>`:""}</button><i class="cs ${st}">${ICS73[st]}</i>${co?`<i class="co73" title="Séance faite avec le coach">🤝</i>`:""}</div>`; }
+function vPlanner73(w){ const d0=isoD(M.dateOf(w)); const act=M.sessions.filter(S=>sActive(w,S));
+  let h=`<div class="card" id="pl73"><h3 style="margin-top:0">Organiser ma semaine</h3><p class="muted small" style="margin-top:-4px">Glisse une séance (⠿) sur un autre jour pour la déplacer, ou sur une autre séance pour échanger leurs jours. Cette semaine uniquement.</p>`;
+  DAYS10.forEach((dn,i)=>{ const iso=addDays(d0,i), L=act.filter(S=>sDay(w,S)===i).sort((a,b)=>a.s-b.s);
+    h+=`<div class="pl73d${iso===todayISO()?" now":""}" data-pday="${i}"><div class="pl73l">${dn}<b>${+iso.slice(8)}</b></div><div class="pl73s">${L.map(S=>chip73(w,S,iso)).join("")||`<span class="muted small">Repos</span>`}</div></div>`;
+    if(PL73.open&&L.some(S=>PL73.open===w+"_"+S.s)){ const S=L.find(S=>PL73.open===w+"_"+S.s), co=withCoach73(w,S);
+      h+=`<div class="pl73a"><button class="sm" data-act="pl73go" data-v="${w}_${S.s}">${iso<=todayISO()?"Ouvrir dans le carnet":"Voir la séance"}</button><button class="ghost sm${co?" on":""}" data-act="pl73co" data-v="${w}_${S.s}">🤝 ${co?"Faite avec le coach ✓":"Faite avec le coach"}</button>${sMove(w,S)!=null?`<button class="ghost sm" data-act="pl73rs" data-v="${w}_${S.s}">Remettre le ${DAYS[S.dayOff].toLowerCase()}</button>`:""}</div>`; } });
+  return h+`<p class="note" style="margin-bottom:0"><i class="cs done">✓</i> faite · <i class="cs miss">✗</i> loupée · <i class="cs todo">●</i> prévue · 🤝 avec le coach</p></div>`; }
+function vMois73(){ const today=todayISO(); if(!CAL.m) CAL.m=today.slice(0,7); const [Y,Mo]=CAL.m.split("-").map(Number); const m0=`${CAL.m}-01`, m1=isoD(new Date(Y,Mo,0));
+  CAL.open=true; let h=`<h2>Mois</h2>`+vCalendar().replace(/<details class="card" id="cal-card"[^>]*>/,'<div class="card" id="cal-card">').replace(/<summary>[\s\S]*?<\/summary>/,"").replace(/<\/details>$/,"</div>");
+  let wk=""; for(let w=1;w<=M.NSEM;w++){ const a=isoD(M.dateOf(w)), b=addDays(a,6); if(b<m0||a>m1) continue; const act=M.sessions.filter(S=>sActive(w,S)).sort((x,y)=>sDay(w,x)-sDay(w,y)||x.s-y.s);
+    const done=act.filter(S=>sesStatus(w,S,addDays(a,sDay(w,S)))==="done").length;
+    wk+=`<div class="mo73w${w===M.cw?" now":""}"><div class="row" style="flex-wrap:nowrap"><b class="grow">Semaine ${w}${M.phases[w-1]?` · <span class="muted">${esc(M.phases[w-1])}</span>`:""}</b><span class="muted small">${new Date(a+"T12:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} → ${new Date(b+"T12:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</span></div>
+      <div class="small muted">${act.length?`${done}/${act.length} séance${act.length>1?"s":""} faite${done>1?"s":""}`:"Pas de séance"}</div>
+      <div class="mo73s">${act.map(S=>{ const iso=addDays(a,sDay(w,S)), st=sesStatus(w,S,iso); return `<button class="ghost sm mo73b ${st}" data-act="mo73w" data-v="${w}"><i class="cs ${st}">${ICS73[st]}</i> ${DAYS10[sDay(w,S)]} · ${esc(S.name)}${withCoach73(w,S)?" 🤝":""}</button>`; }).join("")}</div></div>`; }
+  return h+`<div class="card"><h3 style="margin-top:0">Semaines du mois</h3>${wk||`<p class="muted small">Aucune semaine du cycle ce mois-ci.</p>`}</div>`; }
+const PL73={open:null}, DR73={};
+const _vSemaine73=vSemaine;
+vSemaine=function(){ if(ST.printProg) return _vSemaine73(); if(ST.sv73==="mois") return vMois73();
+  let h=_vSemaine73().replace(/<details class="card" id="cal-card"[\s\S]*?<\/details>/,""); const pl=vPlanner73(ST.week); const j=h.indexOf('<div class="card ses">');
+  return j<0?h+pl:h.slice(0,j)+pl+h.slice(j); };
+// le calendrier marque les séances faites avec le coach
+const _vCalendar73=vCalendar;
+vCalendar=function(){ return _vCalendar73().replace(/<\/p><\/details>$/,` · 🤝 avec le coach</p></details>`).replace(/(data-act="cal-day" data-v="(\d{4}-\d\d-\d\d)"[^>]*>[\s\S]*?)(<\/button>)/g,(m0,body,iso,end)=>sesOnDate(iso).some(x=>withCoach73(x.w,x.S))?body+`<i class="cs co73">🤝</i>`+end:m0); };
+async function setDay73(w,S,d){ await dKeySet(w+"_d_"+S.s,{day:d===S.dayOff?undefined:d}); }
+document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act^="pl73"],[data-act="sv73"],[data-act="mo73w"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v;
+  if(a==="sv73"){ ST.sv73=v; ST.todayOn=false; ST.view="semaine"; if(v==="sem") ST.week=ST.week||M.cw; window.scrollTo(0,0); return render(); }
+  if(a==="mo73w"){ ST.sv73="sem"; ST.week=+v; window.scrollTo(0,0); return render(); }
+  const [w,s]=v.split("_").map(Number), S=M.sessions.find(x=>x.s===s); if(!S) return;
+  if(a==="pl73o"){ if(DR73.moved) return; PL73.open=PL73.open===v?null:v; return render(); }
+  if(a==="pl73go"){ const iso=addDays(isoD(M.dateOf(w)),sDay(w,S)); PL73.open=null; ST.week=w; if(iso<=todayISO()){ ST.view="carnet"; ST.cses=s; ST.csesW=w; window.scrollTo(0,0); return render(); }
+    render(); const c=[...document.querySelectorAll(".card.ses h3")].find(h=>h.textContent.startsWith(S.name)); if(c) c.scrollIntoView({block:"start",behavior:"smooth"}); return; }
+  if(a==="pl73co"){ const k=w+"_c_"+s; if(withCoach73(w,S)) delete ST.carnet[k]; else ST.carnet[k]={coach:1,at:new Date().toISOString()}; render(); await saveCarnet(k); toast(ST.carnet[k]?"🤝 Séance notée comme faite avec le coach":"Marque retirée"); return; }
+  if(a==="pl73rs"){ PL73.open=null; await setDay73(w,S,S.dayOff); render(); toast("Séance remise à son jour prévu"); } },true);
+// glisser-déposer des séances entre les jours
+document.addEventListener("pointerdown",e=>{ const hd=e.target.closest("[data-pl73h]"); if(!hd) return; const c=hd.closest("[data-pl73]"); e.preventDefault();
+  const r=c.getBoundingClientRect(), g=c.cloneNode(true); g.classList.add("pl73g"); g.style.width=r.width+"px"; g.style.left=r.left+"px"; g.style.top=r.top+"px"; document.body.appendChild(g);
+  Object.assign(DR73,{c,g,id:c.dataset.pl73,dx:e.clientX-r.left,dy:e.clientY-r.top,moved:false}); c.classList.add("pl73src"); try{ hd.setPointerCapture(e.pointerId); }catch(x){} },true);
+const plTarget73=(x,y)=>{ DR73.g.style.display="none"; const el=document.elementFromPoint(x,y); DR73.g.style.display=""; if(!el) return {}; const chip=el.closest("[data-pl73]"), day=el.closest("[data-pday]"); return {chip:chip&&chip!==DR73.c?chip:null,day}; };
+document.addEventListener("pointermove",e=>{ if(!DR73.g) return; e.preventDefault(); DR73.moved=true; DR73.g.style.left=(e.clientX-DR73.dx)+"px"; DR73.g.style.top=(e.clientY-DR73.dy)+"px";
+  const t=plTarget73(e.clientX,e.clientY); document.querySelectorAll(".pl73d.over,.pl73c.over").forEach(x=>x.classList.remove("over")); if(t.chip) t.chip.classList.add("over"); else if(t.day) t.day.classList.add("over");
+  if(e.clientY<60) window.scrollBy(0,-12); else if(e.clientY>innerHeight-90) window.scrollBy(0,12); },{passive:false});
+document.addEventListener("pointerup",async e=>{ if(!DR73.g) return; const t=plTarget73(e.clientX,e.clientY), id=DR73.id; DR73.g.remove(); DR73.c.classList.remove("pl73src"); DR73.g=null; setTimeout(()=>{ DR73.moved=false; },50);
+  document.querySelectorAll(".pl73d.over,.pl73c.over").forEach(x=>x.classList.remove("over"));
+  const [w,s]=id.split("_").map(Number), S=M.sessions.find(x=>x.s===s); if(!S) return;
+  if(t.chip){ const [w2,s2]=t.chip.dataset.pl73.split("_").map(Number), S2=M.sessions.find(x=>x.s===s2); if(!S2||w2!==w) return; const d1=sDay(w,S), d2=sDay(w,S2);
+    await setDay73(w,S,d2); await setDay73(w,S2,d1); render(); toast(`${S.name} ⇄ ${S2.name} : jours échangés`); return; }
+  if(t.day){ const d=+t.day.dataset.pday; if(d===sDay(w,S)) return render(); await setDay73(w,S,d); render(); toast(`${S.name} déplacée au ${DAYS[d].toLowerCase()}`); return; }
+  render(); });
+document.addEventListener("pointercancel",()=>{ if(DR73.g){ DR73.g.remove(); DR73.c.classList.remove("pl73src"); DR73.g=null; render(); } });
+// coach : barre Semaine | Mois aussi
+const _render73=render;
+render=function(){ _render73(); if(!M||!CUR||ST.bilan||ST.todayOn||ST.view!=="semaine"||ST.printProg) return; const app=$("#app"); if(app&&!app.querySelector(".seg45")) app.insertAdjacentHTML("afterbegin",seg45("semaine")); };
 
 boot();
 

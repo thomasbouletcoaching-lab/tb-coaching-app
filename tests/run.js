@@ -17,7 +17,10 @@ const T = {
     ok((await txt(p, '#tabs')).startsWith('Accueil'), 'onglet Accueil en premier');
     ok((await txt(p, '#app h2')).startsWith('Bonjour'), 'vue Accueil affichée');
     await p.click('nav.tabs [data-v="semaine"]'); await p.waitForTimeout(300);
-    ok(!!(await p.$('#cal-card')), 'calendrier présent dans Semaine');
+    ok(!!(await p.$('#pl73')), 'planning de la semaine présent dans Semaine');
+    await p.click('[data-act="sv73"][data-v="mois"]'); await p.waitForTimeout(300);
+    ok(!!(await p.$('#cal-card')), 'calendrier présent dans Mois');
+    await p.click('[data-act="sv73"][data-v="sem"]'); await p.waitForTimeout(300);
     await p.locator('[data-act="mv-open"]').first().click(); await p.locator('[data-act="mv-set"]').nth(6).click(); await p.waitForTimeout(400);
     ok(/_d_/.test((sc.lastWrite || {}).k || ''), 'déplacement enregistré dans le carnet');
     ok((await p.$$eval('.card.ses h3', a => a.map(x => x.textContent))).pop().includes('Dimanche'), 'séance déplacée affichée le dimanche');
@@ -151,7 +154,7 @@ const T = {
   }, clientPre(sc => (m, path, b, a, t) => { if (t === 'carnet' && m === 'POST') { if (b.k === 'pp') sc.pp = b.data; if (/^pl-/.test(b.k)) sc.log = b.data; return []; } })),
 
   'client : heure de séance enregistrée à la fermeture de la roue': () => run('client', async (p, sc) => {
-    await p.waitForTimeout(800); await p.evaluate(() => { ST.todayOn = false; ST.view = 'semaine'; CAL.open = true; render(); }); await p.waitForTimeout(300);
+    await p.waitForTimeout(800); await p.evaluate(() => { ST.todayOn = false; ST.view = 'semaine'; ST.sv73 = 'mois'; CAL.open = true; render(); }); await p.waitForTimeout(300);
     const day = await p.evaluate(() => { const b = document.querySelector('.calc.has'); return b && b.dataset.v; }); await p.click(`[data-act="cal-day"][data-v="${day}"]`); await p.waitForTimeout(300);
     const inp = p.locator('[data-ctime]').first(); await inp.focus();
     await p.evaluate(() => { const el = document.querySelector('[data-ctime]'); el.value = '18:00'; el.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(300);
