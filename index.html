@@ -170,6 +170,7 @@ header.top h1{display:flex;align-items:center;gap:8px}header.top h1::before{cont
 @media print{.printdoc{color:#000}table.pt tr{break-inside:avoid}#restbar,#offbar{display:none!important}}
 @media print{header.top,nav.tabs,.noprint,.toast{display:none!important}:root{padding:0}html,body{background:#fff}body{padding:0}main{max-width:none;padding:0}.inv{border:0;padding:0}}
 .ac71{position:relative;z-index:30;margin-top:4px;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12);padding:6px}.ac71m{gap:4px;align-items:center;flex-wrap:wrap}.ac71m select{flex:1 1 120px;min-width:0;font-size:.85rem}.ac71m .chip{margin:0;min-height:32px;cursor:pointer}.ac71l{max-height:42vh;overflow:auto;margin-top:6px;-webkit-overflow-scrolling:touch}.ac71l button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:9px 6px;min-height:44px;color:var(--ink);font:inherit}.ac71l button small{display:block;color:var(--soft);font-size:.75rem}
+.pr72svg{width:100%;height:auto;display:block;margin:4px 0}.pr72svg text{font-size:10px;fill:var(--soft)}.pr72svg line.g{stroke:var(--line);stroke-width:1}.pr72k{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}#pr72 select{width:100%}
 </style>
 </head>
 <body>
@@ -5652,6 +5653,65 @@ document.addEventListener("click",e=>{ if(!AC71.box||!AC71.box.contains(e.target
   if(v){ const inp=AC71.inp; inp.value=v.dataset.acv; acClose71(); inp.dispatchEvent(new Event("input",{bubbles:true})); inp.dispatchEvent(new Event("change",{bubbles:true})); try{ inp.blur(); }catch(x){} } },true);
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&AC71.box) acClose71(); });
 document.addEventListener("mousedown",e=>{ if(AC71.box&&AC71.box.contains(e.target)&&e.target.tagName!=="SELECT"&&e.target.tagName!=="OPTION") e.preventDefault(); },true);
+
+// ================= MODULE 72 · PROGRÈS DANS LE CARNET + GRAPHIQUES PAR EXERCICE =================
+// Barre « Séances | Progrès » en tête du Carnet ; la Semaine garde « Aujourd'hui | Semaine | Mois ».
+const PR72={ex:null,m:"e1"};
+const _seg45_72=seg45;
+seg45=function(cur){ if(cur==="carnet"||cur==="objectifs") return `<div class="seg45" role="tablist">${[["carnet","Séances"],["objectifs","Progrès"]].map(([v,l])=>`<button role="tab" aria-selected="${v===cur}" class="${v===cur?"on":""}" data-act="seg45" data-v="${v}">${l}</button>`).join("")}</div>`;
+  return _seg45_72(cur).replace(/<button[^>]*data-v="objectifs"[^>]*>Progrès<\/button>/,""); };
+// séries notées, par exercice et par semaine (programme + hors programme)
+function prData72(){ const D={}; const add=(name,w,sets,o)=>{ if(!name||!sets.length) return; const type=typeOfName(name,o?o.r:null), tm=isTimed(name,o?o.r.E:null);
+    const e=D[name]=D[name]||{name,type,tm,w:{}}; const W=e.w[w]=e.w[w]||[]; sets.forEach(x=>W.push({g:+x.g||0,h:+x.h,r:x.r==null||x.r===""?null:+x.r})); };
+  const ok=x=>x&&x.h!=null&&x.h!==""&&+x.h>0&&(x.g!=null&&x.g!=="");
+  Object.entries(ST.carnet||{}).forEach(([k,v])=>{ let m=/^(\d+)_(\d+)_(\d+)$/.exec(k);
+    if(m){ const o=rowOf(k); if(!o.r) return; add(v.ex||o.r.ex,o.w,setsOf(v).filter(ok),v.ex?null:o); return; }
+    m=/^(\d+)_h_(\d+)$/.exec(k); if(m&&v&&Array.isArray(v.list)) v.list.forEach(x=>add(x.ex,+m[1],(x.sets||[]).filter(ok),null)); });
+  return D; }
+function prSeries72(e){ const add=sysAdd(e.type,M.pdc), ws=Object.keys(e.w).map(Number).sort((a,b)=>a-b);
+  const best=(f)=>ws.map(w=>{ const L=e.w[w].filter(f).map(x=>sysOf(x.g,x.h,x.r,add)-add); return L.length?[w,Math.max(...L)]:null; }).filter(Boolean);
+  if(e.tm) return {dur:ws.map(w=>[w,Math.max(...e.w[w].map(x=>x.h))]),ton:[],top:[],dots:[],f:[],v:[]};
+  return { ton:ws.map(w=>[w,e.w[w].reduce((s,x)=>s+(x.g+add)*x.h,0)]), top:ws.map(w=>[w,Math.max(...e.w[w].map(x=>x.g))]),
+    dots:ws.flatMap(w=>e.w[w].map(x=>[w,x.g])), f:best(x=>x.h<=5), v:best(x=>x.h>=6) }; }
+function svg72(lines,unit,opt){ opt=opt||{}; const all=lines.flatMap(l=>l.pts); if(!all.length) return `<p class="muted small">Pas encore de données pour ce graphique.</p>`;
+  const W=320,H=170,L=40,R=10,T=12,B=26; const xs=all.map(p=>p[0]), ys=all.map(p=>p[1]);
+  let x0=Math.min(...xs), x1=Math.max(...xs); if(x0===x1){ x0-=1; x1+=1; } let y0=Math.min(...ys), y1=Math.max(...ys); const pad=(y1-y0)*.15||Math.max(1,Math.abs(y1)*.1); y0=Math.max(opt.zero?0:-1e9,y0-pad); y1+=pad; if(y0<0&&Math.min(...ys)>=0) y0=0;
+  const X=x=>L+(x-x0)/(x1-x0)*(W-L-R), Y=y=>T+(1-(y-y0)/(y1-y0))*(H-T-B), f=v=>Math.abs(v)>=1000?Math.round(v).toLocaleString("fr-FR"):String(Math.round(v*10)/10).replace(".",",");
+  const ticks=[0,.5,1].map(t=>y0+t*(y1-y0)), wk=[...new Set(xs)].sort((a,b)=>a-b), step=Math.ceil(wk.length/8);
+  return `<svg viewBox="0 0 ${W} ${H}" class="pr72svg" role="img" aria-label="${esc(lines.map(l=>l.name).join(", "))}">
+    ${ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" class="g"/><text x="${L-4}" y="${Y(v)+3}" text-anchor="end">${f(v)}</text>`).join("")}
+    ${wk.filter((w,i)=>i%step===0).map(w=>`<text x="${X(w)}" y="${H-8}" text-anchor="middle">S${w}</text>`).join("")}
+    ${lines.map(l=>l.dots?l.pts.map(p=>`<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="2.6" fill="${l.c}" opacity=".35"/>`).join(""):
+      `<polyline fill="none" stroke="${l.c}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" points="${l.pts.map(p=>X(p[0])+","+Y(p[1])).join(" ")}"/>${l.pts.map(p=>`<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="3.4" fill="${l.c}"><title>S${p[0]} · ${f(p[1])} ${unit}</title></circle>`).join("")}`).join("")}
+  </svg><div class="row small" style="gap:10px">${lines.filter(l=>l.name).map(l=>`<span><i class="pr72k" style="background:${l.c}"></i>${esc(l.name)}</span>`).join("")}</div>`; }
+function vCharts72(){ if(!M) return ""; const D=prData72(), names=Object.keys(D);
+  if(!names.length) return `<div class="card" id="pr72"><h3 style="margin-top:0">📈 Graphiques par exercice</h3><p class="muted small">Les courbes apparaîtront dès tes premières séries notées dans le carnet (charge et répétitions).</p></div>`;
+  const tr=new Set((M.tracked||[]).filter(t=>t.name).map(t=>t.name)), cnt=n=>Object.values(D[n].w).reduce((s,a)=>s+a.length,0);
+  names.sort((a,b)=>(tr.has(b)-tr.has(a))||cnt(b)-cnt(a)||a.localeCompare(b,"fr"));
+  if(!PR72.ex||!D[PR72.ex]) PR72.ex=names[0]; const e=D[PR72.ex], S=prSeries72(e), u=e.type==="Lesté"?"kg ajoutés":e.type==="Haltères"?"kg/haltère":"kg";
+  const mets=e.tm?[["dur","Durée"]]:[["e1","1RM estimé"],["top","Charges"],["ton","Tonnage"]]; let m=PR72.m; if(!mets.some(x=>x[0]===m)) m=mets[0][0];
+  const C1="var(--accent,#2b6cb0)", C2="#d97706", C3="var(--ink)";
+  let body="", note="";
+  if(m==="dur") body=svg72([{name:"Durée max",c:C1,pts:S.dur}],"s",{zero:1});
+  if(m==="e1"){ body=svg72([{name:"Séries de force (≤ 5 reps)",c:C1,pts:S.f},{name:"Séries de volume (≥ 6 reps)",c:C2,pts:S.v}],"kg");
+    note=`Meilleur 1RM estimé de la semaine, calculé à partir de la charge, des répétitions et du RPE notés. Les séries lourdes et les séries longues donnent souvent des estimations différentes : c'est pour ça qu'elles sont séparées. C'est un ordre de grandeur, pas une charge à tenter.${e.type==="Lesté"?" Pour un exercice au poids du corps, la valeur affichée est la charge ajoutée (négative = assistance).":""}`; }
+  if(m==="top"){ body=svg72([{name:"Toutes les séries",c:C3,pts:S.dots,dots:1},{name:"Charge la plus lourde",c:C1,pts:S.top}],u); note="Chaque point gris est une série notée ; la courbe suit la charge la plus lourde de la semaine."; }
+  if(m==="ton"){ body=svg72([{name:"Tonnage (charge × reps)",c:C1,pts:S.ton}],"kg",{zero:1}); note=`Somme charge × répétitions de toutes les séries notées dans la semaine${e.type==="Lesté"?" (poids du corps inclus)":e.type==="Haltères"?" (charge d'un haltère)":""}.`; }
+  return `<div class="card" id="pr72"><h3 style="margin-top:0">📈 Graphiques par exercice</h3>
+    <select data-pr72ex aria-label="Exercice">${names.map(n=>`<option value="${esc(n)}" ${n===PR72.ex?"selected":""}>${tr.has(n)?"⭐ ":""}${esc(n)} (${cnt(n)} série${cnt(n)>1?"s":""})</option>`).join("")}</select>
+    <div class="row" style="gap:4px;margin:8px 0">${mets.map(([k,l])=>`<button class="chip${k===m?" on":""}" data-act="pr72m" data-v="${k}">${l}</button>`).join("")}</div>
+    ${body}${note?`<p class="note">${note}</p>`:""}</div>`; }
+document.addEventListener("change",e=>{ if(e.target.matches&&e.target.matches("[data-pr72ex]")){ PR72.ex=e.target.value; render(); } });
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="pr72m"],[data-act="pr72go"]'); if(!b) return; e.stopImmediatePropagation();
+  if(b.dataset.act==="pr72m"){ PR72.m=b.dataset.v; return render(); }
+  PR72.ex=b.dataset.v; ST.todayOn=false; ST.view="objectifs"; render(); setTimeout(()=>{ const c=document.getElementById("pr72"); if(c) c.scrollIntoView({block:"start"}); },50); },true);
+const _render72=render;
+render=function(){ _render72(); if(!M||!CUR||ST.bilan||ST.todayOn) return; const app=$("#app"); if(!app) return;
+  if(["carnet","objectifs"].includes(ST.view)&&!app.querySelector(".seg45")) app.insertAdjacentHTML("afterbegin",seg45(ST.view));
+  if(ST.view==="objectifs"){ const tabs=$("#tabs"); if(tabs){ tabs.querySelectorAll("button.on").forEach(b=>b.classList.remove("on")); const c=tabs.querySelector('[data-v="carnet"]'); if(c) c.classList.add("on"); }
+    const h2=app.querySelector("h2"); if(h2&&/Objectifs/.test(h2.textContent)) h2.textContent="Progrès";
+    if(!document.getElementById("pr72")){ const rc=document.getElementById("rec-card"); if(rc) rc.insertAdjacentHTML("beforebegin",vCharts72()); else if(h2) h2.insertAdjacentHTML("afterend",vCharts72()); else app.insertAdjacentHTML("beforeend",vCharts72()); }
+    document.querySelectorAll('#rec-card [data-act="rec-hist"]').forEach(b=>{ if(b.nextElementSibling&&b.nextElementSibling.dataset.act==="pr72go") return; b.insertAdjacentHTML("afterend",`<button class="ghost sm" data-act="pr72go" data-v="${esc(b.dataset.v)}">📈 Courbes</button>`); }); } };
 
 boot();
 
