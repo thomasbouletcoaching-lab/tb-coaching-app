@@ -5918,6 +5918,82 @@ document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="re75
   else { const w=+b.dataset.v; let n=0; M.tracked.filter(t=>t.name&&t.est).forEach(t=>{ const ce=carnetEst75(t.name,w); if(!ce) return; const cur=(t.work&&t.work[w])||t.est; if(cur&&Math.abs(ce.sys/cur-1)<0.005) return; put(t.name,w,round(ce.sys-sysAdd(t.type,M.pdc),1)); n++; }); toast(`${n} 1RM réestimé${n>1?"s":""} à partir de S${w}`); }
   RE75.reo=true; saveProg(); render(); },true);
 
+// ================= MODULE 76 · PROGRAMMES MAISON SELON LE MATÉRIEL =================
+// Matériel : haltères (kg disponibles), kettlebells (kg), élastiques (fin / moyen / large), barre de traction, banc, chaises — ou poids du corps seul.
+// [nom, muscle, équipement BASEMAP, motif, matériel requis]  (H haltères · K kettlebell · E élastiques · T barre de traction · B banc · C chaises · P rien)
+const HOME76=[
+ ["Goblet squat","Quadriceps","Haltères","squat","H"],["Goblet squat kettlebell","Quadriceps","Autre","squat","K"],["Squat élastique","Quadriceps","Élastique","squat","E"],["Squat poids de corps","Quadriceps","Poids de corps","squat","P"],["Squat tempo 3-1-1 poids de corps","Quadriceps","Poids de corps","squat","P"],
+ ["Soulevé de terre roumain haltères","Ischios","Haltères","hinge","H"],["Kettlebell swing","Fessiers","Autre","hinge","K"],["Soulevé de terre roumain kettlebell","Ischios","Autre","hinge","K"],["Good morning élastique","Ischios","Élastique","hinge","E"],["Leg curl glissé au sol (serviette)","Ischios","Poids de corps","hinge","P"],["Soulevé de terre roumain unilatéral poids de corps","Ischios","Poids de corps","hinge","P"],
+ ["Bulgarian split squat haltères","Quadriceps","Haltères","lunge","H"],["Fentes arrière kettlebell","Quadriceps","Autre","lunge","K"],["Fentes inversées haltères","Quadriceps","Haltères","lunge","H"],["Fentes bulgares poids de corps","Quadriceps","Poids de corps","lunge","P"],["Fentes arrière poids de corps","Quadriceps","Poids de corps","lunge","P"],
+ ["Développé couché haltères","Pecs","Haltères","pushH","HB"],["Floor press haltères","Pecs","Haltères","pushH","H"],["Développé pectoraux élastique","Pecs","Élastique","pushH","E"],["Pompes","Pecs","Poids de corps","pushH","P"],["Pompes surélevées pieds","Pecs","Poids de corps","pushH","P"],["Pompes archer","Pecs","Poids de corps","pushH","P"],["Dips entre deux chaises","Triceps","Poids de corps","pushH","C"],
+ ["Développé militaire haltères","Épaules-avant","Haltères","pushV","H"],["Développé militaire kettlebell","Épaules-avant","Autre","pushV","K"],["Développé épaules élastique","Épaules-avant","Élastique","pushV","E"],["Pompes pike (épaules)","Épaules-avant","Poids de corps","pushV","P"],
+ ["Rowing haltère unilatéral","Dos-épaisseur","Haltères","pullH","H"],["Rowing kettlebell unilatéral","Dos-épaisseur","Autre","pullH","K"],["Rowing élastique","Dos-épaisseur","Élastique","pullH","E"],["Rowing australien sous une table","Dos-épaisseur","Poids de corps","pullH","C"],["Superman","Lombaires","Poids de corps","pullH","P"],
+ ["Tractions pronation (poids de corps)","Dos-largeur","Poids de corps","pullV","T"],["Tractions excentriques lentes","Dos-largeur","Poids de corps","pullV","T"],["Tractions assistées élastique","Dos-largeur","Poids de corps","pullV","TE"],["Tirage vertical élastique","Dos-largeur","Élastique","pullV","E"],
+ ["Pont fessier haltère","Fessiers","Haltères","glute","H"],["Pont fessier unilatéral","Fessiers","Poids de corps","glute","P"],["Marche latérale élastique","Fessiers","Élastique","glute","E"],
+ ["Élévation latérale haltères","Épaules-latéral","Haltères","delt","H"],["Élévation latérale élastique","Épaules-latéral","Élastique","delt","E"],["Face pull élastique","Épaules-arrière","Élastique","delt","E"],["Band pull-apart","Épaules-arrière","Élastique","delt","E"],["Oiseau haltères buste penché","Épaules-arrière","Haltères","delt","H"],["Y-raise au sol","Épaules-arrière","Poids de corps","delt","P"],
+ ["Curl haltères alterné debout","Biceps","Haltères","arms","H"],["Curl élastique","Biceps","Élastique","arms","E"],["Extension nuque haltère à deux mains","Triceps","Haltères","arms","H"],["Extension triceps élastique","Triceps","Élastique","arms","E"],["Pompes diamant","Triceps","Poids de corps","arms","P"],
+ ["Mollets debout unilatéral haltère","Mollets","Haltères","calf","H"],["Mollets debout unilatéral (poids de corps)","Mollets","Poids de corps","calf","P"],
+ ["Gainage planche","Abdos","Poids de corps","core","P"],["Dead bug","Abdos","Poids de corps","core","P"],["Pallof press élastique","Abdos","Élastique","core","E"],["Relevé de jambes suspendu","Abdos","Poids de corps","core","T"],["Crunch au sol","Abdos","Poids de corps","core","P"]];
+HOME76.forEach(([n,m,eq])=>{ if(!BASEMAP[n]) BASEMAP[n]={mP:m,s1:null,s2:null,eq,sch:null,cost:1}; });
+const HEQ76=[["H","Haltères"],["K","Kettlebell"],["E","Élastiques"],["T","Barre de traction"],["B","Banc"],["C","Chaises / table solides"]], BANDS76=["Fin","Moyen","Large"];
+const HM={nd:3,lv:"Intermédiaire"};
+const heqOf76=prof=>{ const h=Object.assign({db:[],kb:[],bands:[]},(prof&&prof.homeEq)||{}); return h; };
+const parseKg76=s=>[...new Set(String(s||"").split(/[;,\s]+/).map(x=>parseFloat(x.replace(",","."))).filter(x=>x>0&&x<200))].sort((a,b)=>a-b);
+function homeHas76(prof){ const eq=(prof&&prof.equip)||[]; const h=new Set(["P"]); HEQ76.forEach(([k,l])=>{ if(eq.includes(l)) h.add(k); }); return h; }
+function homePick76(pat,has,i,used){ const L=HOME76.filter(x=>x[3]===pat&&[...x[4]].every(c=>has.has(c))); if(!L.length) return null;
+  const pref=L.filter(x=>x[4]!=="P"&&!used.has(x[0])), pool=pref.length?pref:L.filter(x=>!used.has(x[0])); const P2=pool.length?pool:L, c=P2[pool.length?0:i%P2.length]; used.add(c[0]); return c; }
+function homeRx76(c,lvl){ const k=c[4], timed=TIMED_RE.test(c[0]); if(timed) return lvl===0?"3x20-30 RPE7":"3x30-45 RPE8";
+  if(/H|K/.test(k)) return (c[3]==="delt"||c[3]==="arms"||c[3]==="calf")?"3x12-15 RPE8":(lvl===0?"3x10-12 RPE7":"4x8-12 RPE8");
+  if(k==="E") return "3x12-20 RPE8"; if(/T/.test(k)) return lvl===0?"4x3-6 RPE8":"4x5-8 RPE8"; return lvl===0?"3x8-15 RPE7":"4x8-15 RPE8"; }
+function homeProg76(prof,nd,lv){ const lvl=Math.max(0,LV47.indexOf(lv)), has=homeHas76(prof), used=new Set();
+  const FB=[["squat","pushH","pullH","hinge","pushV","core"],["lunge","pushH","pullV","glute","delt","core"],["squat","pushV","pullH","hinge","arms","calf"]];
+  const UP=["pushH","pullH","pushV","pullV","delt","arms"], LO=["squat","hinge","lunge","glute","calf","core"];
+  const plan=nd<=3?FB.slice(0,nd).map((s,i)=>["Full body "+"ABC"[i],s]):nd===4?[["Haut du corps A",UP],["Bas du corps A",LO],["Haut du corps B",UP],["Bas du corps B",LO]]:[["Haut du corps A",UP],["Bas du corps A",LO],["Full body",FB[0]],["Haut du corps B",UP],["Bas du corps B",LO]];
+  const nEx=lvl===0?5:6, cnt={};
+  const ses=plan.map(([name,slots],d)=>{ const ex=[]; slots.slice(0,nEx).forEach(p=>{ const i=cnt[p]=(cnt[p]==null?0:cnt[p]+1), c=homePick76(p,has,i,used)||homePick76(p,has,i,new Set()); if(c&&!ex.some(e=>e.name===c[0])) ex.push(X(c[0],homeRx76(c,lvl))); }); return [name,DN47[Math.min(6,Math.max(2,nd))][d],ex]; });
+  const lab=[...has].filter(k=>k!=="P").map(k=>HEQ76.find(x=>x[0]===k)[1].toLowerCase()); 
+  return {id:"hm",hidden:true,name:`Maison · ${lab.length?lab.join(" + "):"poids du corps"} · ${nd} j · ${lv}`,cat:"Maison",lvl:lv,nd,split:nd<=3?"Full body":"Haut / bas",
+   desc:`Construit avec le matériel coché${lab.length?" ("+lab.join(", ")+")":" (poids du corps uniquement)"}. Progression : d'abord les répétitions et les séries, puis la charge ou l'élastique suivant quand le haut de la fourchette est atteint.`,
+   days:daysSet47(Math.min(6,Math.max(2,nd))),phases:PHHYP.slice(),ov:{Accumulation:{t:"volume",n:2,max:5}},home:{lieu:"Maison",equip:(prof.equip||[]).slice()},s:ses}; }
+function hmEntry76(){ const prof=ST.prog.profile, i=BANK.findIndex(b=>b.id==="hm"), p=homeProg76(Object.assign({},prof,{lieu:"Maison"}),HM.nd,HM.lv); if(i>=0) BANK[i]=p; else BANK.push(p); return p; }
+function heqInputs76(prof){ const eq=prof.equip||[], h=heqOf76(prof);
+  return `${eq.includes("Haltères")?`<label class="f" style="flex-basis:100%">Haltères disponibles (kg, séparés par des virgules)<input ${dis()} data-heq="db" inputmode="decimal" placeholder="ex. 4, 6, 8, 10, 12" value="${esc(h.db.join(", "))}"></label>`:""}
+    ${eq.includes("Kettlebell")?`<label class="f" style="flex-basis:100%">Kettlebells disponibles (kg)<input ${dis()} data-heq="kb" inputmode="decimal" placeholder="ex. 8, 12, 16" value="${esc(h.kb.join(", "))}"></label>`:""}
+    ${eq.includes("Élastiques")?`<div style="flex-basis:100%"><div class="muted small">Élastiques disponibles</div><div class="row" style="gap:4px;margin-top:4px">${BANDS76.map(b=>`<button class="chip ${h.bands.includes(b)?"on":""}" data-act="heq-band" data-v="${b}" ${coach()?"":"disabled"}>${b}</button>`).join("")}</div></div>`:""}`; }
+function vHomeCard76(){ const prof=ST.prog.profile, eq=prof.equip||[], p=hmEntry76();
+  return `<div class="card" id="hm-card" style="margin:8px 0"><b>🏠 Maison sur mesure</b><div class="muted small">Coche le matériel du client : le programme n'utilise que ce qu'il a (rien de coché = poids du corps).</div>
+   <div class="row" style="gap:4px;margin:6px 0">${HEQ76.map(([k,l])=>`<button class="chip ${eq.includes(l)?"on":""}" data-act="eq-tog" data-v="${esc(l)}">${esc(l)}</button>`).join("")}</div>
+   <div class="row">${heqInputs76(prof)}</div>
+   <div class="row" style="gap:4px;margin:4px 0"><span class="muted small" style="min-width:74px">Jours</span>${[2,3,4,5].map(n=>`<button class="chip ${HM.nd===n?"on":""}" data-act="hm76" data-k="nd" data-v="${n}">${n} j</button>`).join("")}</div>
+   <div class="row" style="gap:4px;margin:4px 0"><span class="muted small" style="min-width:74px">Niveau</span>${LV47.map(l=>`<button class="chip ${HM.lv===l?"on":""}" data-act="hm76" data-k="lv" data-v="${l}">${l}</button>`).join("")}</div>
+   <div class="muted small" style="margin:6px 0">${p.s.map(s=>`<b>${esc(s[1].slice(0,3))}.</b> ${esc(s[0])} : ${esc(s[2].map(e=>e.name).join(", "))}`).join("<br>")}</div>
+   <div class="row bkacts"><button class="ghost sm" data-act="bank-prev" data-v="hm">${ST.bankPrev==="hm"?"Masquer":"Aperçu"}</button><button class="ghost sm" data-act="bank-apply" data-v="hm">Appliquer</button></div>
+   ${ST.bankPrev==="hm"?progPreview(p.s.map(([name,day,ex])=>({name,day,ex})),p.phases,p.days):""}
+   <p class="note">Les charges proposées sont arrondies aux haltères et kettlebells disponibles ; si la charge visée dépasse le plus lourd, l'app le signale (ajouter des reps ou ralentir la descente). Pour les élastiques, l'app indique lequel prendre.</p></div>`; }
+const _vBank76=vBank;
+vBank=function(){ const h=_vBank76(); const i=h.indexOf('<div class="card" id="fx-card"'); return i<0?vHomeCard76()+h:h.slice(0,i)+vHomeCard76()+h.slice(i); };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="hm76"],[data-act="heq-band"]'); if(!b) return; e.stopImmediatePropagation();
+  if(b.dataset.act==="hm76"){ HM[b.dataset.k]=b.dataset.k==="nd"?+b.dataset.v:b.dataset.v; return render(); }
+  const prof=ST.prog.profile, h=heqOf76(prof), v=b.dataset.v; h.bands=h.bands.includes(v)?h.bands.filter(x=>x!==v):BANDS76.filter(x=>x===v||h.bands.includes(x)); prof.homeEq=h; saveProg(); render(); },true);
+document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||el.dataset.heq===undefined) return; const prof=ST.prog.profile, h=heqOf76(prof); h[el.dataset.heq]=parseKg76(el.value); prof.homeEq=h; saveProg(); render(); });
+// fiche Athlète : mêmes réglages de matériel
+const _vAth76=vAthlete;
+vAthlete=function(){ const p=ST.prog.profile; let h=_vAth76(); if(p.lieu!=="Maison") return h; const add=heqInputs76(p); if(!add.trim()) return h;
+  return h.replace(/(<p class="note">Les exercices suggérés par le split)/,`<div class="row" style="margin-top:8px">${add}</div>$1`); };
+// charges arrondies au matériel disponible + élastique conseillé
+function snap76(load,list){ if(!list.length||load==null) return null; const ok=list.filter(x=>x<=load*1.03); return ok.length?{v:ok[ok.length-1],max:load>list[list.length-1]*1.03}:{v:list[0],max:false}; }
+const HEAVYB76=/squat|good morning|rowing|tirage|développé|tractions assistées|pull-through|soulevé/i;
+const _recompute76=recompute;
+recompute=function(){ _recompute76(); if(!M||!M.rows||!ST.prog) return; const prof=ST.prog.profile; if(!prof||prof.lieu!=="Maison") return; const h=heqOf76(prof);
+  M.rows.forEach(r=>{ if(!r.ex) return; const kb=/kettlebell/i.test(r.ex), db=r.type==="Haltères", band=/élastique|band pull/i.test(r.ex)&&!/assist/i.test(r.ex);
+    const list=kb?h.kb:db?h.db:null;
+    (r.weeks||[]).forEach(wk=>{ if(!wk||!wk.text) return;
+      if(list&&list.length&&wk.blocks){ let txt=wk.text, capped=false; wk.blocks.forEach((b,bi)=>{ if(b.load==null) return; const s=snap76(b.load,list); if(!s||s.v===b.load&&!s.max) return;
+          txt=txt.replace("@ "+loadText(b.load,r.type),"@ "+loadText(s.v,r.type)); b.load=s.v; if(bi===0) wk.load1=s.v; if(s.max) capped=true; });
+        wk.text=txt+(capped?`  ·  ⚠ plus lourd que ${kb?"la kettlebell":"les haltères"} dispo (${fmtN(list[list.length-1])} kg) : ajoute des reps ou ralentis la descente (3-4 s)`:""); }
+      if(band&&h.bands.length&&!/élastique (fin|moyen|large)/i.test(wk.text)){ const L=h.bands, pick=HEAVYB76.test(r.ex)?L[L.length-1]:L.length>2?L[1]:L[0];
+        wk.text+=`  ·  élastique ${pick.toLowerCase()}${L.indexOf(pick)<L.length-1?" (passe au suivant quand tu atteins le haut de la fourchette)":""}`; } }); }); };
+
 boot();
 
 </script>
