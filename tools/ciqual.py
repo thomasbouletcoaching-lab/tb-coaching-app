@@ -51,17 +51,30 @@ def main():
         for i, h in enumerate(head):
             if re.search(rx, h, re.I): return i
         sys.exit("colonne introuvable : " + rx)
+    kcols = [i for i, h in enumerate(head) if re.search(r"^Energie.*kcal", h, re.I)]  # règlement UE d'abord, puis les autres méthodes
+    kcols.sort(key=lambda i: 0 if re.search(r"R.glement UE", head[i]) else 1)
     C = dict(g=col(r"^alim_grp_nom_fr"), sg=col(r"^alim_ssgrp_nom_fr"), n=col(r"^alim_nom_fr"), k=col(r"^Energie, R.glement UE.*kcal"),
              p=col(r"^Prot.ines, N x facteur de Jones"), gl=col(r"^Glucides \(g"), l=col(r"^Lipides \(g"), f=col(r"^Fibres alimentaires"))
     out, seen = [], set()
     for r in range(1, sh.nrows):
         row = sh.row_values(r); name = str(row[C["n"]]).strip()
         if not name or nrm(name) in seen: continue
-        cat = cat_of(row[C["g"]], row[C["sg"]], name); k = val(row[C["k"]])
+        cat = cat_of(row[C["g"]], row[C["sg"]], name)
+        k = next((val(row[i]) for i in kcols if val(row[i]) is not None), None)
+        if k is None:  # énergie absente : calculée avec les coefficients du règlement UE 1169/2011 (4/4/9/2 kcal par g)
+            p_, g_, l_, f_ = (val(row[C[x]]) for x in ("p", "gl", "l", "f"))
+            if None not in (p_, g_, l_): k = 4 * p_ + 4 * g_ + 9 * l_ + 2 * (f_ or 0)
         if not cat or k is None: continue
         seen.add(nrm(name)); r1 = lambda x: round(x or 0, 1)
         out.append([name, cat, round(k), r1(val(row[C["p"]])), r1(val(row[C["gl"]])), r1(val(row[C["l"]])), r1(val(row[C["f"]]))])
     os.makedirs("data", exist_ok=True)
+    # alias usuels pointant vers un aliment Ciqual existant (mêmes valeurs, nom que les clients cherchent)
+    ALIAS = [("Sashimi de saumon", "Saumon, cru"), ("Sashimi de thon", "Thon, cru"), ("Sashimi de daurade", "Daurade, crue"),
+             ("Tartare de saumon (cru, nature)", "Saumon, cru"), ("Poke bowl : saumon cru (ingrédient)", "Saumon, cru")]
+    by = {nrm(f[0]): f for f in out}
+    for a_, src in ALIAS:
+        f = by.get(nrm(src))
+        if f and nrm(a_) not in seen: seen.add(nrm(a_)); out.append([a_ + " – valeurs Ciqual « " + f[0] + " »", f[1]] + f[2:])
     json.dump({"source": "Table de composition nutritionnelle des aliments Ciqual 2020, ANSES (Licence Ouverte Etalab 2.0)", "url": "https://ciqual.anses.fr/", "foods": out},
               open("data/ciqual.json", "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     print(len(out), "aliments")
