@@ -327,7 +327,7 @@ function compute(prog,carnet,suivi,today){
       if(!E.name&&sug&&typeof eqAllowed==="function"&&!eqAllowed(sug,prog.profile)) sug=subFor(sug,prog.profile);
       const ex=E.name||sug;
       const t=trackedByName[ex]; const binfo=BASEMAP[ex]||{};
-      const type=t?t.type:(binfo.eq==="Poids de corps"?"Lesté":binfo.eq==="Haltères"?"Haltères":binfo.eq==="Barre"?"Barre":"Machine");
+      const type=/assist/i.test(ex)?"Lesté":t?t.type:(binfo.eq==="Poids de corps"?"Lesté":binfo.eq==="Haltères"?"Haltères":binfo.eq==="Barre"?"Barre":"Machine");
       const pas=t?t.pas_:(type==="Haltères"?P.PDB:type==="Lesté"?P.PLES:type==="Barre"?P.PBAR:P.PMAC);
       const fm=t?t.fmt_:1;
       let s1def="";
@@ -1371,7 +1371,7 @@ function restInfo(r,wk){ const E=r.E||{}; let sec=null, txt="";
     sec=heavy?240:reps<=6?180:reps<=10?120:90; txt=fmtRest(sec); }
   return {sec,txt:txt+(r.ss?" · superset "+r.ss+" : enchaîne, puis repos":"")}; }
 function planSets(wk){ const out=[]; ((wk&&wk.blocks)||[]).forEach(b=>{ if(!b.ok) return; for(let i=0;i<b.sets;i++) out.push({tg:b.load,th:b.rt,tr:b.rpe,re:b.re,pu:b.pu,tags:b.tags||[]}); }); return out; }
-function typeOfName(n,r){ if(r&&r.ex===n) return r.type; const eq=(BASEMAP[n]||{}).eq; return eq==="Poids de corps"?"Lesté":eq==="Haltères"?"Haltères":eq==="Barre"?"Barre":"Machine"; }
+function typeOfName(n,r){ if(/assist/i.test(n||"")) return "Lesté"; if(r&&r.ex===n) return r.type; const eq=(BASEMAP[n]||{}).eq; return eq==="Poids de corps"?"Lesté":eq==="Haltères"?"Haltères":eq==="Barre"?"Barre":"Machine"; }
 const rowOf=key=>{ const [w,s,i]=key.split("_").map(Number); const S=M&&M.sessions[s]; return {w,s,i,r:S&&S.rows[i]}; };
 function setsOf(v){ return (v&&v.sets&&v.sets.length)?v.sets:((v&&v.g!=null)?[{g:v.g,h:v.h,r:v.r,d:1}]:[]); }
 function prevSets(r,w,name){ for(let w2=w-1;w2>=1;w2--){ const v=ST.carnet[w2+"_"+r.key]; if(v&&(v.ex||r.ex)===name){ const s=setsOf(v).filter(x=>x.g!=null||x.h!=null); if(s.length) return s; } }
@@ -5416,6 +5416,32 @@ const _css66=document.createElement("style"); _css66.textContent=`.mc66 summary,
 .kbco66{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--chalk)}
 .kb66t{width:100%;border-collapse:collapse;font-size:.88rem;margin:6px 0}.kb66t th,.kb66t td{text-align:left;padding:5px 6px;border-top:1px solid var(--line);vertical-align:top}
 .kbb66 code{font-size:.82rem;overflow-wrap:anywhere}`; document.head.appendChild(_css66);
+
+
+// ================= MODULE EXERCICES ASSISTÉS (délestage) =================
+// Dips / tractions assistés (machine, élastique) : l'aide est un délestage, enregistrée en négatif (20 kg d'aide = −20 kg).
+// Charge réelle = poids de corps − aide : tonnage, e1RM et progression deviennent comparables aux versions lestées.
+const isAssistEx=n=>/assist/i.test(n||"");
+function cxNameAsst(key){ const v=ST.carnet[key]||{}; if(v.ex) return v.ex; const o=rowOf(key); return o.r?o.r.ex:""; }
+// saisie : une valeur positive est convertie en délestage
+document.addEventListener("change",e=>{ const el=e.target, ds=el.dataset||{}; let name="";
+  if(ds.cs!==undefined){ const [key,,f]=ds.cs.split("|"); if(f!=="g") return; name=cxNameAsst(key); }
+  else if(ds.hx!==undefined){ const [key,li,,f]=ds.hx.split("|"); if(f!=="g") return; const L=(ST.carnet[key]||{}).list||[]; name=(L[+li]||{}).ex||""; }
+  else return;
+  if(!isAssistEx(name)) return; const x=parseFloat(String(el.value).replace(",",".")); if(x>0){ el.value=String(-x); toast(`Aide de ${fmtN(x)} kg notée −${fmtN(x)} kg (délestage)`); } },true);
+const _carnetExAsst=carnetEx;
+carnetEx=function(r,w){ let h=_carnetExAsst(r,w); const key=w+"_"+r.key, name=cxNameAsst(key); if(!isAssistEx(name)) return h;
+  h=h.replace('<th class="n">Lest</th>','<th class="n">Aide (−)</th>');
+  return h.replace('<div class="tbl"><table class="sets">',`<div class="muted small asst66">🪶 Exercice assisté : note l'aide de la machine ou de l'élastique, elle compte en délestage (20 kg d'aide = −20 kg). Charge réelle ≈ poids de corps (${fmtN(M.pdc)} kg) − aide.</div><div class="tbl"><table class="sets">`); };
+// données déjà saisies en positif sur un exercice assisté : conversion unique en délestage
+function fixAssistAsst(){ if(!ST.carnet||!M) return; const changed=[];
+  Object.entries(ST.carnet).forEach(([k,v])=>{ const p=k.split("_"); if(p.length!==3||!v) return; let ch=false;
+    if(/^\d+$/.test(p[1])){ const name=cxNameAsst(k); if(!isAssistEx(name)) return;
+      (v.sets||[]).forEach(x=>{ if(x&&+x.g>0){ x.g=-(+x.g); ch=true; } }); if(+v.g>0){ v.g=-(+v.g); ch=true; } }
+    else if(p[1]==="h"){ (v.list||[]).forEach(it=>{ if(!it||!isAssistEx(it.ex)) return; (it.sets||[]).forEach(x=>{ if(x&&+x.g>0){ x.g=-(+x.g); ch=true; } }); }); }
+    if(ch) changed.push(k); });
+  if(changed.length){ changed.forEach(k=>saveCarnet(k)); recompute(); } }
+const _openClientAsst=openClient; openClient=async function(){ const r=await _openClientAsst.apply(this,arguments); try{ fixAssistAsst(); }catch(e){ console.error(e); } return r; };
 
 boot();
 
