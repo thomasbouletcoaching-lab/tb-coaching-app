@@ -206,7 +206,7 @@ const T = {
       ST.carnet['1_' + r(0).key] = { sets: [{ g: 100, h: 12, r: 7, d: 1 }, { g: 100, h: 12, r: 7.5, d: 1 }] };
       ST.carnet['1_' + r(1).key] = { sets: [{ g: 40, h: 9, r: 8, d: 1 }, { g: 40, h: 8, r: 8.5, d: 1 }] };
       ST.carnet['1_' + r(2).key] = { sets: [{ g: 50, h: 11, r: 8, d: 1 }] };
-      recompute(); ST.todayOn = false; ST.view = 'carnet'; ST.week = 2; ST.ses = 0; render();
+      recompute(); ST.todayOn = false; ST.view = 'carnet'; ST.week = 2; ST.ses = 0; ST.cses = 0; ST.csesW = 2; render();
       return [...document.querySelectorAll('.nx66')].map(x => x.className + '|' + x.textContent); });
     ok(n.length === 3 && /up\|.*102,5 kg/.test(n[0]), 'haut de fourchette atteint : +2,5 kg conseillés');
     ok(/hold/.test(n[1]) && /keep/.test(n[2]), 'sous la fourchette : on consolide ; sinon +1 rép');
