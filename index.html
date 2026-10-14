@@ -6354,6 +6354,47 @@ document.addEventListener("click",async e=>{ const r=e.target.closest('[data-act
   if(e.target.closest("a,button,video,img,audio,input,textarea")) return;
   RX82.open=RX82.open===b.dataset.mid?null:b.dataset.mid; RX82.hold=true; msgRender(); },true);
 
+// ================= MODULE 83 · HISTORIQUE DES PROGRAMMES + RESTAURATION =================
+// 1) Au démarrage, avant toute sauvegarde, on garde en mémoire les copies locales des programmes (cache hors ligne de l'appareil).
+//    Si une copie locale diffère du programme en ligne, elle est versée dans prog_hist : une version écrasée par erreur peut ainsi être retrouvée.
+// 2) Côté coach, la version chargée est archivée avant la première modification (banque, générateur, édition…).
+// 3) Programme › « Versions précédentes » : restaurer en un clic (la version actuelle est archivée avant).
+const RS83={caches:{},loaded:{},archived:{},list:null,cid:null,busy:false,open:false};
+try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!/^tb-cache-/.test(k)) continue; try{ const c=JSON.parse(localStorage.getItem(k)||"null"); if(c&&c.prog&&c.prog.sessions) RS83.caches[k.slice(9)]={prog:c.prog,at:c.at||null}; }catch(e){} } }catch(e){}
+function progHash83(p){ const s=JSON.stringify({s:(p&&p.sessions)||[],ph:(p&&p.phases)||[],d:(p&&p.profile&&p.profile.days)||[]}); let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return (h>>>0).toString(36)+"-"+s.length; }
+async function histPut83(cid,prog,source,at){ if(!SB||!cid||!prog||!navigator.onLine) return;
+  try{ await SB.from("prog_hist").upsert({client_id:cid,program:prog,hash:progHash83(prog),source,saved_at:at?new Date(at).toISOString():new Date().toISOString()},{onConflict:"client_id,hash",ignoreDuplicates:true}); }catch(e){} }
+const _openClient83=openClient;
+openClient=async function(id,silent){ await _openClient83(id,silent); try{ if(CUR!==id||!ST.prog) return; RS83.loaded[id]=JSON.parse(JSON.stringify(ST.prog)); RS83.archived[id]=false;
+    const c=RS83.caches[id]; if(c&&progHash83(c.prog)!==progHash83(ST.prog)){ delete RS83.caches[id]; await histPut83(id,c.prog,coach()?"Copie locale retrouvée sur l'appareil du coach":"Copie locale retrouvée sur l'appareil du client",c.at); if(coach()){ RS83.list=null; scheduleRender(); } } }catch(e){} };
+const _saveProg83=saveProg;
+saveProg=function(){ _saveProg83(); try{ if(!coach()||!CUR) return; const L=RS83.loaded[CUR]; if(L&&!RS83.archived[CUR]&&progHash83(L)!==progHash83(ST.prog)){ RS83.archived[CUR]=true; const cid=CUR;
+      histPut83(cid,L,"Version avant modification du "+new Date().toLocaleDateString("fr-FR",{day:"numeric",month:"long"})+" à "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})).then(()=>{ RS83.list=null; }); } }catch(e){} };
+async function histLoad83(){ if(!CUR||RS83.busy) return; RS83.busy=true; const cid=CUR;
+  const {data,error}=await SB.from("prog_hist").select("id,program,source,saved_at,created_at").eq("client_id",cid).order("saved_at",{ascending:false}).limit(30); RS83.busy=false;
+  if(cid!==CUR) return; RS83.cid=cid; RS83.list=error?[]:(data||[]); scheduleRender(); }
+const sumProg83=p=>((p&&p.sessions)||[]).map(s=>`${s.name||"Séance"}${s.day?` (${String(s.day).slice(0,3).toLowerCase()}.)`:""} · ${((s.ex||[]).filter(e=>e&&e.name).length)} exos`).join(" | ");
+function vHist83(){ if(!coach()||!CUR||!ST.prog) return ""; if(RS83.cid!==CUR||!RS83.list){ histLoad83(); return ""; }
+  const cur=progHash83(ST.prog), L=RS83.list.filter(v=>progHash83(v.program)!==cur); if(!L.length) return "";
+  return `<details class="card" id="rs83"${RS83.open?" open":""}><summary><b>🕘 Versions précédentes du programme</b> <span class="muted small">(${L.length})</span></summary>
+    <p class="muted small" style="margin:6px 0">Restaurer remet cette version en place. La version actuelle est d'abord mise de côté ici : tu peux revenir en arrière. Le carnet du client n'est jamais touché.</p>
+    ${L.map(v=>{ const d=new Date(v.saved_at||v.created_at), S=(v.program.sessions||[]); return `<div style="padding:8px 0;border-top:1px solid var(--line)"><b>${S.length} séance${S.length>1?"s":""}/sem.</b> <span class="muted small">· ${esc(d.toLocaleDateString("fr-FR",{day:"numeric",month:"short"}))} ${esc(d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}))}</span>
+      <div class="small">${esc(sumProg83(v.program))}</div><div class="muted small">${esc(v.source||"")}</div>
+      <div class="row" style="gap:6px;margin-top:6px"><button class="ghost sm" data-act="rs-see" data-v="${v.id}">${RS83.see===v.id?"Masquer":"Voir le détail"}</button><button class="sm" data-act="rs-restore" data-v="${v.id}">Restaurer cette version</button></div>
+      ${RS83.see===v.id?S.map(s=>`<div style="margin-top:6px"><b class="small">${esc(s.name||"Séance")}</b>${(s.ex||[]).filter(e=>e&&e.name).map(e=>`<div class="wk77e"><span class="n">${esc(e.name)}</span><span class="p">${esc(((e.weeks||[])[1])||"")}</span></div>`).join("")}</div>`).join(""):""}</div>`; }).join("")}</details>`; }
+const _vProgramme83=vProgramme;
+vProgramme=function(){ const h=_vProgramme83(); const c=vHist83(); if(!c) return h;
+  const i=h.indexOf("</h2>"); return i<0?c+h:h.slice(0,i+5)+c+h.slice(i+5); };
+document.addEventListener("toggle",e=>{ if(e.target&&e.target.id==="rs83") RS83.open=e.target.open; },true);
+document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act="rs-see"],[data-act="rs-restore"]'); if(!b) return; e.stopImmediatePropagation(); const v=(RS83.list||[]).find(x=>x.id===b.dataset.v); if(!v) return;
+  if(b.dataset.act==="rs-see"){ RS83.see=RS83.see===v.id?null:v.id; RS83.open=true; return render(); }
+  const n=(v.program.sessions||[]).length; if(!confirm(`Restaurer cette version (${n} séance${n>1?"s":""} par semaine) ? La version actuelle sera mise de côté dans « Versions précédentes ».`)) return;
+  await histPut83(CUR,JSON.parse(JSON.stringify(ST.prog)),"Version remplacée par une restauration le "+new Date().toLocaleDateString("fr-FR",{day:"numeric",month:"long"}));
+  const P=JSON.parse(JSON.stringify(v.program)); if(!(P.profile&&P.profile.start)&&ST.prog.profile&&ST.prog.profile.start){ P.profile=Object.assign({},P.profile,{start:ST.prog.profile.start}); }
+  ST.prog=P; RS83.loaded[CUR]=JSON.parse(JSON.stringify(P)); RS83.archived[CUR]=true;
+  const {error}=await SB.from("clients").update({program:P,updated_at:new Date().toISOString()}).eq("id",CUR); if(error) return toast("Restauration non enregistrée : "+error.message);
+  recompute(); cacheClient(); RS83.list=null; RS83.see=null; render(); toast(`Programme restauré (${n} séance${n>1?"s":""} par semaine)`); },true);
+
 boot();
 
 </script>
