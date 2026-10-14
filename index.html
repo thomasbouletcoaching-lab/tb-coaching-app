@@ -1820,7 +1820,7 @@ inviteClient=async function(email,name){ if(!email) return toast("Ajoute d'abord
 document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b||b.dataset.act!=="pg-mv"||!coach()) return; const [s,i,d]=b.dataset.v.split(".").map(Number); const j=i+d; if(j<0||j>=NE) return;
   const S=M.sessions[s]; const P=ST.prog; P.sessions=P.sessions||[]; while(P.sessions.length<=s) P.sessions.push({ex:[]}); const ses=P.sessions[s]||(P.sessions[s]={ex:[]}); ses.ex=ses.ex||[]; while(ses.ex.length<=Math.max(i,j)) ses.ex.push({});
   [i,j].forEach(k=>{ const r=S.rows[k]; const E=ses.ex[k]=Object.assign({},ses.ex[k]); if(!E.name&&r&&r.sug) E.name=r.sug; });
-  [ses.ex[i],ses.ex[j]]=[ses.ex[j],ses.ex[i]];
+  [ses.ex[i],ses.ex[j]]=[ses.ex[j],ses.ex[i]]; pkRemap(s,{[i]:j,[j]:i});
   const re=new RegExp("^(\\d+)_"+s+"_("+i+"|"+j+")$"); const moves=[];
   Object.keys(ST.carnet).forEach(k=>{ const m=k.match(re); if(m){ const nk=m[1]+"_"+s+"_"+(+m[2]===i?j:i); moves.push([k,nk,ST.carnet[k]]); } });
   const next=Object.assign({},ST.carnet); moves.forEach(([k])=>delete next[k]); moves.forEach(([,nk,v])=>next[nk]=v);
@@ -1858,6 +1858,8 @@ const TECHS=["Dernière série à l'échec","Toutes les séries à l'échec","Dr
 function techChips(E,w){ const out=[]; if(E.tempo) out.push(`<span class="chip">Tempo ${esc(E.tempo)}</span>`); if(E.tech&&(!E.techW||w>=+E.techW)) out.push(`<span class="chip on">🔥 ${esc(E.tech)}</span>`); return out.length?`<div class="row" style="margin-top:4px;gap:4px">${out.join("")}</div>`:""; }
 // ---------- sélecteur d'exercice par muscle (Programme)
 ST.pmus={}; ST.pfree={};
+// quand des exercices changent de place, le muscle choisi et le mode « saisie libre » suivent l'exercice (clés par position)
+function pkRemap(s,map){ [ST.pmus,ST.pfree].forEach(o=>{ const old={}; Object.keys(map).forEach(i=>{ const k=`sessions.${s}.ex.${i}`; if(k in o){ old[i]=o[k]; delete o[k]; } }); Object.keys(old).forEach(i=>{ o[`sessions.${s}.ex.${map[i]}`]=old[i]; }); }); }
 const MUSCLES=()=>[...new Set(Object.values(BASEMAP).map(b=>b.mP).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"fr"));
 function exPicker(base,E,r){ const cur=E.name||""; if(ST.pfree[base]) return `<div style="display:flex;gap:6px"><input ${dis()} list="dl-ex" data-k="${base}.name" value="${esc(cur)}" placeholder="${esc(r.sug?"suggéré : "+r.sug:"exercice")}" style="flex:1"><button class="ghost sm" data-act="pk-free" data-v="${base}" aria-label="Choisir dans la liste">☰</button></div>`;
   const mus=ST.pmus[base]||(BASEMAP[cur]||BASEMAP[r.sug]||{}).mP||""; const prof=ST.prog.profile;
@@ -4293,7 +4295,7 @@ async function roProgSave(s,ids){ const S=M.sessions[s]; if(!S) return; const F=
   const map={}; order.forEach((oi,k)=>map[oi]=F[k]);
   const P=ST.prog; exOf(s,Math.max(...F)); const ses=P.sessions[s];
   const old={}; F.forEach(i=>{ const r=S.rows.find(x=>x.i===i), E=Object.assign({},ses.ex[i]||{}); if(!E.name&&r&&r.ex) E.name=r.ex; old[i]=E; });
-  order.forEach(oi=>{ ses.ex[map[oi]]=old[oi]; });
+  order.forEach(oi=>{ ses.ex[map[oi]]=old[oi]; }); pkRemap(s,map);
   const re=new RegExp("^(\\d+)_"+s+"_(\\d+)$"), moves=[], next=Object.assign({},ST.carnet);
   Object.keys(ST.carnet).forEach(k=>{ const m=k.match(re); if(m&&map[+m[2]]!==undefined&&map[+m[2]]!==+m[2]) moves.push([k,m[1]+"_"+s+"_"+map[+m[2]],ST.carnet[k]]); });
   moves.forEach(([k])=>delete next[k]); moves.forEach(([,nk,v])=>next[nk]=v);
