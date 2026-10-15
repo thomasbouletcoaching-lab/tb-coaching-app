@@ -228,6 +228,26 @@ const T = {
     ok(!(await p.$('.kbco66')), 'aperçu de la version client');
   }, coachPre()),
 
+  'coach : plan nutrition — alertes, correction auto, plan proposé': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(id => openClient(id), sc.CID); await p.waitForTimeout(1000);
+    await p.evaluate(() => { ST.view = 'nutrition'; NU.nv = 'plan'; render(); }); await p.waitForTimeout(1200);
+    await p.evaluate(() => { NU.nv = 'plan'; render(); }); await p.waitForTimeout(600);
+    const w = await txt(p, '#pw84');
+    ok(/plus de calories que/.test(w) && /Portions peu réalistes/.test(w), 'alerte : repos > entraînement et portion absurde');
+    ok(/Plan de test/.test(await txt(p, '#pp84')), 'plan proposé affiché au coach');
+    await p.click('[data-act="pp84-fix"]'); await p.waitForTimeout(300);
+    const r = await p.evaluate(() => { const [E, R] = NU.plan.types; return { g: R.g, e: dayPlan(E).k, r: dayPlan(R).k, min: Math.min(...E.meals[0].opts[0].it.map(i => i.q)) }; });
+    ok(r.g === 170 && r.e >= r.r && r.min >= 5, 'correction : repos à −15 % de glucides, portions réalistes');
+    await p.click('[data-act="pp84-apply"]'); await p.waitForTimeout(600);
+    ok(!(await p.$('#pp84')) && await p.evaluate(() => NU.plan.types[0].meals[0].opts[0].it[0].q === 160), 'plan proposé appliqué puis retiré');
+  }, coachPre(sc => (m, path, b, a, t, one) => {
+    const it = (n, k, pp, g, l, q) => ({ n, k, p: pp, g, l, q });
+    const ms = (a1, b1) => [{ name: 'Déjeuner', opts: [{ n: 'Poulet riz', m: 1, it: [it('Blanc de poulet (cru)', 110, 23, 0, 1.5, a1), it('Riz basmati (cuit)', 130, 3, 28, 0.4, b1), it("Huile d'olive", 900, 0, 0, 100, 10)] }] }];
+    const NUT = { v: 1, active: true, prof: {}, tgt: { k: 2000, p: 150, g: 200, l: 70 }, week: ['E', 'R', 'E', 'R', 'E', 'R', 'R'], types: [{ id: 'E', name: "Jour d'entraînement", meals: ms(10, 150) }, { id: 'R', name: 'Jour de repos', meals: ms(150, 700) }] };
+    if (t === 'clients' && m === 'GET') { const c = { id: sc.CID, coach_id: sc.uid, email: 'client@exemple.fr', name: 'Client Fictif', archived: false, program: {}, nutrition: NUT }; return one ? c : [c]; }
+    if (t === 'carnet' && m === 'GET' && /nu_prop/.test(path)) { const d = { data: { note: 'Plan de test', types: [{ id: 'E', meals: ms(160, 250) }, { id: 'R', meals: ms(160, 180) }] } }; return one ? d : [d]; }
+  })),
+
   'page publique : redirection vers le site': async () => {
     const b = await chromium.launch({ executablePath: EXE }); const p = await (await b.newContext()).newPage(); let target = null;
     await p.route('https://thomasbouletcoaching-lab.github.io/**', async r => { target = r.request().url(); await r.fulfill({ status: 200, contentType: 'text/html', body: '<p>site</p>' }); });
