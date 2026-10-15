@@ -6527,6 +6527,298 @@ document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act
     const {error}=await SB.from("carnet").delete().eq("client_id",cid).eq("k","nu_prop"); if(error) toast("Proposition non retirée : "+error.message);
     PP84.prop=null; render(); toast(a==="pp84-apply"?"Nouveau plan appliqué":"Proposition ignorée"); } },true);
 
+// ================= MODULE 85 · journée type client, extras rattachés à un repas, ajout d'aliment à la base,
+// estimateur texte/voix, sélecteur de client, vue par exercice + remplissage de progression =================
+const n85=v=>{ const x=parseFloat(String(v==null?"":v).replace(",",".")); return isNaN(x)?null:x; };
+const q85=(i)=>`${esc(i.n)} <span class="muted small">${qtyTxt(i)} · ${r0(mac([i]).k)} kcal</span>`;
+
+// ---------- A. Ajouter un aliment absent de la base (client ou coach) : enrichit la base du coach
+const NF85={k:null,f:null,cb:null,busy:false};
+const NFACT85={iq:"nu-iadd",dq:"lib-iadd",xq:"nu-xadd",aq:"na-add",myq:"my78-add",jtq:"jt85-add"};
+function nfForm85(){ const f=NF85.f, fld=(k,lab,ph,w)=>`<label class="f" style="flex:${w||"1 1 70px"}">${lab}<input data-nf85="${k}" inputmode="${k==="name"||k==="unit"?"text":"decimal"}" value="${esc(f[k]==null?"":String(f[k]))}" placeholder="${ph||""}" autocomplete="off"></label>`;
+  return `<div class="edit" id="nf85"><b>➕ Nouvel aliment</b><p class="muted small" style="margin:4px 0">Recopie l'étiquette (valeurs <b>pour 100 g</b>). Il sera ajouté à la base pour tout le monde.</p>
+    <div class="row">${fld("name","Nom","ex. Galette bretonne","2 1 200px")}</div>
+    <div class="row">${fld("kcal","kcal","auto")}${fld("p","Protéines","g")}${fld("g","Glucides","g")}${fld("l","Lipides","g")}</div>
+    <div class="row">${fld("unit","Portion (facultatif)","pot, barre…","1 1 120px")}${fld("ug","Poids de la portion (g)","","1 1 120px")}
+      <label class="f" style="flex:1 1 140px">Catégorie<select data-nf85="cat">${FCATS.map(c=>`<option ${c===f.cat?"selected":""}>${esc(c)}</option>`).join("")}</select></label></div>
+    <div class="row" style="margin-top:6px"><button class="ok sm" data-act="nf85-save" ${NF85.busy?"disabled":""}>Ajouter à la base</button><button class="ghost sm" data-act="nf85-cancel">Annuler</button></div></div>`; }
+function nfGuessCat85(q){ const s=nrm(q); const R=[[/poulet|dinde|boeuf|steak|porc|veau|agneau|canard/,"Volailles & viandes"],[/saumon|thon|poisson|crevette|cabillaud/,"Poissons & fruits de mer"],[/yaourt|skyr|lait|fromage blanc|creme/,"Produits laitiers"],[/fromage|comte|emmental/,"Fromages"],[/pain|brioche|biscotte/,"Pains & viennoiseries"],[/riz|pate|semoule|quinoa|cereale|avoine/,"Féculents & céréales"],[/barre|chocolat|biscuit|gateau|bonbon|glace/,"Produits sucrés & desserts"],[/boisson|jus|soda|biere|vin/,"Boissons"],[/sauce|ketchup|mayo/,"Sauces & condiments"],[/whey|proteine/,"Nutrition sportive"]];
+  const m=R.find(r=>r[0].test(s)); return m?m[1]:"Plats préparés"; }
+function nfOpen85(k,name,cb){ NF85.k=k; NF85.cb=cb||null; NF85.f={name:String(name||"").trim().replace(/^./,c=>c.toUpperCase()),kcal:"",p:"",g:"",l:"",unit:"",ug:"",cat:nfGuessCat85(name)}; if(!NU.foods) nuFoods().then(()=>render()); render(); }
+const nfWrap85=k=>{ const o=RES[k]; RES[k]=function(){ if(NF85.k===k) return nfForm85(); const out=o?o():""; const q=String(NU[k]||"").trim();
+  return out+(q.length>=2?`<button class="ghost nf85b" data-act="nf85-new" data-k="${k}">＋ Pas dans la liste ? Ajouter « ${esc(q)} » à la base</button>`:""); }; };
+function fireAct85(act,v){ const b=document.createElement("button"); b.dataset.act=act; b.dataset.v=v; b.hidden=true; (document.getElementById("app")||document.body).appendChild(b); b.click(); b.remove(); }
+
+// ---------- B. Journée type créée par le client (carnet « nu_jt ») — visible et exploitable par le coach
+const JT85={open:null,my:null,fold:null};
+const jtGet85=()=>{ const d=(ST.carnet||{}).nu_jt; return d&&Array.isArray(d.meals)?d:null; };
+const jtDraft85=()=>JSON.parse(JSON.stringify(jtGet85()||{meals:["Petit-déjeuner","Déjeuner","Dîner"].map(n=>({name:n,it:[]}))}));
+let jtT85=null;
+function jtSave85(D){ D.at=new Date().toISOString(); ST.carnet.nu_jt=D; try{ cacheClient(); }catch(e){} clearTimeout(jtT85); const cid=CUR;
+  jtT85=setTimeout(()=>safeWrite("carnet",{client_id:cid,k:"nu_jt",data:D,updated_at:D.at},{client_id:cid,k:"nu_jt"},"upsert"),400); }
+RES.jtq=()=>fSearch(NU.jtq||"").map(f=>`<button data-act="jt85-add" data-v="${esc(f.id)}">${esc(f.name)}<br><span class="muted small">${esc(f.cat||"")} · ${f.unit?"1 "+esc(f.unit)+" = "+r0(f.unit_g*f.kcal/100)+" kcal":r0(f.kcal)+" kcal/100 g"}</span></button>`).join("");
+Object.keys(NFACT85).forEach(nfWrap85);
+const JTQUICK85=["Petit-déjeuner","Collation","Déjeuner","Goûter","Dîner","Collation du soir"];
+function vJT85(){ const D=jtGet85()||jtDraft85(), has=!!(jtGet85()&&D.meals.some(m=>m.it.length)), open=JT85.fold!=null?JT85.fold:!has, tot=mac(D.meals.flatMap(m=>m.it));
+  const td=NU.logs[todayISO()]||{}, hasToday=Object.values(td.m||{}).some(x=>x&&x.s!=="skip")||(td.x||[]).length>0;
+  let h=`<details class="card" id="jt85"${open?" open":""}><summary><b>🗓️ ${coach()?"Journée type du client":"Ma journée type"}</b> <span class="muted small">${has?`${D.meals.length} repas · ${r0(tot.k)} kcal · P ${r0(tot.p)} · G ${r0(tot.g)} · L ${r0(tot.l)}`:"à remplir"}</span></summary>
+    <p class="muted small" style="margin:6px 0">${coach()?"Ce que le client mange d'habitude, décrit par lui-même. Sers-t'en pour construire un plan avec des repas qu'il aime (Plan › « Créer le plan à partir de sa journée type »).":"Décris une journée normale, avec ce que tu manges vraiment (pas ce que tu « devrais » manger). Ton coach s'en sert pour construire ton plan avec des repas que tu aimes."}</p>`;
+  D.meals.forEach((m,mi)=>{ const mm=mac(m.it);
+    h+=`<div class="opt jt85m" style="margin-top:8px"><div class="row" style="flex-wrap:nowrap;gap:6px"><input class="grow" style="font-weight:600" data-jt85n="${mi}" value="${esc(m.name)}" aria-label="Nom du repas"><span class="muted small" style="flex:none">${r0(mm.k)} kcal</span><button class="ghost sm" data-act="jt85-rmmeal" data-v="${mi}" aria-label="Supprimer ce repas">🗑</button></div>
+      ${m.it.map((i,ii)=>`<div class="row" style="flex-wrap:nowrap;gap:6px;margin:4px 0"><span class="grow">${esc(i.n)}<br><span class="muted small">${r0(mac([i]).k)} kcal</span></span><label class="row small" style="gap:4px;flex:none"><input style="width:70px" inputmode="decimal" data-jt85q="${mi}.${ii}" value="${r0(+i.q||0)}"> g</label><button class="ghost sm" data-act="jt85-rm" data-v="${mi}.${ii}" aria-label="Retirer">✕</button></div>`).join("")||`<p class="muted small" style="margin:4px 0">Rien pour l'instant.</p>`}
+      <div class="row" style="gap:6px;margin-top:6px"><button class="ghost sm" data-act="jt85-open" data-v="${mi}">＋ Aliment</button><button class="ghost sm" data-act="es85-open" data-v="jt:${mi}">✍️🎙️ Décrire</button>${myList78().length?`<button class="ghost sm" data-act="jt85-my" data-v="${mi}">📒 Mes repas</button>`:""}</div>
+      ${JT85.open===mi?`<label class="f" style="margin-top:6px">Chercher un aliment<input data-nuq="jtq" data-res="jt85res" value="${esc(NU.jtq||"")}" placeholder="riz, poulet, yaourt…" autocomplete="off"></label><div class="res" id="jt85res">${RES.jtq()}</div>`:""}
+      ${JT85.my===mi?`<div class="row" style="gap:4px;margin-top:6px">${myList78().map(r=>`<button class="chip" data-act="jt85-myadd" data-v="${mi}|${esc(r.id)}">${esc(r.n)}</button>`).join("")}</div>`:""}
+      ${ES85.tgt==="jt:"+mi?esPanel85():""}</div>`; });
+  h+=`<div class="muted small" style="margin-top:10px">Ajouter un repas :</div><div class="row" style="gap:4px;margin-top:4px">${JTQUICK85.map(n=>`<button class="chip" data-act="jt85-addmeal" data-v="${esc(n)}">＋ ${esc(n)}</button>`).join("")}</div>`;
+  if(!coach()&&hasToday) h+=`<button class="ghost sm" style="margin-top:8px" data-act="jt85-today">↺ Remplir avec ce que j'ai noté aujourd'hui</button>`;
+  if(has) h+=`<div class="small" style="margin-top:8px"><b>Total de la journée :</b> ${r0(tot.k)} kcal · P ${r0(tot.p)} g · G ${r0(tot.g)} g · L ${r0(tot.l)} g</div>`;
+  return h+`</details>`; }
+function vJTcoach85(){ const D=jtGet85(); if(!D||!D.meals.some(m=>m.it.length)) return ""; const tot=mac(D.meals.flatMap(m=>m.it));
+  return `<div class="card" id="jt85c"><h3 style="margin-top:0">🗓️ Journée type décrite par le client</h3><div class="muted small">${r0(tot.k)} kcal · P ${r0(tot.p)} · G ${r0(tot.g)} · L ${r0(tot.l)}${D.at?` · mise à jour le ${esc(new Date(D.at).toLocaleDateString("fr-FR",{day:"numeric",month:"long"}))}`:""}</div>
+    ${D.meals.filter(m=>m.it.length).map(m=>`<div class="small" style="margin-top:4px"><b>${esc(m.name)}</b> (${r0(mac(m.it).k)} kcal) : ${esc(m.it.map(i=>`${i.n} ${qtyTxt(i)}`).join(", "))}</div>`).join("")}
+    <button class="sm" style="margin-top:8px" data-act="jt85-toplan">Créer le plan à partir de sa journée type</button> <span class="muted small">Remplace les repas du type de jour affiché, puis ajuste les quantités à la cible.</span></div>`; }
+
+// ---------- C. Extras rattachés à un repas
+const XM85={mi:undefined,pend:null};
+function xmDefault85(L,t){ const ks=Object.keys((L&&L.m)||{}).map(Number).filter(n=>!isNaN(n)); if(ks.length) return Math.max(...ks); const hr=new Date().getHours(), n=t?t.meals.length:0; if(!n) return null;
+  const idx=t.meals.findIndex(m=>/d[îi]ner/i.test(m.name)), dj=t.meals.findIndex(m=>/d[ée]j/i.test(m.name)&&!/petit/i.test(m.name));
+  return hr>=18&&idx>=0?idx:hr>=11&&dj>=0?dj:0; }
+const _nuSaveLog85=nuSaveLog;
+nuSaveLog=async function(d){ const P=XM85.pend; if(P&&P.d===d&&Date.now()-P.at<180000){ const L=NU.logs[d]; if(L&&L.x&&P.mi!=null) for(let i=P.n;i<L.x.length;i++) if(L.x[i]&&L.x[i].mi==null) L.x[i]=Object.assign({},L.x[i],{mi:P.mi}); XM85.pend=null; }
+  return _nuSaveLog85.apply(this,arguments); };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="nu-xadd"],[data-act="nu-xest"],[data-act="nu-xscan"],[data-act="my78-log"]'); if(!b) return;
+  if(b.dataset.act==="my78-log"&&!/\|x$/.test(b.dataset.v||"")) return; const d=NU.day||todayISO(); XM85.pend={d,n:((NU.logs[d]||{}).x||[]).length,mi:XM85.mi===undefined?null:XM85.mi,at:Date.now()}; },true);
+
+// ---------- D. Estimateur : description écrite ou dictée → aliments + quantités (gratuit, sur le téléphone)
+const ES85={tgt:null,txt:"",res:null,miss:[],rec:null,on:false};
+const SR85=window.SpeechRecognition||window.webkitSpeechRecognition||null;
+const NUMW85={un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf:9,dix:10,douze:12,demi:0.5,demie:0.5,moitie:0.5,quart:0.25};
+const UNITS85=[["kg",1000],["kilo",1000],["g",1],["gr",1],["gramme",1],["ml",1],["cl",10],["litre",1000],["l",1000],["cas","cs"],["cs","cs"],["cuillere a soupe","cs"],["c a soupe","cs"],["cuillere a cafe","cc"],["c a cafe","cc"],["cc","cc"],["tranche","tranche"],["pot","pot"],["bol","bol"],["verre","verre"],["poignee","poignee"],["part","part"],["portion","portion"],["assiette","assiette"],["morceau","part"],["carre","carre"],["boite","boite"],["bouteille","bouteille"],["brique","bouteille"],["sachet","sachet"],["barre","barre"],["tasse","tasse"],["filet","filet"],["pave","filet"],["steak","steak"],["escalope","filet"],["cuisse","cuisse"],["galette","galette"],["wrap","wrap"],["scoop","dose"],["dose","dose"],["mesure","dose"]];
+const UG85={cs:15,cc:5,bol:250,verre:200,poignee:30,pot:125,part:150,portion:150,assiette:300,carre:5,boite:140,bouteille:330,sachet:30,barre:40,tasse:200,filet:120,steak:100,cuisse:150,galette:60,wrap:60,dose:30,tranche:35};
+const STOP85=new Set(["de","du","des","la","le","les","un","une","d","l","au","aux","a","et","avec","mon","ma","mes","en","sur","dans","petit","petite","gros","grosse","bon","bonne","peu","bien","fait","maison"]);
+const DEF85={"oeuf":"Œuf entier","oeufs":"Œuf entier","pain":"Baguette","baguette":"Baguette","riz":"Riz basmati (cuit)","pate":"Pâtes (cuites)","pates":"Pâtes (cuites)","poulet":"Blanc de poulet (cuit)","blanc de poulet":"Blanc de poulet (cuit)","dinde":"Blanc de dinde (cuit)","steak":"Steak haché 5 % (cuit)","steak hache":"Steak haché 5 % (cuit)","saumon":"Saumon (cuit)","thon":"Thon au naturel (égoutté)","cabillaud":"Cabillaud (cuit)","yaourt":"Yaourt nature","yaourt grec":"Yaourt à la grecque","skyr":"Skyr nature","fromage blanc":"Fromage blanc 3 %","lait":"Lait demi-écrémé","cafe":"Café noir","the":"Thé / infusion","beurre":"Beurre","huile":"Huile d'olive","huile d'olive":"Huile d'olive","fromage":"Emmental","jambon":"Jambon blanc découenné","banane":"Banane","pomme":"Pomme","orange":"Orange","salade":"Salade verte","tomate":"Tomate","pomme de terre":"Pommes de terre (cuites)","pommes de terre":"Pommes de terre (cuites)","patate douce":"Patate douce (cuite)","lentille":"Lentilles (cuites)","lentilles":"Lentilles (cuites)","pois chiche":"Pois chiches (cuits)","pois chiches":"Pois chiches (cuits)","whey":"Whey protéine","proteine":"Whey protéine","chocolat":"Chocolat noir 70 %","flocon d'avoine":"Flocons d'avoine","flocons d'avoine":"Flocons d'avoine","avoine":"Flocons d'avoine","miel":"Miel","confiture":"Confiture","haricots verts":"Haricots verts","brocoli":"Brocoli","courgette":"Courgette","avocat":"Avocat","amande":"Amandes","amandes":"Amandes","noix":"Noix","quinoa":"Quinoa (cuit)","semoule":"Semoule / couscous (cuit)","couscous":"Semoule / couscous (cuit)","boulgour":"Boulgour (cuit)","frite":"Frites","frites":"Frites","pizza":"Pizza margherita","burger":"Burger fast-food","croissant":"Croissant","cookie":"Cookie","biere":"Bière blonde","vin":"Vin rouge","coca":"Soda sucré","soda":"Soda sucré","jus d'orange":"Jus d'orange","compote":"Compote sans sucre ajouté","granola":"Granola","muesli":"Muesli sans sucre ajouté","tofu":"Tofu nature","crevette":"Crevettes cuites","crevettes":"Crevettes cuites","sushi":"Sushi / maki","kebab":"Kebab (sandwich)","omelette":"Omelette nature (cuite)"};
+const tok85=s=>nrmW(s).split(/\s+/).filter(w=>w.length>=2&&!STOP85.has(w)).map(w=>w.length>3?w.replace(/(s|x)$/,""):w);
+function esMatch85(q){ if(!NU.foods) return []; const qn=nrmW(q).replace(/\s+/g," ").trim(), qs=qn.replace(/^(du|de la|des|de l|d|un|une|le|la|les|l)\s+/,"").trim();
+  const wd=tok85(qs); if(!wd.length) return [];
+  const dn=DEF85[qs]||DEF85[qs.replace(/s$/,"")]; const def=dn&&NU.foods.find(f=>f.name===dn);
+  const sc=NU.foods.map(f=>{ const nt=tok85(f.name); let s=0, hit=0; wd.forEach(w=>{ if(nt.some(t=>t===w||(w.length>=3&&(t.startsWith(w)||w.startsWith(t))&&t.length>=3))){ s+=10; hit++; } else s-=6; });
+    s-=Math.max(0,nt.length-hit)*1.2; if(nt[0]&&(nt[0]===wd[0]||nt[0].startsWith(wd[0]))) s+=3; if(/cuit/.test(nrm(f.name))) s+=0.8; if(/\(cru|crue|sec|seche/.test(nrm(f.name))) s-=0.8; return [s,f,hit]; })
+    .filter(x=>x[2]>0&&x[0]>2).sort((a,b)=>b[0]-a[0]).map(x=>x[1]);
+  if(def) return [def,...sc.filter(f=>f!==def)].slice(0,6); return sc.slice(0,6); }
+function esPortion85(f,n,u){ const cat=f.cat||""; let one;
+  if(u&&typeof u==="number") return Math.round(n*u);                          // g, kg, ml…
+  if(u&&f.unit&&nrm(f.unit).startsWith(nrm(u).slice(0,4))) one=+f.unit_g;     // « 2 tranches » d'un pain coupé en tranches
+  else if(u&&UG85[u]) one=(u==="cs"&&/huile|beurre|matieres/.test(nrm(f.name+cat)))?10:UG85[u];
+  else if(f.unit_g) one=+f.unit_g;
+  else one=/viande|volaille|poisson/i.test(cat)?120:/feculent|cereale/i.test(nrm(cat))?150:/legume/i.test(nrm(cat))?150:/laitier/i.test(nrm(cat))?125:/fruit/i.test(nrm(cat))&&!/sec/.test(nrm(cat))?120:/pain/i.test(nrm(cat))?50:/matiere|sauce/i.test(nrm(cat))?10:/plat|fast/i.test(nrm(cat))?300:100;
+  return Math.round((n||1)*one); }
+function esParse85(txt){ const chunks=String(txt||"").split(/,(?!\d)|;|\+|\n|\.(?!\d)|\s-\s/).flatMap(c=>nrmW(" "+c+" ").replace(/\b(et|avec|puis|plus|ainsi que)\b/g,"|").split("|")).map(s=>s.trim()).filter(Boolean);
+  const res=[], miss=[];
+  chunks.forEach(c=>{ let s=c, n=null, u=null;
+    let m=s.match(/^(\d+(?:[.,]\d+)?)\s*/); if(m){ n=parseFloat(m[1].replace(",",".")); s=s.slice(m[0].length); }
+    else { m=s.match(/^(un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|douze|demi|demie|moitie|quart)\b\s*(et demi[e]?)?\s*/); if(m){ n=NUMW85[m[1]]+(m[2]?0.5:0); s=s.slice(m[0].length); } }
+    s=s.replace(/^(de|d|du|des)\s+/,"");
+    for(const [w,val] of UNITS85){ const r=new RegExp("^"+w.replace(/ /g,"\\s")+"s?\\b\\s*"); if(r.test(s)){ u=val; s=s.replace(r,""); break; } }
+    s=s.replace(/^(de la|de l|de|d|du|des)\s+/,"").trim(); if(!s) return;
+    const C=esMatch85(s); if(!C.length){ miss.push(s); return; }
+    const f=C[0]; res.push({f:f.id,alt:C.map(x=>x.id),q:esPortion85(f,n==null?1:n,u),src:c}); });
+  return {res,miss}; }
+function esItems85(){ return (ES85.res||[]).map(r=>{ const f=NU.fmap[r.f]; return f?fSnap(f,r.q):null; }).filter(Boolean); }
+function esPanel85(){ const R=ES85.res, its=esItems85(), tot=mac(its);
+  let h=`<div class="edit" id="es85"><b>✍️ Décris ce que tu as mangé</b><p class="muted small" style="margin:4px 0">Ex. « 2 œufs, 2 tranches de pain complet avec du beurre, une banane et 150 g de skyr ». Sans quantité, une portion habituelle est comptée : vérifie avant de valider.</p>
+    <textarea data-es85t rows="3" style="width:100%" placeholder="J'ai mangé…">${esc(ES85.txt)}</textarea>
+    <div class="row" style="gap:6px;margin-top:6px"><button class="sm" data-act="es85-parse">Estimer</button>${SR85?`<button class="ghost sm" data-act="es85-mic">${ES85.on?"⏹ Arrêter":"🎙️ Dicter"}</button>`:`<span class="muted small">🎙️ Pour dicter, utilise le micro du clavier.</span>`}<button class="ghost sm" data-act="es85-close">Annuler</button></div>`;
+  if(R){ h+=R.length?R.map((r,i)=>{ const f=NU.fmap[r.f]; return `<div class="row" style="flex-wrap:nowrap;gap:6px;margin:6px 0"><select data-es85f="${i}" style="flex:1 1 auto;min-width:0">${r.alt.map(id=>`<option value="${esc(id)}" ${id===r.f?"selected":""}>${esc((NU.fmap[id]||{}).name||"")}</option>`).join("")}</select><label class="row small" style="gap:4px;flex:none"><input style="width:64px" inputmode="decimal" data-es85q="${i}" value="${r0(r.q)}"> g</label><span class="muted small" style="flex:none">${r0(mac([fSnap(f,r.q)]).k)}</span><button class="ghost sm" data-act="es85-rm" data-v="${i}" aria-label="Retirer">✕</button></div>`; }).join(""):`<p class="muted small">Aucun aliment reconnu.</p>`;
+    h+=(ES85.miss||[]).map(s=>`<div class="row" style="gap:6px;margin:4px 0"><span class="grow small">❓ « ${esc(s)} » non reconnu</span><button class="ghost sm" data-act="es85-nf" data-v="${esc(s)}">＋ L'ajouter à la base</button></div>`).join("");
+    if(NF85.k==="esq") h+=nfForm85();
+    if(R.length) h+=`<div class="small" style="margin-top:6px"><b>Total :</b> ${r0(tot.k)} kcal · P ${r0(tot.p)} · G ${r0(tot.g)} · L ${r0(tot.l)}</div><button class="ok sm" style="margin-top:6px" data-act="es85-apply">✅ ${ES85.tgt==="x"?"Ajouter en extra":ES85.tgt&&ES85.tgt.startsWith("jt:")?"Ajouter à ce repas":"Noter ce repas"}</button>`; }
+  return h+`</div>`; }
+function esApply85(){ const its=esItems85(); if(!its.length) return toast("Rien à ajouter"); const t=ES85.tgt; const label=ES85.txt.trim().replace(/\s+/g," ");
+  if(t.startsWith("jt:")){ const D=jtDraft85(), mi=+t.slice(3); if(D.meals[mi]) D.meals[mi].it.push(...its); jtSave85(D); }
+  else { const d=NU.day||todayISO(); NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); NU.logs[d].m=Object.assign({},NU.logs[d].m); NU.logs[d].x=[...(NU.logs[d].x||[])];
+    if(t==="x"){ const mi=XM85.mi===undefined?null:XM85.mi; its.forEach(i=>{ if(mi!=null) i.mi=mi; NU.logs[d].x.push(i); }); }
+    else { const mi=+t.slice(2), cur=NU.logs[d].m[mi]; const prev=cur&&cur.s==="alt"&&cur.it?cur.it:[]; const it=[...prev,...its];
+      NU.logs[d].m[mi]=Object.assign({},cur&&cur.s!=="skip"?cur:{}, {s:"alt",n:(cur&&cur.s==="alt"&&cur.n)?cur.n:("Décrit : "+(label.length>40?label.slice(0,38)+"…":label)),mac:mac(it),it}); delete NU.logs[d].m[mi].pend; }
+    nuSaveLog(d); }
+  ES85.tgt=null; ES85.res=null; ES85.txt=""; ES85.miss=[]; render(); toast("Ajouté ✓"); }
+function esMic85(){ if(ES85.on&&ES85.rec){ try{ ES85.rec.stop(); }catch(e){} return; }
+  try{ const r=new SR85(); r.lang="fr-FR"; r.interimResults=false; r.continuous=false; ES85.rec=r; ES85.on=true;
+    r.onresult=ev=>{ const t=[...ev.results].map(x=>x[0].transcript).join(" "); ES85.txt=(ES85.txt?ES85.txt.trim()+", ":"")+t; const P=esParse85(ES85.txt); ES85.res=P.res; ES85.miss=P.miss; };
+    r.onerror=ev=>{ toast(ev.error==="not-allowed"?"Micro refusé : autorise-le dans les réglages":"Dictée interrompue"); };
+    r.onend=()=>{ ES85.on=false; render(); }; r.start(); render(); }catch(e){ ES85.on=false; toast("Dictée indisponible sur ce téléphone : utilise le micro du clavier"); } }
+
+// ---------- injection dans « Suivi › Nutrition » (jour) : extras par repas, bouton Décrire, journée type
+const _nJour85=nJour;
+nJour=function(){ let h=_nJour85(); const {L,t,P,d}=nDayCtx(); const X=(L&&L.x)||[];
+  if(t&&hasMeals(P)){ if(XM85.mi===undefined||XM85.d!==d){ XM85.mi=xmDefault85(L,t); XM85.d=d; }
+    let pos=0; t.meals.forEach((m,mi)=>{ const ci=h.indexOf('<div class="card meal',pos); if(ci<0) return; const he=h.indexOf("</h3>",ci); if(he<0) return; const after=h.indexOf("</div>",he)+6;
+      const xs=X.map((e,xi)=>[e,xi]).filter(([e])=>e&&e.mi===mi), st=L.m&&L.m[mi];
+      let add=xs.length?`<div class="xm85">${xs.map(([e,xi])=>`<div class="row" style="flex-wrap:nowrap;gap:6px;margin:2px 0"><span class="grow small">＋ ${q85(e)}</span><button class="ghost sm" data-act="nu-xdel" data-v="${xi}" aria-label="Retirer cet extra">✕</button></div>`).join("")}${st&&st.mac?`<div class="muted small">Repas + extras : ${r0(st.mac.k+mac(xs.map(x=>x[0])).k)} kcal</div>`:""}</div>`:"";
+      add+=ES85.tgt==="m:"+mi?esPanel85():`<div class="row" style="margin:4px 0 0"><button class="ghost sm" data-act="es85-open" data-v="m:${mi}">✍️🎙️ Décrire ce que j'ai mangé</button></div>`;
+      h=h.slice(0,after)+add+h.slice(after); pos=after+add.length; });
+    // choix du repas auquel rattacher l'extra
+    const xo='<p class="muted small">Pas besoin d\'être précis'; const k=h.indexOf(xo);
+    if(k>=0) h=h.slice(0,k)+`<div class="small" style="margin:4px 0">À quel repas l'ajouter ?</div><div class="row" style="gap:4px;margin-bottom:6px">${t.meals.map((m,mi)=>`<button class="chip ${XM85.mi===mi?"on":""}" data-act="xm85-mi" data-v="${mi}">${esc(m.name)}</button>`).join("")}<button class="chip ${XM85.mi==null?"on":""}" data-act="xm85-mi" data-v="">Hors repas</button></div>
+      ${ES85.tgt==="x"?esPanel85():`<button class="ghost sm" style="margin-bottom:6px" data-act="es85-open" data-v="x">✍️🎙️ Décrire l'extra</button>`}`+h.slice(k);
+    // étiquette « repas » sur les lignes de la carte Extras
+    const xc=h.indexOf('<h3 style="margin-top:0">Extras & écarts</h3>'); if(xc>=0){ let p2=xc; X.forEach(e=>{ const s='<span class="grow">'; const j=h.indexOf(s,p2); if(j<0) return; const ins=e&&e.mi!=null&&t.meals[e.mi]?`<span class="chip on" style="font-size:.72rem;padding:1px 6px">${esc(t.meals[e.mi].name)}</span> `:""; h=h.slice(0,j+s.length)+ins+h.slice(j+s.length); p2=j+s.length+ins.length; }); } }
+  const jt=vJT85(), mk=h.indexOf('<div class="card" id="my78">'); return mk>=0?h.slice(0,mk)+jt+h.slice(mk):h+jt; };
+const _nPlanCoach85=nPlanCoach;
+nPlanCoach=function(){ return vJTcoach85()+_nPlanCoach85(); };
+
+// ---------- actions nutrition (A, B, C, D)
+document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act^="nf85-"],[data-act^="jt85-"],[data-act^="es85-"],[data-act="xm85-mi"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v||"";
+  if(a==="xm85-mi"){ XM85.mi=v===""?null:+v; return render(); }
+  if(a==="nf85-new") return nfOpen85(b.dataset.k,NU[b.dataset.k]||"");
+  if(a==="nf85-cancel"){ NF85.k=null; NF85.cb=null; return render(); }
+  if(a==="nf85-save"){ const f=NF85.f, k=NF85.k; const p=n85(f.p),g=n85(f.g),l=n85(f.l),kc=n85(f.kcal);
+    if(!f.name||f.name.trim().length<2) return toast("Indique le nom de l'aliment"); if(p==null&&g==null&&l==null&&kc==null) return toast("Indique au moins les calories ou les macros (pour 100 g)");
+    if((p||0)+(g||0)+(l||0)>100.5) return toast("Protéines + glucides + lipides ne peuvent pas dépasser 100 g pour 100 g");
+    NF85.busy=true; render(); const {data,error}=await SB.rpc("nutri_food_add",{f:{name:f.name,kcal:kc,p,g,l,unit:f.unit||null,unit_g:n85(f.ug),cat:f.cat}}); NF85.busy=false;
+    if(error){ render(); return toast("Non ajouté : "+error.message); }
+    const row=data; if(NU.foods&&!NU.fmap[row.id]){ NU.foods.push(row); NU.foods.sort((x,y)=>x.name.localeCompare(y.name,"fr")); NU.fmap[row.id]=row; }
+    const cb=NF85.cb; NF85.k=null; NF85.cb=null; if(k) NU[k]="";
+    if(cb) cb(row); else if(NFACT85[k]) fireAct85(NFACT85[k],row.id); render(); return toast(`« ${row.name} » ajouté à la base`); }
+  // journée type
+  if(a.startsWith("jt85-")){ const D=jtDraft85();
+    if(a==="jt85-open"){ JT85.open=JT85.open===+v?null:+v; JT85.my=null; NU.jtq=""; JT85.fold=true; if(!NU.foods) nuFoods().then(()=>render()); return render(); }
+    if(a==="jt85-my"){ JT85.my=JT85.my===+v?null:+v; JT85.open=null; JT85.fold=true; return render(); }
+    if(a==="jt85-add"){ const f=NU.fmap[v], mi=JT85.open; if(!f||mi==null||!D.meals[mi]) return; D.meals[mi].it.push(fSnap(f,esPortion85(f,1,null))); NU.jtq=""; jtSave85(D); return render(); }
+    if(a==="jt85-myadd"){ const [mi,id]=v.split("|"), r=myList78().find(x=>x.id===id); if(r&&D.meals[+mi]){ D.meals[+mi].it.push(...r.it.map(i=>Object.assign({},i))); jtSave85(D); } JT85.my=null; return render(); }
+    if(a==="jt85-rm"){ const [mi,ii]=v.split(".").map(Number); if(D.meals[mi]){ D.meals[mi].it.splice(ii,1); jtSave85(D); } return render(); }
+    if(a==="jt85-rmmeal"){ const m=D.meals[+v]; if(!m) return; if(m.it.length&&!confirm(`Supprimer « ${m.name} » de ta journée type ?`)) return; D.meals.splice(+v,1); JT85.open=null; jtSave85(D); return render(); }
+    if(a==="jt85-addmeal"){ const order=JTQUICK85; let at=D.meals.length; const oi=order.indexOf(v); if(oi>=0){ const k=D.meals.findIndex(m=>order.indexOf(m.name)>oi); if(k>=0) at=k; }
+      D.meals.splice(at,0,{name:v,it:[]}); JT85.open=at; JT85.fold=true; NU.jtq=""; jtSave85(D); if(!NU.foods) nuFoods().then(()=>render()); return render(); }
+    if(a==="jt85-today"){ const td=NU.logs[todayISO()]||{}, P=planOn(), t=P&&P.types&&P.types.length?typeOf(td.t||P.week[DOW(todayISO())]):null; const meals=[];
+      Object.entries(td.m||{}).forEach(([mi,st])=>{ if(!st||st.s==="skip") return; const pm=t&&t.meals[+mi]; const it=st.it?st.it:(pm&&pm.opts[0]?pm.opts[0].it.map(i=>Object.assign({},i,{q:(+i.q||0)*(pm.opts[0].m||1)})):[]);
+        const xs=(td.x||[]).filter(x=>x.mi===+mi&&!x.est).map(x=>Object.assign({},x)); xs.forEach(x=>delete x.mi); meals.push({name:pm?pm.name:("Repas "+(+mi+1)),it:[...it,...xs]}); });
+      const free=(td.x||[]).filter(x=>x.mi==null&&!x.est).map(x=>Object.assign({},x)); if(free.length) meals.push({name:"Collation",it:free});
+      if(!meals.length) return toast("Rien de détaillé noté aujourd'hui"); if(D.meals.some(m=>m.it.length)&&!confirm("Remplacer ta journée type par ce que tu as noté aujourd'hui ?")) return;
+      jtSave85({meals}); JT85.fold=true; render(); return toast("Journée type remplie : ajuste si besoin"); }
+    if(a==="jt85-toplan"){ const J=jtGet85(), P=NU.plan; if(!J||!P) return; const t=curType(); if(!confirm(`Remplacer les repas de « ${t.name} » par la journée type du client (${J.meals.length} repas) ? Les quantités seront ensuite ajustées à la cible.`)) return;
+      try{ await SB.from("carnet").upsert({client_id:CUR,k:"nu_bak_"+todayISO(),data:JSON.parse(JSON.stringify(P)),updated_at:new Date().toISOString()},{onConflict:"client_id,k",ignoreDuplicates:true}); }catch(err){}
+      t.meals=J.meals.filter(m=>m.it.length).map(m=>({name:m.name,opts:[{n:m.name+" (habituel)",m:1,it:m.it.map(i=>{ const c=Object.assign({},i); delete c.mi; return c; })}]}));
+      if(P.tgt) try{ fitType(t); }catch(err){ console.error(err); } nuSave(); render(); return toast("Plan créé à partir de sa journée type : vérifie et ajoute des alternatives"); }
+    return; }
+  // estimateur
+  if(a==="es85-open"){ ES85.tgt=ES85.tgt===v?null:v; ES85.res=null; ES85.miss=[]; ES85.txt=""; if(v.startsWith("jt:")) JT85.fold=true; if(!NU.foods) nuFoods().then(()=>render()); return render(); }
+  if(a==="es85-close"){ ES85.tgt=null; ES85.res=null; return render(); }
+  if(a==="es85-parse"){ if(!NU.foods) await nuFoods(); const P=esParse85(ES85.txt); ES85.res=P.res; ES85.miss=P.miss; if(!P.res.length&&!P.miss.length) toast("Écris ce que tu as mangé"); return render(); }
+  if(a==="es85-mic") return esMic85();
+  if(a==="es85-rm"){ ES85.res.splice(+v,1); return render(); }
+  if(a==="es85-nf") return nfOpen85("esq",v,row=>{ ES85.res=ES85.res||[]; ES85.res.push({f:row.id,alt:[row.id],q:esPortion85(row,1,null)}); ES85.miss=(ES85.miss||[]).filter(s=>s!==v); });
+  if(a==="es85-apply") return esApply85(); },true);
+document.addEventListener("input",e=>{ const el=e.target, ds=el.dataset||{};
+  if(ds.nf85!==undefined&&NF85.f){ NF85.f[ds.nf85]=el.value; return; }
+  if(ds.es85t!==undefined){ ES85.txt=el.value; return; }
+  if(ds.jt85n!==undefined){ const D=jtDraft85(), m=D.meals[+ds.jt85n]; if(m){ m.name=el.value; jtSave85(D); } } });
+document.addEventListener("change",e=>{ const el=e.target, ds=el.dataset||{};
+  if(ds.jt85q!==undefined){ const [mi,ii]=ds.jt85q.split(".").map(Number), D=jtDraft85(), q=n85(el.value); const it=D.meals[mi]&&D.meals[mi].it[ii]; if(it&&q>0){ it.q=q; jtSave85(D); render(); } }
+  if(ds.es85q!==undefined&&ES85.res){ const q=n85(el.value), r=ES85.res[+ds.es85q]; if(r&&q>0){ r.q=q; render(); } }
+  if(ds.es85f!==undefined&&ES85.res){ const r=ES85.res[+ds.es85f]; if(r){ r.f=el.value; render(); } } });
+
+// ---------- E. Sélecteur de client dans l'en-tête (coach) : toucher le prénom en haut à gauche
+const CS85={open:false,q:""};
+function csRows85(){ const items={}; try{ todoItems().forEach(x=>{ (items[x.id]=items[x.id]||[]).push(x); }); }catch(e){}
+  const q=nrm(CS85.q); const L=CLIENTS.filter(c=>c.coach_id===UID&&!c.archived&&(!q||nrm(c.name).includes(q)));
+  const pr=c=>{ const it=items[c.id]||[]; return it.length?Math.min(...it.map(x=>x.p)):9; };
+  L.sort((a,b)=>pr(a)-pr(b)||String(a.name).localeCompare(String(b.name),"fr"));
+  return L.map(c=>{ const it=items[c.id]||[], o=(OV.data||{})[c.id]||{}, hot=it.some(x=>x.p<=1), warm=it.some(x=>x.p===2);
+    const ic=it.map(x=>(x.h.match(/font-size:1.2rem">([^<]+)</)||[])[1]).filter(Boolean); const txt=it.map(x=>(x.h.match(/<div class="small">([^<]+)</)||[])[1]).filter(Boolean)[0]||"";
+    return `<button class="cs85r${c.id===CUR?" cur":""}${hot?" hot":warm?" warm":""}" data-act="cs85-go" data-v="${c.id}"><span class="cs85n">${esc(c.name)}${c.id===CUR?" <span class=\"muted small\">(ouvert)</span>":""}</span>${ic.length?`<span class="cs85i">${[...new Set(ic)].join(" ")}</span>`:""}${txt?`<span class="cs85t">${esc(txt)}</span>`:""}${o.unread?`<span class="cs85b">${o.unread}</span>`:""}</button>`; }).join("")||`<div class="muted small" style="padding:10px">Aucun client.</div>`; }
+function csRender85(){ let el=document.getElementById("cs85"); if(!CS85.open){ if(el) el.remove(); return; }
+  if(!el){ el=document.createElement("div"); el.id="cs85"; document.body.appendChild(el); }
+  el.innerHTML=`<div class="cs85bg" data-act="cs85-close"></div><div class="cs85p" role="dialog" aria-label="Changer de client"><div class="row" style="flex-wrap:nowrap;gap:6px"><input id="cs85q" class="grow" placeholder="Rechercher un client…" value="${esc(CS85.q)}" autocomplete="off"><button class="ghost sm" data-act="cs85-close" aria-label="Fermer">✕</button></div>
+    <div class="muted small" style="margin:6px 2px">En haut : les clients avec quelque chose à traiter (messages, douleur, bilan, retard…).</div><div id="cs85l">${csRows85()}</div>
+    <button class="ghost sm" style="margin-top:8px" data-act="cs85-all">☰ Tous mes clients (accueil coach)</button></div>`; }
+async function csOpen85(){ CS85.open=true; CS85.q=""; csRender85(); try{ if(!OV.data) await loadOverview(); if(!TD.data) await loadTodo(); }catch(e){} if(CS85.open) csRender85(); }
+document.addEventListener("click",async e=>{ const t=e.target;
+  if(t.closest&&t.closest("#appTitle")&&typeof coach==="function"&&coach()&&CUR){ e.preventDefault(); return csOpen85(); }
+  const b=t.closest&&t.closest('[data-act^="cs85-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act;
+  if(a==="cs85-close"){ CS85.open=false; return csRender85(); }
+  if(a==="cs85-all"){ CS85.open=false; csRender85(); const rb=document.getElementById("roleBtn"); if(rb&&!rb.hidden) rb.click(); return; }
+  if(a==="cs85-go"){ const id=b.dataset.v; CS85.open=false; csRender85(); if(id===CUR) return; const view=ST.view; await openClient(id); OV.at=0; TD.at=0; if(view&&view!=="clients") ST.view=view; window.scrollTo(0,0); render(); } },true);
+document.addEventListener("input",e=>{ if(e.target&&e.target.id==="cs85q"){ CS85.q=e.target.value; const l=document.getElementById("cs85l"); if(l) l.innerHTML=csRows85(); } });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&CS85.open){ CS85.open=false; csRender85(); } });
+const _render85=render;
+render=function(){ const r=_render85.apply(this,arguments); try{ const on=!!(coach()&&CUR); document.body.classList.toggle("cs85on",on); const h=document.getElementById("appTitle"); if(h){ if(on){ h.setAttribute("role","button"); h.setAttribute("tabindex","0"); h.setAttribute("aria-label","Changer de client"); } else { h.removeAttribute("role"); h.removeAttribute("tabindex"); h.removeAttribute("aria-label"); } } }catch(e){} return r; };
+
+// ---------- F. Vue par exercice : tout le travail prévu sur un exercice (semaines × séances), réalisé, trajectoire, remplissage de progression
+const VX85={ex:null,from:null,fill:null};
+function vxOcc85(name){ const O=[]; (M&&M.sessions||[]).forEach(S=>S.rows.forEach(r=>{ if(r.ex===name) O.push({S,r}); })); return O; }
+function vxNames85(){ const seen=[], tr=(M.tracked||[]).map(t=>t.name).filter(Boolean); (M.sessions||[]).forEach(S=>S.rows.forEach(r=>{ if(r.ex&&!seen.includes(r.ex)) seen.push(r.ex); }));
+  return [...tr.filter(n=>seen.includes(n)),...seen.filter(n=>!tr.includes(n))]; }
+function vxDone85(w,r){ const v=ST.carnet[w+"_"+r.key]; if(!v) return null; const s=setsOf(v).filter(x=>x.g!=null||x.h!=null); if(!s.length) return null;
+  const top=Math.max(...s.map(x=>n85(x.g)||0)); return {txt:s.slice(0,4).map(x=>`${x.g!=null?fmtN(x.g):"PDC"}×${x.h!=null?x.h:"?"}`).join(" · ")+(s.length>4?" …":""),top}; }
+function vxTop85(k){ if(!k||!k.blocks) return null; const L=k.blocks.map(b=>b.load).filter(x=>x!=null&&!isNaN(x)); return L.length?Math.max(...L):null; }
+function vxChart85(pl,dn){ const W=Math.max(1,pl.length), all=[...pl,...dn].filter(x=>x!=null); if(all.length<2) return "";
+  const mn=Math.min(...all), mx=Math.max(...all), rg=Math.max(1,mx-mn), X=i=>12+i*(296/Math.max(1,W-1)), Y=v=>98-(v-mn)/rg*80;
+  const pts=a=>a.map((v,i)=>v==null?null:`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).filter(Boolean).join(" ");
+  return `<svg viewBox="0 0 320 110" class="vx85c" role="img" aria-label="Trajectoire des charges"><polyline fill="none" stroke="var(--blue)" stroke-width="2.5" points="${pts(pl)}"/><polyline fill="none" stroke="var(--green)" stroke-width="2.5" stroke-dasharray="4 3" points="${pts(dn)}"/>
+    ${pl.map((v,i)=>v==null?"":`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.6" fill="var(--blue)"/>`).join("")}${dn.map((v,i)=>v==null?"":`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.6" fill="var(--green)"/>`).join("")}
+    <text x="4" y="12" font-size="10" fill="currentColor">${fmtN(mx)} kg</text><text x="4" y="108" font-size="10" fill="currentColor">${fmtN(mn)} kg</text></svg>
+    <div class="muted small"><span style="color:var(--blue)">━</span> charge prévue (série la plus lourde) · <span style="color:var(--green)">┅</span> charge réalisée</div>`; }
+function vVX85(){ if(!M) return `<div class="card">Programme en cours de chargement…</div>`; const names=vxNames85(); if(!names.length) return `<div class="card">Aucun exercice dans le programme.</div>`;
+  if(!VX85.ex||!names.includes(VX85.ex)) VX85.ex=names[0]; const name=VX85.ex, O=vxOcc85(name), NS=M.NSEM||12, co=coach();
+  let h=`<div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">📈 ${esc(name)}</h2><button class="ghost sm" data-act="vx85-back">← Retour</button></div>
+    <div class="row vx85x" style="gap:4px;margin:8px 0">${names.map(n=>`<button class="chip ${n===name?"on":""}" data-act="vx85-ex" data-v="${esc(n)}">${esc(n)}</button>`).join("")}</div>
+    <p class="muted small">Tout le travail prévu sur cet exercice, séance par séance et semaine par semaine${co?" : modifie une case pour fixer la prescription de la semaine (même syntaxe que dans Programme, ex. 4x8@60kg ou 3x5@80% RPE8)":""}. ✓ = ce qui a été fait.</p>`;
+  const pl=[], dn=[]; for(let w=1;w<=NS;w++){ let p=null,d=null; O.forEach(({r})=>{ const t=vxTop85(r.weeks[w]); if(t!=null) p=Math.max(p||0,t); const x=vxDone85(w,r); if(x&&x.top) d=Math.max(d||0,x.top); }); pl.push(p); dn.push(d); }
+  h+=`<div class="card">${vxChart85(pl,dn)||`<div class="muted small">La courbe apparaît dès que des charges sont prévues (1RM renseigné ou charges en kg).</div>`}</div>`;
+  h+=`<div class="card" style="padding:6px;overflow-x:auto"><table class="vx85t"><tr><th>Sem.</th>${O.map(({S})=>`<th>${esc(S.name||("Séance "+(S.s+1)))}${S.day?`<br><span class="muted small">${esc(String(S.day).slice(0,3))}.</span>`:""}</th>`).join("")}</tr>`;
+  for(let w=1;w<=NS;w++){ const ph=M.phases[w-1]||"";
+    h+=`<tr class="${w===M.cw?"cur":""}"><th>S${w}<br><span class="plate ${ph?"ph-"+ph:""}"></span><span class="muted small">${esc(PH_ABBR[ph]||"")}</span></th>${O.map(({S,r})=>{ const k=r.weeks[w]||{}; const dd=vxDone85(w,r);
+      const plan=k.off?`<span class="muted small">retiré</span>`:k.eff?(typeof short77==="function"?short77(r,k):esc(k.eff)):`<span class="muted">—</span>`;
+      return `<td>${co&&!k.off?`<input class="vx85i ${k.raw?"forced":""}${k.eff&&k.valid===false?" bad":""}" data-k="sessions.${S.s}.ex.${r.i}.weeks.${w}" value="${esc(k.raw||"")}" placeholder="${esc(k.raw?"":(k.eff||""))}" aria-label="S${w} ${esc(S.name||"")}">`:""}<div class="small">${plan}</div>${dd?`<div class="small vx85d">✓ ${esc(dd.txt)}</div>`:""}</td>`; }).join("")}</tr>`; }
+  h+=`</table></div>`;
+  if(co){ const F=VX85.fill||{occ:"all",from:1,to:NS,sets:"4",reps:"8",kg:"",inc:"2.5",dl:true};
+    h+=`<details class="card" id="vx85f"${VX85.fill?" open":""}><summary><b>⚡ Remplir la progression en un geste</b></summary><p class="muted small" style="margin:6px 0">Charge de départ + augmentation par semaine. Les semaines de Deload repartent à −10 % avec une série de moins. Les semaines de Test gardent leur test automatique. Tu peux ensuite retoucher n'importe quelle case.</p>
+      <div class="row">${O.length>1?`<label class="f" style="flex:2 1 160px">Séance<select data-vx85="occ"><option value="all">Toutes (${O.length})</option>${O.map((o,j)=>`<option value="${j}" ${String(F.occ)===String(j)?"selected":""}>${esc(o.S.name||("Séance "+(o.S.s+1)))}</option>`).join("")}</select></label>`:""}
+        <label class="f" style="flex:1 1 60px">De S<input data-vx85="from" inputmode="numeric" value="${esc(String(F.from))}"></label><label class="f" style="flex:1 1 60px">à S<input data-vx85="to" inputmode="numeric" value="${esc(String(F.to))}"></label></div>
+      <div class="row"><label class="f" style="flex:1 1 60px">Séries<input data-vx85="sets" inputmode="numeric" value="${esc(String(F.sets))}"></label><label class="f" style="flex:1 1 60px">Reps<input data-vx85="reps" value="${esc(String(F.reps))}" placeholder="8 ou 6-8"></label>
+        <label class="f" style="flex:1 1 80px">Départ (kg)<input data-vx85="kg" inputmode="decimal" value="${esc(String(F.kg))}"></label><label class="f" style="flex:1 1 80px">+ kg / sem.<input data-vx85="inc" inputmode="decimal" value="${esc(String(F.inc))}"></label></div>
+      <label class="row small" style="gap:6px;margin:6px 0"><input type="checkbox" style="width:auto" data-vx85="dl" ${F.dl?"checked":""}> Alléger les semaines de Deload</label>
+      <div class="small muted" id="vx85prev">${vxPreview85(F,O)}</div>
+      <div class="row" style="gap:6px;margin-top:6px"><button class="sm" data-act="vx85-apply">Appliquer</button><button class="ghost sm" data-act="vx85-clear">Revenir au calcul auto sur ces semaines</button></div></details>`; }
+  return h; }
+function vxPlan85(F){ const from=Math.max(1,+F.from||1), to=Math.min(M.NSEM||NW,+F.to||M.NSEM||12), sets=Math.max(1,+F.sets||3), reps=String(F.reps||"8").replace(/\s/g,""), kg=n85(F.kg), inc=n85(F.inc)||0; if(kg==null||!/^\d+(-\d+)?$/.test(reps)) return [];
+  const out=[]; let n=0, last=kg; for(let w=from;w<=to;w++){ if(/^(Test|Transition)$/.test(M.phases[w-1]||"")) continue; const dl=F.dl&&M.phases[w-1]==="Deload"; let load, s=sets;
+    if(dl){ load=Math.round(last*0.9/2.5)*2.5; s=Math.max(1,sets-1); } else { load=Math.round((kg+inc*n)*4)/4; last=load; n++; }
+    out.push([w,`${s}x${reps}@${String(load).replace(",",".")}kg`]); } return out; }
+function vxPreview85(F,O){ const P=vxPlan85(F); if(!P.length) return "Indique la charge de départ (kg) et les répétitions."; return P.map(([w,s])=>`S${w} : ${esc(s.replace("x"," × ").replace("@"," @ ").replace("kg"," kg").replace(/(\d)\.(\d)/,"$1,$2"))}`).join(" · ")+" <br>(semaines Test et Transition : laissées en automatique)"; }
+const _vProgramme85=vProgramme;
+vProgramme=function(){ if(VX85.from==="programme") return vVX85(); const h=_vProgramme85(); if(!M) return h; const btn=`<div class="row noprint" style="margin:6px 0"><button class="ghost sm" data-act="vx85-open" data-v="programme">📈 Vue par exercice (toutes les semaines)</button></div>`; const i=h.indexOf("</h2>"); return i<0?btn+h:h.slice(0,i+5)+btn+h.slice(i+5); };
+const _vSemaine85=vSemaine;
+vSemaine=function(){ if(VX85.from==="semaine") return vVX85(); const h=_vSemaine85(); if(!M||ST.printProg) return h; return h+`<div class="card noprint"><button class="ghost" data-act="vx85-open" data-v="semaine">🔎 Voir tout le travail prévu sur un exercice</button><div class="muted small" style="margin-top:4px">Par exemple tout le développé couché du cycle : chaque séance, chaque semaine, et ce qui a été fait.</div></div>`; };
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act^="vx85-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v||"";
+  if(a==="vx85-open"){ VX85.from=v; VX85.fill=null; window.scrollTo(0,0); return render(); }
+  if(a==="vx85-back"){ VX85.from=null; return render(); }
+  if(a==="vx85-ex"){ VX85.ex=v; VX85.fill=null; return render(); }
+  if(!coach()) return; const O=vxOcc85(VX85.ex), F=VX85.fill||{occ:"all",from:1,to:M.NSEM||12,sets:"4",reps:"8",kg:"",inc:"2.5",dl:true};
+  const targets=F.occ==="all"?O:[O[+F.occ]].filter(Boolean);
+  if(a==="vx85-apply"){ const P=vxPlan85(F); if(!P.length) return toast("Indique la charge de départ et les répétitions"); if(!confirm(`Écrire ${P.length} semaine${P.length>1?"s":""} sur ${targets.length} séance${targets.length>1?"s":""} ?`)) return;
+    targets.forEach(({S,r})=>P.forEach(([w,s])=>setPath(ST.prog,`sessions.${S.s}.ex.${r.i}.weeks.${w}`,s))); recompute(); saveProg(); render(); return toast("Progression écrite"); }
+  if(a==="vx85-clear"){ const from=+F.from||1, to=+F.to||M.NSEM; if(!confirm(`Effacer les cases forcées de S${from} à S${to} (retour au calcul automatique) ?`)) return;
+    targets.forEach(({S,r})=>{ for(let w=from;w<=to;w++) setPath(ST.prog,`sessions.${S.s}.ex.${r.i}.weeks.${w}`,""); }); recompute(); saveProg(); render(); return toast("Cases remises en automatique"); } },true);
+document.addEventListener("input",e=>{ const el=e.target; if(!el.dataset||el.dataset.vx85===undefined) return; VX85.fill=VX85.fill||{occ:"all",from:1,to:(M&&M.NSEM)||12,sets:"4",reps:"8",kg:"",inc:"2.5",dl:true};
+  VX85.fill[el.dataset.vx85]=el.type==="checkbox"?el.checked:el.value; const p=document.getElementById("vx85prev"); if(p) p.innerHTML=vxPreview85(VX85.fill,vxOcc85(VX85.ex)); });
+document.addEventListener("change",e=>{ const el=e.target; if(el.dataset&&el.dataset.vx85!==undefined&&(el.type==="checkbox"||el.tagName==="SELECT")){ VX85.fill=VX85.fill||{}; VX85.fill[el.dataset.vx85]=el.type==="checkbox"?el.checked:el.value; } });
+// quitter la vue par exercice quand on change d'onglet ou de client
+const _openClient85=openClient; openClient=async function(){ VX85.from=null; ES85.tgt=null; JT85.open=null; return _openClient85.apply(this,arguments); };
+document.addEventListener("click",e=>{ const t=e.target.closest&&e.target.closest("#tabs [data-act]"); if(t&&VX85.from){ VX85.from=null; } },true);
+(function(){ const st=document.createElement("style"); st.textContent=`
+body.cs85on #appTitle{cursor:pointer}body.cs85on #appTitle::after{content:" ▾";font-size:.7em;opacity:.7}
+#cs85{position:fixed;inset:0;z-index:1000}#cs85 .cs85bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+#cs85 .cs85p{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);max-width:520px;margin:0 auto;max-height:80vh;overflow:auto;background:var(--card,#fff);color:inherit;border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.cs85r{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;width:100%;text-align:left;margin:4px 0;padding:10px 12px;border-radius:12px;border:1px solid var(--line,#ddd);background:transparent;color:inherit;min-height:44px}
+.cs85r.cur{outline:2px solid var(--blue)}.cs85r.hot{border-color:#e5484d;background:rgba(229,72,77,.10)}.cs85r.warm{border-color:#f5a524;background:rgba(245,165,36,.10)}
+.cs85n{font-weight:600;flex:1 1 auto}.cs85i{flex:none}.cs85t{flex:1 1 100%;font-size:.8rem;opacity:.8}.cs85b{flex:none;background:#e5484d;color:#fff;border-radius:10px;padding:0 7px;font-size:.75rem;font-weight:700}
+.vx85t{border-collapse:collapse;width:100%;min-width:320px}.vx85t th,.vx85t td{border-top:1px solid var(--line,#ddd);padding:5px 4px;vertical-align:top;text-align:left}.vx85t th:first-child{width:52px;white-space:nowrap}
+.vx85t tr.cur{background:rgba(64,128,255,.10)}.vx85i{width:100%;min-width:90px;font-size:.8rem;padding:4px 6px}.vx85i.forced{border-color:#f5a524}.vx85i.bad{border-color:#e5484d}.vx85d{color:var(--green)}
+.vx85c{width:100%;height:auto;max-height:180px}.xm85{margin:4px 0;padding:4px 8px;border-left:3px solid var(--blue);border-radius:4px}.nf85b{margin-top:6px;width:100%}
+.vx85x{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.vx85x .chip{flex:none}`; document.head.appendChild(st); })();
+
 boot();
 
 </script>

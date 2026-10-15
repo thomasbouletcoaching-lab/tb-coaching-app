@@ -248,6 +248,39 @@ const T = {
     if (t === 'carnet' && m === 'GET' && /nu_prop/.test(path)) { const d = { data: { note: 'Plan de test', types: [{ id: 'E', meals: ms(160, 250) }, { id: 'R', meals: ms(160, 180) }] } }; return one ? d : [d]; }
   })),
 
+  'client : journée type, estimateur texte, extra rattaché à un repas, aliment ajouté à la base': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(1200); await p.evaluate(() => { ST.todayOn = false; ST.view = 'nutrition'; NU.nv = 'jour'; NU.day = todayISO(); render(); }); await p.waitForTimeout(800);
+    ok(!!(await p.$('#jt85')), 'carte « Ma journée type » affichée');
+    await p.click('[data-act="jt85-addmeal"][data-v="Collation"]'); await p.waitForTimeout(300);
+    await p.fill('[data-nuq="jtq"]', 'riz'); await p.waitForTimeout(200); await p.click('#jt85res [data-act="jt85-add"]'); await p.waitForTimeout(300);
+    ok(await p.evaluate(() => ST.carnet.nu_jt.meals.some(m => m.name === 'Collation' && m.it.length === 1)), 'repas ajouté à la journée type avec un aliment');
+    await p.click('[data-act="es85-open"][data-v="m:0"]'); await p.waitForTimeout(200);
+    await p.fill('#es85 [data-es85t]', '2 oeufs, 2 tranches de pain complet, une banane et 150 g de skyr'); await p.click('#es85 [data-act="es85-parse"]'); await p.waitForTimeout(300);
+    const r = await p.evaluate(() => ES85.res.map(x => NU.fmap[x.f].name + ' ' + x.q).join(','));
+    ok(r === 'Œuf entier 100,Pain complet 70,Banane 120,Skyr nature 150', 'description écrite → aliments et quantités (' + r + ')');
+    await p.click('#es85 [data-act="es85-apply"]'); await p.waitForTimeout(400);
+    ok(await p.evaluate(() => NU.logs[todayISO()].m[0].it.length === 4), 'repas noté depuis la description');
+    await p.click('[data-act="nu-xopen"]'); await p.waitForTimeout(300); await p.click('[data-act="xm85-mi"][data-v="1"]'); await p.waitForTimeout(200);
+    await p.fill('[data-nuq="xq"]', 'galette bretonne'); await p.waitForTimeout(200); await p.click('[data-act="nf85-new"]'); await p.waitForTimeout(300);
+    await p.fill('[data-nf85="p"]', '6'); await p.fill('[data-nf85="g"]', '60'); await p.fill('[data-nf85="l"]', '17'); await p.click('[data-act="nf85-save"]'); await p.waitForTimeout(600);
+    ok(await p.evaluate(() => { const x = NU.logs[todayISO()].x; return x.length === 1 && x[0].n === 'Galette bretonne' && x[0].mi === 1; }), 'aliment absent créé, ajouté en extra et rattaché au 2e repas');
+    ok((await p.$$('.xm85')).length === 1, "l'extra apparaît dans la carte du repas");
+  }, clientPre((sc) => (m, path, b) => { if (path.startsWith('/rest/v1/rpc/nutri_food_add')) { const f = b.f; return { id: 'new1', name: f.name, cat: f.cat, kcal: 360, p: f.p, g: f.g, l: f.l, unit: null, unit_g: null }; }
+    if (/nutri_foods/.test(path) && m === 'GET') return [{ id: 'fr', name: 'Riz basmati (cuit)', cat: 'Féculents & céréales', kcal: 130, p: 3, g: 28, l: 0.4 }, { id: 'fo', name: 'Œuf entier', cat: 'Œufs', kcal: 140, p: 12.5, g: 0.5, l: 10, unit: 'œuf', unit_g: 50 }, { id: 'fpc', name: 'Pain complet', cat: 'Pains & viennoiseries', kcal: 245, p: 9, g: 41, l: 3.3, unit: 'tranche', unit_g: 35 }, { id: 'fb', name: 'Banane', cat: 'Fruits', kcal: 90, p: 1.1, g: 20, l: 0.3, unit: 'banane', unit_g: 120 }, { id: 'fs', name: 'Skyr nature', cat: 'Produits laitiers', kcal: 60, p: 10.5, g: 4, l: 0.2, unit: 'pot', unit_g: 150 }]; })),
+
+  'coach : sélecteur de client + vue par exercice + remplissage de progression': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(id => openClient(id), sc.CID); await p.waitForTimeout(1000);
+    await p.click('#appTitle'); await p.waitForTimeout(600);
+    ok((await p.$$('#cs85 .cs85r')).length === 2, 'menu des clients ouvert depuis le prénom');
+    await p.click('#cs85 .cs85r:not(.cur)'); await p.waitForTimeout(1200);
+    ok(await p.evaluate(() => CUR === '22222222-2222-2222-2222-222222222222') && !(await p.$('#cs85')), 'bascule vers un autre client');
+    await p.evaluate(() => { ST.view = 'programme'; render(); }); await p.waitForTimeout(400);
+    await p.click('[data-act="vx85-open"]'); await p.waitForTimeout(400);
+    ok((await p.$$('.vx85t tr')).length >= 13, 'vue par exercice : une ligne par semaine');
+    await p.click('#vx85f summary'); await p.fill('[data-vx85="kg"]', '60'); await p.fill('[data-vx85="inc"]', '2,5'); await p.click('[data-act="vx85-apply"]'); await p.waitForTimeout(600);
+    ok(await p.evaluate(() => { const o = vxOcc85(VX85.ex)[0].r; return o.weeks[1].load1 === 60 && o.weeks[3].load1 === 65; }), 'progression écrite : 60 → 62,5 → 65 kg');
+  }, coachPre(sc => (m, path, b, a, t, one) => { if (t === 'clients' && m === 'GET' && !one) return [{ id: sc.CID, coach_id: sc.uid, name: 'Client Fictif', email: 'client@exemple.fr', archived: false, program: {}, nutrition: {} }, { id: '22222222-2222-2222-2222-222222222222', coach_id: sc.uid, name: 'Paul Exemple', archived: false, program: {}, nutrition: {} }]; })),
+
   'page publique : redirection vers le site': async () => {
     const b = await chromium.launch({ executablePath: EXE }); const p = await (await b.newContext()).newPage(); let target = null;
     await p.route('https://thomasbouletcoaching-lab.github.io/**', async r => { target = r.request().url(); await r.fulfill({ status: 200, contentType: 'text/html', body: '<p>site</p>' }); });
