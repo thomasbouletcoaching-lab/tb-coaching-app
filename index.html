@@ -6819,6 +6819,70 @@ body.cs85on #appTitle{cursor:pointer}body.cs85on #appTitle::after{content:" ▾"
 .vx85c{width:100%;height:auto;max-height:180px}.xm85{margin:4px 0;padding:4px 8px;border-left:3px solid var(--blue);border-radius:4px}.nf85b{margin-top:6px;width:100%}
 .vx85x{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.vx85x .chip{flex:none}`; document.head.appendChild(st); })();
 
+// ================= MODULE 86 · TECHNIQUES D'INTENSIFICATION (types de séries) =================
+// Toutes les techniques, programmables par le coach (mot-clé dans la prescription) et notables par le client
+// (bouton du numéro de série dans le carnet, exercices hors programme compris), avec leurs détails (repos entre mini-séries, reps…).
+Object.assign(TAG50,{
+  rp:{e:"⏱️",l:"Rest-pause"}, myo:{e:"🔁",l:"Myo-reps"}, cl:{e:"🧩",l:"Cluster"}, mec:{e:"🔀",l:"Dropset mécanique"},
+  fo:{e:"🤝",l:"Reps forcées"}, neg:{e:"⬇️",l:"Négatives"}, ecc:{e:"🐢",l:"Excentrique lent"}, pr:{e:"🛑",l:"Pause à chaque rep"},
+  d15:{e:"½",l:"Reps et demie"}, s21:{e:"7️⃣",l:"Série 21 (7-7-7)"}, ss:{e:"🔗",l:"Enchaînée (superset, pré-fatigue)"}, bfr:{e:"🩸",l:"Occlusion (BFR)"} });
+Object.assign(TAGTOK50,{RP:"rp",RESTPAUSE:"rp",MYO:"myo",MYOREPS:"myo",CLUSTER:"cl",CL:"cl",MECA:"mec",FORCEES:"fo","FORCÉES":"fo",FORC:"fo",
+  NEG:"neg","NÉG":"neg",EXC:"ecc",TEMPO:"ecc",PAUSE:"pr",DEMIE:"d15","21":"s21",ENCH:"ss",SUPERSET:"ss",BFR:"bfr"});
+// ordre d'affichage des boutons : du plus courant au plus rare
+const ORD86=["ech","mg","f","ds","rp","myo","cl","mec","pa","fo","neg","ecc","pr","iso","d15","s21","ch","ss","bfr"];
+// détails à noter pour chaque technique : [clé, libellé, exemple, "t" = texte]
+const DET86={
+  f:{fl:[["fr","💀 Échec à la rep n°","ex. 8"]],s:x=>x.fr?`échec à la rep ${x.fr}`:""},
+  ds:{fl:[["dk","🔻 Charges des drops","ex. 60 › 45 › 30","t"],["dr","Reps de chaque drop","ex. 6+6","t"]],note:"Enchaînée juste après, sans repos, avec une charge plus légère.",s:x=>[x.dk&&`drops ${x.dk}`,x.dr&&`reps ${x.dr}`].filter(Boolean).join(", ")},
+  rp:{fl:[["mr","⏱️ Reps des mini-séries","ex. 4+3+2","t"],["rs","Repos entre (s)","ex. 15"]],note:"Série jusqu'à l'échec (ou presque), 10 à 20 s de repos, puis on repart avec la MÊME charge. Reps de la 1re série = colonne Reps.",s:x=>[x.mr&&`+ ${x.mr}`,x.rs&&`repos ${x.rs} s`].filter(Boolean).join(" · ")},
+  myo:{fl:[["mr","🔁 Reps des mini-séries","ex. 5+5+4+3","t"],["rs","Repos entre (s)","ex. 15"]],note:"Série d'activation (colonne Reps), puis mini-séries courtes avec la MÊME charge et 3 à 5 respirations de repos.",s:x=>[x.mr&&`myo ${x.mr}`,x.rs&&`repos ${x.rs} s`].filter(Boolean).join(" · ")},
+  cl:{fl:[["mr","🧩 Blocs de reps","ex. 2+2+2","t"],["rs","Repos entre (s)","ex. 20"]],note:"Série découpée en petits blocs avec de courts repos, même charge (souvent lourde).",s:x=>[x.mr&&`blocs ${x.mr}`,x.rs&&`repos ${x.rs} s`].filter(Boolean).join(" · ")},
+  mec:{fl:[["dv","🔀 Variantes enchaînées","ex. incliné › plat › décliné","t"],["dr","Reps de chaque variante","ex. 8+6+6","t"]],note:"Même charge, on passe sans repos à une variante plus facile.",s:x=>[x.dv,x.dr&&`reps ${x.dr}`].filter(Boolean).join(" · ")},
+  pa:{fl:[["pa","✂️ Partielles en plus","ex. 4"]],note:"Reps complètes = colonne Reps.",s:x=>x.pa?`+${x.pa} partielle${x.pa>1?"s":""}`:""},
+  fo:{fl:[["fo","🤝 Reps aidées","ex. 2"]],note:"Reps supplémentaires avec l'aide d'un partenaire après l'échec.",s:x=>x.fo?`+${x.fo} forcée${x.fo>1?"s":""}`:""},
+  neg:{fl:[["ng","⬇️ Négatives","ex. 3"],["ns","Descente (s)","ex. 4"]],note:"Charge montée avec aide, descente contrôlée seul.",s:x=>[x.ng&&`${x.ng} négative${x.ng>1?"s":""}`,x.ns&&`${x.ns} s`].filter(Boolean).join(" · ")},
+  ecc:{fl:[["es","🐢 Descente (s)","ex. 4"]],s:x=>x.es?`descente ${x.es} s`:""},
+  pr:{fl:[["ps","🛑 Pause (s)","ex. 2"],["pp","Position","ex. en bas","t"]],s:x=>[x.ps&&`pause ${x.ps} s`,x.pp].filter(Boolean).join(" ")},
+  iso:{custom:true,s:x=>(x.is||x.ip)?`iso ${x.ip||""} ${x.is?x.is+" s":""}${x.ir?" à la rep "+x.ir:""}`.replace(/\s+/g," ").trim():""},
+  ch:{fl:[["ch","😈 Reps en trichant","ex. 2"]],s:x=>x.ch?`+${x.ch} trichée${x.ch>1?"s":""}`:""},
+  ss:{fl:[["sw","🔗 Enchaînée avec","ex. Élévations latérales","t"]],note:"Superset, biset, pré-fatigue ou post-fatigue : enchaînée sans repos avec un autre exercice.",s:x=>x.sw?`avec ${x.sw}`:""},
+  d15:{note:"Une rep complète + une demi-rep = 1 rep.",s:()=>""}, s21:{note:"7 reps en bas, 7 en haut, 7 complètes.",s:()=>""},
+  bfr:{note:"Garrots ou bandes d'occlusion : charges légères (20 à 40 % du 1RM), séries longues.",s:()=>""},
+  ech:{note:"♨️ Ne compte pas dans le volume.",s:()=>""}, mg:{s:()=>""} };
+const ordTags86=t=>ORD86.filter(k=>t.includes(k)).concat(t.filter(k=>!ORD86.includes(k)));
+setDetail50=function(x){ const t=x.t||[]; return ordTags86(t).map(k=>DET86[k]&&DET86[k].s?DET86[k].s(x):"").filter(Boolean).join(" · "); };
+function detFields86(t,x,an,pre){ const A=(k,ty)=>`${an}="${pre}|${k}|${ty||"n"}"`; const inp=(k,lab,ph,ty)=>`<label class="f" style="flex:1 1 ${ty==="t"?"150px":"90px"}">${lab}<input class="si" inputmode="${ty==="t"?"text":"decimal"}" ${A(k,ty)} value="${esc(x[k]??"")}" placeholder="${ph||""}" autocomplete="off"></label>`;
+  return ordTags86(t).map(k=>{ const D=DET86[k]; if(!D) return "";
+    if(k==="iso") return `<div class="row"><label class="f" style="flex:1 1 90px">⏸️ Position<select ${A("ip","t")}><option value="">—</option>${["en haut","en bas","à mi-course"].map(o=>`<option ${x.ip===o?"selected":""}>${o}</option>`).join("")}</select></label>${inp("is","Durée (s)","ex. 5")}${inp("ir","À la rep n°","ex. 6")}</div>`;
+    return `${D.fl?`<div class="row">${D.fl.map(f=>inp(...f)).join("")}</div>`:""}${D.note?`<div class="muted small">${TAG50[k]?TAG50[k].e+" ":""}${esc(D.note)}</div>`:""}`; }).join(""); }
+const ST86={all:false}, TOP86=["ech","mg","f","ds","rp","myo"];
+function tagChips86(t,act,pre){ const L=ORD86.filter(k=>TAG50[k]&&(ST86.all||TOP86.includes(k)||t.includes(k)));
+  return `<div class="row tg86" style="gap:6px;margin:6px 0">${L.map(k=>`<button class="chip ${t.includes(k)?"on":""}" data-act="${act}" data-v="${pre}|${k}">${TAG50[k].e} ${TAG50[k].l}</button>`).join("")}<button class="chip ghost" data-act="st86-all">${ST86.all?"− Moins de techniques":"＋ Autres techniques ("+(ORD86.length-L.length)+")"}</button></div>`; }
+document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="st86-all"]'); if(!b) return; e.stopImmediatePropagation(); ST86.all=!ST86.all; render(); },true);
+setEditor50=function(key,i){ const v=ST.carnet[key]||{}, x=(v.sets&&v.sets[i])||{}, t=tagsOf50(key,i);
+  return `<div class="edit st50"><div class="row" style="justify-content:space-between"><b>Série ${i+1} : technique</b><button class="ghost sm" data-act="st-open" data-v="">Fermer</button></div>
+    <div class="muted small">Touche une ou plusieurs techniques, puis note les détails.</div>${tagChips86(t,"st-tag",key+"|"+i)}${detFields86(t,x,"data-st86",key+"|"+i)}</div>`; };
+// enregistrement des détails (carnet du programme)
+document.addEventListener("change",e=>{ const el=e.target, ds=el.dataset||{}; if(ds.st86===undefined) return; e.stopImmediatePropagation();
+  const [key,i,f,ty]=ds.st86.split("|"); const c=ensureSets(key); while(c.sets.length<=+i) c.sets.push({}); const x=c.sets[+i]; const val=String(el.value).trim();
+  if(ty==="t"){ if(val) x[f]=val.slice(0,80); else delete x[f]; } else { const n=parseFloat(val.replace(",",".")); if(isNaN(n)) delete x[f]; else x[f]=n; }
+  saveCarnet(key); render(); },true);
+// exercices hors programme : mêmes techniques et détails
+hxSetEditor70=(function(o){ return function(key,li,i){ let h=o(key,li,i); const x=((ST.carnet[key]||{}).list||[])[li]; const s=x&&x.sets&&x.sets[i]; if(!s) return h; const t=s.t||[];
+  h=h.replace(/<div class="row" style="gap:6px;margin:6px 0">[\s\S]*?<\/div>\s*<label class="f">📝 Note sur cette série/,()=>tagChips86(t,"hx-tag",`${key}|${li}|${i}`)+detFields86(t,s,"data-hx86",`${key}|${li}|${i}`)+`<label class="f">📝 Note sur cette série`);
+  return h; }; })(hxSetEditor70);
+document.addEventListener("change",e=>{ const el=e.target, ds=el.dataset||{}; if(ds.hx86===undefined) return; e.stopImmediatePropagation();
+  const [key,li,i,f,ty]=ds.hx86.split("|"); const o=hxGet70(key), x=o.list[+li]; if(!x||!x.sets||!x.sets[+i]) return; const s=x.sets[+i], val=String(el.value).trim();
+  if(ty==="t"){ if(val) s[f]=val.slice(0,80); else delete s[f]; } else { const n=parseFloat(val.replace(",",".")); if(isNaN(n)) delete s[f]; else s[f]=n; }
+  saveCarnet(key); render(); },true);
+// hors programme : détail affiché sous la série
+hxHTML=(function(o){ return function(S,w){ let h=o(S,w); const key=hxKey(w,S.s), L=(ST.carnet[key]||{}).list||[];
+  L.forEach((x,li)=>(x.sets||[]).forEach((s,i)=>{ const det=setDetail50(s); if(!det) return; const mk=`data-act="hx-set" data-v="${key}|${li}|${i}" aria-label="Série ${i+1} : type, note, vidéo">`; const j=h.indexOf(mk); if(j<0) return; const e2=h.indexOf("</button>",j)+9; h=h.slice(0,e2)+`<div class="det50">${esc(det)}</div>`+h.slice(e2); }));
+  return h; }; })(hxHTML);
+// aide de la saisie coach (Programme)
+vProgramme=(function(o){ return function(){ return o().replace("TRICHE (😈 reps trichées).","TRICHE (😈 reps trichées), RP (⏱️ rest-pause), MYO (🔁 myo-reps), CLUSTER (🧩), MECA (🔀 dropset mécanique), FORCEES (🤝 reps forcées), NEG (⬇️ négatives), EXC (🐢 excentrique lent), PAUSE (🛑 pause à chaque rep), DEMIE (½ reps et demie), 21 (7️⃣ série 21), ENCH (🔗 enchaînée / superset), BFR (🩸 occlusion). Ex. : 1x12@RPE9 MYO, 1x8 RP. Le client note ensuite le détail (repos, mini-séries…) dans son carnet."); }; })(vProgramme);
+(function(){ const st=document.createElement("style"); st.textContent=`.tg86{max-height:none}.tg86 .chip{font-size:.8rem}`; document.head.appendChild(st); })();
+
 boot();
 
 </script>

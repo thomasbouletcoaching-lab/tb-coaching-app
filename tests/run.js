@@ -281,6 +281,20 @@ const T = {
     ok(await p.evaluate(() => { const o = vxOcc85(VX85.ex)[0].r; return o.weeks[1].load1 === 60 && o.weeks[3].load1 === 65; }), 'progression écrite : 60 → 62,5 → 65 kg');
   }, coachPre(sc => (m, path, b, a, t, one) => { if (t === 'clients' && m === 'GET' && !one) return [{ id: sc.CID, coach_id: sc.uid, name: 'Client Fictif', email: 'client@exemple.fr', archived: false, program: {}, nutrition: {} }, { id: '22222222-2222-2222-2222-222222222222', coach_id: sc.uid, name: 'Paul Exemple', archived: false, program: {}, nutrition: {} }]; })),
 
+  'client : techniques d’intensification (rest-pause avec repos) + coach : MYO dans la prescription': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(800); await p.evaluate(() => { ST.todayOn = false; ST.view = 'carnet'; render(); window.scrollTo(0, 0); }); await p.waitForTimeout(400);
+    const b = await p.$('[data-act="st-open"]'); await b.scrollIntoViewIfNeeded(); await b.click(); await p.waitForTimeout(300);
+    await p.click('.st50 [data-act="st86-all"]'); await p.waitForTimeout(300); ok((await p.$$('.st50 [data-act="st-tag"]')).length >= 19, 'toutes les techniques proposées au client');
+    await p.click('.st50 [data-act="st-tag"][data-v$="|rp"]'); await p.waitForTimeout(300);
+    await p.fill('.st50 [data-st86$="|mr|t"]', '4+3+2'); await p.dispatchEvent('.st50 [data-st86$="|mr|t"]', 'change'); await p.waitForTimeout(200);
+    await p.fill('.st50 [data-st86$="|rs|n"]', '15'); await p.dispatchEvent('.st50 [data-st86$="|rs|n"]', 'change'); await p.waitForTimeout(300);
+    const x = await p.evaluate(() => { const k = Object.keys(ST.carnet).find(k => (ST.carnet[k].sets || []).some(s => s.t && s.t.includes('rp'))); const s = ST.carnet[k].sets.find(s => s.t && s.t.includes('rp')); return { mr: s.mr, rs: s.rs, det: setDetail50(s) }; });
+    ok(x.mr === '4+3+2' && x.rs === 15, 'mini-séries et repos enregistrés');
+    ok(/4\+3\+2/.test(await txt(p, '.det50')) && /repos 15 s/.test(x.det), 'détail affiché sous la série (' + x.det + ')');
+    const pb = await p.evaluate(() => { const r = parsePrescription('1x12@RPE9 MYO + 1x8 RP'); return r.valid && r.blocks[0].tags[0] === 'myo' && r.blocks[1].tags[0] === 'rp'; });
+    ok(pb, 'prescription coach « 1x12@RPE9 MYO + 1x8 RP » reconnue');
+  }, clientPre()),
+
   'page publique : redirection vers le site': async () => {
     const b = await chromium.launch({ executablePath: EXE }); const p = await (await b.newContext()).newPage(); let target = null;
     await p.route('https://thomasbouletcoaching-lab.github.io/**', async r => { target = r.request().url(); await r.fulfill({ status: 200, contentType: 'text/html', body: '<p>site</p>' }); });
