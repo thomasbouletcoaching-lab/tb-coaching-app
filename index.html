@@ -1162,7 +1162,7 @@ async function bzEnsure(force){ if((BZ.loaded&&!force)||BZ.busy) return; BZ.busy
   const [s,c,p]=await Promise.all([SB.from("biz_settings").select("data").eq("coach_id",UID).maybeSingle(),SB.from("biz_contracts").select("*").order("start",{ascending:false}),SB.from("biz_payments").select("*").order("due")]);
   BZ.busy=false; BZ.loaded=true; if(c.error||p.error){ BZ.err=true; toast("Business : "+((c.error||p.error).message)); render(); return; } BZ.err=false;
   BZ.set=(s.data&&s.data.data)||{}; BZ.contracts=c.data||[]; BZ.pays=p.data||[]; BZ.loaded=true; render(); }
-const bzDef=()=>Object.assign({name:"Thomas Boulet EI",tva:"TVA non applicable, article 293 B du CGI",offer:"Coaching Méthode Charpente, cycle de 12 semaines",price:1600,weeks:12},BZ.set);
+const bzDef=()=>Object.assign({name:"Thomas Boulet EI",tva:"TVA non applicable, article 293 B du CGI",offer:"Coaching Méthode Charpente, cycle de 12 semaines",price:1620,weeks:12},BZ.set);
 async function bzSaveSet(){ const {error}=await SB.from("biz_settings").upsert({coach_id:UID,data:BZ.set,updated_at:new Date().toISOString()}); if(error) toast("Réglages non enregistrés : "+error.message); else toast("Enregistré"); }
 const cEnd=c=>addDays(c.start,(c.weeks||12)*7);
 function vBiz(){ if(!BZ.loaded){ bzEnsure(); return `<div class="card">Chargement…</div>`; }
@@ -1360,7 +1360,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   else if(a==="bz-onego"){ const O=BZ.one, c=CLIENTS.find(x=>x.id===O.cid), amt=+String(O.amount).replace(",","."); const name=(c&&c.name)||(O.name||"").trim();
     if(!name||!(amt>0)||!O.label.trim()) return toast("Client, libellé et montant sont nécessaires");
     const {error}=await SB.from("biz_payments").insert({client_id:c?c.id:null,client_name:name,label:O.label.trim(),amount:amt,due:O.due||todayISO()}); if(error) return toast(error.message); BZ.one=null; BZ.filt="tous"; await bzEnsure(true); toast("Ajouté : marque-le payé quand tu as reçu l'argent"); }
-  else if(a==="bz-cnew"){ const d=bzDef(); BZ.form=v==="close"?null:{cid:"",start:todayISO(),label:d.offer,price:+d.price||1600,n:3,weeks:+d.weeks||12,address:""}; }
+  else if(a==="bz-cnew"){ const d=bzDef(); BZ.form=v==="close"?null:{cid:"",start:todayISO(),label:d.offer,price:+d.price||1620,n:3,weeks:+d.weeks||12,address:""}; }
   else if(a==="bz-renew"){ const c=BZ.contracts.find(x=>x.id===v), d=bzDef(); BZ.tab="contrats"; BZ.form={renew:1,cid:c.client_id||"",start:cEnd(c)>todayISO()?cEnd(c):todayISO(),label:c.label,price:+c.price,n:c.n,weeks:c.weeks,address:c.address||""}; window.scrollTo(0,0); }
   else if(a==="bz-cgo"){ const F=BZ.form, c=CLIENTS.find(x=>x.id===F.cid); if(!c) return toast("Choisis un client"); if(!(F.price>0)) return toast("Prix invalide");
     const {data,error}=await SB.from("biz_contracts").insert({client_id:c.id,client_name:c.name,address:F.address||null,label:F.label,start:F.start,weeks:F.weeks||12,price:F.price,n:F.n}).select().single(); if(error) return toast(error.message);
@@ -3266,7 +3266,7 @@ async function cgLoad(cid){ if(CG.busy||!cid) return; CG.busy=true; const {data,
   CG.busy=false; if(CUR!==cid) return; CG.cid=cid; CG.rows=error?[]:(data||[]); if(error) console.error(error); scheduleRender(); }
 const cgCur=()=>CG.cid===CUR&&CG.rows?CG.rows.find(r=>r.version===CGV.v)||null:undefined;
 function vCgv(){ return `<h2>Conditions générales</h2><div class="card"><p>Avant de continuer, prends connaissance des conditions générales de vente du coaching (version ${esc(CGV.v)}). L'essentiel :</p>
-  <ul class="small"><li>Cycle de 12 semaines à distance via l'app, 1 600 € (TVA non applicable).</li><li>Obligation de moyens : aucun résultat chiffré n'est garanti, la progression dépend de facteurs individuels.</li>
+  <ul class="small"><li>Cycle de 12 semaines à distance via l'app, 1 620 € réglés en 3 mensualités de 540 € (TVA non applicable).</li><li>Obligation de moyens : aucun résultat chiffré n'est garanti, la progression dépend de facteurs individuels.</li>
   <li>Le coaching n'est pas un suivi médical : signale toute douleur, blessure ou traitement, et consulte un médecin en cas de doute.</li><li>Droit de rétractation de 14 jours (contrat à distance) ; sans demande de ta part, le cycle ne commence pas avant la fin de ce délai.</li><li>Programmes réservés à ton usage personnel.</li></ul>
   <p><a href="${CGV.url}" target="_blank" rel="noopener">Lire les conditions générales complètes</a></p>
   <label class="row" style="gap:10px;align-items:flex-start;flex-wrap:nowrap;cursor:pointer"><input type="checkbox" id="cg-ck" ${CG.ck?"checked":""} style="width:20px;height:20px;flex:0 0 auto;margin-top:3px"><span>J'ai lu et j'accepte les conditions générales de vente (version ${esc(CGV.v)}).</span></label>
@@ -6955,7 +6955,7 @@ const P88={me:null,list:null,busy:false,err:"",chk:null,terms:false,iv:"year",of
 const PLAN88={free:"Gratuit",premium:"Premium",light:"Coaching léger",coaching:"Coaching"};
 const STAT88={active:"actif",trialing:"essai gratuit",past_due:"paiement en retard",canceled:"résilié",incomplete:"paiement non finalisé",unpaid:"impayé"};
 const sub88=()=>(P88.me&&P88.me.sub)||null;
-const price88=()=>Object.assign({premium_month:9.99,premium_year:59.99,light_month:89,coaching:1600,trial_days:7},(P88.me&&P88.me.prices)||{});
+const price88=()=>Object.assign({premium_month:9.99,premium_year:59.99,light_month:89,coaching:1620,coaching_month:540,trial_days:7},(P88.me&&P88.me.prices)||{});
 const ready88=()=>!!(P88.me&&P88.me.stripe_ready===true);
 function tier88(){ const s=sub88(); if(!ST.solo) return s&&s.plan==="light"?"light":"coaching";
   if(s&&s.plan==="premium"&&["active","trialing","past_due"].includes(s.status)&&(!s.period_end||new Date(s.period_end).getTime()>Date.now()-3*864e5)) return "premium";
@@ -6993,7 +6993,7 @@ function offers88(ctx){ const P=price88(), t=ctx==="start"?null:tier88(), s=sub8
   h+=card("free","Gratuit","0 €",["Ton programme de départ, généré à partir de ton questionnaire","Carnet d'entraînement, chronos de récupération, records","Suivi du poids et des mensurations","Journal alimentaire simple"],ctx==="start"?"":"");
   h+=card("premium","Premium",`${fmtE(P.premium_month)} / mois`,[`Tout le gratuit, et les outils du coach sur ton propre dossier`,"Modifier ou régénérer ton programme, banque de programmes, surcharge progressive automatique","Vue par exercice : tout le travail prévu semaine par semaine","Plan alimentaire calculé, estimateur de repas (texte ou voix)",`ou ${fmtE(P.premium_year)} / an · ${P.trial_days} jours d'essai`],premBtn,true);
   h+=card("light","Coaching léger",`${fmtE(P.light_month)} / mois`,["Thomas construit et ajuste ton programme et ton plan","Messagerie avec ton coach dans l'app","Un bilan régulier de ta progression","Sans engagement : résiliable chaque mois"],lightBtn);
-  h+=card("coaching","Coaching",`${fmtE(P.coaching).replace(",00","")} / 12 sem.`,["Suivi complet et personnalisé sur 12 semaines","Ajustements réguliers, cadre méthodologique clair","Sur candidature : places limitées"],`<a class="chip" style="display:inline-block;margin-top:6px;padding:8px 14px" href="coaching.html" target="_blank" rel="noopener">Candidater</a>`);
+  h+=card("coaching","Coaching",`${fmtE(P.coaching_month||540).replace(",00","")} / mois`,["Suivi complet et personnalisé sur 12 semaines",`3 mensualités, soit ${fmtE(P.coaching||1620).replace(",00","")} au total`,"Ajustements réguliers, cadre méthodologique clair","Sur candidature : places limitées"],`<a class="chip" style="display:inline-block;margin-top:6px;padding:8px 14px" href="coaching.html" target="_blank" rel="noopener">Candidater</a>`);
   if(can&&paid) h+=`<div class="card"><h3 style="margin-top:0">Mon abonnement</h3><p class="small">${esc(PLAN88[s.plan]||s.plan)} · ${esc(STAT88[s.status]||s.status)}${s.period_end?` · ${s.cancel_at_period_end?"se termine le":"prochain renouvellement le"} ${frD88(s.period_end)}`:""}</p><button class="ghost" data-act="p88-portal">Gérer mon abonnement (carte, factures, résiliation)</button></div>`;
   else if(can&&s&&s.source==="manual"&&s.plan!=="free") h+=`<p class="muted small">Formule offerte par ton coach${s.period_end?` jusqu'au ${frD88(s.period_end)}`:""}.</p>`;
   h+=`<p class="note">Aucune formule ne garantit un résultat chiffré : la progression dépend de facteurs individuels (régularité, récupération, historique…).</p>`;
