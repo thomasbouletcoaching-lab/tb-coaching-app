@@ -1,4 +1,4 @@
-const C="tb-v67";
+const C="tb-v68";
 self.addEventListener("install",e=>{ e.waitUntil(caches.open(C).then(c=>c.addAll(["./","./index.html","./manifest.webmanifest","./icon-192.png"]).catch(()=>{}))); self.skipWaiting(); });
 self.addEventListener("activate",e=>{ e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x))))); self.clients.claim(); });
 self.addEventListener("fetch",e=>{ const r=e.request; if(r.method!=="GET") return; const u=new URL(r.url);
@@ -11,8 +11,9 @@ self.addEventListener("push",e=>{ let d={}; try{ d=e.data?e.data.json():{}; }cat
   const kind=d.kind||d.tag||"info", tag=kind==="message"||kind==="lead"?kind+"-"+(d.at||Date.now()):kind;
   e.waitUntil(self.registration.showNotification(d.title||"TB my Coach",{body:d.body||"",icon:"icon-192.png",badge:"icon-192.png",tag,renotify:true,silent:false,
       vibrate:[200,100,200],timestamp:d.at||Date.now(),data:{url:d.url||"./",kind}})
+    .then(()=>self.clients.matchAll({type:"window",includeUncontrolled:true})).then(ws=>{ ws.forEach(w=>{ try{ w.postMessage({type:"push",kind}); }catch(err){} }); }) // l'app ouverte met à jour son centre de notifications
     .then(()=>self.registration.getNotifications()).then(ns=>{ // pastille sur l'icône de l'app (écran d'accueil)
       if(self.navigator&&self.navigator.setAppBadge) return self.navigator.setAppBadge(Math.max(1,ns.length)).catch(()=>{}); }).catch(()=>{})); });
 self.addEventListener("notificationclick",e=>{ e.notification.close(); const url=new URL((e.notification.data&&e.notification.data.url)||"./",self.registration.scope).href;
-  e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(ws=>{ for(const w of ws){ if(w.url.startsWith(self.registration.scope)&&"focus" in w) return w.focus(); } return self.clients.openWindow(url); })); });
+  e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(ws=>{ for(const w of ws){ if(w.url.startsWith(self.registration.scope)&&"focus" in w){ try{ w.postMessage({type:"open",url}); }catch(err){} return w.focus(); } } return self.clients.openWindow(url); })); });
 self.addEventListener("message",e=>{ if(e.data==="clear-badge"){ e.waitUntil(self.registration.getNotifications().then(ns=>ns.forEach(n=>n.close())).then(()=>self.navigator&&self.navigator.clearAppBadge?self.navigator.clearAppBadge().catch(()=>{}):null)); } });

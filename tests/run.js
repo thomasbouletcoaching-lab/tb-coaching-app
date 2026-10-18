@@ -295,6 +295,24 @@ const T = {
     ok(pb, 'prescription coach « 1x12@RPE9 MYO + 1x8 RP » reconnue');
   }, clientPre()),
 
+  'coach : centre de notifications avec le texte des messages': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1500); ok(!(await p.$eval('#nc87b', x => x.hidden)), 'cloche 🔔 dans l’en-tête');
+    await p.click('#nc87b'); await p.waitForTimeout(900);
+    const r = await p.$$eval('#nc87 .nc87r', a => a.map(x => x.className + '|' + x.innerText.replace(/\s+/g, ' ')));
+    ok(r.length === 2 && /new/.test(r[0]) && /douleur au genou/.test(r[0]) && /Paul Exemple/.test(r[0]), 'message lisible sans ouvrir, non lu en évidence');
+    ok(/Vidéo · Squat/.test(r[1]), 'vidéo annoncée avec son exercice');
+    await p.click('#nc87 .nc87r.new'); await p.waitForTimeout(1500);
+    ok(await p.evaluate(() => CUR === '22222222-2222-2222-2222-222222222222' && MSG.open) && !(await p.$('#nc87')), 'toucher le message ouvre la conversation du client');
+  }, coachPre(sc => (m, path, b, a, t, one) => { const C2 = '22222222-2222-2222-2222-222222222222';
+    if (t === 'clients' && m === 'GET' && !one) return [{ id: sc.CID, coach_id: sc.uid, name: 'Client Fictif', email: 'client@exemple.fr', archived: false, program: {}, nutrition: {} }, { id: C2, coach_id: sc.uid, name: 'Paul Exemple', archived: false, program: {}, nutrition: {} }];
+    if (t === 'messages' && m === 'GET' && /from_coach=eq.false/.test(path) && /order=created_at/.test(path)) return [{ id: 'm1', client_id: C2, body: "J'ai une douleur au genou depuis la séance d'hier", media: null, created_at: new Date(Date.now() - 4 * 60e3).toISOString(), read_at: null, from_coach: false }, { id: 'm2', client_id: sc.CID, body: null, media: [{ type: 'video', path: 'x.mp4' }], ref: 'Squat · S2', created_at: new Date(Date.now() - 3 * 3600e3).toISOString(), read_at: '2026-10-18T08:00:00Z', from_coach: false }]; })),
+
+  'client : notification de message → conversation ouverte directement': () => run('client', async (p) => {
+    await p.waitForTimeout(1200); await p.evaluate(() => ncFromUrl87('./?msg=1')); await p.waitForTimeout(1200);
+    ok(await p.evaluate(() => MSG.open), 'la conversation avec le coach s’ouvre');
+    ok(!(await p.$eval('#nc87b', x => x.hidden)), 'cloche aussi côté client');
+  }, clientPre()),
+
   'page publique : redirection vers le site': async () => {
     const b = await chromium.launch({ executablePath: EXE }); const p = await (await b.newContext()).newPage(); let target = null;
     await p.route('https://thomasbouletcoaching-lab.github.io/**', async r => { target = r.request().url(); await r.fulfill({ status: 200, contentType: 'text/html', body: '<p>site</p>' }); });

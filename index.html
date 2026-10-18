@@ -6883,6 +6883,69 @@ hxHTML=(function(o){ return function(S,w){ let h=o(S,w); const key=hxKey(w,S.s),
 vProgramme=(function(o){ return function(){ return o().replace("TRICHE (😈 reps trichées).","TRICHE (😈 reps trichées), RP (⏱️ rest-pause), MYO (🔁 myo-reps), CLUSTER (🧩), MECA (🔀 dropset mécanique), FORCEES (🤝 reps forcées), NEG (⬇️ négatives), EXC (🐢 excentrique lent), PAUSE (🛑 pause à chaque rep), DEMIE (½ reps et demie), 21 (7️⃣ série 21), ENCH (🔗 enchaînée / superset), BFR (🩸 occlusion). Ex. : 1x12@RPE9 MYO, 1x8 RP. Le client note ensuite le détail (repos, mini-séries…) dans son carnet."); }; })(vProgramme);
 (function(){ const st=document.createElement("style"); st.textContent=`.tg86{max-height:none}.tg86 .chip{font-size:.8rem}`; document.head.appendChild(st); })();
 
+// ================= MODULE 87 · CENTRE DE NOTIFICATIONS (🔔) + ouverture directe de la conversation depuis une notification =================
+// Coach : derniers messages de tous les clients (texte visible sans ouvrir) + points à traiter. Client : messages du coach.
+// Les notifications push affichent l'expéditeur et le début du message (réglable : user_metadata.push_preview).
+const NC87={open:false,list:null,busy:false,at:0,unread:0,prev:null};
+const ncMedia87=m=>{ const t=(m.media&&m.media[0]&&m.media[0].type)||""; return t==="video"?"🎥 Vidéo":/image|photo/.test(t)?"📷 Photo":t==="audio"?"🎤 Message vocal":""; };
+const ncText87=m=>{ const b=String(m.body||"").trim(); const md=ncMedia87(m); return b||(md?md+(m.ref?" · "+m.ref:""):"Message"); };
+function ncWhen87(iso){ const d=new Date(iso), now=new Date(), s=(now-d)/1000; if(s<60) return "à l'instant"; if(s<3600) return `il y a ${Math.floor(s/60)} min`;
+  const hm=d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}); if(d.toDateString()===now.toDateString()) return hm;
+  const y=new Date(now); y.setDate(now.getDate()-1); if(d.toDateString()===y.toDateString()) return "hier "+hm; return d.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})+" "+hm; }
+const ncName87=id=>{ const c=(typeof CLIENTS!=="undefined"?CLIENTS:[]).find(x=>x.id===id); return c?c.name:"Client"; };
+async function ncLoad87(force){ if(!SB||!UID||NC87.busy||!ST.ready) return; if(!force&&NC87.list&&Date.now()-NC87.at<30000) return; NC87.busy=true;
+  try{ const isC=coach(); let q=SB.from("messages").select("id,client_id,body,media,ref,created_at,read_at,from_coach").order("created_at",{ascending:false}).limit(40);
+    q=isC?q.eq("from_coach",false):q.eq("from_coach",true); if(!isC&&CUR) q=q.eq("client_id",CUR);
+    let c=SB.from("messages").select("id",{count:"exact",head:true}).is("read_at",null); c=isC?c.eq("from_coach",false):c.eq("from_coach",true); if(!isC&&CUR) c=c.eq("client_id",CUR);
+    const [r1,r2]=await Promise.all([q,c]); if(!r1.error){ NC87.list=r1.data||[]; NC87.at=Date.now(); } if(!r2.error&&r2.count!=null) NC87.unread=r2.count; else if(NC87.list) NC87.unread=NC87.list.filter(m=>!m.read_at).length;
+    if(NC87.prev==null){ const {data}=await SB.auth.getUser(); NC87.prev=!(data&&data.user&&data.user.user_metadata&&data.user.user_metadata.push_preview===false); } }catch(e){}
+  NC87.busy=false; ncBtn87(); if(NC87.open) ncRender87(); }
+function ncBtn87(){ const h=document.querySelector("header.top"); if(!h) return; let b=document.getElementById("nc87b");
+  if(!b){ b=document.createElement("button"); b.id="nc87b"; b.className="role nc87b"; b.type="button"; b.setAttribute("aria-label","Notifications"); const rb=document.getElementById("roleBtn"); h.insertBefore(b,rb?rb.nextSibling:h.firstChild); }
+  const show=!!(UID&&ST.ready&&!["auth","setup"].includes(ST.view)); b.hidden=!show; const n=NC87.unread;
+  b.innerHTML=`🔔${n?`<span class="nc87n">${n>99?"99+":n}</span>`:""}`; b.setAttribute("aria-label",n?`Notifications : ${n} non lue${n>1?"s":""}`:"Notifications"); }
+function ncRender87(){ let el=document.getElementById("nc87"); if(!NC87.open){ if(el) el.remove(); return; }
+  if(!el){ el=document.createElement("div"); el.id="nc87"; document.body.appendChild(el); } const isC=coach(), L=NC87.list;
+  let h=`<div class="cs85bg" data-act="nc87-close"></div><div class="cs85p nc87p" role="dialog" aria-label="Notifications"><div class="row" style="flex-wrap:nowrap;align-items:center;gap:6px"><b class="grow" style="font-size:1.1rem">🔔 Notifications</b>${NC87.unread?`<button class="ghost sm" data-act="nc87-allread">Tout marquer comme lu</button>`:""}<button class="ghost sm" data-act="nc87-close" aria-label="Fermer">✕</button></div>`;
+  h+=`<div class="nc87s">${isC?"Messages des clients":"Messages de ton coach"}</div>`;
+  if(!L) h+=`<div class="muted small" style="padding:8px 2px">Chargement…</div>`;
+  else if(!L.length) h+=`<div class="muted small" style="padding:8px 2px">Aucun message pour l'instant.</div>`;
+  else h+=L.map(m=>{ const t=ncText87(m), long=t.length>260; return `<button class="nc87r${m.read_at?"":" new"}" data-act="nc87-go" data-v="${esc(m.client_id)}"><span class="nc87h"><b>${esc(isC?ncName87(m.client_id):"Ton coach")}</b><span class="nc87w">${esc(ncWhen87(m.created_at))}</span></span><span class="nc87t">${esc(long?t.slice(0,257)+"…":t)}</span>${m.body&&ncMedia87(m)?`<span class="nc87w">${esc(ncMedia87(m))}</span>`:""}</button>`; }).join("");
+  if(isC){ let T=[]; try{ T=todoItems().filter(x=>!/:msg$/.test(x.k)); }catch(e){}
+    if(T.length) h+=`<div class="nc87s">À traiter</div>`+T.slice(0,12).map(x=>`<div class="row tdr nc87td" style="padding:6px 0;border-top:1px solid var(--line);flex-wrap:nowrap;gap:8px;align-items:center">${x.h}</div>`).join(""); }
+  h+=`<label class="row small nc87pv" style="gap:8px;margin-top:12px;align-items:flex-start"><input type="checkbox" id="nc87pv" style="width:auto;margin-top:3px" ${NC87.prev!==false?"checked":""}><span>Afficher le contenu des messages dans les notifications du téléphone<br><span class="muted">Décoche si d'autres personnes voient ton écran verrouillé : la notification dira seulement « Nouveau message ».</span></span></label></div>`;
+  el.innerHTML=h; }
+async function ncOpen87(){ NC87.open=true; ncRender87(); await ncLoad87(true); try{ if(coach()&&!TD.data) await loadTodo(); if(coach()&&!OV.data) await loadOverview(); }catch(e){} ncRender87(); }
+async function ncGo87(cid){ NC87.open=false; ncRender87(); if(!cid) return;
+  if(coach()){ if(CUR!==cid){ await openClient(cid); } try{ OV.at=0; TD.at=0; }catch(e){} } window.scrollTo(0,0); render(); await msgOpen(); setTimeout(()=>ncLoad87(true),1500); }
+document.addEventListener("click",async e=>{ const t=e.target;
+  if(t.closest&&t.closest("#nc87b")){ e.preventDefault(); return ncOpen87(); }
+  if(t.closest&&t.closest("#nc87 [data-act='td-go']")){ NC87.open=false; setTimeout(ncRender87,0); return; }
+  const b=t.closest&&t.closest('[data-act^="nc87-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act;
+  if(a==="nc87-close"){ NC87.open=false; return ncRender87(); }
+  if(a==="nc87-go") return ncGo87(b.dataset.v);
+  if(a==="nc87-allread"){ let q=SB.from("messages").update({read_at:new Date().toISOString()}).is("read_at",null); q=coach()?q.eq("from_coach",false):q.eq("from_coach",true).eq("client_id",CUR);
+    const {error}=await q; if(error) return toast("Impossible : "+error.message); try{ if(OV.data) Object.values(OV.data).forEach(o=>o.unread=0); }catch(err){} await ncLoad87(true); try{ navigator.serviceWorker&&navigator.serviceWorker.controller&&navigator.serviceWorker.controller.postMessage("clear-badge"); }catch(err){} return toast("Tout est marqué comme lu"); } },true);
+document.addEventListener("change",async e=>{ if(!e.target||e.target.id!=="nc87pv") return; const on=e.target.checked; NC87.prev=on;
+  const {error}=await SB.auth.updateUser({data:{push_preview:on}}); toast(error?"Réglage non enregistré : "+error.message:on?"Le contenu des messages s'affichera dans les notifications":"Les notifications diront seulement « Nouveau message »"); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&NC87.open){ NC87.open=false; ncRender87(); } });
+// ouverture depuis une notification : ?msg=<id client> (coach) ou ?msg=1 (client)
+function ncFromUrl87(u){ try{ const p=new URL(u,location.href).searchParams.get("msg"); if(!p) return false; const go=()=>ncGo87(p==="1"?CUR:p); let n=0;
+  (function wait(){ if(ST.ready&&UID&&(coach()||CUR)) return go(); if(++n<80) setTimeout(wait,250); })(); return true; }catch(e){ return false; } }
+if(ncFromUrl87(location.href)){ try{ const u=new URL(location.href); u.searchParams.delete("msg"); history.replaceState(null,"",u.pathname+u.search+u.hash); }catch(e){} }
+if(navigator.serviceWorker) navigator.serviceWorker.addEventListener("message",e=>{ const d=e.data||{}; if(d.type==="push") ncLoad87(true); if(d.type==="open"&&d.url) ncFromUrl87(d.url); });
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") ncLoad87(true); });
+setInterval(()=>{ if(document.visibilityState==="visible") ncLoad87(false); },60000);
+render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ ncBtn87(); if(UID&&ST.ready&&!NC87.list&&!NC87.busy) ncLoad87(false); }catch(e){} return r; }; })(render);
+(function(){ const st=document.createElement("style"); st.textContent=`
+#nc87{position:fixed;inset:0;z-index:1000}#nc87 .cs85bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}#nc87 .cs85p{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);max-width:520px;margin:0 auto;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.nc87b{position:relative;margin-right:6px}.nc87n{position:absolute;top:-7px;right:-8px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#e5484d;color:#fff;font:700 .7rem/18px system-ui,sans-serif;text-align:center}
+.nc87p{max-height:85vh}.nc87s{font:600 .72rem/1 system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);margin:14px 2px 6px}
+.nc87r{display:flex;flex-direction:column;gap:3px;width:100%;text-align:left;margin:4px 0;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;min-height:44px}
+.nc87r.new{border-color:var(--blue);background:color-mix(in srgb,var(--blue) 10%,var(--paper))}.nc87r.new .nc87h b::before{content:"● ";color:var(--blue)}
+.nc87h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.nc87w{font-size:.75rem;color:var(--soft);flex:none}.nc87t{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
+.nc87td{color:var(--ink)}.nc87pv{color:var(--ink)}`; document.head.appendChild(st); })();
+
 boot();
 
 </script>
