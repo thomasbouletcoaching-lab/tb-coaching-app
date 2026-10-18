@@ -24,12 +24,19 @@ hébergée **gratuitement** sur GitHub Pages.
 
 - Tables : `clients`, `carnet`, `suivi`, `nutri_*`, `mesures`, `messages`, `biz_*`,
   `onboarding` (questionnaire de démarrage), `push_subs` (abonnements aux notifications),
-  `app_private` (secrets serveur, inaccessible depuis l'app).
+  `app_private` (secrets serveur, inaccessible depuis l'app),
+  `coaches` (comptes coach), `subs` (formule de chaque inscrit libre : Gratuit, Premium, Coaching léger ; pas de ligne = client coaché, accès complet),
+  `app_flags` (inscriptions ouvertes ou non, prix affichés, paiement prêt).
+- Inscription libre : `self_start` crée le dossier personnel de l'inscrit (il en est le « coach ») ; en Coaching léger
+  le dossier passe automatiquement chez le coach (déclencheur `subs_owner_sync`). Le coach active une formule à la main avec `coach_set_plan`.
 - Programme perso du client : stocké dans `carnet` (clé `pp` = ses séances, `pl-<séance>-<date>` = une séance faite).
   Aucune table supplémentaire.
 - Fonctions serveur (Edge Functions) :
   - `push` : envoie les notifications. Appelée uniquement par la base, protégée par un secret.
   - `delete-account` : suppression de compte d'un client (droit à l'effacement). Les factures sont conservées.
+  - `billing` : ouvre Stripe Checkout (Premium, Coaching léger) ou le portail client Stripe ; vérifie la configuration pour le coach.
+  - `stripe-webhook` : reçoit les événements Stripe (signature vérifiée) et met à jour les droits dans `subs`.
+    Sources des deux fonctions dans `supabase/functions/`. Clés dans les secrets Supabase (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`), jamais dans le dépôt.
   - `purge-media` : supprime chaque nuit (3 h 20 UTC) les vidéos de la messagerie de plus de 30 jours.
     Les photos, vocaux et la bibliothèque d'exercices (`lib/`) ne sont jamais touchés. Appelée par la base, protégée par le même secret que `push`.
 - Tâches planifiées (pg_cron) : rappel « séance du jour » chaque matin (8 h 30 l'été, 7 h 30 l'hiver)

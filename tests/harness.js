@@ -22,12 +22,14 @@ function scenario(role) {
   const client = { id: CID, coach_id: COACH, email: 'client@exemple.fr', name: 'Client Fictif', archived: false, updated_at: new Date().toISOString(), created_at: new Date().toISOString(), program: {}, nutrition: {} };
   const db = { onboarding: [], messages: [], log: [] };
   client.nutrition = PLAN; this_db = db;
-  return { uid, email, user, CID, db, session: { access_token: jwt(uid, email), refresh_token: 'r', token_type: 'bearer', expires_in: 36000, expires_at: Math.floor(Date.now() / 1000) + 86400 * 60, user },
+  return { uid, email, user, CID, db, client, me: { coach: role === 'coach', confirmed: true, signup_open: true, stripe_ready: false, prices: null, sub: null }, session: { access_token: jwt(uid, email), refresh_token: 'r', token_type: 'bearer', expires_in: 36000, expires_at: Math.floor(Date.now() / 1000) + 86400 * 60, user },
     handle(method, path, body, accept) {
       db.log.push(method + ' ' + path);
       if (this.extra) { const x = this.extra(method, path, body, accept, path.replace(/^\/rest\/v1\//, '').split('?')[0], /pgrst\.object/.test(accept || '')); if (x !== undefined) return x; }
       const one = /pgrst\.object/.test(accept || '');
       const t = path.replace(/^\/rest\/v1\//, '').split('?')[0];
+      if (path.startsWith('/rest/v1/rpc/me_info')) return this.me;
+      if (t === 'clients' && this.noClients) return one ? null : [];
       if (path.startsWith('/auth/v1/user')) { if (method === 'PUT') { Object.assign(user.user_metadata, (body && body.data) || {}); } return user; }
       if (path.startsWith('/rest/v1/rpc/push_public_key')) return 'BDFTM6oCLVfrlXoFUz0jfpFn9jWPmYYS6d7bC4N091gJEW7GEUj9l4qiz-2vRB4qeAjrRxnaKHsYfnSjfI_JOQE';
       if (path.startsWith('/storage/v1/object/sign/media')) return (body && body.paths || []).map(p => ({ path: p, signedURL: '/object/sign/media/' + p + '?token=t' }));

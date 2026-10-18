@@ -6946,6 +6946,209 @@ render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ nc
 .nc87h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.nc87w{font-size:.75rem;color:var(--soft);flex:none}.nc87t{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
 .nc87td{color:var(--ink)}.nc87pv{color:var(--ink)}`; document.head.appendChild(st); })();
 
+// ================= MODULE 88 · OUVERTURE AU PUBLIC : inscription libre, formules (Gratuit, Premium, Coaching léger, Coaching), paiement Stripe, liste « Abonnés » =================
+// Un inscrit libre a son propre dossier (coach_id = lui-même) et une ligne « subs ». Pas de ligne « subs » = client coaché historique : accès complet.
+// Gratuit : programme de départ généré par le questionnaire, carnet, chronos, records, mesures, journal alimentaire.
+// Premium : en plus, les outils du coach sur son propre dossier (programme, banque, surcharge auto, plan alimentaire…), la vue par exercice et l'estimateur de repas.
+// Coaching léger : le dossier passe chez le coach (déclencheur « subs_owner_sync »), le client retrouve l'app d'un client coaché.
+const P88={me:null,list:null,busy:false,err:"",chk:null,terms:false,iv:"year",offers:false,filt:"tous",ret:null};
+const PLAN88={free:"Gratuit",premium:"Premium",light:"Coaching léger",coaching:"Coaching"};
+const STAT88={active:"actif",trialing:"essai gratuit",past_due:"paiement en retard",canceled:"résilié",incomplete:"paiement non finalisé",unpaid:"impayé"};
+const sub88=()=>(P88.me&&P88.me.sub)||null;
+const price88=()=>Object.assign({premium_month:9.99,premium_year:59.99,light_month:89,coaching:1600,trial_days:7},(P88.me&&P88.me.prices)||{});
+const ready88=()=>!!(P88.me&&P88.me.stripe_ready===true);
+function tier88(){ const s=sub88(); if(!ST.solo) return s&&s.plan==="light"?"light":"coaching";
+  if(s&&s.plan==="premium"&&["active","trialing","past_due"].includes(s.status)&&(!s.period_end||new Date(s.period_end).getTime()>Date.now()-3*864e5)) return "premium";
+  return "free"; }
+const prem88=()=>tier88()!=="free";
+const frD88=iso=>iso?new Date(iso).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"}):"";
+async function me88(){ try{ const {data,error}=await SB.rpc("me_info"); if(!error&&data&&typeof data==="object"&&!Array.isArray(data)) P88.me=data; }catch(e){} return P88.me; }
+async function fnErr88(error,data){ let m=data&&data.error; if(!m&&error&&error.context){ try{ m=(await error.context.json()).error; }catch(e){} } return m||(error&&error.message)||"Service indisponible"; }
+
+// ---------- qui est connecté : coach, client coaché, inscrit libre, ou nouveau compte sans dossier
+const _loadClients88=loadClients;
+loadClients=async function(first){ const me=await me88();
+  if(!me||me.coach!==false){ ST.solo=false; return _loadClients88(first); }
+  const {data,error}=await SB.from("clients").select("id,coach_id,email,name,archived,updated_at,created_at").order("name");
+  if(error){ ST.solo=false; return _loadClients88(first); }
+  const rows=data||[], own=rows.filter(c=>c.coach_id===UID);
+  if(!own.length&&rows.length){ ST.solo=false; ST.soloCoach=false; return _loadClients88(first); }
+  CLIENTS=rows;
+  if(own.length){ ST.solo=true; MODE=ST.soloCoach?"coach":"client"; ST.isCoach=!!ST.soloCoach;
+    if(first||CUR!==own[0].id){ ST.soloCoach=false; MODE="client"; ST.isCoach=false; await openClient(own[0].id,true); } else { ST.ready=true; render(); } return; }
+  ST.solo=false; ST.soloCoach=false; MODE="client"; ST.isCoach=false; CUR=null; M=null; ST.view="start"; ST.ready=true; render(); };
+function soloMode88(on){ ST.soloCoach=on; MODE=on?"coach":"client"; ST.isCoach=on; ST.clientView=false; ST.view=on?"tableau":"semaine"; window.scrollTo(0,0); render(); toast(on?"Outils du coach : tu modifies ton programme et ton plan":"Retour à ton espace d'entraînement"); }
+
+// ---------- formules
+function offers88(ctx){ const P=price88(), t=ctx==="start"?null:tier88(), s=sub88(), trial=!(s&&s.trial_used), rdy=ready88(), paid=s&&s.source==="stripe"&&["active","trialing","past_due"].includes(s.status);
+  const card=(k,title,price,items,btn,hl)=>`<div class="card of88${hl?" hl":""}${t===k?" cur":""}"><div class="row" style="align-items:baseline;flex-wrap:nowrap;gap:8px"><h3 class="grow" style="margin:0">${title}</h3><b style="white-space:nowrap">${price}</b></div><ul class="small of88l">${items.map(x=>`<li>${x}</li>`).join("")}</ul>${t===k?`<span class="chip on">Ta formule actuelle</span>`:btn||""}</div>`;
+  const soon=`<p class="muted small" style="margin:6px 0 0">Paiement en ligne bientôt disponible.</p>`;
+  const can=ctx!=="start"&&ST.solo;
+  const terms=can&&rdy&&t!=="premium"?`<label class="row small" style="gap:8px;align-items:flex-start;margin:8px 0"><input type="checkbox" id="p88-terms" style="width:auto;margin-top:3px" ${P88.terms?"checked":""}><span>J'accepte les <a href="cgv.html#abonnements" target="_blank" rel="noopener">conditions générales de vente</a>. Je demande l'accès immédiat au service et je reconnais perdre mon droit de rétractation une fois l'accès commencé (art. L221-28 du Code de la consommation). Résiliation possible à tout moment, effective à la fin de la période payée.</span></label>`:"";
+  const premBtn=!can?(ctx==="start"?`<p class="muted small" style="margin:6px 0 0">Commence gratuitement : l'essai de ${P.trial_days} jours s'active ensuite depuis ton compte.</p>`:""):!rdy?soon:
+    `<div class="row" style="gap:6px;margin-top:6px">${[["year",`${fmtE(P.premium_year)} / an`],["month",`${fmtE(P.premium_month)} / mois`]].map(([v,l])=>`<button type="button" class="chip ${P88.iv===v?"on":""}" data-act="p88-iv" data-v="${v}">${l}</button>`).join("")}</div>
+     <button style="margin-top:8px" data-act="p88-buy" data-v="premium">${trial?`Essayer ${P.trial_days} jours gratuitement`:"Passer Premium"}</button>${trial?`<p class="muted small" style="margin:4px 0 0">Aucun prélèvement pendant l'essai. Résiliable en 2 clics avant la fin.</p>`:""}`;
+  const lightBtn=!can?"":!rdy?soon:`<button class="ghost" style="margin-top:8px" data-act="p88-buy" data-v="light">Choisir le coaching léger</button>`;
+  let h=terms;
+  h+=card("free","Gratuit","0 €",["Ton programme de départ, généré à partir de ton questionnaire","Carnet d'entraînement, chronos de récupération, records","Suivi du poids et des mensurations","Journal alimentaire simple"],ctx==="start"?"":"");
+  h+=card("premium","Premium",`${fmtE(P.premium_month)} / mois`,[`Tout le gratuit, et les outils du coach sur ton propre dossier`,"Modifier ou régénérer ton programme, banque de programmes, surcharge progressive automatique","Vue par exercice : tout le travail prévu semaine par semaine","Plan alimentaire calculé, estimateur de repas (texte ou voix)",`ou ${fmtE(P.premium_year)} / an · ${P.trial_days} jours d'essai`],premBtn,true);
+  h+=card("light","Coaching léger",`${fmtE(P.light_month)} / mois`,["Thomas construit et ajuste ton programme et ton plan","Messagerie avec ton coach dans l'app","Un bilan régulier de ta progression","Sans engagement : résiliable chaque mois"],lightBtn);
+  h+=card("coaching","Coaching",`${fmtE(P.coaching).replace(",00","")} / 12 sem.`,["Suivi complet et personnalisé sur 12 semaines","Ajustements réguliers, cadre méthodologique clair","Sur candidature : places limitées"],`<a class="chip" style="display:inline-block;margin-top:6px;padding:8px 14px" href="coaching.html" target="_blank" rel="noopener">Candidater</a>`);
+  if(can&&paid) h+=`<div class="card"><h3 style="margin-top:0">Mon abonnement</h3><p class="small">${esc(PLAN88[s.plan]||s.plan)} · ${esc(STAT88[s.status]||s.status)}${s.period_end?` · ${s.cancel_at_period_end?"se termine le":"prochain renouvellement le"} ${frD88(s.period_end)}`:""}</p><button class="ghost" data-act="p88-portal">Gérer mon abonnement (carte, factures, résiliation)</button></div>`;
+  else if(can&&s&&s.source==="manual"&&s.plan!=="free") h+=`<p class="muted small">Formule offerte par ton coach${s.period_end?` jusqu'au ${frD88(s.period_end)}`:""}.</p>`;
+  h+=`<p class="note">Aucune formule ne garantit un résultat chiffré : la progression dépend de facteurs individuels (régularité, récupération, historique…).</p>`;
+  return h; }
+function upsell88(feat){ return `<div class="card"><h3 style="margin-top:0">🔒 ${esc(feat)}</h3><p class="muted small">Inclus dans Premium${ready88()?`, avec ${price88().trial_days} jours d'essai gratuit`:""}.</p><button data-act="p88-offers">Voir les formules</button></div>`; }
+function offersPanel88(){ let el=document.getElementById("p88"); if(!P88.offers){ if(el) el.remove(); return; }
+  if(!el){ el=document.createElement("div"); el.id="p88"; document.body.appendChild(el); }
+  el.innerHTML=`<div class="cs85bg" data-act="p88-close"></div><div class="cs85p p88p" role="dialog" aria-label="Formules"><div class="row" style="flex-wrap:nowrap;align-items:center"><b class="grow" style="font-size:1.1rem">Formules</b><button class="ghost sm" data-act="p88-close" aria-label="Fermer">✕</button></div>${offers88("panel")}</div>`; }
+
+// ---------- nouveau compte sans dossier
+function vStart88(){ const me=P88.me||{}, open=me.signup_open===true;
+  let h=`<h2>Bienvenue 👋</h2>`;
+  if(!open) h+=`<div class="card"><h3 style="margin-top:0">Les inscriptions ouvrent bientôt</h3><p class="small">Ton compte est créé. L'accès en autonomie arrive très vite : tu pourras démarrer gratuitement avec un programme de départ.</p><p class="small">Tu veux un accompagnement personnalisé dès maintenant ? <a href="coaching.html" target="_blank" rel="noopener">Candidater au coaching</a>.</p><p class="muted small">Tu es déjà client de Thomas ? Connecte-toi avec l'e-mail qu'il a enregistré pour toi.</p></div>`;
+  else h+=`<div class="card"><h3 style="margin-top:0">Démarrer en autonomie</h3><p class="small">Un questionnaire de 2 minutes, puis ton programme de départ est généré. Tu peux passer à une autre formule quand tu veux.</p>
+    <label class="f">Ton prénom<input id="p88-name" autocomplete="given-name" maxlength="40" value="${esc(P88.name||"")}"></label>
+    <label class="row small" style="gap:8px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="p88-ck" style="width:auto;margin-top:3px" ${P88.ck?"checked":""}><span>J'ai lu la ${privacyLink()} et j'accepte que mes données d'entraînement soient enregistrées pour faire fonctionner l'app.</span></label>
+    <div class="row" style="margin-top:10px"><button data-act="p88-start">Commencer gratuitement</button></div>
+    <p class="muted small" style="margin-bottom:0">Tu es déjà client de Thomas ? Déconnecte-toi et utilise l'e-mail qu'il a enregistré pour toi.</p></div>`;
+  h+=`<h3>Les formules</h3>`+offers88("start");
+  h+=`<div class="row" style="margin:10px 0 24px"><button class="ghost" data-act="logout">Se déconnecter</button></div>`;
+  return h; }
+
+// ---------- coach : abonnés, ouverture des inscriptions, configuration Stripe
+async function abo88Load(){ if(P88.busy) return; P88.busy=true; P88.err="";
+  try{ const {data,error}=await SB.rpc("coach_subscribers"); if(error) P88.err=error.message; P88.list=error?[]:(data||[]); await me88(); }catch(e){ P88.err=e.message; P88.list=P88.list||[]; }
+  P88.busy=false; if(ST.view==="abo") render(); }
+function vAbo88(){ if(!P88.list){ abo88Load(); return `<div class="card">Chargement des abonnés…</div>`; }
+  const me=P88.me||{}, P=price88(), L=P88.list, on=s=>["active","trialing","past_due"].includes(s.status);
+  const n=k=>L.filter(s=>s.plan===k&&(k==="free"||on(s))).length, trial=L.filter(s=>s.status==="trialing").length;
+  const mrr=L.filter(s=>s.source==="stripe"&&s.status==="active").reduce((a,s)=>a+(s.plan==="light"?P.light_month:s.plan==="premium"?(s.interval==="year"?P.premium_year/12:P.premium_month):0),0);
+  let h=`<h2>Abonnés</h2>`;
+  if(P88.err) h+=`<div class="alert ko">${esc(P88.err)}</div>`;
+  h+=`<div class="card"><div class="row" style="gap:14px">${[["Gratuit",n("free")],["Premium",n("premium")],["Coaching léger",n("light")],["En essai",trial]].map(([l,v])=>`<div><div class="muted small">${l}</div><b style="font-size:1.4rem">${v}</b></div>`).join("")}<div><div class="muted small">Revenu mensuel récurrent (Stripe)</div><b style="font-size:1.4rem">${fmtE(mrr)}</b></div></div><p class="note" style="margin-bottom:0">Estimation hors frais Stripe ; les formules offertes et les essais ne comptent pas.</p></div>`;
+  const open=me.signup_open===true;
+  h+=`<div class="card"><h3 style="margin-top:0">Inscriptions publiques : ${open?"🟢 ouvertes":"⚪ fermées"}</h3><p class="muted small">${open?"N'importe qui peut créer un compte et démarrer gratuitement.":"Les nouveaux comptes voient « Les inscriptions ouvrent bientôt ». Teste d'abord le parcours avec un autre e-mail, puis ouvre."}</p><button class="${open?"ghost":""}" data-act="p88-open">${open?"Fermer les inscriptions":"Ouvrir les inscriptions"}</button></div>`;
+  const C=P88.chk;
+  h+=`<div class="card"><h3 style="margin-top:0">Paiement en ligne (Stripe) : ${ready88()?"🟢 actif":"⚪ pas encore configuré"}</h3>
+    ${C?`<div class="alert ${C.ok?"ok":"ko"} small">${C.error?esc(C.error)+"<br>":""}${C.mode?`Mode ${C.mode==="live"?"réel":"test"} · `:""}Prix trouvés : ${(C.found||[]).map(f=>`${esc(f.key)} (${fmtE(f.amount)}${f.interval?" / "+(f.interval==="year"?"an":"mois"):""})`).join(", ")||"aucun"}${(C.missing||[]).length?`<br>Manquants : ${C.missing.map(esc).join(", ")}`:""}${C.webhook===false?"<br>Secret STRIPE_WEBHOOK_SECRET absent":""}</div>`:""}
+    <button class="ghost" data-act="p88-check">Vérifier la configuration</button>
+    <details style="margin-top:10px"><summary>Mettre en place le paiement (une fois, environ 20 minutes)</summary><ol class="small" style="padding-left:18px">
+     <li>Dans Stripe, <b>en mode test</b> d'abord : Catalogue de produits → crée « TB my Coach Premium » avec deux prix récurrents : ${fmtE(P.premium_month)} par mois (clé de recherche <code>tb_premium_month</code>) et ${fmtE(P.premium_year)} par an (<code>tb_premium_year</code>). Crée « Coaching léger » à ${fmtE(P.light_month)} par mois (<code>tb_light_month</code>). La clé de recherche se règle dans les options avancées du prix.</li>
+     <li>Développeurs → Webhooks → ajoute un point de terminaison : <code>https://xtapitojdvicgcaygeqj.supabase.co/functions/v1/stripe-webhook</code>, événements <code>checkout.session.completed</code>, <code>customer.subscription.created</code>, <code>customer.subscription.updated</code>, <code>customer.subscription.deleted</code>. Copie le secret de signature (whsec_…).</li>
+     <li>Supabase → Edge Functions → Secrets : ajoute <code>STRIPE_SECRET_KEY</code> (ta clé secrète sk_test_…) et <code>STRIPE_WEBHOOK_SECRET</code> (whsec_…). Ne colle jamais ces clés dans un message, un e-mail ou ici.</li>
+     <li>Stripe → Paramètres → Facturation → Portail client : active-le (changement de carte, factures, résiliation, changement de formule). Factures : ajoute la mention de TVA qui s'applique à ton statut.</li>
+     <li>Valide la section « Abonnements » des CGV, puis reviens ici : « Vérifier la configuration ».</li>
+     <li>Teste un abonnement avec un compte de test et la carte 4242 4242 4242 4242. Ensuite seulement, refais les étapes 1 à 3 en mode réel (clé sk_live_…).</li></ol></details></div>`;
+  const F=[["tous","Tous"],["free","Gratuit"],["premium","Premium"],["light","Léger"],["trial","Essai"]];
+  const show=L.filter(s=>P88.filt==="tous"||(P88.filt==="trial"?s.status==="trialing":s.plan===P88.filt));
+  h+=`<div class="card"><h3 style="margin-top:0">Liste (${L.length})</h3><div class="row" style="gap:6px;margin-bottom:8px">${F.map(([k,l])=>`<button type="button" class="chip ${P88.filt===k?"on":""}" data-act="p88-filt" data-v="${k}">${l}</button>`).join("")}</div>
+   ${show.length?show.map(s=>`<div class="ab88r"><div class="row" style="flex-wrap:nowrap;gap:8px;align-items:baseline"><b class="grow">${esc(s.name||"—")}</b><span class="b88 p-${esc(s.plan)}">${esc(PLAN88[s.plan]||s.plan)}</span></div>
+     <div class="muted small">${esc(s.email||"")} · ${esc(STAT88[s.status]||s.status)}${s.source==="manual"?" · offert":s.source==="stripe"?" · Stripe":""}${s.period_end?` · jusqu'au ${frD88(s.period_end)}`:""}${s.cancel_at_period_end?" · résiliation demandée":""}</div>
+     <div class="muted small">Inscrit le ${frD88(s.created_at)}${s.last_seen?` · vu le ${frD88(s.last_seen)}`:""}${s.last_log?` · dernière séance notée le ${frD88(s.last_log)}`:" · aucune séance notée"}</div>
+     <div class="row ab88a" style="gap:6px;margin-top:6px"><select data-ab88p="${esc(s.client_id)}" style="flex:1 1 140px;min-width:0">${Object.entries(PLAN88).map(([k,l])=>`<option value="${k}" ${k===s.plan?"selected":""}>${l}</option>`).join("")}</select><input type="date" data-ab88d="${esc(s.client_id)}" title="Jusqu'au (vide = sans limite)" value="${s.source==="manual"&&s.period_end?String(s.period_end).slice(0,10):""}" style="flex:1 1 140px;min-width:0"><button class="ghost sm" data-act="p88-set" data-v="${esc(s.client_id)}">Appliquer</button></div></div>`).join(""):`<p class="muted small">Personne pour l'instant.</p>`}
+   <p class="note">Changer la formule ici l'offre (activation manuelle, sans paiement). Coaching léger ou Coaching : le dossier rejoint « Mes clients ». Pour un abonné payant, la résiliation se fait dans Stripe.</p></div>`;
+  const own=(CLIENTS||[]).filter(c=>c.coach_id===UID&&!c.archived&&!L.some(s=>s.client_id===c.id));
+  h+=`<div class="card"><h3 style="margin-top:0">Fin d'un coaching</h3><p class="muted small">Le client garde son historique et devient autonome, en Premium offert jusqu'à la date choisie (puis Gratuit) ou directement en Gratuit. Son dossier quitte « Mes clients » et apparaît ici ; tu peux le reprendre en coaching à tout moment.</p>
+    <div class="row" style="gap:6px"><select id="p88-cv" style="flex:1 1 180px">${own.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("")}</select><select id="p88-cvp" style="flex:0 0 auto;width:auto"><option value="premium">Premium offert</option><option value="free">Gratuit</option></select><input type="date" id="p88-cvd" style="flex:0 0 auto;width:auto" value="${isoD(new Date(Date.now()+90*864e5))}"><button class="ghost sm" data-act="p88-conv" ${own.length?"":"disabled"}>Passer en autonomie</button></div></div>`;
+  return h; }
+const _homeShell88=homeShell;
+homeShell=function(shell){ const isA=ST.view==="abo"; if(isA) ST.view="clients"; let cap=null;
+  try{ _homeShell88((t,s,b,tabs)=>{ cap={t,s,b,tabs}; }); } finally{ if(isA) ST.view="abo"; }
+  if(!cap) return; const n=P88.list?P88.list.length:null;
+  let tabs=cap.tabs||""; if(isA) tabs=tabs.replace(/class="on"/g,'class=""');
+  tabs+=`<button class="${isA?"on":""}" data-act="home" data-v="abo">Abonnés${n?` (${n})`:""}</button>`;
+  return shell(cap.t,cap.s,isA?vAbo88():cap.b,tabs); };
+
+// ---------- affichage : écran de départ, bouton outils du coach, messagerie masquée pour l'inscrit libre
+const _render88=render;
+render=function(){
+  if(ST.solo&&MODE==="coach"&&["clients","biz","lib","abo","vid"].includes(ST.view)) ST.view="tableau";
+  if(ST.view==="start"&&UID&&ST.ready&&!CUR&&!ST.isCoach){ $("#appTitle").textContent=CONFIG.brand; $("#appSub").textContent="Bienvenue"; $("#tabs").innerHTML="";
+    const rb=$("#roleBtn"); if(rb){ rb.hidden=false; rb.textContent="↻"; rb.dataset.act="refresh"; } $("#app").innerHTML=vStart88(); solo88Ui(); return; }
+  const r=_render88.apply(this,arguments); try{ solo88Ui(); }catch(e){} return r; };
+function solo88Ui(){ const h=document.querySelector("header.top"); let b=document.getElementById("solo88b");
+  const show=!!(ST.solo&&CUR&&ST.ready&&UID);
+  if(show&&h&&!b){ b=document.createElement("button"); b.id="solo88b"; b.type="button"; b.className="role solo88b"; b.dataset.act="solo88"; const rb=document.getElementById("roleBtn"); h.insertBefore(b,rb||h.firstChild); }
+  if(b){ b.hidden=!show; b.textContent=ST.soloCoach?"🏋️ Athlète":"🛠️ Coach"+(prem88()?"":" 🔒"); b.setAttribute("aria-label",ST.soloCoach?"Revenir à mon espace d'entraînement":"Outils du coach (Premium)"); }
+  // Accueil : l'en-tête est masqué, le bouton est repris en haut de la page
+  if(show&&document.body.classList.contains("tdy45")&&!document.getElementById("solo88c")){ const app=$("#app"); if(app) app.insertAdjacentHTML("afterbegin",`<div id="solo88c" class="row" style="justify-content:flex-end;margin:4px 0 -4px"><button class="ghost sm" data-act="solo88">${prem88()?"🛠️ Outils du coach":"🛠️ Outils du coach 🔒"}</button></div>`); }
+  if(ST.solo){ const f=document.getElementById("msgfab"); if(f) f.hidden=true; const n=document.getElementById("nc87b"); if(n) n.hidden=true; }
+  offersPanel88(); }
+const _fabRender88=fabRender;
+fabRender=function(){ const r=_fabRender88.apply(this,arguments); if(ST.solo){ const f=document.getElementById("msgfab"); if(f) f.hidden=true; } return r; };
+const _ncBtn88=ncBtn87;
+ncBtn87=function(){ const r=_ncBtn88.apply(this,arguments); if(ST.solo){ const n=document.getElementById("nc87b"); if(n) n.hidden=true; } return r; };
+// compte : « Ma formule » à la place de « Mon coach »
+const _vClientAccount88=vClientAccount;
+vClientAccount=function(){ const h=_vClientAccount88(); if(!ST.solo) return h;
+  return h.replace(/<div class="card"><h3 style="margin-top:0">Mon coach<\/h3>[\s\S]*?<\/div>/,`<h3>Ma formule : ${esc(PLAN88[tier88()]||"Gratuit")}</h3>${offers88("account")}`); };
+// fonctions Premium
+const _vVX88=vVX85;
+vVX85=function(){ if(ST.solo&&!prem88()) return upsell88("Vue par exercice")+`<button class="ghost" data-act="vx85-back">← Retour</button>`; return _vVX88.apply(this,arguments); };
+// questionnaire : textes de l'inscrit libre, puis génération du programme de départ
+const _vOnboard88=vOnboard;
+vOnboard=function(){ const h=_vOnboard88(); if(!ST.solo) return h;
+  return h.replace(/Seul ton coach (lit|les lit)[^<.]*\./g,"Tes réponses servent à générer ton programme de départ.").replace(/Tes réponses servent à ton coach pour construire/,"Tes réponses servent à construire")
+    .replace(/>Envoyer l'essentiel à mon coach</,">Générer mon programme<").replace(/>Envoyer à mon coach</,">Générer mon programme<"); };
+const _obSave88=obSave;
+obSave=function(submit){ return _obSave88(submit).then(ok=>{
+  if(ok&&submit&&ST.solo&&ST.prog&&!ST.prog.gen88&&!(ST.prog.sessions||[]).some(s=>s&&s.ex&&s.ex.length)){
+    try{ const T=trainProposal(X10.obDraft||{}); ST.prog.gen88=new Date().toISOString(); if(P88.name) ST.prog.profile.name=P88.name; applyTraining(T);
+      setTimeout(()=>{ toast(T.bank?`Ton programme est prêt : « ${T.bank.name} » 💪`:"Ton programme de départ est prêt 💪"); },60); }catch(e){ console.error(e); } }
+  return ok; }); };
+
+// ---------- actions
+async function buy88(plan){ if(!document.getElementById("p88-terms")||!P88.terms) return toast("Coche d'abord la case des conditions générales de vente");
+  toast("Ouverture du paiement sécurisé…"); const {data,error}=await SB.functions.invoke("billing",{body:{action:"checkout",plan,interval:P88.iv,terms:true}});
+  if(error||!data||!data.url) return toast(await fnErr88(error,data)); location.href=data.url; }
+async function portal88(){ toast("Ouverture du portail…"); const {data,error}=await SB.functions.invoke("billing",{body:{action:"portal"}});
+  if(error||!data||!data.url) return toast(await fnErr88(error,data)); location.href=data.url; }
+document.addEventListener("click",async e=>{ const t=e.target;
+  if(ST.solo&&!prem88()&&t.closest&&t.closest('[data-act="es85-open"],[data-act="vx85-open"]')){ e.preventDefault(); e.stopImmediatePropagation(); P88.offers=true; offersPanel88(); return; }
+  const b=t.closest&&t.closest('[data-act^="p88-"],[data-act="solo88"]'); if(!b) return; const a=b.dataset.act, v=b.dataset.v; e.stopImmediatePropagation();
+  if(a==="solo88"){ if(!ST.soloCoach&&!prem88()){ P88.offers=true; return offersPanel88(); } return soloMode88(!ST.soloCoach); }
+  if(a==="p88-offers"){ P88.offers=true; return offersPanel88(); }
+  if(a==="p88-close"){ P88.offers=false; return offersPanel88(); }
+  if(a==="p88-iv"){ P88.iv=v; if(P88.offers) offersPanel88(); else render(); return; }
+  if(a==="p88-buy") return buy88(v);
+  if(a==="p88-portal") return portal88();
+  if(a==="p88-start"){ const name=((document.getElementById("p88-name")||{}).value||"").trim(); P88.name=name; if(!name) return toast("Indique ton prénom"); if(!P88.ck) return toast("Coche la case pour continuer");
+    b.disabled=true; try{ await SB.auth.updateUser({data:{rgpd_ok:new Date().toISOString(),rgpd_v:1,pw_set:(X10.meta&&X10.meta.pw_set)||new Date().toISOString()}}).then(({data})=>{ if(data&&data.user) X10.meta=data.user.user_metadata||X10.meta; }); }catch(err){}
+    const {error}=await SB.rpc("self_start",{p_name:name}); b.disabled=false; if(error) return toast("Impossible : "+error.message);
+    await loadClients(true); toast("Bienvenue "+name+" ! Réponds au questionnaire pour générer ton programme."); return; }
+  if(!coach()) return;
+  if(a==="p88-filt"){ P88.filt=v; return render(); }
+  if(a==="p88-open"){ const open=!(P88.me&&P88.me.signup_open===true); if(open&&!confirm("Ouvrir les inscriptions au public ? Toute personne pourra créer un compte et démarrer gratuitement.")) return;
+    const {error}=await SB.from("app_flags").upsert({k:"signup_open",v:open,updated_at:new Date().toISOString()}); if(error) return toast("Impossible : "+error.message);
+    await me88(); toast(open?"Inscriptions ouvertes":"Inscriptions fermées"); return render(); }
+  if(a==="p88-check"){ toast("Vérification…"); const {data,error}=await SB.functions.invoke("billing",{body:{action:"check"}}); if(error&&!data){ P88.chk={ok:false,error:await fnErr88(error,data)}; } else P88.chk=data; await me88(); return render(); }
+  if(a==="p88-set"){ const p=(document.querySelector(`[data-ab88p="${v}"]`)||{}).value, d=(document.querySelector(`[data-ab88d="${v}"]`)||{}).value; const s=(P88.list||[]).find(x=>x.client_id===v);
+    if(s&&s.source==="stripe"&&["active","trialing","past_due"].includes(s.status)&&!confirm("Cet abonné paie via Stripe. Changer la formule ici ne modifie pas son abonnement Stripe (à gérer dans Stripe). Continuer ?")) return;
+    const {error}=await SB.rpc("coach_set_plan",{p_client:v,p_plan:p,p_until:d?new Date(d+"T23:59:59").toISOString():null,p_note:null}); if(error) return toast("Impossible : "+error.message);
+    toast(`Formule ${PLAN88[p]} appliquée`); P88.list=null; if(p==="light"||p==="coaching") await loadClients(false); ST.view="abo"; return render(); }
+  if(a==="p88-conv"){ const id=(document.getElementById("p88-cv")||{}).value, p=(document.getElementById("p88-cvp")||{}).value, d=(document.getElementById("p88-cvd")||{}).value; const c=CLIENTS.find(x=>x.id===id); if(!c) return;
+    if(!c.email) return toast("Ce client n'a pas d'e-mail de connexion");
+    if(!confirm(`Passer ${c.name} en autonomie (${p==="premium"?"Premium offert"+(d?" jusqu'au "+frDate(d):""):"Gratuit"}) ? Son dossier quittera « Mes clients ».`)) return;
+    const {error}=await SB.rpc("coach_set_plan",{p_client:id,p_plan:p,p_until:p==="premium"&&d?new Date(d+"T23:59:59").toISOString():null,p_note:"fin de coaching"}); if(error) return toast("Impossible : "+error.message);
+    toast(`${c.name} est passé en autonomie`); P88.list=null; await loadClients(false); ST.view="abo"; return render(); } },true);
+document.addEventListener("change",e=>{ const el=e.target; if(!el) return; if(el.id==="p88-terms") P88.terms=el.checked; if(el.id==="p88-ck") P88.ck=el.checked; if(el.id==="p88-name") P88.name=el.value; });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&P88.offers){ P88.offers=false; offersPanel88(); } });
+// retour de Stripe : ?billing=ok|cancel|portal (le webhook peut arriver quelques secondes après)
+(function(){ try{ const u=new URL(location.href), r=u.searchParams.get("billing"); if(!r) return; P88.ret=r; u.searchParams.delete("billing"); history.replaceState(null,"",u.pathname+u.search+u.hash);
+  let n=0; (function wait(){ if(!(ST.ready&&UID)){ if(++n<80) setTimeout(wait,250); return; }
+    if(r==="cancel") return toast("Paiement annulé : rien n'a été prélevé");
+    toast(r==="ok"?"Merci ! Activation de ton abonnement…":"Abonnement mis à jour"); let k=0;
+    (async function poll(){ const before=tier88(); await me88(); if((tier88()!==before||k>=5)||r!=="ok"){ await loadClients(false); if(r==="ok") toast(prem88()?"Premium activé ✅ Touche « 🛠️ Coach » pour les outils":"Abonnement enregistré ✅"); return; } k++; setTimeout(poll,3000); })(); })(); }catch(e){} })();
+// écran de connexion : invitation à créer un compte
+const _vAuth88=vAuth;
+vAuth=function(){ const h=_vAuth88(); return AUTH.mode==="login"?h.replace(/<p class="note">Client : /,`<p class="note">Nouveau ? « Créer un compte » pour démarrer gratuitement avec ton programme de départ.<br>Client : `):h; };
+(function(){ const st=document.createElement("style"); st.textContent=`
+.of88.hl{border:2px solid var(--blue)}.of88.cur{outline:2px solid var(--green,#2e9d5b)}.of88l{margin:8px 0 4px;padding-left:18px}.of88l li{margin:3px 0}
+#p88{position:fixed;inset:0;z-index:1000}#p88 .cs85bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}#p88 .cs85p{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);max-width:520px;max-height:88vh;margin:0 auto;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.solo88b{margin-right:6px;white-space:nowrap}.ab88r{border-top:1px solid var(--line);padding:10px 0}.ab88a>*{margin:0}
+.b88{font:600 .72rem/1 system-ui,sans-serif;padding:4px 8px;border-radius:10px;background:var(--line);color:var(--ink);white-space:nowrap}.b88.p-premium{background:color-mix(in srgb,var(--blue) 22%,var(--paper))}.b88.p-light,.b88.p-coaching{background:color-mix(in srgb,var(--green,#2e9d5b) 25%,var(--paper))}`; document.head.appendChild(st); })();
+
 boot();
 
 </script>

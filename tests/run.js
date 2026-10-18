@@ -318,6 +318,55 @@ const T = {
     await p.route('https://thomasbouletcoaching-lab.github.io/**', async r => { target = r.request().url(); await r.fulfill({ status: 200, contentType: 'text/html', body: '<p>site</p>' }); });
     await p.goto(BASE + 'coaching.html'); await p.waitForTimeout(800);
     ok(target && target.includes('/thomasboulet-coaching/coaching.html'), 'coaching.html redirige vers la page de vente du site'); await b.close(); },
+  'public : nouveau compte sans dossier → formules + démarrage gratuit': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(500);
+    ok((await txt(p, '#app')).includes('Démarrer en autonomie'), 'écran de départ affiché');
+    ok((await p.$$('.of88')).length === 4, '4 formules présentées');
+    await p.fill('#p88-name', 'Alex'); await p.check('#p88-ck');
+    sc.noClients = false; sc.client.coach_id = sc.uid; sc.client.program = {}; sc.me.sub = { plan: 'free', status: 'active', source: 'self' };
+    await p.click('[data-act="p88-start"]'); await p.waitForTimeout(1500);
+    ok(sc.db.log.some(l => /rpc\/self_start/.test(l)), 'dossier créé (self_start)');
+    ok(!!(await p.$('#solo88b')), 'bouton outils du coach présent');
+    ok((await txt(p, '#app')).includes('Générer mon programme'), 'questionnaire adapté à l\'autonomie');
+    const gen = await p.evaluate(async () => { Object.assign(X10.obDraft, { obj: 'Gagner en force', years: '1 à 3 ans', n_ses: '3', dur: '60 min', lieu: 'Salle de sport', q1: 'Non', q2: 'Non', q3: 'Non', q4: 'Non', q5: 'Non', q6: 'Non', q7: 'Non' });
+      await obSave(true); await new Promise(r => setTimeout(r, 900)); return { gen: !!ST.prog.gen88, name: ST.prog.profile.name, days: (ST.prog.profile.days || []).filter(Boolean).length }; });
+    ok(gen.gen && gen.name === 'Alex' && gen.days === 3, 'programme de départ généré depuis le questionnaire');
+    ok(sc.db.log.some(l => /^PATCH \/rest\/v1\/clients/.test(l)), 'programme enregistré dans son dossier');
+  }, sc => { sc.noClients = true; sc.user.user_metadata.pw_set = 'x'; }),
+
+  'public : abonné Gratuit (autonomie)': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(600);
+    ok((await txt(p, '#app')).includes('Outils du coach 🔒'), 'bouton Outils du coach verrouillé (Accueil)');
+    ok(!(await p.isVisible('#msgfab')), 'messagerie avec le coach masquée');
+    await p.click('#solo88c button'); await p.waitForTimeout(300);
+    ok((await p.$$('#p88 .of88')).length === 4, 'formules proposées');
+    await p.click('#p88 .cs85p [data-act="p88-close"]'); await p.waitForTimeout(200);
+    await p.evaluate(() => { ST.todayOn = false; ST.view = 'compte'; render(); }); await p.waitForTimeout(300);
+    ok((await txt(p, '#app')).includes('Ma formule : Gratuit'), 'compte : Ma formule');
+    ok(!(await txt(p, '#app')).includes('Réserver un rendez-vous'), 'pas de prise de rendez-vous avec le coach');
+  }, clientPre(sc => { sc.client.coach_id = sc.uid; sc.me.sub = { plan: 'free', status: 'active', source: 'self' }; })),
+
+  'public : abonné Premium → outils du coach sur son dossier': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(600); await p.click('#solo88c button'); await p.waitForTimeout(500);
+    ok((await txt(p, '#tabs')).includes('Programme'), 'onglet Programme (outils du coach)');
+    ok(await p.evaluate(() => coach() && ST.solo), 'mode coach sur son propre dossier');
+    await p.click('#solo88b'); await p.waitForTimeout(400);
+    ok(await p.evaluate(() => !coach()), 'retour à l\'espace athlète');
+  }, clientPre(sc => { sc.client.coach_id = sc.uid; sc.me.sub = { plan: 'premium', status: 'trialing', source: 'stripe', period_end: new Date(Date.now() + 5 * 864e5).toISOString() }; })),
+
+  'coach : abonnés, ouverture des inscriptions, activation manuelle': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(600); await p.click('[data-act="home"][data-v="abo"]'); await p.waitForTimeout(800);
+    ok((await txt(p, '#app')).includes('Alex Test'), 'abonné listé');
+    ok((await txt(p, '#tabs')).includes('Abonnés (2)'), 'onglet Abonnés avec compteur');
+    ok((await txt(p, '#app')).includes('(Stripe)9,99'), 'revenu mensuel récurrent');
+    await p.click('[data-act="p88-open"]'); await p.waitForTimeout(400);
+    ok(sc.flag && sc.flag.k === 'signup_open' && sc.flag.v === true, 'inscriptions ouvertes');
+    await p.selectOption('[data-ab88p="s1"]', 'premium'); await p.click('[data-act="p88-set"][data-v="s1"]'); await p.waitForTimeout(600);
+    ok(sc.setPlan && sc.setPlan.p_plan === 'premium' && sc.setPlan.p_client === 's1', 'activation manuelle (Premium offert)');
+  }, coachPre(sc => { sc.me.signup_open = false; return (m, path, body) => {
+    if (/rpc\/coach_subscribers/.test(path)) return [{ client_id: 's1', name: 'Alex Test', email: 'alex@exemple.fr', plan: 'free', status: 'active', source: 'self', created_at: '2026-10-10T10:00:00Z' }, { client_id: 's2', name: 'Sam Test', email: 'sam@exemple.fr', plan: 'premium', status: 'active', source: 'stripe', interval: 'month', created_at: '2026-10-11T10:00:00Z' }];
+    if (/app_flags/.test(path) && m === 'POST') { sc.flag = body; sc.me.signup_open = true; return []; }
+    if (/rpc\/coach_set_plan/.test(path)) { sc.setPlan = body; return null; } }; })),
 };
 
 (async () => {
