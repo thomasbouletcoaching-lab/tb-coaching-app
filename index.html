@@ -7195,9 +7195,16 @@ document.addEventListener("pointerup",e=>{ if(SW89.d&&e.pointerId===SW89.d.id) s
 document.addEventListener("pointercancel",e=>{ if(SW89.d&&e.pointerId===SW89.d.id) swEnd89(!SW89.d.on); },true);
 // un nouveau rendu redessine les lignes : on referme proprement
 render=(function(o){ return function(){ const O=SW89.open, keep=O&&!SW89.d?{sk:O.tr.dataset.sk,si:O.tr.dataset.si}:null; if(O) swClose89(false); document.querySelectorAll(".sw89bg").forEach(x=>x.remove());
-  const r=o.apply(this,arguments);
+  const r=o.apply(this,arguments); try{ fit89(); }catch(e){}
   if(keep){ const tr=document.querySelector(`table.sets tr[data-sk="${CSS.escape(keep.sk)}"][data-si="${CSS.escape(keep.si)}"]`); if(tr){ const R=tr.getBoundingClientRect().right+scrollX, b=swBtn89(tr); tr.classList.add("sw89"); tr.style.transform=`translateX(${-SW89.W}px)`; b.style.width=SW89.W+"px"; b.style.left=(R-SW89.W)+"px"; SW89.open={tr,b,R}; } }
   return r; }; })(render);
+// colonnes : parts fixes selon l'en-tête (Série, Précédent, Kg/unité, Reps, RPE, ✓), ramenées à 100 %
+function fit89(){ document.querySelectorAll("table.sets").forEach(t=>{ const hr=t.querySelector("tr"); if(!hr) return; const th=[...hr.children]; if(!th.length) return;
+    const W=th.map((c,i)=>{ const x=nrm(c.textContent).trim(); if(i===th.length-1&&!x) return 13; if(/^serie/.test(x)) return 19; if(/^prec/.test(x)) return 22; if(/^reps?/.test(x)) return 14; if(/^rpe/.test(x)) return 13; return 19; });
+    const S=W.reduce((a,b)=>a+b,0), key=W.join(","); if(t.dataset.fit89===key&&t.querySelector(":scope > colgroup")) return;
+    t.querySelectorAll(":scope > colgroup").forEach(c=>c.remove()); const cg=document.createElement("colgroup"); cg.innerHTML=W.map(w=>`<col style="width:${(w/S*100).toFixed(2)}%">`).join(""); t.insertBefore(cg,t.firstChild);
+    t.classList.add("fit89"); t.dataset.fit89=key;
+    const pi=th.findIndex(c=>/^prec/.test(nrm(c.textContent).trim())); if(pi>=0) t.querySelectorAll("tr").forEach(r=>{ const c=r.children[pi]; if(c&&c.tagName==="TD") c.classList.add("pv89"); }); }); }
 // la ligne ouverte reste ouverte : le bouton suit sa ligne (clavier qui se ferme, défilement, rotation) ; seul un toucher ailleurs la referme
 function swAnchor89(){ const O=SW89.open; if(!O||SW89.d) return; let tr=O.tr;
   if(!tr.isConnected){ tr=document.querySelector(`table.sets tr[data-sk="${CSS.escape(O.tr.dataset.sk)}"][data-si="${CSS.escape(O.tr.dataset.si)}"]`); if(!tr){ O.b.remove(); SW89.open=null; return; }
@@ -7238,18 +7245,14 @@ stopRest=function(end){ const r=_stopRest89.apply(this,arguments); try{ if(SND89
 document.addEventListener("pointerdown",()=>{ if(document.body.classList.contains("rest-on")) sndPrime89(); },{capture:true,passive:true});
 (function(){ const st=document.createElement("style"); st.textContent=`
 table.sets td{touch-action:pan-y}
-/* la ligne tient dans l'écran : les champs se resserrent, « Précédent » passe à la ligne, ✓ reste toujours visible à droite */
-table.sets input.si{min-width:0}
-table.sets td,table.sets th{overflow-wrap:anywhere}
-table.sets td:nth-child(2){font-size:.8rem;line-height:1.15}
-table.sets th{font-size:.62rem;letter-spacing:0}
-table.sets td:has(> input.si){min-width:42px}
-table.sets td:has(> input.si[data-cs$="|g"]),table.sets td:has(> input.si[data-hx$="|g"]){min-width:56px}
-table.sets input.si{padding:7px 2px}
-table.sets td:nth-child(2):not(:has(input)),table.sets th:nth-child(2){max-width:66px;width:66px}
-table.sets td:last-child,table.sets th:last-child{position:sticky;right:0;z-index:1;width:46px;min-width:46px}
-table.sets tr:not(.done)>td:last-child{background:var(--paper)}
-table.sets td:last-child .chk,table.sets td:last-child button{min-width:42px}
+/* largeurs de colonnes fixes (réparties selon l'en-tête, voir fit89) : la ligne tient toujours dans l'écran, RPE et ✓ restent visibles */
+table.sets.fit89{table-layout:fixed;width:100%}
+table.sets.fit89 input.si{min-width:0;width:100%;padding:7px 1px}
+table.sets.fit89 td,table.sets.fit89 th{overflow-wrap:anywhere;padding-left:1px;padding-right:1px}
+table.sets.fit89 th{font-size:.6rem;letter-spacing:0}
+table.sets.fit89 td.pv89{font-size:.78rem;line-height:1.15}
+table.sets.fit89 .sn50{white-space:normal;flex-wrap:wrap;justify-content:center;max-width:100%}
+table.sets.fit89 td:last-child .chk,table.sets.fit89 td:last-child button{min-width:0;width:100%}
 tr.sw89{position:relative;z-index:2;background:var(--paper)}tr.sw89 td{background:var(--paper)}
 .sw89bg{position:absolute;z-index:3;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;padding:0;border:0;border-radius:0;background:#d9534f;color:#fff;font:600 1.05rem/1 inherit;min-height:0;box-shadow:none}
 .sw89bg.go{background:#c62828}
