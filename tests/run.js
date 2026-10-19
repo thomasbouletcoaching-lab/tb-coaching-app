@@ -46,6 +46,8 @@ const T = {
 
   'client : plat équivalent': () => run('client', async (p) => {
     await p.waitForTimeout(800); await p.evaluate(() => { ST.todayOn = false; ST.view = 'nutrition'; NU.nv = 'jour'; NU.day = todayISO(); render(); }); await p.waitForTimeout(400);
+    ok(!(await p.locator('[data-act="eq-open"][data-v="1"]').isVisible()), 'options secondaires repliées par défaut');
+    await p.locator('[data-act="nu90-more"][data-v="1"]').click(); await p.waitForTimeout(300);
     await p.locator('[data-act="eq-open"][data-v="1"]').click(); await p.waitForTimeout(600);
     await p.locator('[data-act="eq-use"]').first().click(); await p.waitForTimeout(300);
     ok(await p.evaluate(() => /équivalent/.test((NU.logs[todayISO()].m[1] || {}).n || '')), 'repas remplacé enregistré');
@@ -251,13 +253,16 @@ const T = {
   'client : journée type, estimateur texte, extra rattaché à un repas, aliment ajouté à la base': () => run('client', async (p, sc) => {
     await p.waitForTimeout(1200); await p.evaluate(() => { ST.todayOn = false; ST.view = 'nutrition'; NU.nv = 'jour'; NU.day = todayISO(); render(); }); await p.waitForTimeout(800);
     ok(!!(await p.$('#jt85')), 'carte « Ma journée type » affichée');
+    await p.evaluate(() => { document.querySelector('details#jt85').open = true; }); await p.waitForTimeout(200);
     await p.click('[data-act="jt85-addmeal"][data-v="Collation"]'); await p.waitForTimeout(300);
     await p.fill('[data-nuq="jtq"]', 'riz'); await p.waitForTimeout(200); await p.click('#jt85res [data-act="jt85-add"]'); await p.waitForTimeout(300);
     ok(await p.evaluate(() => ST.carnet.nu_jt.meals.some(m => m.name === 'Collation' && m.it.length === 1)), 'repas ajouté à la journée type avec un aliment');
+    ok(await p.evaluate(() => document.querySelector('details#jt85').open), 'journée type reste ouverte après modification');
+    await p.click('[data-act="nu90-more"][data-v="0"]'); await p.waitForTimeout(200);
     await p.click('[data-act="es85-open"][data-v="m:0"]'); await p.waitForTimeout(200);
     await p.fill('#es85 [data-es85t]', '2 oeufs, 2 tranches de pain complet, une banane et 150 g de skyr'); await p.click('#es85 [data-act="es85-parse"]'); await p.waitForTimeout(300);
     const r = await p.evaluate(() => ES85.res.map(x => NU.fmap[x.f].name + ' ' + x.q).join(','));
-    ok(r === 'Œuf entier 100,Pain complet 70,Banane 120,Skyr nature 150', 'description écrite → aliments et quantités (' + r + ')');
+    ok(r === 'Oeuf entier 100,Pain complet 70,Banane 120,Skyr nature 150', 'description écrite → aliments et quantités (' + r + ')');
     await p.click('#es85 [data-act="es85-apply"]'); await p.waitForTimeout(400);
     ok(await p.evaluate(() => NU.logs[todayISO()].m[0].it.length === 4), 'repas noté depuis la description');
     await p.click('[data-act="nu-xopen"]'); await p.waitForTimeout(300); await p.click('[data-act="xm85-mi"][data-v="1"]'); await p.waitForTimeout(200);
@@ -266,7 +271,7 @@ const T = {
     ok(await p.evaluate(() => { const x = NU.logs[todayISO()].x; return x.length === 1 && x[0].n === 'Galette bretonne' && x[0].mi === 1; }), 'aliment absent créé, ajouté en extra et rattaché au 2e repas');
     ok((await p.$$('.xm85')).length === 1, "l'extra apparaît dans la carte du repas");
   }, clientPre((sc) => (m, path, b) => { if (path.startsWith('/rest/v1/rpc/nutri_food_add')) { const f = b.f; return { id: 'new1', name: f.name, cat: f.cat, kcal: 360, p: f.p, g: f.g, l: f.l, unit: null, unit_g: null }; }
-    if (/nutri_foods/.test(path) && m === 'GET') return [{ id: 'fr', name: 'Riz basmati (cuit)', cat: 'Féculents & céréales', kcal: 130, p: 3, g: 28, l: 0.4 }, { id: 'fo', name: 'Œuf entier', cat: 'Œufs', kcal: 140, p: 12.5, g: 0.5, l: 10, unit: 'œuf', unit_g: 50 }, { id: 'fpc', name: 'Pain complet', cat: 'Pains & viennoiseries', kcal: 245, p: 9, g: 41, l: 3.3, unit: 'tranche', unit_g: 35 }, { id: 'fb', name: 'Banane', cat: 'Fruits', kcal: 90, p: 1.1, g: 20, l: 0.3, unit: 'banane', unit_g: 120 }, { id: 'fs', name: 'Skyr nature', cat: 'Produits laitiers', kcal: 60, p: 10.5, g: 4, l: 0.2, unit: 'pot', unit_g: 150 }]; })),
+    if (/nutri_foods/.test(path) && m === 'GET') return [{ id: 'fr', name: 'Riz basmati (cuit)', cat: 'Féculents & céréales', kcal: 130, p: 3, g: 28, l: 0.4 }, { id: 'fo', name: 'Oeuf entier', cat: 'Oeufs', kcal: 140, p: 12.5, g: 0.5, l: 10, unit: 'oeuf', unit_g: 50 }, { id: 'fpc', name: 'Pain complet', cat: 'Pains & viennoiseries', kcal: 245, p: 9, g: 41, l: 3.3, unit: 'tranche', unit_g: 35 }, { id: 'fb', name: 'Banane', cat: 'Fruits', kcal: 90, p: 1.1, g: 20, l: 0.3, unit: 'banane', unit_g: 120 }, { id: 'fs', name: 'Skyr nature', cat: 'Produits laitiers', kcal: 60, p: 10.5, g: 4, l: 0.2, unit: 'pot', unit_g: 150 }]; })),
 
   'coach : sélecteur de client + vue par exercice + remplissage de progression': () => run('coach', async (p, sc) => {
     await p.waitForTimeout(1000); await p.evaluate(id => openClient(id), sc.CID); await p.waitForTimeout(1000);

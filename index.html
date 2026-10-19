@@ -857,7 +857,7 @@ const frDate=iso=>iso?new Date(iso+"T12:00:00").toLocaleDateString("fr-FR"):"";
 const frDay=iso=>new Date(iso+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
 const DOW=iso=>(new Date(iso+"T12:00:00").getDay()+6)%7;
 const DSH=["L","M","M","J","V","S","D"], DLONG=["lun.","mar.","mer.","jeu.","ven.","sam.","dim."];
-const nrm=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const nrm=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/œ/g,"oe").replace(/æ/g,"ae");
 const Z=()=>({k:0,p:0,g:0,l:0});
 const addM=(a,b)=>({k:a.k+b.k,p:a.p+b.p,g:a.g+b.g,l:a.l+b.l});
 const macTxt=m=>`${r0(m.k)} kcal · P ${r0(m.p)} · G ${r0(m.g)} · L ${r0(m.l)}`;
@@ -1013,7 +1013,7 @@ function nCourses(){ const P=coach()?NU.plan:planOn(), agg={}; if(!P) return `<d
   return h; }
 
 // ---------- suivi : constantes
-const FCATS=["Volailles & viandes","Charcuterie","Poissons & fruits de mer","Œufs","Produits laitiers","Fromages","Protéines végétales & légumineuses","Féculents & céréales","Pains & viennoiseries","Légumes","Fruits","Fruits secs & oléagineux","Matières grasses","Sauces & condiments","Produits sucrés & desserts","Boissons","Plats préparés","Fast-food & restaurant","Snacks & apéritif","Nutrition sportive"];
+const FCATS=["Volailles & viandes","Charcuterie","Poissons & fruits de mer","Oeufs","Produits laitiers","Fromages","Protéines végétales & légumineuses","Féculents & céréales","Pains & viennoiseries","Légumes","Fruits","Fruits secs & oléagineux","Matières grasses","Sauces & condiments","Produits sucrés & desserts","Boissons","Plats préparés","Fast-food & restaurant","Snacks & apéritif","Nutrition sportive"];
 const MES=[["poids","Poids","kg","Poids"],["mg","Masse grasse","%","MG"],["cou","Cou","cm","Cou"],["epaules","Épaules","cm","Épaules"],["poitrine","Poitrine","cm","Poitrine"],["taille","Tour de taille","cm","Taille"],["hanches","Hanches","cm","Hanches"],["bras_d","Bras droit","cm","Bras D"],["bras_g","Bras gauche","cm","Bras G"],["avbras_d","Avant-bras droit","cm","Av-bras D"],["avbras_g","Avant-bras gauche","cm","Av-bras G"],["cuisse_d","Cuisse droite","cm","Cuisse D"],["cuisse_g","Cuisse gauche","cm","Cuisse G"],["mollet_d","Mollet droit","cm","Mollet D"],["mollet_g","Mollet gauche","cm","Mollet G"],["bras","Bras (ancien)","cm","Bras",1],["cuisse","Cuisse (ancien)","cm","Cuisse",1],["mollet","Mollet (ancien)","cm","Mollet",1]];
 const MACH=[["Tapis (marche inclinée)",6],["Tapis (course)",9.5],["Vélo",6.8],["Vélo elliptique",5.5],["Rameur",7],["Stairmaster / escalier",9],["SkiErg",7],["Air bike",8],["Marche extérieure",4],["Course extérieure",9.5],["Natation",7],["Autre",6]];
 const INTS=[["LISS","Basse intensité (zone 2)",0.85],["MOD","Intensité modérée",1],["HIIT","Fractionné (HIIT)",1.3]];
@@ -2441,7 +2441,7 @@ function foodFlags(f){ const n=nrm(f.name).replace(/œ/g,"oe"), c=f.cat||"", F={
   if(/crevette|gambas|moule|crabe|calamar|saint-jacques|huitre|poulpe|surimi/.test(n)) F.sea=1;
   else if(c==="Poissons & fruits de mer") F.fish=1;
   if(c==="Fromages"||(c==="Produits laitiers"&&!/soja|amande|avoine|coco|sans lactose/.test(n))||/^beurre( demi| allege|$)|creme fraiche|creme liquide|whey|caseine|tzatziki|pesto|parmesan|gainer|pancakes proteines|barre proteinee|granola/.test(n)) F.dairy=1;
-  if(c==="Œufs"||/oeuf|pancakes proteines/.test(n)) F.egg=1;
+  if(c==="Oeufs"||c==="Œufs"||/oeuf|pancakes proteines/.test(n)) F.egg=1;
   if(/pates|pain|wrap|tortilla de ble|boulgour|couscous|semoule|epeautre|bagel|flocons d.avoine|son d.avoine|muesli|granola|seitan|pita|orge|nouilles aux oeufs|sauce soja|biscotte|farine|crepe|pancake|barre proteinee|naan|galette de sarrasin|boisson avoine/.test(n)) F.gluten=1;
   if(/^miel/.test(n)) F.honey=1;
   return F; }
@@ -4671,7 +4671,7 @@ carnetEx=function(r,w){ let h=_carnetExE1(r,w); const key=w+"_"+r.key, v=ST.carn
 // 2. Modifier un repas déjà noté en repartant de ce qui a été noté (ou du repas prévu), sans rien perdre.
 // 3. Ajouter un aliment venant d'un autre repas de la journée.
 // 4. Photo du repas : le client photographie, le coach complète les quantités.
-const FAM62={"Féculents & céréales":"glu","Pains & viennoiseries":"glu","Fruits":"fru","Volailles & viandes":"pro","Poissons & fruits de mer":"pro","Œufs":"pro","Protéines végétales & légumineuses":"pro","Charcuterie":"pro","Nutrition sportive":"pro","Produits laitiers":"lai","Fromages":"lai","Matières grasses":"lip","Fruits secs & oléagineux":"lip","Légumes":"leg"};
+const FAM62={"Féculents & céréales":"glu","Pains & viennoiseries":"glu","Fruits":"fru","Volailles & viandes":"pro","Poissons & fruits de mer":"pro","Oeufs":"pro","Œufs":"pro","Protéines végétales & légumineuses":"pro","Charcuterie":"pro","Nutrition sportive":"pro","Produits laitiers":"lai","Fromages":"lai","Matières grasses":"lip","Fruits secs & oléagineux":"lip","Légumes":"leg"};
 const KEY62={glu:"g",fru:"g",pro:"p",lai:"p",lip:"l",leg:"q"}, KLAB62={g:"glucides",p:"protéines",l:"lipides",q:"poids",k:"calories"};
 const NPH={target:null,busy:false,ph:{},phAt:0,phBusy:false};
 const foodByName62=n=>(NU.foods||[]).find(f=>nrm(f.name)===nrm(n));
@@ -6591,7 +6591,7 @@ const NUMW85={un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf
 const UNITS85=[["kg",1000],["kilo",1000],["g",1],["gr",1],["gramme",1],["ml",1],["cl",10],["litre",1000],["l",1000],["cas","cs"],["cs","cs"],["cuillere a soupe","cs"],["c a soupe","cs"],["cuillere a cafe","cc"],["c a cafe","cc"],["cc","cc"],["tranche","tranche"],["pot","pot"],["bol","bol"],["verre","verre"],["poignee","poignee"],["part","part"],["portion","portion"],["assiette","assiette"],["morceau","part"],["carre","carre"],["boite","boite"],["bouteille","bouteille"],["brique","bouteille"],["sachet","sachet"],["barre","barre"],["tasse","tasse"],["filet","filet"],["pave","filet"],["steak","steak"],["escalope","filet"],["cuisse","cuisse"],["galette","galette"],["wrap","wrap"],["scoop","dose"],["dose","dose"],["mesure","dose"]];
 const UG85={cs:15,cc:5,bol:250,verre:200,poignee:30,pot:125,part:150,portion:150,assiette:300,carre:5,boite:140,bouteille:330,sachet:30,barre:40,tasse:200,filet:120,steak:100,cuisse:150,galette:60,wrap:60,dose:30,tranche:35};
 const STOP85=new Set(["de","du","des","la","le","les","un","une","d","l","au","aux","a","et","avec","mon","ma","mes","en","sur","dans","petit","petite","gros","grosse","bon","bonne","peu","bien","fait","maison"]);
-const DEF85={"oeuf":"Œuf entier","oeufs":"Œuf entier","pain":"Baguette","baguette":"Baguette","riz":"Riz basmati (cuit)","pate":"Pâtes (cuites)","pates":"Pâtes (cuites)","poulet":"Blanc de poulet (cuit)","blanc de poulet":"Blanc de poulet (cuit)","dinde":"Blanc de dinde (cuit)","steak":"Steak haché 5 % (cuit)","steak hache":"Steak haché 5 % (cuit)","saumon":"Saumon (cuit)","thon":"Thon au naturel (égoutté)","cabillaud":"Cabillaud (cuit)","yaourt":"Yaourt nature","yaourt grec":"Yaourt à la grecque","skyr":"Skyr nature","fromage blanc":"Fromage blanc 3 %","lait":"Lait demi-écrémé","cafe":"Café noir","the":"Thé / infusion","beurre":"Beurre","huile":"Huile d'olive","huile d'olive":"Huile d'olive","fromage":"Emmental","jambon":"Jambon blanc découenné","banane":"Banane","pomme":"Pomme","orange":"Orange","salade":"Salade verte","tomate":"Tomate","pomme de terre":"Pommes de terre (cuites)","pommes de terre":"Pommes de terre (cuites)","patate douce":"Patate douce (cuite)","lentille":"Lentilles (cuites)","lentilles":"Lentilles (cuites)","pois chiche":"Pois chiches (cuits)","pois chiches":"Pois chiches (cuits)","whey":"Whey protéine","proteine":"Whey protéine","chocolat":"Chocolat noir 70 %","flocon d'avoine":"Flocons d'avoine","flocons d'avoine":"Flocons d'avoine","avoine":"Flocons d'avoine","miel":"Miel","confiture":"Confiture","haricots verts":"Haricots verts","brocoli":"Brocoli","courgette":"Courgette","avocat":"Avocat","amande":"Amandes","amandes":"Amandes","noix":"Noix","quinoa":"Quinoa (cuit)","semoule":"Semoule / couscous (cuit)","couscous":"Semoule / couscous (cuit)","boulgour":"Boulgour (cuit)","frite":"Frites","frites":"Frites","pizza":"Pizza margherita","burger":"Burger fast-food","croissant":"Croissant","cookie":"Cookie","biere":"Bière blonde","vin":"Vin rouge","coca":"Soda sucré","soda":"Soda sucré","jus d'orange":"Jus d'orange","compote":"Compote sans sucre ajouté","granola":"Granola","muesli":"Muesli sans sucre ajouté","tofu":"Tofu nature","crevette":"Crevettes cuites","crevettes":"Crevettes cuites","sushi":"Sushi / maki","kebab":"Kebab (sandwich)","omelette":"Omelette nature (cuite)"};
+const DEF85={"oeuf":"Oeuf entier","oeufs":"Oeuf entier","pain":"Baguette","baguette":"Baguette","riz":"Riz basmati (cuit)","pate":"Pâtes (cuites)","pates":"Pâtes (cuites)","poulet":"Blanc de poulet (cuit)","blanc de poulet":"Blanc de poulet (cuit)","dinde":"Blanc de dinde (cuit)","steak":"Steak haché 5 % (cuit)","steak hache":"Steak haché 5 % (cuit)","saumon":"Saumon (cuit)","thon":"Thon au naturel (égoutté)","cabillaud":"Cabillaud (cuit)","yaourt":"Yaourt nature","yaourt grec":"Yaourt à la grecque","skyr":"Skyr nature","fromage blanc":"Fromage blanc 3 %","lait":"Lait demi-écrémé","cafe":"Café noir","the":"Thé / infusion","beurre":"Beurre","huile":"Huile d'olive","huile d'olive":"Huile d'olive","fromage":"Emmental","jambon":"Jambon blanc découenné","banane":"Banane","pomme":"Pomme","orange":"Orange","salade":"Salade verte","tomate":"Tomate","pomme de terre":"Pommes de terre (cuites)","pommes de terre":"Pommes de terre (cuites)","patate douce":"Patate douce (cuite)","lentille":"Lentilles (cuites)","lentilles":"Lentilles (cuites)","pois chiche":"Pois chiches (cuits)","pois chiches":"Pois chiches (cuits)","whey":"Whey protéine","proteine":"Whey protéine","chocolat":"Chocolat noir 70 %","flocon d'avoine":"Flocons d'avoine","flocons d'avoine":"Flocons d'avoine","avoine":"Flocons d'avoine","miel":"Miel","confiture":"Confiture","haricots verts":"Haricots verts","brocoli":"Brocoli","courgette":"Courgette","avocat":"Avocat","amande":"Amandes","amandes":"Amandes","noix":"Noix","quinoa":"Quinoa (cuit)","semoule":"Semoule / couscous (cuit)","couscous":"Semoule / couscous (cuit)","boulgour":"Boulgour (cuit)","frite":"Frites","frites":"Frites","pizza":"Pizza margherita","burger":"Burger fast-food","croissant":"Croissant","cookie":"Cookie","biere":"Bière blonde","vin":"Vin rouge","coca":"Soda sucré","soda":"Soda sucré","jus d'orange":"Jus d'orange","compote":"Compote sans sucre ajouté","granola":"Granola","muesli":"Muesli sans sucre ajouté","tofu":"Tofu nature","crevette":"Crevettes cuites","crevettes":"Crevettes cuites","sushi":"Sushi / maki","kebab":"Kebab (sandwich)","omelette":"Omelette nature (cuite)"};
 const tok85=s=>nrmW(s).split(/\s+/).filter(w=>w.length>=2&&!STOP85.has(w)).map(w=>w.length>3?w.replace(/(s|x)$/,""):w);
 function esMatch85(q){ if(!NU.foods) return []; const qn=nrmW(q).replace(/\s+/g," ").trim(), qs=qn.replace(/^(du|de la|des|de l|d|un|une|le|la|les|l)\s+/,"").trim();
   const wd=tok85(qs); if(!wd.length) return [];
@@ -6669,7 +6669,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act
   if(a==="nf85-save"){ const f=NF85.f, k=NF85.k; const p=n85(f.p),g=n85(f.g),l=n85(f.l),kc=n85(f.kcal);
     if(!f.name||f.name.trim().length<2) return toast("Indique le nom de l'aliment"); if(p==null&&g==null&&l==null&&kc==null) return toast("Indique au moins les calories ou les macros (pour 100 g)");
     if((p||0)+(g||0)+(l||0)>100.5) return toast("Protéines + glucides + lipides ne peuvent pas dépasser 100 g pour 100 g");
-    NF85.busy=true; render(); const {data,error}=await SB.rpc("nutri_food_add",{f:{name:f.name,kcal:kc,p,g,l,unit:f.unit||null,unit_g:n85(f.ug),cat:f.cat}}); NF85.busy=false;
+    NF85.busy=true; render(); const {data,error}=await SB.rpc("nutri_food_add",{f:{name:String(f.name).replace(/œ/g,"oe").replace(/Œ/g,"Oe"),kcal:kc,p,g,l,unit:f.unit?String(f.unit).replace(/œ/g,"oe"):null,unit_g:n85(f.ug),cat:f.cat}}); NF85.busy=false;
     if(error){ render(); return toast("Non ajouté : "+error.message); }
     const row=data; if(NU.foods&&!NU.fmap[row.id]){ NU.foods.push(row); NU.foods.sort((x,y)=>x.name.localeCompare(y.name,"fr")); NU.fmap[row.id]=row; }
     const cb=NF85.cb; NF85.k=null; NF85.cb=null; if(k) NU[k]="";
@@ -7258,6 +7258,44 @@ tr.sw89{position:relative;z-index:2;background:var(--paper)}tr.sw89 td{backgroun
 .sw89bg.go{background:#c62828}
 #sw89u{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:1200;display:flex;gap:14px;align-items:center;background:var(--ink);color:var(--paper);padding:10px 14px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 #sw89u button{background:none;border:0;color:#7fb2ff;font-weight:700;font-size:1rem;min-height:36px}`; document.head.appendChild(st); })();
+
+// ================= MODULE 90 · SUIVI ALIMENTAIRE PLUS SIMPLE CÔTÉ CLIENT =================
+// Chaque repas : « ✅ Mangé » ou « ✏️ J'ai mangé autre chose » (qui déplie photo, description, autre option, quantités, équivalent), et « Sauté ».
+// Un seul bouton « comme prévu » ; journée type, dépense du jour et ressenti repliés (un toucher pour les ouvrir).
+const NU90={open:{},det:{}};
+function nuSimplify90(){ if(coach()||ST.view!=="nutrition") return; const app=$("#app"); if(!app) return;
+  // un seul bouton « comme prévu » : on garde celui au-dessus des repas
+  if(app.querySelector('[data-act="nu-allok"]')){ const b=app.querySelector('[data-act="na-all"]'); if(b){ const r=b.closest(".row"); (r||b).remove(); } }
+  app.querySelectorAll("p.muted.small").forEach(p=>{ if(/Valide d'abord, puis/.test(p.textContent)) p.textContent="Un repas différent ? Touche « J'ai mangé autre chose » sur ce repas."; });
+  // repas : deux choix principaux, le reste replié
+  app.querySelectorAll(".card.meal").forEach(card=>{ if(card.dataset.s90) return; const acts=card.querySelector(".acts"); const ok=acts&&acts.querySelector('[data-act="nu-ok"]'); if(!ok) return;
+    const mi=ok.dataset.v; card.dataset.s90="1";
+    const pick=sel=>card.querySelector(sel);
+    const photo=pick('[data-act="nph-take"]'), desc=pick('[data-act="es85-open"]'), alt=acts.querySelector('[data-act="nu-altopen"]'), adj=acts.querySelector('[data-act="na-open"]'), eq=acts.querySelector('[data-act="eq-open"]'), skip=acts.querySelector('[data-act="nu-skip"]');
+    const L=[[desc,"✍️🎙️ Le décrire (texte ou voix)"],[photo,"📷 Le prendre en photo"],[alt,"🔄 J'ai pris l'autre option"],[adj,"✏️ Mêmes aliments, autres quantités"],[eq,"🔁 Un plat équivalent"]].filter(([b])=>b);
+    if(!L.length) return;
+    const more=document.createElement("div"); more.className="more90"; more.hidden=!NU90.open[mi]&&!card.querySelector(".edit,#es85,.na-ed,.eqbox");
+    L.forEach(([b,t])=>{ const r=b.closest(".row"); b.textContent=t; b.className="ghost"; b.removeAttribute("aria-label"); more.appendChild(b); if(r&&r!==acts&&!r.children.length) r.remove(); });
+    const tg=document.createElement("button"); tg.type="button"; tg.className="ghost"; tg.dataset.act="nu90-more"; tg.dataset.v=mi; tg.textContent=more.hidden?"✏️ J'ai mangé autre chose":"✕ Fermer";
+    acts.innerHTML=""; acts.appendChild(ok); acts.appendChild(tg); acts.after(more);
+    if(skip){ skip.className="linkbtn sk90"; skip.textContent="Repas sauté"; more.after(skip); } });
+  // blocs secondaires repliés
+  const fold=(card,key,sum)=>{ if(!card||card.tagName==="DETAILS"||card.dataset.f90) return; card.dataset.f90="1"; const d=document.createElement("details"); d.className=card.className+" f90"; if(card.id) d.id=card.id;
+    const s=document.createElement("summary"); s.innerHTML=sum; d.appendChild(s); while(card.firstChild) d.appendChild(card.firstChild); d.open=!!NU90.det[key]; d.addEventListener("toggle",()=>{ NU90.det[key]=d.open; }); card.replaceWith(d); };
+  const en=app.querySelector("#en-day"); if(en){ const v=(en.textContent.match(/(\d[\d\s ]{2,})\s*kcal dépensées/)||[])[1]; fold(en,"en",`🔥 Dépense du jour${v?` : <b>${esc(v.trim())} kcal</b>`:""}`); }
+  const fe=[...app.querySelectorAll(":scope > .card")].find(c=>/Comment tu te sens/.test((c.querySelector("h3,b")||{}).textContent||"")); if(fe){ const n=fe.querySelectorAll(".on,[aria-pressed=true]").length; fold(fe,"fe",`😊 Comment tu te sens ? <span class="muted small">${n?"noté":"facultatif, 30 secondes"}</span>`); }
+  const jt=app.querySelector("details#jt85"); if(jt&&!("jt" in NU90.det)){ jt.open=false; } else if(jt) jt.open=!!NU90.det.jt;
+  if(jt&&!jt.dataset.f90){ jt.dataset.f90="1"; jt.addEventListener("toggle",()=>{ NU90.det.jt=jt.open; }); } }
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="nu90-more"]'); if(!b) return; e.stopImmediatePropagation(); const mi=b.dataset.v, card=b.closest(".card.meal"), more=card&&card.querySelector(".more90"); if(!more) return;
+  NU90.open[mi]=more.hidden; more.hidden=!more.hidden; b.textContent=more.hidden?"✏️ J'ai mangé autre chose":"✕ Fermer"; },true);
+// après « Mangé », « Sauté » ou une modification, on referme le repas
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="nu-ok"],[data-act="nu-skip"]'); if(b) delete NU90.open[b.dataset.v]; },true);
+render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ nuSimplify90(); }catch(e){ console.error(e); } return r; }; })(render);
+(function(){ const st=document.createElement("style"); st.textContent=`
+.card.meal .acts{display:flex;gap:8px;flex-wrap:wrap}.card.meal .acts>button{flex:1 1 140px}
+.more90{display:flex;flex-direction:column;gap:6px;margin-top:8px}.more90[hidden]{display:none}.more90 button{width:100%;text-align:left}
+.sk90{display:block;margin:8px auto 0;background:none;border:0;color:var(--soft);font-size:.9rem;text-decoration:underline;min-height:36px}
+details.f90>summary{cursor:pointer;font-weight:700;padding:2px 0}`; document.head.appendChild(st); })();
 
 boot();
 
