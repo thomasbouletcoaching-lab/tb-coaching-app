@@ -5512,7 +5512,7 @@ const SND69={ctx:null,on:(()=>{ try{ return localStorage.getItem("tb-rest-sound"
 function sndUnlock69(){ try{ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return; if(!SND69.ctx) SND69.ctx=new AC(); if(SND69.ctx.state==="suspended") SND69.ctx.resume(); }catch(e){} }
 function chime69(){ if(!SND69.on||!SND69.ctx) return; const c=SND69.ctx, t0=c.currentTime+0.02;
   [[659.25,0],[987.77,0.16],[1318.5,0.32]].forEach(([f,dt])=>{ const o=c.createOscillator(), g=c.createGain(); o.type="sine"; o.frequency.value=f;
-    g.gain.setValueAtTime(0.0001,t0+dt); g.gain.exponentialRampToValueAtTime(0.18,t0+dt+0.03); g.gain.exponentialRampToValueAtTime(0.0001,t0+dt+0.9);
+    g.gain.setValueAtTime(0.0001,t0+dt); g.gain.exponentialRampToValueAtTime(0.45,t0+dt+0.03); g.gain.exponentialRampToValueAtTime(0.0001,t0+dt+0.9);
     o.connect(g); g.connect(c.destination); o.start(t0+dt); o.stop(t0+dt+1); }); }
 const _startRest69=startRest;
 startRest=function(sec){ sndUnlock69(); _startRest69.apply(this,arguments); const el=document.getElementById("restbar"); if(!el) return; const x=el.querySelector('[data-act="rt-x"]');
@@ -7140,6 +7140,78 @@ vAuth=function(){ const h=_vAuth88(); return AUTH.mode==="login"?h.replace(/<p c
 #p88{position:fixed;inset:0;z-index:1000}#p88 .cs85bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}#p88 .cs85p{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);max-width:520px;max-height:88vh;margin:0 auto;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .solo88b{margin-right:6px;white-space:nowrap}.ab88r{border-top:1px solid var(--line);padding:10px 0}.ab88a>*{margin:0}
 .b88{font:600 .72rem/1 system-ui,sans-serif;padding:4px 8px;border-radius:10px;background:var(--line);color:var(--ink);white-space:nowrap}.b88.p-premium{background:color-mix(in srgb,var(--blue) 22%,var(--paper))}.b88.p-light,.b88.p-coaching{background:color-mix(in srgb,var(--green,#2e9d5b) 25%,var(--paper))}`; document.head.appendChild(st); })();
+
+// ================= MODULE 89 · BALAYER UNE SÉRIE VERS LA GAUCHE POUR LA SUPPRIMER + SON DE FIN DE REPOS AUDIBLE SUR IPHONE =================
+// Balayage : la ligne glisse vers la gauche, le fond rouge « Supprimer » apparaît ; relâcher au-delà du seuil supprime la série (avec « Annuler » pendant 6 s).
+// Son : sur iPhone, l'audio Web est coupé par le bouton silencieux. On déclare la session audio en « transient » (le son passe, la musique est
+// seulement baissée un instant), on réveille le contexte audio avant de jouer, et on garde un lecteur audio classique en secours.
+const SW89={d:null,eat:false,undo:null};
+function swDel89(sk,si){ const p=sk.split("|"); let removed, put;
+  if(p[0]==="c"){ const key=p[1], c=ensureSets(key); removed=c.sets.splice(si,1)[0]||{}; if(!c.sets.length) c.sets.push({});
+    put=()=>{ const c2=ensureSets(key); if(c2.sets.length===1&&!Object.keys(c2.sets[0]).length&&si===0) c2.sets[0]=removed; else c2.sets.splice(Math.min(si,c2.sets.length),0,removed); updateTop(key); saveCarnet(key); render(); };
+    updateTop(key); saveCarnet(key); }
+  else { const key=p[1], x=hxGet70(key).list[+p[2]]; if(!x||!x.sets) return; removed=x.sets.splice(si,1)[0]||{};
+    put=()=>{ const x2=hxGet70(key).list[+p[2]]; if(!x2) return; x2.sets=x2.sets||[]; x2.sets.splice(Math.min(si,x2.sets.length),0,removed); saveCarnet(key); render(); };
+    saveCarnet(key); }
+  try{ ST50.open=null; CX70.hset=null; }catch(e){}
+  render(); swUndo89(put); }
+function swUndo89(put){ let el=document.getElementById("sw89u"); if(!el){ el=document.createElement("div"); el.id="sw89u"; document.body.appendChild(el); }
+  clearTimeout(SW89.ut); SW89.undo=put; el.innerHTML=`<span>Série supprimée</span><button type="button" data-act="sw89-undo">Annuler</button>`; el.hidden=false;
+  SW89.ut=setTimeout(()=>{ el.hidden=true; SW89.undo=null; },6000); }
+document.addEventListener("click",e=>{ if(SW89.eat){ SW89.eat=false; e.preventDefault(); e.stopImmediatePropagation(); return; }
+  const b=e.target.closest&&e.target.closest('[data-act="sw89-undo"]'); if(!b) return; e.stopImmediatePropagation(); const f=SW89.undo; SW89.undo=null;
+  const el=document.getElementById("sw89u"); if(el) el.hidden=true; if(f){ f(); toast("Série rétablie"); } },true);
+document.addEventListener("pointerdown",e=>{ if(e.pointerType==="mouse"&&e.button!==0) return; if(typeof SD70!=="undefined"&&SD70) return;
+  if(e.target.closest("[data-sdrag]")) return; const tr=e.target.closest("table.sets tr[data-sk]"); if(!tr) return;
+  SW89.d={tr,x0:e.clientX,y0:e.clientY,dx:0,on:false,id:e.pointerId}; },true);
+document.addEventListener("pointermove",e=>{ const D=SW89.d; if(!D||e.pointerId!==D.id) return; const dx=e.clientX-D.x0, dy=e.clientY-D.y0;
+  if(!D.on){ if(Math.abs(dy)>14&&Math.abs(dy)>Math.abs(dx)){ SW89.d=null; return; } if(dx<-14&&Math.abs(dx)>Math.abs(dy)*1.4){ D.on=true; swStart89(D); } else return; }
+  D.dx=Math.min(0,dx); const w=D.tr.getBoundingClientRect().width; D.tr.style.transform=`translateX(${D.dx}px)`;
+  const far=-D.dx>Math.min(140,w*.35); D.bg.classList.toggle("go",far); if(far!==D.far){ D.far=far; if(far) try{ navigator.vibrate&&navigator.vibrate(10); }catch(x){} }
+  e.preventDefault(); },{passive:false,capture:true});
+function swStart89(D){ const r=D.tr.getBoundingClientRect(); const bg=document.createElement("div"); bg.className="sw89bg";
+  bg.style.cssText=`top:${r.top+scrollY}px;left:${r.left+scrollX}px;width:${r.width}px;height:${r.height}px`; bg.innerHTML=`<span>🗑 Supprimer</span>`;
+  document.body.appendChild(bg); D.bg=bg; D.tr.classList.add("sw89"); try{ document.activeElement&&document.activeElement.blur&&document.activeElement.blur(); }catch(e){} }
+function swEnd89(cancel){ const D=SW89.d; SW89.d=null; if(!D||!D.on) return; SW89.eat=true; setTimeout(()=>{ SW89.eat=false; },400);
+  const w=D.tr.getBoundingClientRect().width, go=!cancel&&-D.dx>Math.min(140,w*.35);
+  if(go){ D.tr.style.transition="transform .18s ease-in"; D.tr.style.transform=`translateX(${-w}px)`;
+    setTimeout(()=>{ D.bg.remove(); D.tr.classList.remove("sw89"); swDel89(D.tr.dataset.sk,+D.tr.dataset.si); },170); }
+  else { D.tr.style.transition="transform .18s ease-out"; D.tr.style.transform=""; setTimeout(()=>{ D.tr.style.transition=""; D.tr.classList.remove("sw89"); D.bg.remove(); },190); } }
+document.addEventListener("pointerup",e=>{ if(SW89.d&&e.pointerId===SW89.d.id) swEnd89(false); },true);
+document.addEventListener("pointercancel",e=>{ if(SW89.d&&e.pointerId===SW89.d.id) swEnd89(true); },true);
+
+// ---------- son de fin de repos
+const SND89={el:null,ready:false,wl:null};
+function wav89(){ const sr=22050, dur=1.6, n=Math.floor(sr*dur), b=new ArrayBuffer(44+n*2), v=new DataView(b), S=(o,s)=>{ for(let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); };
+  S(0,"RIFF"); v.setUint32(4,36+n*2,true); S(8,"WAVE"); S(12,"fmt "); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true); v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); S(36,"data"); v.setUint32(40,n*2,true);
+  const N=[[659.25,0],[987.77,.16],[1318.5,.32]];
+  for(let i=0;i<n;i++){ const t=i/sr; let s=0; N.forEach(([f,d])=>{ const u=t-d; if(u<0) return; const env=u<.03?u/.03:Math.exp(-(u-.03)*4.2); s+=Math.sin(2*Math.PI*f*u)*env*.42; }); v.setInt16(44+i*2,Math.max(-1,Math.min(1,s))*32767,true); }
+  return URL.createObjectURL(new Blob([b],{type:"audio/wav"})); }
+function sndSession89(){ try{ if(navigator.audioSession&&navigator.audioSession.type!=="transient") navigator.audioSession.type="transient"; }catch(e){} }
+// à appeler pendant un geste (toucher) : débloque l'audio pour la fin du repos
+function sndPrime89(){ sndSession89(); sndUnlock69();
+  if(!navigator.audioSession&&!SND89.el){ try{ const a=new Audio(wav89()); a.preload="auto"; a.setAttribute("playsinline",""); SND89.el=a; }catch(e){} }
+  if(SND89.el&&!SND89.ready){ const a=SND89.el; a.muted=true; const p=a.play(); if(p&&p.then) p.then(()=>{ a.pause(); a.currentTime=0; a.muted=false; SND89.ready=true; }).catch(()=>{ a.muted=false; }); } }
+const _chime89=chime69;
+chime69=function(){ if(!SND69.on) return; sndSession89();
+  if(SND89.el&&SND89.ready){ try{ const a=SND89.el; a.currentTime=0; a.muted=false; a.volume=1; const p=a.play(); if(p&&p.catch) p.catch(()=>{}); return; }catch(e){} }
+  const c=SND69.ctx; if(!c) return; const go=()=>{ try{ _chime89(); }catch(e){} };
+  if(c.state!=="running"&&c.resume) c.resume().then(go).catch(go); else go(); };
+const _startRest89=startRest;
+startRest=function(sec){ sndPrime89(); const r=_startRest89.apply(this,arguments);
+  try{ if(navigator.wakeLock&&!SND89.wl) navigator.wakeLock.request("screen").then(l=>{ SND89.wl=l; l.addEventListener&&l.addEventListener("release",()=>{ SND89.wl=null; }); }).catch(()=>{}); }catch(e){}
+  return r; };
+const _stopRest89=stopRest;
+stopRest=function(end){ const r=_stopRest89.apply(this,arguments); try{ if(SND89.wl){ SND89.wl.release(); SND89.wl=null; } }catch(e){} return r; };
+// retour dans l'app pendant un repos : le minuteur se recale tout seul, on réveille l'audio au premier toucher
+document.addEventListener("pointerdown",()=>{ if(document.body.classList.contains("rest-on")) sndPrime89(); },{capture:true,passive:true});
+(function(){ const st=document.createElement("style"); st.textContent=`
+table.sets td{touch-action:pan-y}
+tr.sw89{position:relative;z-index:2;background:var(--paper)}tr.sw89 td{background:var(--paper)}
+.sw89bg{position:absolute;z-index:1;display:flex;align-items:center;justify-content:flex-end;padding-right:18px;background:#e5484d;color:#fff;font-weight:700;border-radius:8px;pointer-events:none}
+.sw89bg.go{background:#c62828}.sw89bg.go span::after{content:" · relâche"}
+#sw89u{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:1200;display:flex;gap:14px;align-items:center;background:var(--ink);color:var(--paper);padding:10px 14px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+#sw89u button{background:none;border:0;color:#7fb2ff;font-weight:700;font-size:1rem;min-height:36px}`; document.head.appendChild(st); })();
 
 boot();
 

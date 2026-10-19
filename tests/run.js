@@ -382,6 +382,27 @@ const T = {
     await p.fill('.st50 textarea[data-sn]', 'Dernière rep lente'); await p.click('.st50 b'); await p.waitForTimeout(700);
     ok(sc.lastWrite && JSON.stringify(sc.lastWrite).includes('Dernière rep lente'), 'note enregistrée');
   }, clientPre(sc => (m, path, body, acc, t) => { if (t === 'carnet' && m === 'GET' && /client_id=eq/.test(path)) return CAR; if (t === 'carnet' && m === 'POST') { sc.lastWrite = body; return []; } if (t === 'carnet') return []; })),
+  'client : balayer une série vers la gauche pour la supprimer, son de fin de repos': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(800);
+    await p.evaluate(() => { ST.todayOn = false; ST.view = 'carnet'; render(); });
+    await p.waitForTimeout(500);
+    await p.evaluate(() => { const tr = document.querySelector('table.sets tr[data-sk^="c|"]'); if (!tr) return; const key = tr.dataset.sk.split('|')[1]; const c = ensureSets(key); c.sets = [{ g: 60, h: 8, r: 8 }, { g: 62.5, h: 8, r: 8 }, { g: 65, h: 6, r: 9 }]; render(); });
+    await p.waitForTimeout(400);
+    const info = await p.evaluate(() => { const tr = document.querySelector('table.sets tr[data-sk^="c|"]'); if (!tr) return null; tr.scrollIntoView({ block: 'center' }); const r = tr.getBoundingClientRect(); const key = tr.dataset.sk.split('|')[1]; return { x: r.left + r.width * 0.8, y: r.top + r.height / 2, key, n: (ST.carnet[key] && ST.carnet[key].sets || []).length }; });
+    ok(!!info, 'ligne de série balayable'); if (!info) return;
+    await p.mouse.move(info.x, info.y); await p.mouse.down();
+    for (let d = 10; d <= 220; d += 30) { await p.mouse.move(info.x - d, info.y + 2); await p.waitForTimeout(20); }
+    ok(await p.evaluate(() => { const b = document.querySelector('.sw89bg'); return !!b && /Supprimer/.test(b.textContent); }), 'fond rouge « Supprimer » affiché');
+    await p.mouse.up(); await p.waitForTimeout(600);
+    const after = await p.evaluate(k => (ST.carnet[k] && ST.carnet[k].sets || []).length, info.key);
+    ok(after === info.n - 1, 'série supprimée (' + info.n + ' → ' + after + ')');
+    ok(sc.lastWrite && sc.lastWrite.k === info.key, 'suppression enregistrée');
+    ok(await p.isVisible('#sw89u'), 'bouton Annuler proposé');
+    await p.click('#sw89u button'); await p.waitForTimeout(400);
+    ok(await p.evaluate(k => (ST.carnet[k] && ST.carnet[k].sets || []).length, info.key) === info.n, 'Annuler rétablit la série');
+    const snd = await p.evaluate(() => { try { startRest(1); stopRest(true); return { ok: true, el: !!SND89.el }; } catch (e) { return { ok: false, err: e.message }; } });
+    ok(snd.ok && snd.el, 'fin de repos : son préparé et joué sans erreur');
+  }, clientPre(sc => (m, path, body, acc, t) => { if (t === 'carnet' && m === 'GET' && /client_id=eq/.test(path)) return CAR; if (t === 'carnet' && m === 'POST') { sc.lastWrite = body; return []; } if (t === 'carnet') return []; })),
 };
 
 (async () => {
