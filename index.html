@@ -7192,13 +7192,24 @@ function swEnd89(cancel){ const D=SW89.d; SW89.d=null; if(!D||!D.on) return; SW8
     b.style.transition="width .18s ease-out,left .18s ease-out"; b.style.width=SW89.W+"px"; b.style.left=(D.R-SW89.W)+"px"; b.classList.remove("go"); SW89.open={tr,b,R:D.R}; return; }
   SW89.open={tr,b,R:D.R}; swClose89(true); }
 document.addEventListener("pointerup",e=>{ if(SW89.d&&e.pointerId===SW89.d.id) swEnd89(false); },true);
-document.addEventListener("pointercancel",e=>{ if(SW89.d&&e.pointerId===SW89.d.id) swEnd89(true); },true);
+document.addEventListener("pointercancel",e=>{ if(SW89.d&&e.pointerId===SW89.d.id) swEnd89(!SW89.d.on); },true);
 // un nouveau rendu redessine les lignes : on referme proprement
 render=(function(o){ return function(){ const O=SW89.open, keep=O&&!SW89.d?{sk:O.tr.dataset.sk,si:O.tr.dataset.si}:null; if(O) swClose89(false); document.querySelectorAll(".sw89bg").forEach(x=>x.remove());
   const r=o.apply(this,arguments);
   if(keep){ const tr=document.querySelector(`table.sets tr[data-sk="${CSS.escape(keep.sk)}"][data-si="${CSS.escape(keep.si)}"]`); if(tr){ const R=tr.getBoundingClientRect().right+scrollX, b=swBtn89(tr); tr.classList.add("sw89"); tr.style.transform=`translateX(${-SW89.W}px)`; b.style.width=SW89.W+"px"; b.style.left=(R-SW89.W)+"px"; SW89.open={tr,b,R}; } }
   return r; }; })(render);
-document.addEventListener("scroll",()=>{ const O=SW89.open; if(!O||SW89.d) return; if(O.y==null) O.y=scrollY; else if(Math.abs(scrollY-O.y)>40) swClose89(true); },{passive:true});
+// la ligne ouverte reste ouverte : le bouton suit sa ligne (clavier qui se ferme, défilement, rotation) ; seul un toucher ailleurs la referme
+function swAnchor89(){ const O=SW89.open; if(!O||SW89.d) return; let tr=O.tr;
+  if(!tr.isConnected){ tr=document.querySelector(`table.sets tr[data-sk="${CSS.escape(O.tr.dataset.sk)}"][data-si="${CSS.escape(O.tr.dataset.si)}"]`); if(!tr){ O.b.remove(); SW89.open=null; return; }
+    O.tr=tr; tr.classList.add("sw89"); tr.style.transform=`translateX(${-SW89.W}px)`; }
+  if(!O.b.isConnected) document.body.appendChild(O.b);
+  const prev=tr.style.transform, prevT=tr.style.transition; tr.style.transition="none"; tr.style.transform=""; const r=tr.getBoundingClientRect(); tr.style.transform=prev; void tr.offsetWidth; tr.style.transition=prevT;
+  O.R=r.right+scrollX; O.b.style.transition="none"; O.b.style.top=(r.top+scrollY)+"px"; O.b.style.height=r.height+"px"; O.b.style.left=(O.R-SW89.W)+"px"; O.b.style.width=SW89.W+"px"; }
+let swAT89=0; const swLater89=()=>{ clearTimeout(swAT89); swAT89=setTimeout(swAnchor89,60); };
+document.addEventListener("scroll",swLater89,{passive:true}); window.addEventListener("resize",swLater89);
+if(window.visualViewport){ visualViewport.addEventListener("resize",swLater89); visualViewport.addEventListener("scroll",swLater89); }
+// pendant un balayage horizontal, la page ne défile pas (sinon l'iPhone interrompt le geste)
+document.addEventListener("touchmove",e=>{ if(SW89.d&&SW89.d.on&&e.cancelable) e.preventDefault(); },{passive:false,capture:true});
 
 // ---------- son de fin de repos
 const SND89={el:null,ready:false,wl:null};

@@ -406,6 +406,23 @@ const T = {
     const snd = await p.evaluate(() => { try { startRest(1); stopRest(true); return { ok: true, el: !!SND89.el }; } catch (e) { return { ok: false, err: e.message }; } });
     ok(snd.ok && snd.el, 'fin de repos : son préparé et joué sans erreur');
   }, clientPre(sc => (m, path, body, acc, t) => { if (t === 'carnet' && m === 'GET' && /client_id=eq/.test(path)) return CAR; if (t === 'carnet' && m === 'POST') { sc.lastWrite = body; return []; } if (t === 'carnet') return []; })),
+  'client : balayage au doigt, le bouton Supprimer reste ouvert (clavier, défilement) puis supprime': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(800);
+    await p.evaluate(() => { ST.todayOn = false; ST.view = 'carnet'; render(); }); await p.waitForTimeout(400);
+    await p.evaluate(() => { const tr = document.querySelector('table.sets tr[data-sk^="c|"]'); const c = ensureSets(tr.dataset.sk.split('|')[1]); c.sets = [{ g: 60, h: 8, r: 8 }, { g: 62.5, h: 8, r: 8 }, { g: 65, h: 6, r: 9 }]; render(); });
+    await p.waitForTimeout(400);
+    const info = await p.evaluate(() => { const tr = document.querySelectorAll('table.sets tr[data-sk^="c|"]')[1]; tr.scrollIntoView({ block: 'center' }); const r = tr.getBoundingClientRect(); return { x: r.left + r.width * 0.55, y: r.top + r.height / 2, key: tr.dataset.sk.split('|')[1] }; });
+    await p.waitForTimeout(300);
+    const c = await p.context().newCDPSession(p); const T = (type, x, y) => c.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+    await T('touchStart', info.x, info.y); for (let d = 8; d <= 140; d += 12) { await T('touchMove', info.x - d, info.y + d / 12); await p.waitForTimeout(16); } await T('touchEnd'); await p.waitForTimeout(600);
+    ok(await p.evaluate(() => !!document.querySelector('.sw89bg') && !!SW89.open), 'bouton Supprimer ouvert après le balayage au doigt');
+    await p.setViewportSize({ width: 390, height: 500 }); await p.waitForTimeout(200); await p.setViewportSize({ width: 390, height: 844 }); await p.evaluate(() => window.scrollBy(0, 250)); await p.waitForTimeout(400);
+    const g = await p.evaluate(() => { const b = document.querySelector('.sw89bg'), O = SW89.open; if (!b || !O) return null; const br = b.getBoundingClientRect(), tr = O.tr.getBoundingClientRect(); return { dy: Math.abs(br.top - tr.top), dx: Math.abs(br.right - (tr.right + SW89.W)), cx: br.left + br.width / 2, cy: br.top + br.height / 2 }; });
+    ok(g && g.dy < 2 && g.dx < 2, 'toujours ouvert et aligné après clavier et défilement');
+    if (!g) return;
+    await T('touchStart', g.cx, g.cy); await T('touchEnd'); await p.waitForTimeout(700);
+    ok(await p.evaluate(k => ensureSets(k).sets.length, info.key) === 2, 'un toucher sur Supprimer supprime la série');
+  }, clientPre(sc => (m, path, body, acc, t) => { if (t === 'carnet' && m === 'GET' && /client_id=eq/.test(path)) return CAR; if (t === 'carnet' && m === 'POST') { sc.lastWrite = body; return []; } if (t === 'carnet') return []; })),
 };
 
 (async () => {
