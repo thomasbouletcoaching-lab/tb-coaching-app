@@ -7227,6 +7227,18 @@ stopRest=function(end){ const r=_stopRest89.apply(this,arguments); try{ if(SND89
 document.addEventListener("pointerdown",()=>{ if(document.body.classList.contains("rest-on")) sndPrime89(); },{capture:true,passive:true});
 (function(){ const st=document.createElement("style"); st.textContent=`
 table.sets td{touch-action:pan-y}
+/* la ligne tient dans l'écran : les champs se resserrent, « Précédent » passe à la ligne, ✓ reste toujours visible à droite */
+table.sets input.si{min-width:0}
+table.sets td,table.sets th{overflow-wrap:anywhere}
+table.sets td:nth-child(2){font-size:.8rem;line-height:1.15}
+table.sets th{font-size:.62rem;letter-spacing:0}
+table.sets td:has(> input.si){min-width:42px}
+table.sets td:has(> input.si[data-cs$="|g"]),table.sets td:has(> input.si[data-hx$="|g"]){min-width:56px}
+table.sets input.si{padding:7px 2px}
+table.sets td:nth-child(2):not(:has(input)),table.sets th:nth-child(2){max-width:66px;width:66px}
+table.sets td:last-child,table.sets th:last-child{position:sticky;right:0;z-index:1;width:46px;min-width:46px}
+table.sets tr:not(.done)>td:last-child{background:var(--paper)}
+table.sets td:last-child .chk,table.sets td:last-child button{min-width:42px}
 tr.sw89{position:relative;z-index:2;background:var(--paper)}tr.sw89 td{background:var(--paper)}
 .sw89bg{position:absolute;z-index:3;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;padding:0;border:0;border-radius:0;background:#d9534f;color:#fff;font:600 1.05rem/1 inherit;min-height:0;box-shadow:none}
 .sw89bg.go{background:#c62828}
