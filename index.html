@@ -4469,15 +4469,9 @@ function setDetail50(x){ const d=[]; const t=x.t||[];
   if(t.includes("f")&&x.fr) d.push(`échec à la rep ${x.fr}`); if(t.includes("pa")&&x.pa) d.push(`+${x.pa} partielle${x.pa>1?"s":""}`);
   if(t.includes("ch")&&x.ch) d.push(`+${x.ch} trichée${x.ch>1?"s":""}`); if(t.includes("iso")&&(x.is||x.ip)) d.push(`iso ${x.ip||""} ${x.is?x.is+" s":""}${x.ir?" à la rep "+x.ir:""}`.replace(/\s+/g," ").trim());
   return d.join(" · "); }
-function setEditor50(key,i){ const v=ST.carnet[key]||{}, x=(v.sets&&v.sets[i])||{}, t=tagsOf50(key,i), f=(k,lab,ph)=>`<label class="f" style="flex:1 1 90px">${lab}<input class="si" inputmode="numeric" data-st="${key}|${i}|${k}" value="${esc(x[k]??"")}" placeholder="${ph||""}"></label>`;
+function setEditor50(key,i){ const v=ST.carnet[key]||{}, x=(v.sets&&v.sets[i])||{}, t=tagsOf50(key,i);
   return `<div class="edit st50"><div class="row" style="justify-content:space-between"><b>Série ${i+1} : type</b><button class="ghost sm" data-act="st-open" data-v="">Fermer</button></div>
-   <div class="row" style="gap:6px;margin:6px 0">${Object.entries(TAG50).map(([k,o])=>`<button class="chip ${t.includes(k)?"on":""}" data-act="st-tag" data-v="${key}|${i}|${k}">${o.e} ${o.l}</button>`).join("")}</div>
-   ${t.includes("f")?`<div class="row">${f("fr","💀 Échec à la rep n°","ex. 8")}</div>`:""}
-   ${t.includes("pa")?`<div class="row"><span class="muted small" style="flex:1 1 100%">Reps complètes = colonne Reps.</span>${f("pa","✂️ Partielles en plus","ex. 4")}</div>`:""}
-   ${t.includes("ch")?`<div class="row">${f("ch","😈 Reps en trichant","ex. 2")}</div>`:""}
-   ${t.includes("iso")?`<div class="row"><label class="f" style="flex:1 1 90px">⏸️ Position<select data-st="${key}|${i}|ip"><option value="">—</option><option ${x.ip==="en haut"?"selected":""}>en haut</option><option ${x.ip==="en bas"?"selected":""}>en bas</option><option ${x.ip==="à mi-course"?"selected":""}>à mi-course</option></select></label>${f("is","Durée (s)","ex. 5")}${f("ir","À la rep n°","ex. 6")}</div>`:""}
-   ${t.includes("ds")?`<div class="muted small">🔻 Enchaînée juste après la série précédente, sans repos, avec une charge plus légère.</div>`:""}
-   ${t.includes("ech")?`<div class="muted small">♨️ Ne compte pas dans le volume.</div>`:""}</div>`; }
+    <div class="muted small">Touche une ou plusieurs techniques, puis note les détails.</div>${tagChips86(t,"st-tag",key+"|"+i)}${detFields86(t,x,"data-st86",key+"|"+i)}</div>`; }
 const _carnetEx50=carnetEx;
 carnetEx=function(r,w){ let h=_carnetEx50(r,w); const key=w+"_"+r.key, v=ST.carnet[key]||{};
   h=h.replace(/<tr class="([^"]*)"><td><span class="sn">(\d+)<\/span><\/td>/g,(m,cls,n)=>{ const i=+n-1, t=tagsOf50(key,i), x=(v.sets&&v.sets[i])||{}, det=setDetail50(Object.assign({},x,{t}));
@@ -4877,7 +4871,7 @@ setEditor50=function(key,i){ let h=_setEditor64(key,i); const v=ST.carnet[key]||
   const extra=`<label class="f" style="margin-top:8px">📝 Note sur cette série<textarea class="big64" rows="3" data-sn="${key}|${i}" placeholder="Ex. dernière rep lente, genou qui rentre, très bonne vitesse…">${esc(x.n||"")}</textarea></label>
    ${vids}<div class="row" style="margin-top:6px">${SV64.up===key+"|"+i?`<span class="muted small">${esc(SV64.msg||"Envoi de la vidéo…")}</span>`:`<button class="ghost sm" data-act="sv-take" data-v="${key}|${i}">🎥 ${V.length?"Ajouter une autre vidéo":"Ajouter la vidéo de cette série"}</button>`}</div>
    <div class="muted small">Une seule série par vidéo, ${VID_MAX_S} s maximum. Les vidéos sont supprimées après ${VID_KEEP_DAYS} jours.</div>`;
-  return h.replace(/<b>Série (\d+) : type<\/b>/,"<b>Série $1 : type, note, vidéo</b>").replace(/<\/div>$/,extra+"</div>"); };
+  return h.replace(/<b>Série (\d+) : type<\/b>/,"<b>Série $1 : technique, note, vidéo</b>").replace(/<\/div>$/,extra+"</div>"); };
 const _carnetEx64=carnetEx;
 carnetEx=function(r,w){ let h=_carnetEx64(r,w); const key=w+"_"+r.key, v=ST.carnet[key]||{};
   // repères 📝 / 🎥 sur le numéro de série et ligne d'aperçu sous la série
@@ -6859,9 +6853,7 @@ const ST86={all:false}, TOP86=["ech","mg","f","ds","rp","myo"];
 function tagChips86(t,act,pre){ const L=ORD86.filter(k=>TAG50[k]&&(ST86.all||TOP86.includes(k)||t.includes(k)));
   return `<div class="row tg86" style="gap:6px;margin:6px 0">${L.map(k=>`<button class="chip ${t.includes(k)?"on":""}" data-act="${act}" data-v="${pre}|${k}">${TAG50[k].e} ${TAG50[k].l}</button>`).join("")}<button class="chip ghost" data-act="st86-all">${ST86.all?"− Moins de techniques":"＋ Autres techniques ("+(ORD86.length-L.length)+")"}</button></div>`; }
 document.addEventListener("click",e=>{ const b=e.target.closest('[data-act="st86-all"]'); if(!b) return; e.stopImmediatePropagation(); ST86.all=!ST86.all; render(); },true);
-setEditor50=function(key,i){ const v=ST.carnet[key]||{}, x=(v.sets&&v.sets[i])||{}, t=tagsOf50(key,i);
-  return `<div class="edit st50"><div class="row" style="justify-content:space-between"><b>Série ${i+1} : technique</b><button class="ghost sm" data-act="st-open" data-v="">Fermer</button></div>
-    <div class="muted small">Touche une ou plusieurs techniques, puis note les détails.</div>${tagChips86(t,"st-tag",key+"|"+i)}${detFields86(t,x,"data-st86",key+"|"+i)}</div>`; };
+// éditeur de série : techniques et détails dans setEditor50 (base), note, vidéo et suppression ajoutées par les modules 64 et 70
 // enregistrement des détails (carnet du programme)
 document.addEventListener("change",e=>{ const el=e.target, ds=el.dataset||{}; if(ds.st86===undefined) return; e.stopImmediatePropagation();
   const [key,i,f,ty]=ds.st86.split("|"); const c=ensureSets(key); while(c.sets.length<=+i) c.sets.push({}); const x=c.sets[+i]; const val=String(el.value).trim();

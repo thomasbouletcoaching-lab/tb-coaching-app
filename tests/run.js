@@ -367,6 +367,21 @@ const T = {
     if (/rpc\/coach_subscribers/.test(path)) return [{ client_id: 's1', name: 'Alex Test', email: 'alex@exemple.fr', plan: 'free', status: 'active', source: 'self', created_at: '2026-10-10T10:00:00Z' }, { client_id: 's2', name: 'Sam Test', email: 'sam@exemple.fr', plan: 'premium', status: 'active', source: 'stripe', interval: 'month', created_at: '2026-10-11T10:00:00Z' }];
     if (/app_flags/.test(path) && m === 'POST') { sc.flag = body; sc.me.signup_open = true; return []; }
     if (/rpc\/coach_set_plan/.test(path)) { sc.setPlan = body; return null; } }; })),
+  'client : éditeur de série (techniques, note, vidéo, suppression)': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(800);
+    await p.evaluate(() => { ST.todayOn = false; ST.view = 'carnet'; render(); });
+    await p.waitForTimeout(400);
+    const b = await p.$('[data-act="st-open"][data-v]:not([data-v=""])'); ok(!!b, 'bouton de série présent'); if (!b) return;
+    await b.click(); await p.waitForTimeout(400);
+    const box = await txt(p, '.st50');
+    ok(box.includes('technique, note, vidéo'), 'titre : technique, note, vidéo');
+    ok(!!(await p.$('.st50 [data-act="st-tag"]')), 'techniques d\'intensification');
+    ok(!!(await p.$('.st50 textarea[data-sn]')), 'note sur la série');
+    ok(!!(await p.$('.st50 [data-act="sv-take"]')), 'vidéo de la série');
+    ok(!!(await p.$('.st50 [data-act="cx-sdel70"]')), 'supprimer cette série');
+    await p.fill('.st50 textarea[data-sn]', 'Dernière rep lente'); await p.click('.st50 b'); await p.waitForTimeout(700);
+    ok(sc.lastWrite && JSON.stringify(sc.lastWrite).includes('Dernière rep lente'), 'note enregistrée');
+  }, clientPre(sc => (m, path, body, acc, t) => { if (t === 'carnet' && m === 'GET' && /client_id=eq/.test(path)) return CAR; if (t === 'carnet' && m === 'POST') { sc.lastWrite = body; return []; } if (t === 'carnet') return []; })),
 };
 
 (async () => {
