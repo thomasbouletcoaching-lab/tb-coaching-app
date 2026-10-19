@@ -7145,7 +7145,7 @@ vAuth=function(){ const h=_vAuth88(); return AUTH.mode==="login"?h.replace(/<p c
 // Balayage : la ligne glisse vers la gauche, le fond rouge « Supprimer » apparaît ; relâcher au-delà du seuil supprime la série (avec « Annuler » pendant 6 s).
 // Son : sur iPhone, l'audio Web est coupé par le bouton silencieux. On déclare la session audio en « transient » (le son passe, la musique est
 // seulement baissée un instant), on réveille le contexte audio avant de jouer, et on garde un lecteur audio classique en secours.
-const SW89={d:null,eat:false,undo:null};
+const SW89={d:null,eat:false,undo:null,open:null,W:112};
 function swDel89(sk,si){ const p=sk.split("|"); let removed, put;
   if(p[0]==="c"){ const key=p[1], c=ensureSets(key); removed=c.sets.splice(si,1)[0]||{}; if(!c.sets.length) c.sets.push({});
     put=()=>{ const c2=ensureSets(key); if(c2.sets.length===1&&!Object.keys(c2.sets[0]).length&&si===0) c2.sets[0]=removed; else c2.sets.splice(Math.min(si,c2.sets.length),0,removed); updateTop(key); saveCarnet(key); render(); };
@@ -7158,27 +7158,47 @@ function swDel89(sk,si){ const p=sk.split("|"); let removed, put;
 function swUndo89(put){ let el=document.getElementById("sw89u"); if(!el){ el=document.createElement("div"); el.id="sw89u"; document.body.appendChild(el); }
   clearTimeout(SW89.ut); SW89.undo=put; el.innerHTML=`<span>Série supprimée</span><button type="button" data-act="sw89-undo">Annuler</button>`; el.hidden=false;
   SW89.ut=setTimeout(()=>{ el.hidden=true; SW89.undo=null; },6000); }
-document.addEventListener("click",e=>{ if(SW89.eat){ SW89.eat=false; e.preventDefault(); e.stopImmediatePropagation(); return; }
-  const b=e.target.closest&&e.target.closest('[data-act="sw89-undo"]'); if(!b) return; e.stopImmediatePropagation(); const f=SW89.undo; SW89.undo=null;
+// bouton rouge « Supprimer » collé au bord droit de la ligne, sa largeur suit le balayage
+function swBtn89(tr){ const r=tr.getBoundingClientRect(); const b=document.createElement("button"); b.type="button"; b.className="sw89bg"; b.dataset.act="sw89-del"; b.textContent="Supprimer";
+  b.style.cssText=`top:${r.top+scrollY}px;left:${r.right+scrollX}px;height:${r.height}px;width:0px`; document.body.appendChild(b); return b; }
+function swClose89(anim){ const O=SW89.open; SW89.open=null; if(!O) return; const {tr,b,R}=O;
+  if(anim&&tr.isConnected){ tr.style.transition="transform .18s ease-out"; tr.style.transform=""; b.style.transition="width .18s ease-out,left .18s ease-out"; b.style.width="0px"; b.style.left=R+"px";
+    setTimeout(()=>{ tr.style.transition=""; tr.classList.remove("sw89"); b.remove(); },200); }
+  else { tr.style.transform=""; tr.classList.remove("sw89"); b.remove(); } }
+function swGo89(tr,b){ const w=tr.getBoundingClientRect().width; SW89.open=null; tr.style.transition="transform .18s ease-in"; tr.style.transform=`translateX(${-w}px)`;
+  setTimeout(()=>{ b.remove(); tr.classList.remove("sw89"); swDel89(tr.dataset.sk,+tr.dataset.si); },170); }
+document.addEventListener("click",e=>{ const t=e.target;
+  const del=t.closest&&t.closest('[data-act="sw89-del"]'); if(del){ e.preventDefault(); e.stopImmediatePropagation(); const O=SW89.open; if(O) swGo89(O.tr,O.b); return; }
+  if(SW89.eat){ SW89.eat=false; e.preventDefault(); e.stopImmediatePropagation(); return; }
+  const b=t.closest&&t.closest('[data-act="sw89-undo"]'); if(!b) return; e.stopImmediatePropagation(); const f=SW89.undo; SW89.undo=null;
   const el=document.getElementById("sw89u"); if(el) el.hidden=true; if(f){ f(); toast("Série rétablie"); } },true);
-document.addEventListener("pointerdown",e=>{ if(e.pointerType==="mouse"&&e.button!==0) return; if(typeof SD70!=="undefined"&&SD70) return;
-  if(e.target.closest("[data-sdrag]")) return; const tr=e.target.closest("table.sets tr[data-sk]"); if(!tr) return;
-  SW89.d={tr,x0:e.clientX,y0:e.clientY,dx:0,on:false,id:e.pointerId}; },true);
-document.addEventListener("pointermove",e=>{ const D=SW89.d; if(!D||e.pointerId!==D.id) return; const dx=e.clientX-D.x0, dy=e.clientY-D.y0;
-  if(!D.on){ if(Math.abs(dy)>14&&Math.abs(dy)>Math.abs(dx)){ SW89.d=null; return; } if(dx<-14&&Math.abs(dx)>Math.abs(dy)*1.4){ D.on=true; swStart89(D); } else return; }
-  D.dx=Math.min(0,dx); const w=D.tr.getBoundingClientRect().width; D.tr.style.transform=`translateX(${D.dx}px)`;
-  const far=-D.dx>Math.min(140,w*.35); D.bg.classList.toggle("go",far); if(far!==D.far){ D.far=far; if(far) try{ navigator.vibrate&&navigator.vibrate(10); }catch(x){} }
+document.addEventListener("pointerdown",e=>{ if(e.pointerType==="mouse"&&e.button!==0) return; if(e.target.closest&&e.target.closest('[data-act="sw89-del"]')) return;
+  const tr=e.target.closest&&e.target.closest("table.sets tr[data-sk]");
+  if(SW89.open&&SW89.open.tr!==tr){ swClose89(true); SW89.eat=true; setTimeout(()=>{ SW89.eat=false; },400); e.preventDefault(); return; }
+  if(typeof SD70!=="undefined"&&SD70) return; if(e.target.closest("[data-sdrag]")||!tr) return;
+  const base=SW89.open&&SW89.open.tr===tr?-SW89.W:0;
+  SW89.d={tr,x0:e.clientX,y0:e.clientY,dx:base,base,on:false,id:e.pointerId,b:SW89.open?SW89.open.b:null,R:SW89.open?SW89.open.R:null}; },true);
+document.addEventListener("pointermove",e=>{ const D=SW89.d; if(!D||e.pointerId!==D.id) return; const mx=e.clientX-D.x0, dy=e.clientY-D.y0;
+  if(!D.on){ if(Math.abs(dy)>14&&Math.abs(dy)>Math.abs(mx)){ SW89.d=null; return; } if(Math.abs(mx)>12&&Math.abs(mx)>Math.abs(dy)*1.4&&(mx<0||D.base)){ D.on=true; if(!D.b){ D.b=swBtn89(D.tr); } if(D.R==null) D.R=D.tr.getBoundingClientRect().right+scrollX; D.tr.classList.add("sw89"); SW89.open=null; try{ document.activeElement&&document.activeElement.blur&&document.activeElement.blur(); }catch(x){} } else return; }
+  const w=D.tr.getBoundingClientRect().width; D.dx=Math.max(-w,Math.min(0,D.base+mx)); D.tr.style.transition=""; D.tr.style.transform=`translateX(${D.dx}px)`;
+  D.b.style.transition=""; D.b.style.width=(-D.dx)+"px"; D.b.style.left=(D.R+D.dx)+"px";
+  const far=-D.dx>w*.6; D.b.classList.toggle("go",far); if(far!==D.far){ D.far=far; if(far) try{ navigator.vibrate&&navigator.vibrate(10); }catch(x){} }
   e.preventDefault(); },{passive:false,capture:true});
-function swStart89(D){ const r=D.tr.getBoundingClientRect(); const bg=document.createElement("div"); bg.className="sw89bg";
-  bg.style.cssText=`top:${r.top+scrollY}px;left:${r.left+scrollX}px;width:${r.width}px;height:${r.height}px`; bg.innerHTML=`<span>🗑 Supprimer</span>`;
-  document.body.appendChild(bg); D.bg=bg; D.tr.classList.add("sw89"); try{ document.activeElement&&document.activeElement.blur&&document.activeElement.blur(); }catch(e){} }
 function swEnd89(cancel){ const D=SW89.d; SW89.d=null; if(!D||!D.on) return; SW89.eat=true; setTimeout(()=>{ SW89.eat=false; },400);
-  const w=D.tr.getBoundingClientRect().width, go=!cancel&&-D.dx>Math.min(140,w*.35);
-  if(go){ D.tr.style.transition="transform .18s ease-in"; D.tr.style.transform=`translateX(${-w}px)`;
-    setTimeout(()=>{ D.bg.remove(); D.tr.classList.remove("sw89"); swDel89(D.tr.dataset.sk,+D.tr.dataset.si); },170); }
-  else { D.tr.style.transition="transform .18s ease-out"; D.tr.style.transform=""; setTimeout(()=>{ D.tr.style.transition=""; D.tr.classList.remove("sw89"); D.bg.remove(); },190); } }
+  const tr=D.tr, b=D.b, w=tr.getBoundingClientRect().width, d=-D.dx;
+  if(!cancel&&d>w*.6) return swGo89(tr,b);
+  if(!cancel&&d>50){ // reste ouvert sur le bouton « Supprimer »
+    tr.style.transition="transform .18s ease-out"; tr.style.transform=`translateX(${-SW89.W}px)`;
+    b.style.transition="width .18s ease-out,left .18s ease-out"; b.style.width=SW89.W+"px"; b.style.left=(D.R-SW89.W)+"px"; b.classList.remove("go"); SW89.open={tr,b,R:D.R}; return; }
+  SW89.open={tr,b,R:D.R}; swClose89(true); }
 document.addEventListener("pointerup",e=>{ if(SW89.d&&e.pointerId===SW89.d.id) swEnd89(false); },true);
 document.addEventListener("pointercancel",e=>{ if(SW89.d&&e.pointerId===SW89.d.id) swEnd89(true); },true);
+// un nouveau rendu redessine les lignes : on referme proprement
+render=(function(o){ return function(){ const O=SW89.open, keep=O&&!SW89.d?{sk:O.tr.dataset.sk,si:O.tr.dataset.si}:null; if(O) swClose89(false); document.querySelectorAll(".sw89bg").forEach(x=>x.remove());
+  const r=o.apply(this,arguments);
+  if(keep){ const tr=document.querySelector(`table.sets tr[data-sk="${CSS.escape(keep.sk)}"][data-si="${CSS.escape(keep.si)}"]`); if(tr){ const R=tr.getBoundingClientRect().right+scrollX, b=swBtn89(tr); tr.classList.add("sw89"); tr.style.transform=`translateX(${-SW89.W}px)`; b.style.width=SW89.W+"px"; b.style.left=(R-SW89.W)+"px"; SW89.open={tr,b,R}; } }
+  return r; }; })(render);
+document.addEventListener("scroll",()=>{ const O=SW89.open; if(!O||SW89.d) return; if(O.y==null) O.y=scrollY; else if(Math.abs(scrollY-O.y)>40) swClose89(true); },{passive:true});
 
 // ---------- son de fin de repos
 const SND89={el:null,ready:false,wl:null};
@@ -7208,8 +7228,8 @@ document.addEventListener("pointerdown",()=>{ if(document.body.classList.contain
 (function(){ const st=document.createElement("style"); st.textContent=`
 table.sets td{touch-action:pan-y}
 tr.sw89{position:relative;z-index:2;background:var(--paper)}tr.sw89 td{background:var(--paper)}
-.sw89bg{position:absolute;z-index:1;display:flex;align-items:center;justify-content:flex-end;padding-right:18px;background:#e5484d;color:#fff;font-weight:700;border-radius:8px;pointer-events:none}
-.sw89bg.go{background:#c62828}.sw89bg.go span::after{content:" · relâche"}
+.sw89bg{position:absolute;z-index:3;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;padding:0;border:0;border-radius:0;background:#d9534f;color:#fff;font:600 1.05rem/1 inherit;min-height:0;box-shadow:none}
+.sw89bg.go{background:#c62828}
 #sw89u{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:1200;display:flex;gap:14px;align-items:center;background:var(--ink);color:var(--paper);padding:10px 14px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 #sw89u button{background:none;border:0;color:#7fb2ff;font-weight:700;font-size:1rem;min-height:36px}`; document.head.appendChild(st); })();
 

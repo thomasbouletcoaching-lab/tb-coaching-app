@@ -391,9 +391,12 @@ const T = {
     const info = await p.evaluate(() => { const tr = document.querySelector('table.sets tr[data-sk^="c|"]'); if (!tr) return null; tr.scrollIntoView({ block: 'center' }); const r = tr.getBoundingClientRect(); const key = tr.dataset.sk.split('|')[1]; return { x: r.left + r.width * 0.8, y: r.top + r.height / 2, key, n: (ST.carnet[key] && ST.carnet[key].sets || []).length }; });
     ok(!!info, 'ligne de série balayable'); if (!info) return;
     await p.mouse.move(info.x, info.y); await p.mouse.down();
-    for (let d = 10; d <= 220; d += 30) { await p.mouse.move(info.x - d, info.y + 2); await p.waitForTimeout(20); }
-    ok(await p.evaluate(() => { const b = document.querySelector('.sw89bg'); return !!b && /Supprimer/.test(b.textContent); }), 'fond rouge « Supprimer » affiché');
-    await p.mouse.up(); await p.waitForTimeout(600);
+    for (let d = 10; d <= 130; d += 20) { await p.mouse.move(info.x - d, info.y + 2); await p.waitForTimeout(20); }
+    await p.mouse.up(); await p.waitForTimeout(400);
+    const bt = await p.evaluate(() => { const b = document.querySelector('.sw89bg'); if (!b) return null; const r = b.getBoundingClientRect(); return { t: b.textContent, w: r.width, right: r.right, vw: innerWidth }; });
+    ok(bt && /Supprimer/.test(bt.t) && bt.w > 90 && Math.abs(bt.right - bt.vw) < 40, 'la ligne reste ouverte sur le bouton rouge « Supprimer » à droite');
+    if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT });
+    await p.click('.sw89bg'); await p.waitForTimeout(600);
     const after = await p.evaluate(k => (ST.carnet[k] && ST.carnet[k].sets || []).length, info.key);
     ok(after === info.n - 1, 'série supprimée (' + info.n + ' → ' + after + ')');
     ok(sc.lastWrite && sc.lastWrite.k === info.key, 'suppression enregistrée');
