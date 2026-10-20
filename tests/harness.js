@@ -53,7 +53,7 @@ async function run(role, steps, pre) {
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
   p.on('console', m => { if (m.type() === 'error' && !/WebSocket|Failed to load resource|realtime/i.test(m.text())) errs.push('CONSOLE ' + m.text()); });
-  p.on('dialog', d => d.accept());
+  p.on('dialog', d => d.accept(d.type() === 'prompt' ? (sc.prompt || '') : undefined));
   await p.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ body: UMD, contentType: 'application/javascript' }));
   await p.route('https://fonts.googleapis.com/**', r => r.fulfill({ body: '', contentType: 'text/css' }));
   await p.route(`https://${REF}.supabase.co/**`, async r => { const u = new URL(r.request().url()); let body = null; try { body = r.request().postDataJSON(); } catch (e) {}

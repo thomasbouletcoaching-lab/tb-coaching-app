@@ -438,6 +438,59 @@ const T = {
     await T('touchStart', g.cx, g.cy); await T('touchEnd'); await p.waitForTimeout(700);
     ok(await p.evaluate(k => ensureSets(k).sets.length, info.key) === 2, 'un toucher sur Supprimer supprime la série');
   }, clientPre(sc => (m, path, body, acc, t) => { if (t === 'carnet' && m === 'GET' && /client_id=eq/.test(path)) return CAR; if (t === 'carnet' && m === 'POST') { sc.lastWrite = body; return []; } if (t === 'carnet') return []; })),
+  'client : repas à l\'avance (batch), mes repas et journée type dans chaque repas': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(800);
+    await p.evaluate(() => { const it = (n, q, k, pp, g, l) => ({ n, q, k, p: pp, g, l }); ST.carnet.nu_my = { list: [{ id: 'm1', n: 'Chili maison', it: [it('Riz basmati (cuit)', 200, 130, 3, 28, 0.4), it('Blanc de poulet (cru)', 120, 110, 23, 0, 1.5)] }] };
+      ST.carnet.nu_jt = { meals: [{ name: 'Dîner', it: [it('Avocat', 100, 160, 2, 1.8, 15)] }, { name: 'Collation', it: [it('Avocat', 50, 160, 2, 1.8, 15)] }] };
+      ST.todayOn = false; ST.view = 'nutrition'; NU.nv = 'jour'; NU.day = todayISO(); render(); }); await p.waitForTimeout(500);
+    await p.click('[data-act="nu90-more"][data-v="0"]'); await p.waitForTimeout(200);
+    await p.click('[data-act="nu91-my"][data-v="0"]'); await p.waitForTimeout(200);
+    await p.click('[data-act="nu91-log"][data-v="0|my:m1"]'); await p.waitForTimeout(300);
+    ok(await p.evaluate(() => NU.logs[todayISO()].m[0].n === 'Chili maison' && NU.logs[todayISO()].m[0].it.length === 2), 'un de mes repas noté directement dans le repas');
+    await p.click('[data-act="nu91-jt"]'); await p.waitForTimeout(300);
+    const j = await p.evaluate(() => { const L = NU.logs[todayISO()]; return { d: L.m[2] && L.m[2].n, x: (L.x || []).length, m0: L.m[0].n }; });
+    ok(j.d === 'Dîner' && j.x === 1 && j.m0 === 'Chili maison', 'journée type : Dîner rempli, Collation en extra, repas déjà noté gardé');
+    await p.click('[data-act="bt91-open"]'); await p.waitForTimeout(200);
+    await p.click('[data-act="bt91-src"][data-v="my:m1"]'); await p.click('[data-act="bt91-slot"][data-v="Déjeuner"]'); await p.click('[data-act="bt91-q"][data-v="3"]'); await p.waitForTimeout(200);
+    await p.click('[data-act="bt91-go"]'); await p.waitForTimeout(600);
+    const b = await p.evaluate(() => [0, 1, 2].map(i => { const L = NU.logs[addDays(todayISO(), i)] || {}; return (L.m || {})[1] || null; }));
+    ok(b.every(x => x && /Chili maison/.test(x.n) && x.pre === 1), 'batch : déjeuner noté à l\'avance sur 3 jours');
+    await p.evaluate(() => { NU.day = addDays(todayISO(), 9); render(); }); await p.click('[data-act="nu-day"][data-v="1"]'); await p.waitForTimeout(200);
+    ok(await p.evaluate(() => NU.day === addDays(todayISO(), 10)), 'navigation possible jusqu\'à 14 jours à l\'avance');
+  }, clientPre()),
+  'client : budget estimé (jour, semaine, mois) et prix perso par magasin': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(800);
+    await p.evaluate(() => { ST.todayOn = false; ST.view = 'nutrition'; NU.nv = 'courses'; render(); }); await p.waitForTimeout(800);
+    const t = await txt(p, '#bu91');
+    // plan : riz 350 g/j à 1,20 €/kg + poulet 300 g/j à 12 €/kg + avocat 80 g/j à 8 €/kg = 0,42 + 3,60 + 0,64 = 4,66 €/j
+    ok(/4,66 €/.test(t) && /32,62 €/.test(t) && /par mois/.test(t), 'budget du plan : 4,66 €/jour, 32,62 €/semaine');
+    await p.click('[data-act="px91-add"]'); await p.waitForTimeout(400);
+    await p.click('[data-act="px91-ed"][data-v="Blanc de poulet (cru)"]'); await p.waitForTimeout(200);
+    await p.fill('#px91p', '4,5'); await p.fill('#px91g', '500'); await p.click('[data-act="px91-save"]'); await p.waitForTimeout(500);
+    const X = await p.evaluate(() => ST.carnet.nu_px);
+    ok(X.store === 'Lidl' && X.st.Lidl['Blanc de poulet (cru)'].p === 4.5, 'magasin ajouté et prix perso enregistré');
+    ok(/mon prix/.test(await txt(p, '#app')) && /3,76 €/.test(await txt(p, '#bu91')), 'calcul refait avec mon prix (9 €/kg → 3,76 €/jour)');
+  }, sc => { clientPre()(sc); sc.extra = (m, path, b, a, t, one) => { if (t === 'nutri_foods' && m === 'GET') return [{ id: 'fp', name: 'Blanc de poulet (cru)', cat: 'Volailles & viandes', kcal: 110, p: 23, g: 0, l: 1.5, price_kg: 12 }, { id: 'fr', name: 'Riz basmati (cuit)', cat: 'Féculents & céréales', kcal: 130, p: 3, g: 28, l: 0.4, price_kg: 1.2 }, { id: 'fa', name: 'Avocat', cat: 'Fruits', kcal: 160, p: 2, g: 1.8, l: 15, price_kg: 8 }]; if (t === 'carnet' && m === 'POST') return []; }; sc.prompt = 'Lidl'; }),
+  'coach : onglets, base de données, programme créé sans client, principes de surcharge': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(() => { CUR = null; ST.view = 'clients'; render(); }); await p.waitForTimeout(300);
+    const tabs = await p.evaluate(() => [...document.querySelectorAll('#tabs button:not([hidden])')].map(b => b.textContent.trim()));
+    ok(tabs.join('|') === 'Mes clients|Business|Abonnés|Base de données', 'onglets : ' + tabs.join(' · '));
+    await p.click('#tabs [data-v="base"]'); await p.waitForTimeout(600);
+    ok(/Base de données/.test(await txt(p, '#app')) && !!(await p.$('[data-act="b92-tab"][data-v="ex"]')), 'page Base de données avec ses sous-onglets');
+    ok(!!(await p.$('[data-act="lib-fnew"]')), 'aliments : ajout possible');
+    await p.click('[data-act="b92-tab"][data-v="ex"]'); await p.waitForTimeout(400);
+    ok(!!(await p.$('[data-vlq]')), 'exercices & vidéos');
+    await p.click('[data-act="b92-tab"][data-v="prog"]'); await p.waitForTimeout(400);
+    await p.selectOption('select[data-ov92="Accumulation.t"]', 'mixte'); await p.waitForTimeout(400);
+    await p.click('[data-act="b92-new"]'); await p.fill('#b92-name', 'Force 4 j test'); await p.selectOption('#b92-from', 'pb4'); await p.click('[data-act="b92-create"]'); await p.waitForTimeout(800);
+    const ed = await p.evaluate(() => ({ cur: CUR, v: ST.view, n: ST.prog.sessions.length, t: document.getElementById('appTitle').textContent, ov: (ST.prog.overload.Accumulation || {}).t }));
+    ok(ed.v === 'programme' && ed.n === 4 && /Force 4 j test/.test(ed.t) && ed.ov === 'mixte', 'modèle créé depuis la banque et ouvert dans l\'éditeur, avec mes principes');
+    await p.evaluate(() => { ST.prog.sessions[0].name = 'Haut du corps A'; saveProg(); }); await p.waitForTimeout(200);
+    await p.click('#tabs [data-act="b92-done"]'); await p.waitForTimeout(600);
+    const T = await p.evaluate(() => ({ cur: CUR, v: ST.view, t: BZ.set.templates.map(t => t.name + ':' + t.prog.sessions[0].name), ov: BZ.set.ov92.ph.Accumulation.t }));
+    ok(T.cur === null && T.v === 'base' && T.t.includes('Force 4 j test:Haut du corps A') && T.ov === 'mixte', 'modification enregistrée dans le modèle, retour à la base');
+  }, coachPre()),
+
 };
 
 (async () => {

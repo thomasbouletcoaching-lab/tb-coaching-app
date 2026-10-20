@@ -829,7 +829,7 @@ function render(){
   if(ST.view==="auth"||(!UID&&SB)){ rb.hidden=true; return shell(CONFIG.brand,"Connexion",vAuth()); }
   if(!ST.ready){ app.innerHTML='<div class="card">Chargement…</div>'; return; }
   rb.hidden=false; rb.textContent="↻"; rb.dataset.act="refresh";
-  if(MODE==="coach"&&(["clients","biz","lib"].includes(ST.view)||!CUR)) return homeShell(shell);
+  if(MODE==="coach"&&(["clients","biz","lib","base"].includes(ST.view)||!CUR)) return homeShell(shell);
   if(!M){ app.innerHTML='<div class="card">Chargement du programme…</div>'; return; }
   $("#appTitle").textContent=ST.prog.profile.name||"Client";
   $("#appSub").textContent=`S${M.cw}/${M.NSEM} · ${M.phases[M.cw-1]||""} · ${M.split}${ST.clientView?" · aperçu client":""}`;
@@ -991,7 +991,7 @@ const RES={
     const groups={}; L.forEach(f=>(groups[f.cat||"Divers"]=groups[f.cat||"Divers"]||[]).push(f));
     const order=Object.keys(groups).sort((a,b)=>(FCATS.indexOf(a)+99)%120-(FCATS.indexOf(b)+99)%120);
     if(!L.length) return `<div class="card muted">Aucun aliment trouvé.</div>`;
-    return order.map(c=>`<h3>${esc(c)} <span class="muted small">(${groups[c].length})</span></h3><div class="tbl card" style="padding:4px 8px"><table><tr><th>Aliment</th><th class="n">kcal</th><th class="n">P</th><th class="n">G</th><th class="n">L</th><th></th></tr>${groups[c].map(f=>`<tr><td>${esc(f.name)}${f.unit?`<br><span class="muted small">1 ${esc(f.unit)} = ${fmtN(+f.unit_g)} g</span>`:""}</td><td class="n">${r0(f.kcal)}</td><td class="n">${fmtN(+f.p)}</td><td class="n">${fmtN(+f.g)}</td><td class="n">${fmtN(+f.l)}</td><td>${f.coach_id?`<button class="ghost sm" data-act="lib-fdel" data-v="${f.id}" aria-label="Supprimer">✕</button>`:""}</td></tr>`).join("")}</table></div>`).join("")+`<p class="note">Valeurs pour 100 g. Les aliments de base sont des moyennes indicatives.</p>`; }
+    return order.map(c=>`<h3>${esc(c)} <span class="muted small">(${groups[c].length})</span></h3><div class="tbl card" style="padding:4px 8px"><table><tr><th>Aliment</th><th class="n">kcal</th><th class="n">P</th><th class="n">G</th><th class="n">L</th>${coach()?`<th class="n">€/kg</th>`:""}<th></th></tr>${groups[c].map(f=>`<tr><td>${esc(f.name)}${f.unit?`<br><span class="muted small">1 ${esc(f.unit)} = ${fmtN(+f.unit_g)} g</span>`:""}</td><td class="n">${r0(f.kcal)}</td><td class="n">${fmtN(+f.p)}</td><td class="n">${fmtN(+f.g)}</td><td class="n">${fmtN(+f.l)}</td>${coach()?`<td class="n">${/^(cq|off):/.test(f.id)||f.src==="ciqual"?(catMed91(f.cat)!=null?`<span class="muted small">~${fmtN(catMed91(f.cat))}</span>`:""):`<input data-px92="${f.id}" inputmode="decimal" style="width:64px;text-align:right" value="${f.price_kg!=null?esc(fmtN(+f.price_kg)):""}" placeholder="—" aria-label="Prix au kg de ${esc(f.name)}">`}</td>`:""}<td>${f.coach_id?`<button class="ghost sm" data-act="lib-fdel" data-v="${f.id}" aria-label="Supprimer">✕</button>`:""}</td></tr>`).join("")}</table></div>`).join("")+`<p class="note">Valeurs pour 100 g. Les aliments de base sont des moyennes indicatives.${coach()?" Prix au kg : estimation moyenne en grande surface, modifiable (il sert au budget des clients). « ~ » : aliment de la Table Ciqual, prix médian de sa catégorie.":""}</p>`; }
 };
 
 // ---------- vues client
@@ -1158,7 +1158,7 @@ function vLib(){ if(!NU.foods||!NU.dishes){ Promise.all([nuFoods(),nuDishes()]).
   else { const F=NU.fNew;
     h+=F?`<div class="card"><h3 style="margin-top:0">Nouvel aliment (pour 100 g)</h3><div class="row"><label class="f" style="flex-basis:200px">Nom<input data-fn="name" value="${esc(F.name||"")}"></label><label class="f">Catégorie${sel(FCATS,F.cat||NU.fcat||"",`data-fn="cat"`)}</label></div>
       <div class="row" style="margin-top:8px">${["kcal","p","g","l"].map(k=>`<label class="f">${{kcal:"kcal",p:"Protéines",g:"Glucides",l:"Lipides"}[k]}<input data-fn="${k}" inputmode="decimal" value="${esc(F[k]??"")}"></label>`).join("")}</div>
-      <div class="row" style="margin-top:8px"><label class="f">Unité (facultatif)<input data-fn="unit" value="${esc(F.unit||"")}" placeholder="tranche, pot…"></label><label class="f">Poids de l'unité (g)<input data-fn="unit_g" inputmode="decimal" value="${esc(F.unit_g??"")}"></label></div>
+      <div class="row" style="margin-top:8px"><label class="f">Unité (facultatif)<input data-fn="unit" value="${esc(F.unit||"")}" placeholder="tranche, pot…"></label><label class="f">Poids de l'unité (g)<input data-fn="unit_g" inputmode="decimal" value="${esc(F.unit_g??"")}"></label><label class="f">Prix au kg (€, facultatif)<input data-fn="price_kg" inputmode="decimal" value="${esc(F.price_kg??"")}"></label></div>
       <div class="row" style="margin-top:10px"><button data-act="lib-fsave">Ajouter l'aliment</button><button class="ghost" data-act="lib-fnew">Annuler</button></div></div>`
      :`<div class="row"><button data-act="lib-fnew">＋ Nouvel aliment</button></div>`;
     h+=`<label class="f" style="margin-top:8px">Rechercher parmi ${NU.foods.length} aliments<input data-nuq="fq" data-res="lib-fres" value="${esc(NU.fq)}" autocomplete="off"></label>${NU.fcat?`<div class="row" style="margin-top:8px"><button class="ghost sm" data-act="lib-fcat" data-v="">‹ Toutes les catégories</button><b>${esc(NU.fcat)}</b></div>`:""}<div id="lib-fres">${RES.fq()}</div>`; }
@@ -1303,7 +1303,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   else if(a==="nu-fit"){ const t=curType(); if(!P.tgt||!dayPlan(t).k) return toast("Ajoute des plats d'abord"); const res=fitType(t);
     rr(); const g=res.got,tt=res.tt; toast(`P ${r0(g.p)}/${r0(tt.p)} · L ${r0(g.l)}/${r0(tt.l)} · G ${r0(g.g)}/${r0(tt.g)}`); return; }
   // journal client
-  else if(a==="nu-day"){ const t=todayISO(); let d=+v===0?t:addDays(NU.day||t,+v); if(d<addDays(t,-90)) d=addDays(t,-90); if(d>addDays(t,7)) d=addDays(t,7); NU.day=d; NU.alt=null; NU.xOpen=false; }
+  else if(a==="nu-day"){ const t=todayISO(); let d=+v===0?t:addDays(NU.day||t,+v); if(d<addDays(t,-90)) d=addDays(t,-90); if(d>addDays(t,14)) d=addDays(t,14); NU.day=d; NU.alt=null; NU.xOpen=false; }
   else if(a==="nu-dtype"){ const L=dayLog(); L.t=v; nuSaveLog(NU.day); }
   else if(a==="nu-ok"||a==="nu-skip"||a==="nu-swap"){ const t=ctxType(); const [mi,oi]=(a==="nu-swap"?v:v+".0").split(".").map(Number); const o=t.meals[mi].opts[oi]; const L=dayLog();
     L.m[mi]=a==="nu-skip"?{s:"skip",mac:Z()}:{s:a==="nu-ok"?"ok":"alt",n:o.n,mac:optMac(o),it:(o.it||[]).map(i=>Object.assign({},i,{q:(+i.q||0)*(o.m||1)}))}; NU.alt=null; nuSaveLog(NU.day); }
@@ -1346,7 +1346,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   else if(a==="lib-ddel"){ if(!confirm("Supprimer ce plat de ta bibliothèque ?")) return; const {error}=await SB.from("nutri_dishes").delete().eq("id",NU.dDraft.id); if(error) return toast(error.message); NU.dDraft=null; await nuDishes(true); toast("Plat supprimé"); }
   else if(a==="lib-fnew"){ NU.fNew=NU.fNew?null:{}; }
   else if(a==="lib-fsave"){ const F=NU.fNew, n=k=>+String(F[k]??"").replace(",",".")||0; if(!(F.name||"").trim()) return toast("Donne un nom à l'aliment");
-    const {error}=await SB.from("nutri_foods").insert({name:F.name.trim(),cat:(F.cat||"Divers").trim(),kcal:n("kcal"),p:n("p"),g:n("g"),l:n("l"),unit:(F.unit||"").trim()||null,unit_g:n("unit_g")||null}); if(error) return toast(error.message); NU.fNew=null; NU.foods=null; await nuFoods(); toast("Aliment ajouté"); }
+    const {error}=await SB.from("nutri_foods").insert({name:F.name.trim(),cat:(F.cat||"Divers").trim(),kcal:n("kcal"),p:n("p"),g:n("g"),l:n("l"),unit:(F.unit||"").trim()||null,unit_g:n("unit_g")||null,price_kg:n("price_kg")||null}); if(error) return toast(error.message); NU.fNew=null; NU.foods=null; await nuFoods(); toast("Aliment ajouté"); }
   else if(a==="lib-fdel"){ if(!confirm("Supprimer cet aliment ?")) return; const {error}=await SB.from("nutri_foods").delete().eq("id",v); if(error) return toast(error.message); NU.foods=null; await nuFoods(); }
   // business
   else if(a==="bz-tab"){ BZ.tab=v; BZ.payId=null; BZ.editId=null; }
@@ -7065,7 +7065,7 @@ homeShell=function(shell){ const isA=ST.view==="abo"; if(isA) ST.view="clients";
 // ---------- affichage : écran de départ, bouton outils du coach, messagerie masquée pour l'inscrit libre
 const _render88=render;
 render=function(){
-  if(ST.solo&&MODE==="coach"&&["clients","biz","lib","abo","vid"].includes(ST.view)) ST.view="tableau";
+  if(ST.solo&&MODE==="coach"&&["clients","biz","lib","abo","vid","base"].includes(ST.view)) ST.view="tableau";
   if(ST.view==="start"&&UID&&ST.ready&&!CUR&&!ST.isCoach){ $("#appTitle").textContent=CONFIG.brand; $("#appSub").textContent="Bienvenue"; $("#tabs").innerHTML="";
     const rb=$("#roleBtn"); if(rb){ rb.hidden=false; rb.textContent="↻"; rb.dataset.act="refresh"; } $("#app").innerHTML=vStart88(); solo88Ui(); return; }
   const r=_render88.apply(this,arguments); try{ solo88Ui(); }catch(e){} return r; };
@@ -7306,6 +7306,205 @@ render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ nu
 .more90{display:flex;flex-direction:column;gap:6px;margin-top:8px}.more90[hidden]{display:none}.more90 button{width:100%;text-align:left}
 .sk90{display:block;margin:8px auto 0;background:none;border:0;color:var(--soft);font-size:.9rem;text-decoration:underline;min-height:36px}
 details.f90>summary{cursor:pointer;font-weight:700;padding:2px 0}`; document.head.appendChild(st); })();
+
+// ================= MODULE 91 · REPAS NOTÉS À L'AVANCE (BATCH COOKING), MES REPAS ET JOURNÉE TYPE DANS CHAQUE REPAS, BUDGET =================
+// « Un de mes repas » dans le panneau « J'ai mangé autre chose » ; « J'ai mangé ma journée type » en un geste ;
+// carte « Prévoir des repas à l'avance » (un plat sur plusieurs jours) ; budget estimé (prix au kg de la base, prix perso par magasin, carnet « nu_px »).
+const B91={my:null,open:false,src:"",slot:"",days:{},px:null};
+const nrm91=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/œ/g,"oe").trim();
+const jtMeals91=()=>{ const J=jtGet85(); return J?J.meals.map((m,i)=>({m,i})).filter(x=>x.m.it&&x.m.it.length):[]; };
+function srcList91(){ return [...myList78().map(r=>({id:"my:"+r.id,n:r.n,it:r.it})),...jtMeals91().map(({m,i})=>({id:"jt:"+i,n:m.name,jt:1,it:m.it}))]; }
+const srcGet91=id=>srcList91().find(s=>s.id===id);
+const srcLbl91=s=>(s.jt?"Journée type · ":"")+s.n;
+function dayLog91(d){ const L=NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); L.m=Object.assign({},L.m); L.x=[...(L.x||[])]; return L; }
+function putMeal91(L,mi,s,pre){ const it=s.it.map(i=>Object.assign({},i)); L.m[mi]=Object.assign({s:"alt",n:s.n+(pre?" (préparé à l'avance)":""),mac:mac(it),it},pre?{pre:1}:{}); }
+const slots91=P=>[...new Set(((P&&P.types)||[]).flatMap(t=>t.meals.filter(m=>m.opts&&m.opts.length).map(m=>m.name)))];
+const dShort91=d=>new Date(d+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"});
+
+// --- dans chaque repas : « Un de mes repas » et, en haut, « J'ai mangé ma journée type »
+function nuInject91(){ if(coach()||ST.view!=="nutrition"||NU.nv!=="jour") return; const app=$("#app"); if(!app) return; const S=srcList91();
+  if(S.length) app.querySelectorAll(".card.meal .more90").forEach(more=>{ if(more.querySelector('[data-act="nu91-my"]')) return; const tg=more.parentElement.querySelector('[data-act="nu90-more"]'); if(!tg) return; const mi=tg.dataset.v;
+    const b=document.createElement("button"); b.type="button"; b.className="ghost"; b.dataset.act="nu91-my"; b.dataset.v=mi; b.textContent="📒 Un de mes repas ou de ma journée type"; more.prepend(b);
+    if(B91.my===mi){ const box=document.createElement("div"); box.className="row my91"; box.style.cssText="gap:4px"; box.innerHTML=S.map(s=>`<button class="chip" data-act="nu91-log" data-v="${esc(mi)}|${esc(s.id)}">${esc(srcLbl91(s))} · ${r0(mac(s.it).k)} kcal</button>`).join(""); b.after(box); } });
+  const J=jtMeals91(), all=app.querySelector('[data-act="nu-allok"]');
+  if(J.length&&all&&!app.querySelector('[data-act="nu91-jt"]')){ const b=document.createElement("button"); b.type="button"; b.className="ghost"; b.dataset.act="nu91-jt"; b.style.cssText="width:100%;margin-top:6px"; b.textContent="📋 J'ai mangé ma journée type"; (all.closest(".row")||all).after(b); } }
+render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ nuInject91(); }catch(e){ console.error(e); } return r; }; })(render);
+
+// --- carte « Prévoir des repas à l'avance »
+function batchCard91(){ if(coach()) return ""; const S=srcList91(), P=planOn(), slots=slots91(P), today=todayISO();
+  if(!B91.open) return `<div class="card" id="bt91"><button class="ghost" style="width:100%" data-act="bt91-open">🍱 Prévoir des repas à l'avance (batch cooking)</button></div>`;
+  const days=[...Array(14)].map((_,i)=>addDays(today,i)), n=Object.values(B91.days).filter(Boolean).length, s=srcGet91(B91.src);
+  let h=`<div class="card" id="bt91"><div class="row"><h3 class="grow" style="margin:0">🍱 Prévoir des repas à l'avance</h3><button class="ghost sm" data-act="bt91-open">Fermer</button></div>
+   <p class="muted small" style="margin:4px 0 8px">Tu as cuisiné à l'avance ? Note ton plat une fois pour les jours où tu le mangeras. Tu pourras toujours le modifier le jour même.</p>
+   <div class="small"><b>1. Le plat</b></div>`;
+  h+=S.length?`<div class="row" style="gap:4px;margin-top:4px">${S.map(x=>`<button class="chip ${B91.src===x.id?"on":""}" data-act="bt91-src" data-v="${esc(x.id)}">${esc(srcLbl91(x))}</button>`).join("")}</div>`
+    :`<p class="muted small">Enregistre d'abord ton plat dans « 📒 Mes repas » ci-dessous (bouton « ＋ Créer un repas »).</p>`;
+  if(s) h+=`<div class="muted small" style="margin-top:4px">${myMacTxt78(s.it)}</div>`;
+  h+=`<div class="small" style="margin-top:10px"><b>2. Pour quel repas</b></div><div class="row" style="gap:4px;margin-top:4px">${[...slots,"En extra"].map(x=>`<button class="chip ${B91.slot===x?"on":""}" data-act="bt91-slot" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>`;
+  h+=`<div class="small" style="margin-top:10px"><b>3. Quels jours</b></div><div class="row" style="gap:4px;margin-top:4px">${days.map(d=>`<button class="chip ${B91.days[d]?"on":""}" data-act="bt91-day" data-v="${d}">${d===today?"Auj.":esc(dShort91(d))}</button>`).join("")}</div>
+   <div class="row" style="gap:6px;margin-top:6px"><button class="ghost sm" data-act="bt91-q" data-v="3">3 prochains jours</button><button class="ghost sm" data-act="bt91-q" data-v="5">5 prochains jours</button><button class="ghost sm" data-act="bt91-q" data-v="0">Aucun</button></div>
+   <button class="ok" style="width:100%;margin-top:10px" data-act="bt91-go" ${s&&B91.slot&&n?"":"disabled"}>Noter ${n?`sur ${n} jour${n>1?"s":""}`:""}</button></div>`;
+  return h; }
+const _nJour91=nJour;
+nJour=function(){ const h=_nJour91(); if(coach()) return h; const c=batchCard91(), mk='<div class="card" id="my78">', i=h.indexOf(mk); return i>=0?h.slice(0,i)+c+h.slice(i):h+c; };
+
+document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act^="nu91-"],[data-act^="bt91-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v||"";
+  if(a==="nu91-my"){ B91.my=B91.my===v?null:v; return render(); }
+  if(a==="nu91-log"){ const [mi,id]=v.split("|"), s=srcGet91(id); if(!s) return; const d=NU.day||todayISO(), L=dayLog91(d); putMeal91(L,+mi,s,false); B91.my=null; delete NU90.open[mi]; render(); await nuSaveLog(d); return toast("Repas noté"); }
+  if(a==="nu91-jt"){ const d=NU.day||todayISO(), P=planOn(), t=P&&P.types&&P.types.length?dayType79(P,d):null, L=dayLog91(d), used=new Set(); let nm=0,nx=0;
+    jtMeals91().forEach(({m})=>{ const s={n:m.name,it:m.it}; const mi=t?t.meals.findIndex((x,k)=>!used.has(k)&&nrm91(x.name)===nrm91(m.name)):-1;
+      if(mi>=0){ used.add(mi); if(!L.m[mi]){ putMeal91(L,mi,s,false); nm++; } } else { L.x.push(...m.it.map(i=>Object.assign({},i))); nx++; } });
+    render(); await nuSaveLog(d); return toast(nm||nx?`Journée type notée : ${nm} repas${nx?` + ${nx} en extra`:""}`:"Ces repas sont déjà notés"); }
+  if(a==="bt91-open"){ B91.open=!B91.open; if(B91.open&&!B91.slot){ const sl=slots91(planOn()); B91.slot=sl.find(x=>/déjeuner/i.test(x)&&!/petit/i.test(x))||sl[0]||"En extra"; } return render(); }
+  if(a==="bt91-src"){ B91.src=v; return render(); }
+  if(a==="bt91-slot"){ B91.slot=v; return render(); }
+  if(a==="bt91-day"){ B91.days[v]=!B91.days[v]; return render(); }
+  if(a==="bt91-q"){ B91.days={}; for(let i=0;i<+v;i++) B91.days[addDays(todayISO(),i)]=true; return render(); }
+  if(a==="bt91-go"){ const s=srcGet91(B91.src); if(!s||!B91.slot) return; const P=planOn(), ds=Object.keys(B91.days).filter(d=>B91.days[d]).sort(); let ok=0,kept=0;
+    for(const d of ds){ const L=dayLog91(d), t=P&&P.types&&P.types.length?dayType79(P,d):null; const mi=B91.slot==="En extra"||!t?-1:t.meals.findIndex(m=>m.name===B91.slot);
+      if(mi<0) { L.x.push(...s.it.map(i=>Object.assign({},i))); ok++; }
+      else if(L.m[mi]&&!L.m[mi].pre){ kept++; continue; } else { putMeal91(L,mi,s,true); ok++; }
+      await nuSaveLog(d); }
+    B91.days={}; B91.open=false; render(); return toast(`« ${s.n} » noté sur ${ok} jour${ok>1?"s":""}${kept?` (${kept} déjà rempli${kept>1?"s":""}, gardé${kept>1?"s":""})`:""}`); }
+},true);
+
+// --- budget : prix au kg de la base (estimation) ou prix saisis par l'utilisateur, par magasin
+const PX91=()=>((ST.carnet||{}).nu_px)||{st:{}};
+function foodByName91(n){ if(!NU.foods) return null; if(!NU.fn91||NU.fn91.len!==NU.foods.length){ const m={}; NU.foods.forEach(f=>{ m[nrm91(f.name)]=f; }); NU.fn91={len:NU.foods.length,m}; } return NU.fn91.m[nrm91(n)]||null; }
+// médiane des prix de la base par catégorie : sert aux aliments sans prix (Table Ciqual, Open Food Facts)
+function catMed91(c){ if(!c||!NU.foods) return null; if(!NU.cm91||NU.cm91.len!==NU.foods.length){ const g={}; NU.foods.forEach(f=>{ if(f.price_kg!=null&&f.price_kg!=="") (g[f.cat]=g[f.cat]||[]).push(+f.price_kg); });
+    const m={}; Object.keys(g).forEach(k=>{ const a=g[k].sort((x,y)=>x-y); m[k]=a[Math.floor(a.length/2)]; }); NU.cm91={len:NU.foods.length,m}; } return NU.cm91.m[c]??null; }
+function priceOf91(n,cat){ const X=PX91(), st=X.store||"", mine=((X.st||{})[st]||{})[n]||(st?((X.st||{})[""]||{})[n]:null);
+  if(mine&&+mine.p>0&&+mine.g>0) return {pk:+mine.p/+mine.g*1000,src:"perso",mine};
+  const f=foodByName91(n); if(f&&f.price_kg!=null&&f.price_kg!=="") return {pk:+f.price_kg,src:"estim"};
+  const cm=catMed91((f&&f.cat)||cat); return cm!=null?{pk:cm,src:"cat"}:{pk:null,src:null}; }
+function costIt91(items,m){ let c=0; const miss=new Set(); (items||[]).forEach(i=>{ if(i.est||!(+i.q>0)) return; const p=priceOf91(i.n,i.c); if(p.pk==null){ miss.add(i.n); return; } c+=(+i.q)*(m||1)/1000*p.pk; }); return {c,miss}; }
+function planCost91(P){ if(!P||!P.types||!P.week) return null; let w=0; const miss=new Set();
+  P.week.forEach(id=>{ const t=typeOf(id); (t.meals||[]).forEach(m=>{ const o=m.opts&&m.opts[0]; if(!o) return; const r=costIt91(o.it,o.m||1); w+=r.c; r.miss.forEach(x=>miss.add(x)); }); });
+  return {day:w/7,week:w,month:w/7*30.4,miss}; }
+function logCost91(d){ const L=NU.logs[d]; if(!L) return null; const P=planOn(), t=P&&P.types&&P.types.length?typeOf(L.t||P.week[DOW(d)]):null; let c=0,any=false; const miss=new Set();
+  Object.entries(L.m||{}).forEach(([mi,st])=>{ if(!st||st.s==="skip") return; let it=st.it, m=1; if(!it||!it.length){ const ml=t&&t.meals[+mi]; const o=ml&&(st.s==="ok"?ml.opts[0]:ml.opts.find(o=>o.n===st.n)); if(o){ it=o.it; m=o.m||1; } }
+    if(it&&it.length){ any=true; const r=costIt91(it,m); c+=r.c; r.miss.forEach(x=>miss.add(x)); } });
+  (L.x||[]).forEach(e=>{ if(e.est) return; any=true; const r=costIt91([e]); c+=r.c; r.miss.forEach(x=>miss.add(x)); });
+  return any?{c,miss}:null; }
+async function pxSave91(X){ X.at=new Date().toISOString(); ST.carnet.nu_px=X; try{ cacheClient(); }catch(e){} render();
+  await safeWrite("carnet",{client_id:CUR,k:"nu_px",data:X,updated_at:X.at},{client_id:CUR,k:"nu_px"},"upsert"); }
+function budgetCard91(){ if(!NU.foods){ nuFoods().then(()=>render()); return `<div class="card">Chargement des prix…</div>`; }
+  const P=coach()?NU.plan:planOn(), pc=planCost91(P), X=PX91(), stores=Object.keys(X.st||{}).filter(Boolean), st=X.store||"";
+  const past=[...Array(7)].map((_,i)=>logCost91(addDays(todayISO(),-i))).filter(Boolean), pastC=past.reduce((s,x)=>s+x.c,0);
+  let h=`<div class="card" id="bu91"><h3 style="margin-top:0">💶 Budget estimé</h3>`;
+  if(pc&&pc.week>0) h+=`<div class="kpis"><div class="kpi"><b>${fmtE(pc.day)}</b><span>par jour</span></div><div class="kpi"><b>${fmtE(pc.week)}</b><span>par semaine</span></div><div class="kpi"><b>${fmtE(pc.month)}</b><span>par mois</span></div></div><div class="muted small">Pour le plan prévu (1re option de chaque repas).</div>`;
+  if(past.length) h+=`<div class="small" style="margin-top:8px">D'après ce qui est noté sur les 7 derniers jours : <b>≈ ${fmtE(pastC/past.length)} par jour</b> (${past.length} jour${past.length>1?"s":""} noté${past.length>1?"s":""}).</div>`;
+  const miss=new Set([...(pc?pc.miss:[]),...past.flatMap(x=>[...x.miss])]); if(miss.size) h+=`<div class="muted small" style="margin-top:4px">${miss.size} aliment${miss.size>1?"s":""} sans prix, non compté${miss.size>1?"s":""} : ${esc([...miss].slice(0,4).join(", "))}${miss.size>4?"…":""}</div>`;
+  h+=`<div class="small" style="margin-top:10px"><b>Où tu fais tes courses</b></div><div class="row" style="gap:4px;margin-top:4px"><button class="chip ${!st?"on":""}" ${coach()?"disabled":""} data-act="px91-store" data-v="">Prix moyens</button>${stores.map(s=>`<button class="chip ${st===s?"on":""}" ${coach()?"disabled":""} data-act="px91-store" data-v="${esc(s)}">${esc(s)}</button>`).join("")}${coach()?"":`<button class="ghost sm" data-act="px91-add">＋ Mon magasin</button>`}</div>
+   <p class="note">Estimation à partir de prix moyens indicatifs en grande surface. Les prix varient selon le magasin, la marque et la saison : ${coach()?"le client peut entrer ses propres prix (prix payé et poids du paquet)":"touche « ✏️ » sur un aliment de la liste pour entrer ton prix (prix payé et poids du paquet), le calcul se fait avec tes prix"}.</p></div>`;
+  return h; }
+// liste de courses avec le prix de chaque ligne
+nCourses=function(){ const P=coach()?NU.plan:planOn(), agg={}; if(!P) return `<div class="card muted">Pas encore de plan.</div>`;
+  P.week.forEach(id=>{ typeOf(id).meals.forEach(m=>{ const o=m.opts[0]; if(!o) return; o.it.forEach(i=>{ const k=i.n; if(!agg[k]) agg[k]={...i,q:0}; agg[k].q+=(+i.q||0)*(o.m||1); }); }); });
+  const f=NU.shopDays/7, groups={}; let tot=0; Object.values(agg).forEach(i=>{ const c=i.c||"Divers"; (groups[c]=groups[c]||[]).push({...i,q:i.q*f}); });
+  let h=budgetCard91()+subnav([[3,"3 jours"],[7,"7 jours"],[14,"14 jours"]].map(([v,l])=>[String(v),l]),String(NU.shopDays),"nu-shopd");
+  h+=`<p class="note">Basé sur les plats prévus. Coche ce que tu as déjà.</p>`;
+  Object.keys(groups).sort().forEach(c=>{ h+=`<div class="card"><h3 style="margin-top:0">${esc(c)}</h3>${groups[c].sort((a,b)=>a.n.localeCompare(b.n)).map(i=>{ const on=!!NU.shop[i.n], p=priceOf91(i.n,i.c), cost=p.pk!=null?i.q/1000*p.pk:null; if(cost) tot+=cost;
+    const ed=B91.px===i.n, mine=p.mine||{};
+    return `<div class="shop91" style="border-top:1px solid var(--line)"><div class="row" style="padding:6px 0;flex-wrap:nowrap;gap:6px"><label class="row shop ${on?"got":""} grow" style="flex-wrap:nowrap;gap:6px;margin:0"><input type="checkbox" style="width:auto" data-shop="${esc(i.n)}" ${on?"checked":""}><span class="grow">${esc(i.n)}<br><span class="muted small">${qtyTxt(i)}</span></span></label>
+      <span class="small" style="flex:none;text-align:right">${cost!=null?`${fmtE(cost)}<br><span class="muted">${p.src==="perso"?"mon prix":p.src==="cat"?"estimé (catégorie)":"estimé"}</span>`:`<span class="muted">—</span>`}</span>${coach()?"":`<button class="ghost sm" data-act="px91-ed" data-v="${esc(i.n)}" aria-label="Mon prix pour ${esc(i.n)}">✏️</button>`}</div>
+      ${ed?`<div class="edit" style="margin-bottom:8px"><div class="small">Mon prix ${X91st()} pour <b>${esc(i.n)}</b></div><div class="row" style="gap:6px;margin-top:6px;flex-wrap:nowrap"><label class="f" style="flex:1 1 0">Prix payé (€)<input id="px91p" inputmode="decimal" value="${esc(mine.p??"")}" placeholder="2,49"></label><label class="f" style="flex:1 1 0">Poids du paquet (g ou ml)<input id="px91g" inputmode="decimal" value="${esc(mine.g??"")}" placeholder="500"></label></div>
+        <div class="row" style="gap:6px;margin-top:6px"><button class="ok sm" data-act="px91-save" data-v="${esc(i.n)}">Enregistrer</button>${p.src==="perso"?`<button class="ghost sm" data-act="px91-del" data-v="${esc(i.n)}">Revenir au prix estimé</button>`:""}<button class="ghost sm" data-act="px91-ed" data-v="">Annuler</button></div></div>`:""}</div>`; }).join("")}</div>`; });
+  if(!Object.keys(groups).length) h+=`<div class="card muted">La liste se remplit dès que des plats sont prévus.</div>`;
+  else h+=`<div class="card"><b>Total de la liste (${NU.shopDays} jours) : ≈ ${fmtE(tot)}</b><div class="muted small">Estimation : les quantités réelles achetées (taille des paquets) changent le montant.</div></div>`;
+  if(Object.keys(NU.shop).length) h+=`<button class="ghost" data-act="nu-shopclr">Tout décocher</button>`;
+  return h; };
+const X91st=()=>{ const s=PX91().store; return s?`chez ${esc(s)}`:"(prix habituel)"; };
+document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act^="px91-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v||"";
+  const X=JSON.parse(JSON.stringify(PX91())); X.st=X.st||{};
+  if(a==="px91-ed"){ B91.px=v||null; return render(); }
+  if(a==="px91-store"){ X.store=v; return pxSave91(X); }
+  if(a==="px91-add"){ const n=(prompt("Nom du magasin (ex. Lidl, Carrefour Market, marché)")||"").trim().slice(0,40); if(!n) return; X.st[n]=X.st[n]||{}; X.store=n; await pxSave91(X); return toast(`Magasin « ${n} » : entre tes prix avec ✏️`); }
+  if(a==="px91-save"){ const num=id=>{ const x=parseFloat(String((document.getElementById(id)||{}).value||"").replace(",",".")); return isNaN(x)?null:x; }; const p=num("px91p"), g=num("px91g");
+    if(!(p>0)||!(g>0)) return toast("Entre le prix payé et le poids du paquet"); const st=X.store||""; X.st[st]=X.st[st]||{}; X.st[st][v]={p,g,at:todayISO()}; B91.px=null; await pxSave91(X); return toast(`Prix enregistré : ${fmtE(p/g*1000)} le kg`); }
+  if(a==="px91-del"){ const st=X.store||""; if(X.st[st]) delete X.st[st][v]; B91.px=null; return pxSave91(X); }
+},true);
+
+// ================= MODULE 92 · ESPACE COACH : ONGLETS « MES CLIENTS · BUSINESS · ABONNÉS · BASE DE DONNÉES » =================
+// Base de données = aliments (avec prix), repas/plats, exercices & vidéos, programmes (modèles modifiables sans client) et mes principes de surcharge progressive.
+const B92={tab:"aliments",newOpen:false};
+const TPL92={i:null,back:null,id:"00000000-0000-4000-8000-000000000092"};
+const tplOn92=()=>TPL92.i!=null&&CUR===TPL92.id;
+const homeTabs92=on=>[["clients","Mes clients"],["biz","Business"],["abo","Abonnés"+(P88.list&&P88.list.length?` (${P88.list.length})`:"")],["base","Base de données"]].map(([k,l])=>`<button class="${k===on?"on":""}" data-act="home" data-v="${k}">${esc(l)}</button>`).join("")+`<button data-act="home" data-v="vid" hidden></button>`;
+const _homeShell92=homeShell;
+homeShell=function(shell){ if(ST.view==="lib"){ ST.view="base"; B92.tab=NU.lib==="plats"?"plats":"aliments"; } if(ST.view==="vid"){ ST.view="base"; B92.tab="ex"; }
+  if(ST.view==="base") return shell(CONFIG.brand,"Espace coach · "+EMAIL,vBase92(),homeTabs92("base"));
+  let cap=null; _homeShell92((t,s,b,tabs)=>{ cap={t,s,b}; }); if(!cap) return;
+  const on=["biz","abo"].includes(ST.view)?ST.view:"clients"; return shell(cap.t,cap.s,cap.b,homeTabs92(on)); };
+function vBase92(){ const T=B92.tab;
+  let h=`<h2>Base de données</h2>`+subnav([["aliments","Aliments"],["plats","Repas & plats"],["ex","Exercices & vidéos"],["prog","Programmes"]],T,"b92-tab");
+  if(T==="aliments"||T==="plats"){ NU.lib=T==="plats"?"plats":"aliments"; const L=vLib(); h+=L.replace(/^<h2>Nutrition<\/h2><div class="row" style="margin:4px 0 8px">[\s\S]*?<\/div>/,""); }
+  else if(T==="ex"){ if(!VL.loaded) vlLoad(); h+=vVideos().replace(/^<h2>Bibliothèque vidéos<\/h2>/,""); }
+  else h+=vProg92();
+  return h; }
+// --- programmes : modèles + principes
+const PHS92=()=>[...new Set(BANK.flatMap(b=>b.phases||[]).filter(p=>p&&!["Deload","Test","Transition"].includes(p)))];
+const ovSet92=()=>(BZ.set&&BZ.set.ov92)||{ph:{},note:""};
+function vProg92(){ if(!BZ.loaded){ bzEnsure(); return `<div class="card">Chargement…</div>`; } const T=BZ.set.templates||[], O=ovSet92();
+  let h=`<div class="card"><div class="row"><h3 class="grow" style="margin:0">Mes programmes</h3><button class="sm" data-act="b92-new">＋ Créer un programme</button></div>
+   <p class="muted small" style="margin:4px 0 0">Crée et modifie tes modèles ici, sans passer par un client, puis applique-les à un client depuis son programme (📚 Banque de programmes).</p>`;
+  if(B92.newOpen) h+=`<div class="edit" style="margin-top:8px"><label class="f">Nom du programme<input id="b92-name" placeholder="Ex. Force 3 j débutant" autocomplete="off"></label>
+     <label class="f" style="margin-top:6px">Point de départ<select id="b92-from"><option value="">Programme vierge</option>${BANK.map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("")}</select></label>
+     <div class="row" style="margin-top:8px"><button class="ok sm" data-act="b92-create">Créer et modifier</button><button class="ghost sm" data-act="b92-new">Annuler</button></div>
+     <p class="muted small" style="margin:6px 0 0">Mes principes de surcharge progressive (ci-dessous) sont appliqués au nouveau programme.</p></div>`;
+  h+=T.length?T.map((t,i)=>{ const p=t.prog||{}, n=(p.sessions||[]).filter(s=>s&&s.ex&&s.ex.length).length;
+    return `<div style="padding:8px 0;border-top:1px solid var(--line);margin-top:8px"><div class="row" style="flex-wrap:nowrap"><div class="grow"><b>${esc(t.name)}</b><div class="muted small">${esc(t.cat||"Autre")}${t.desc?" · "+esc(t.desc):""} · ${n} séance${n>1?"s":""} · ${(p.phases||[]).filter(Boolean).length} sem.</div></div></div>
+     <div class="row" style="gap:6px;margin-top:6px"><button class="ghost sm" data-act="b92-edit" data-v="${i}">✏️ Modifier</button><button class="ghost sm" data-act="bank-prev" data-v="t${i}">${ST.bankPrev==="t"+i?"Masquer":"Aperçu"}</button><button class="ghost sm" data-act="b92-dup" data-v="${i}">Dupliquer</button><button class="ghost sm" data-act="tpl-del" data-v="${i}" aria-label="Supprimer ${esc(t.name)}">✕</button></div>${ST.bankPrev==="t"+i?progPreview(p.sessions,p.phases,p.days):""}</div>`; }).join("")
+    :`<p class="muted small" style="margin-top:8px">Aucun programme enregistré pour l'instant.</p>`;
+  h+=`</div><div class="card"><h3 style="margin-top:0">Mes principes de surcharge progressive</h3><p class="muted small" style="margin-top:0">Ta façon de faire progresser par phase. Appliquée aux nouveaux programmes, et en un geste sur le programme d'un client (« Appliquer mes principes »).</p>
+   ${PHS92().map(ph=>{ const o=O.ph[ph]||{}; return `<div class="row" style="padding:6px 0;border-top:1px solid var(--line)"><b style="flex:0 0 100%">${esc(ph)}</b>
+     <label class="f">Type${sel([["","Charge (par défaut)"],["intensite","Intensité : charge et RPE ↑"],["volume","Volume : séries ↑, charge stable"],["mixte","Mixte : séries et intensité ↑"]],o.t||"",`data-ov92="${esc(ph)}.t"`,false)}</label>
+     ${o.t==="volume"||o.t==="mixte"?`<label class="f" style="flex:0 0 110px">+1 série toutes les${sel([["1","1 sem."],["2","2 sem."],["3","3 sem."]],String(o.n||1),`data-ov92="${esc(ph)}.n"`,false)}</label><label class="f" style="flex:0 0 90px">Séries max<input data-ov92="${esc(ph)}.max" inputmode="numeric" value="${esc(o.max??"")}" placeholder="6"></label>`:""}</div>`; }).join("")}
+   <label class="f" style="margin-top:8px">Mes règles (pour moi et mes clients)<textarea rows="4" data-ov92="note" placeholder="Ex. double progression : quand toutes les séries atteignent le haut de la fourchette à RPE 8 ou moins, j'ajoute 2,5 kg. Deload toutes les 5 à 6 semaines.">${esc(O.note||"")}</textarea></label></div>`;
+  return h; }
+let ov92T=null; function ovSave92(O){ BZ.set.ov92=O; clearTimeout(ov92T); ov92T=setTimeout(bzSaveSet,600); }
+document.addEventListener("change",e=>{ const el=e.target; if(!el.dataset||el.dataset.ov92===undefined) return; const O=JSON.parse(JSON.stringify(ovSet92())); O.ph=O.ph||{}; const k=el.dataset.ov92;
+  if(k==="note") O.note=el.value.slice(0,4000); else { const [ph,f]=k.split("."); O.ph[ph]=O.ph[ph]||{}; let v=el.value; if(f!=="t") v=v===""?undefined:+v; if(v===""||v===undefined) delete O.ph[ph][f]; else O.ph[ph][f]=v; }
+  ovSave92(O); if(k!=="note") render(); },true);
+// --- éditer un modèle de programme sans client : dossier virtuel, enregistré dans les modèles
+function tplOpen92(i){ const t=(BZ.set.templates||[])[i]; if(!t) return; const p=JSON.parse(JSON.stringify(t.prog||{})), base=blankProg();
+  TPL92.i=i; ST.prog=Object.assign(base,{sessions:p.sessions||[],phases:p.phases||base.phases,overload:p.overload||{},params:p.params||base.params,plan:p.plan||{},refs:p.refs||base.refs||{},media:p.media||{}});
+  ST.prog.profile=Object.assign(base.profile,{name:t.name,days:(p.days||base.profile.days||[]).slice(),source:p.source||"Manuel"});
+  CUR=TPL92.id; ST.carnet={}; ST.suivi={}; ST.week=null; ST.focusW=null; ST.warm={}; ST.bankOpen=false; ST.clientView=false; recompute(); ST.view="programme"; ST.ready=true; render(); window.scrollTo(0,0); }
+function tplStore92(){ const t=(BZ.set.templates||[])[TPL92.i]; if(!t) return; const p=ST.prog;
+  t.prog=Object.assign({},t.prog,{sessions:p.sessions,phases:p.phases,days:p.profile.days,source:p.profile.source,overload:p.overload,params:p.params,plan:p.plan,refs:p.refs,media:p.media}); t.at=Date.now(); }
+let tpl92T=null;
+const _saveProg92=saveProg;
+saveProg=function(){ if(!tplOn92()) return _saveProg92.apply(this,arguments); recompute(); tplStore92(); clearTimeout(tpl92T); tpl92T=setTimeout(bzSaveSet,700); };
+async function tplClose92(){ if(TPL92.i==null) return; tplStore92(); clearTimeout(tpl92T); await bzSaveSet(); TPL92.i=null; CUR=null; M=null; ST.view="base"; B92.tab="prog"; render(); window.scrollTo(0,0); }
+render=(function(o){ return function(){ if(TPL92.i!=null&&CUR!==TPL92.id) TPL92.i=null; if(tplOn92()&&ST.view!=="programme") ST.view="programme"; const r=o.apply(this,arguments);
+  if(tplOn92()){ const t=(BZ.set.templates||[])[TPL92.i]||{}; const tabs=$("#tabs"); if(tabs) tabs.innerHTML=`<button class="on">Programme</button><button data-act="b92-done">✓ Terminer</button>`; $("#appTitle").textContent="Modèle : "+(t.name||""); $("#appSub").textContent="Modifications enregistrées dans Base de données › Programmes";
+    const app=$("#app"); if(app&&!app.querySelector("#tpl92b")) app.insertAdjacentHTML("afterbegin",`<div class="alert" id="tpl92b" style="background:var(--btn2)"><b>Tu modifies un modèle</b>, pas le programme d'un client. <button class="sm" data-act="b92-done" style="margin-left:6px">✓ Terminer</button></div>`);
+    app&&app.querySelectorAll('[data-act="bank-open"]').forEach(b=>b.remove()); }
+  return r; }; })(render);
+// --- « Appliquer mes principes » sur le programme d'un client
+const _vOverload92=vOverload;
+vOverload=function(){ const h=_vOverload92(); if(!h||!coach()) return h; const O=ovSet92(); if(!Object.keys(O.ph||{}).length) return h;
+  return h.replace(/<\/p>/,`</p><button class="ghost sm" data-act="b92-ovapply" style="margin-bottom:6px">Appliquer mes principes</button>${O.note?`<details class="small" style="margin-bottom:6px"><summary>Mes règles</summary><p style="white-space:pre-wrap">${esc(O.note)}</p></details>`:""}`); };
+document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act^="b92-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v||"";
+  if(a==="b92-tab"){ B92.tab=v; return render(); }
+  if(a==="b92-new"){ B92.newOpen=!B92.newOpen; return render(); }
+  if(a==="b92-create"){ const n=((document.getElementById("b92-name")||{}).value||"").trim(); if(!n) return toast("Donne un nom au programme"); const id=(document.getElementById("b92-from")||{}).value||"", bk=BANK.find(x=>x.id===id), base=blankProg();
+    let prog={sessions:[],phases:base.phases,days:base.profile.days,source:"Manuel",overload:{}};
+    if(bk){ const keep=[CUR,ST.prog,M]; ST.prog=blankProg(); try{ ST.prog.profile.source="Manuel"; const _sp=saveProg; saveProg=function(){}; try{ applyBank(bk.id); } finally{ saveProg=_sp; } prog={sessions:ST.prog.sessions,phases:ST.prog.phases,days:ST.prog.profile.days,source:"Manuel",overload:ST.prog.overload,params:ST.prog.params}; } catch(err){ console.error(err); } finally{ [CUR,ST.prog,M]=keep; } }
+    const O=ovSet92(); if(Object.keys(O.ph||{}).length) prog.overload=Object.assign({},prog.overload||{},JSON.parse(JSON.stringify(O.ph)));
+    BZ.set.templates=[...(BZ.set.templates||[]),{name:n,cat:bk?bk.cat:"Autre",desc:bk?bk.desc:"",at:Date.now(),prog}]; B92.newOpen=false; await bzSaveSet(); return tplOpen92(BZ.set.templates.length-1); }
+  if(a==="b92-edit") return tplOpen92(+v);
+  if(a==="b92-dup"){ const t=(BZ.set.templates||[])[+v]; if(!t) return; BZ.set.templates=[...BZ.set.templates,Object.assign(JSON.parse(JSON.stringify(t)),{name:t.name+" (copie)",at:Date.now()})]; await bzSaveSet(); return render(); }
+  if(a==="b92-done") return tplClose92();
+  if(a==="b92-ovapply"){ const O=ovSet92(); if(!confirm("Remplacer la surcharge progressive de ce programme par tes principes ?")) return; ST.prog.overload=Object.assign({},ST.prog.overload||{},JSON.parse(JSON.stringify(O.ph||{}))); saveProg(); render(); return toast("Principes appliqués"); }
+},true);
+// prix au kg dans la base d'aliments (coach) : modifiable, enregistré pour tous
+document.addEventListener("change",async e=>{ const el=e.target; if(!el.dataset||el.dataset.px92===undefined) return; const f=NU.fmap&&NU.fmap[el.dataset.px92]; if(!f) return;
+  const raw=String(el.value).trim().replace(",","."), p=raw===""?null:parseFloat(raw); if(raw!==""&&(isNaN(p)||p<0)) return toast("Prix invalide");
+  const {error}=await SB.rpc("food_price_set",{fid:f.id,price:p}); if(error) return toast("Prix non enregistré : "+error.message); f.price_kg=p; f.price_src=p==null?null:"coach"; toast(p==null?"Prix retiré":`Prix enregistré : ${fmtE(p)} le kg`); },true);
+if(typeof ST!=="undefined"&&ST.view==="vid") ST.view="base";
 
 boot();
 
