@@ -247,6 +247,9 @@ const T = {
     await p.selectOption('select[data-nk="prof.lact"]', 'ex'); await p.waitForTimeout(500);
     const k1 = await p.evaluate(() => NU.calc.k), at = await txt(p, '#app');
     ok((k1 > k0 && /Allaitement/.test(at) && /limité à −12 %/.test(at) && /\(−12 %\)/.test(at)), `allaitement exclusif : +500 kcal et déficit limité à −12 % (${k0} → ${k1} kcal)`);
+    await p.selectOption('select[data-nk="prof.lact"]', 'g3'); await p.waitForTimeout(500);
+    const k2 = await p.evaluate(() => NU.calc.k), gt = await txt(p, '#app');
+    ok(/Grossesse/.test(gt) && /ramené au maintien/.test(gt) && /\(0 %\)/.test(gt) && k2 > k1, `grossesse 3e trimestre : +500 kcal, pas de déficit (${k2} kcal)`);
     await p.evaluate(() => { NU.plan.prof.sex = 'H'; render(); }); await p.waitForTimeout(300);
     ok(!(await p.$('select[data-nk="prof.lact"]')), 'option allaitement masquée pour un homme');
   }, coachPre(sc => (m, path, b, a, t, one) => {
