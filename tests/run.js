@@ -453,8 +453,12 @@ const T = {
     await p.click('[data-act="bt91-open"]'); await p.waitForTimeout(200);
     await p.click('[data-act="bt91-src"][data-v="my:m1"]'); await p.click('[data-act="bt91-slot"][data-v="Déjeuner"]'); await p.click('[data-act="bt91-q"][data-v="3"]'); await p.waitForTimeout(200);
     await p.click('[data-act="bt91-go"]'); await p.waitForTimeout(600);
-    const b = await p.evaluate(() => [0, 1, 2].map(i => { const L = NU.logs[addDays(todayISO(), i)] || {}; return (L.m || {})[1] || null; }));
-    ok(b.every(x => x && /Chili maison/.test(x.n) && x.pre === 1), 'batch : déjeuner noté à l\'avance sur 3 jours');
+    const b = await p.evaluate(() => [0, 1, 2].map(i => { const L = NU.logs[addDays(todayISO(), i)] || {}; return { pre: ((L.pre || {}).m || {})[1] || null, eaten: !!(L.m || {})[1], k: consumed(L).k }; }));
+    ok(b.every(x => x.pre && x.pre.n === 'Chili maison' && !x.eaten), 'batch : déjeuner prévu sur 3 jours, pas compté comme mangé');
+    ok(b[1].k === 0, 'jour suivant : 0 kcal comptées tant que rien n\'est validé');
+    ok(/Prévu : Chili maison/.test(await txt(p, '#app')), 'plat prévu affiché à la place du plat du plan');
+    await p.click('[data-act="nu93-preok"][data-v="1"]'); await p.waitForTimeout(300);
+    ok(await p.evaluate(() => { const L = NU.logs[todayISO()]; return L.m[1].n === 'Chili maison' && !(L.pre && L.pre.m && L.pre.m[1]); }), '« Mangé (plat prévu) » le compte');
     await p.evaluate(() => { NU.day = addDays(todayISO(), 9); render(); }); await p.click('[data-act="nu-day"][data-v="1"]'); await p.waitForTimeout(200);
     ok(await p.evaluate(() => NU.day === addDays(todayISO(), 10)), 'navigation possible jusqu\'à 14 jours à l\'avance');
   }, clientPre()),
@@ -489,6 +493,27 @@ const T = {
     await p.click('#tabs [data-act="b92-done"]'); await p.waitForTimeout(600);
     const T = await p.evaluate(() => ({ cur: CUR, v: ST.view, t: BZ.set.templates.map(t => t.name + ':' + t.prog.sessions[0].name), ov: BZ.set.ov92.ph.Accumulation.t }));
     ok(T.cur === null && T.v === 'base' && T.t.includes('Force 4 j test:Haut du corps A') && T.ov === 'mixte', 'modification enregistrée dans le modèle, retour à la base');
+  }, coachPre()),
+
+  'coach : fiches programmes (banque, tableaux, par mouvement, volume par muscle, modification)': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(() => { CUR = null; ST.view = 'base'; B92.tab = 'prog'; render(); }); await p.waitForTimeout(600);
+    const n = await p.evaluate(() => bankList93().length);
+    ok(n >= 20 && /Banque TB · \d+ programmes/.test(await txt(p, '#app')), `toute la banque listée (${n} programmes)`);
+    await p.evaluate(() => { FI93.open['Powerbuilding'] = true; render(); }); await p.click('[data-act="fi93-open"][data-v="bank:pb4"]'); await p.waitForTimeout(500);
+    const t = await txt(p, '#app');
+    ok(await p.inputValue('input[data-fi93sn="0"]') === 'Upper A' && await p.inputValue('input[data-fi93x="0.0"]') === 'Développé couché barre' && await p.$$eval('table.fi93 tr', r => r.length) > 20, 'fiche : séances en tableaux');
+    await p.click('[data-act="fi93-tab"][data-v="mvt"]'); await p.waitForTimeout(300);
+    ok(await p.$$eval('table.mvt93 tr:first-child th', r => r.length) === 13, 'par mouvement : 12 semaines en colonnes');
+    await p.click('[data-act="fi93-tab"][data-v="vol"]'); await p.waitForTimeout(300);
+    ok(/Séries par muscle · S1/.test(await txt(p, '#app')) && /Pectoraux|Quadriceps|Dos/.test(await txt(p, '#app')), 'volume par muscle');
+    await p.click('[data-act="fi93-tab"][data-v="ses"]'); await p.waitForTimeout(300);
+    await p.fill('input[data-fi93="0.1.1.0.rpe"]', '7'); await p.press('input[data-fi93="0.1.1.0.rpe"]', 'Tab'); await p.waitForTimeout(500);
+    const T = await p.evaluate(() => { const t = BZ.set.templates[BZ.set.templates.length - 1]; return { from: t.from, w1: t.prog.sessions[0].ex[1].weeks[1], src: FI93.src.kind }; });
+    ok(T.from === 'pb4' && /RPE7/.test(T.w1) && T.src === 'tpl', 'modifier un programme de la banque crée ma copie (' + T.w1 + ')');
+    await p.click('[data-act="fi93-w"][data-v="3"]'); await p.waitForTimeout(300);
+    await p.fill('input[data-fi93="0.1.3.0.sets"]', '6'); await p.press('input[data-fi93="0.1.3.0.sets"]', 'Tab'); await p.waitForTimeout(500);
+    const w3 = await p.evaluate(() => BZ.set.templates[BZ.set.templates.length - 1].prog.sessions[0].ex[1].weeks[3]);
+    ok(/^6x6-8/.test(w3) && await p.$('[data-act="fi93-unforce"][data-v="0.1.3"]'), 'semaine 3 forcée (' + w3 + '), retour au calcul possible');
   }, coachPre()),
 
 };

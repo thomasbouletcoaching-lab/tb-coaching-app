@@ -7335,7 +7335,7 @@ function batchCard91(){ if(coach()) return ""; const S=srcList91(), P=planOn(), 
   if(!B91.open) return `<div class="card" id="bt91"><button class="ghost" style="width:100%" data-act="bt91-open">🍱 Prévoir des repas à l'avance (batch cooking)</button></div>`;
   const days=[...Array(14)].map((_,i)=>addDays(today,i)), n=Object.values(B91.days).filter(Boolean).length, s=srcGet91(B91.src);
   let h=`<div class="card" id="bt91"><div class="row"><h3 class="grow" style="margin:0">🍱 Prévoir des repas à l'avance</h3><button class="ghost sm" data-act="bt91-open">Fermer</button></div>
-   <p class="muted small" style="margin:4px 0 8px">Tu as cuisiné à l'avance ? Note ton plat une fois pour les jours où tu le mangeras. Tu pourras toujours le modifier le jour même.</p>
+   <p class="muted small" style="margin:4px 0 8px">Tu as cuisiné à l'avance ? Prévois ton plat une fois pour les jours où tu le mangeras. Il n'est pas compté comme mangé : le jour venu, un toucher sur « ✅ Mangé » suffit, ou tu le retires.</p>
    <div class="small"><b>1. Le plat</b></div>`;
   h+=S.length?`<div class="row" style="gap:4px;margin-top:4px">${S.map(x=>`<button class="chip ${B91.src===x.id?"on":""}" data-act="bt91-src" data-v="${esc(x.id)}">${esc(srcLbl91(x))}</button>`).join("")}</div>`
     :`<p class="muted small">Enregistre d'abord ton plat dans « 📒 Mes repas » ci-dessous (bouton « ＋ Créer un repas »).</p>`;
@@ -7343,7 +7343,7 @@ function batchCard91(){ if(coach()) return ""; const S=srcList91(), P=planOn(), 
   h+=`<div class="small" style="margin-top:10px"><b>2. Pour quel repas</b></div><div class="row" style="gap:4px;margin-top:4px">${[...slots,"En extra"].map(x=>`<button class="chip ${B91.slot===x?"on":""}" data-act="bt91-slot" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>`;
   h+=`<div class="small" style="margin-top:10px"><b>3. Quels jours</b></div><div class="row" style="gap:4px;margin-top:4px">${days.map(d=>`<button class="chip ${B91.days[d]?"on":""}" data-act="bt91-day" data-v="${d}">${d===today?"Auj.":esc(dShort91(d))}</button>`).join("")}</div>
    <div class="row" style="gap:6px;margin-top:6px"><button class="ghost sm" data-act="bt91-q" data-v="3">3 prochains jours</button><button class="ghost sm" data-act="bt91-q" data-v="5">5 prochains jours</button><button class="ghost sm" data-act="bt91-q" data-v="0">Aucun</button></div>
-   <button class="ok" style="width:100%;margin-top:10px" data-act="bt91-go" ${s&&B91.slot&&n?"":"disabled"}>Noter ${n?`sur ${n} jour${n>1?"s":""}`:""}</button></div>`;
+   <button class="ok" style="width:100%;margin-top:10px" data-act="bt91-go" ${s&&B91.slot&&n?"":"disabled"}>Prévoir ${n?`sur ${n} jour${n>1?"s":""}`:""}</button></div>`;
   return h; }
 const _nJour91=nJour;
 nJour=function(){ const h=_nJour91(); if(coach()) return h; const c=batchCard91(), mk='<div class="card" id="my78">', i=h.indexOf(mk); return i>=0?h.slice(0,i)+c+h.slice(i):h+c; };
@@ -7362,10 +7362,10 @@ document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.
   if(a==="bt91-q"){ B91.days={}; for(let i=0;i<+v;i++) B91.days[addDays(todayISO(),i)]=true; return render(); }
   if(a==="bt91-go"){ const s=srcGet91(B91.src); if(!s||!B91.slot) return; const P=planOn(), ds=Object.keys(B91.days).filter(d=>B91.days[d]).sort(); let ok=0,kept=0;
     for(const d of ds){ const L=dayLog91(d), t=P&&P.types&&P.types.length?dayType79(P,d):null; const mi=B91.slot==="En extra"||!t?-1:t.meals.findIndex(m=>m.name===B91.slot);
-      if(mi<0) { L.x.push(...s.it.map(i=>Object.assign({},i))); ok++; }
-      else if(L.m[mi]&&!L.m[mi].pre){ kept++; continue; } else { putMeal91(L,mi,s,true); ok++; }
-      await nuSaveLog(d); }
-    B91.days={}; B91.open=false; render(); return toast(`« ${s.n} » noté sur ${ok} jour${ok>1?"s":""}${kept?` (${kept} déjà rempli${kept>1?"s":""}, gardé${kept>1?"s":""})`:""}`); }
+      const pr=preOf93(L), snap={n:s.n,it:s.it.map(i=>Object.assign({},i))};
+      if(mi<0) pr.x.push(snap); else if(L.m[mi]){ kept++; continue; } else pr.m[mi]=snap;
+      ok++; preSet93(L,pr); await nuSaveLog(d); }
+    B91.days={}; B91.open=false; render(); return toast(`« ${s.n} » prévu sur ${ok} jour${ok>1?"s":""}${kept?` (${kept} repas déjà mangé${kept>1?"s":""}, gardé${kept>1?"s":""})`:""}. Il compte quand tu le valides avec ✅ Mangé.`); }
 },true);
 
 // --- budget : prix au kg de la base (estimation) ou prix saisis par l'utilisateur, par magasin
@@ -7505,6 +7505,144 @@ document.addEventListener("change",async e=>{ const el=e.target; if(!el.dataset|
   const raw=String(el.value).trim().replace(",","."), p=raw===""?null:parseFloat(raw); if(raw!==""&&(isNaN(p)||p<0)) return toast("Prix invalide");
   const {error}=await SB.rpc("food_price_set",{fid:f.id,price:p}); if(error) return toast("Prix non enregistré : "+error.message); f.price_kg=p; f.price_src=p==null?null:"coach"; toast(p==null?"Prix retiré":`Prix enregistré : ${fmtE(p)} le kg`); },true);
 if(typeof ST!=="undefined"&&ST.view==="vid") ST.view="base";
+
+// ================= MODULE 93 · REPAS PRÉVUS (NE COMPTENT QU'UNE FOIS MANGÉS) + FICHES PROGRAMMES EN TABLEAUX =================
+// A. Repas prévus à l'avance : stockés à part dans le journal (L.pre = {m:{index:{n,it}}, x:[{n,it}]}), ni comptés ni affichés comme mangés.
+//    Le jour venu : « ✅ Mangé (plat prévu) » les valide ; « Journée comme prévue » les valide aussi.
+function preOf93(L){ const p=(L&&L.pre)||{}; return {m:Object.assign({},p.m||{}),x:[...(p.x||[])]}; }
+function preSet93(L,p){ if(!Object.keys(p.m).length&&!p.x.length) delete L.pre; else L.pre=p; }
+const preMac93=s=>mac(s.it||[]);
+// anciens repas « préparés à l'avance » notés comme mangés (version précédente) : on les repasse en prévus s'ils sont aujourd'hui ou plus tard
+function preMigrate93(){ const t=todayISO(); Object.keys(NU.logs||{}).filter(d=>d>=t).forEach(d=>{ const L=NU.logs[d]; if(!L||!L.m) return; let ch=false;
+  Object.entries(L.m).forEach(([mi,st])=>{ if(st&&st.pre){ const L2=dayLog91(d), p=preOf93(L2); p.m[mi]={n:String(st.n||"").replace(/ \(préparé à l'avance\)$/,""),it:st.it||[]}; delete L2.m[mi]; preSet93(L2,p); ch=true; } });
+  if(ch) nuSaveLog(d); }); }
+function preInject93(){ if(coach()||ST.view!=="nutrition"||NU.nv!=="jour") return; const app=$("#app"); if(!app) return; const d=NU.day||todayISO(), L=NU.logs[d]||{}, p=preOf93(L);
+  if(!Object.keys(p.m).length&&!p.x.length) return;
+  app.querySelectorAll(".card.meal").forEach(card=>{ if(card.dataset.pre93) return; const ok=card.querySelector('.acts [data-act="nu-ok"]'); if(!ok) return; const mi=ok.dataset.v, s=p.m[mi]; if(!s) return; card.dataset.pre93="1";
+    const plan=[...card.children].filter(c=>c!==card.firstElementChild&&!c.classList.contains("acts")&&!c.classList.contains("more90")&&!c.classList.contains("sk90")&&!c.classList.contains("edit"));
+    const was=(plan.find(c=>/font-weight:\s*600/.test(c.getAttribute("style")||""))||{}).textContent||"";
+    plan.forEach(c=>c.hidden=true);
+    const box=document.createElement("div"); box.className="pre93"; box.innerHTML=`<div class="row" style="flex-wrap:nowrap;gap:6px"><b class="grow">🍱 Prévu : ${esc(s.n)}</b><span class="muted small" style="flex:none">${r0(preMac93(s).k)} kcal</span></div>
+      <div class="small">${esc((s.it||[]).map(i=>`${i.n} ${qtyTxt(i)}`).join(" · "))}</div><div class="muted small">Pas encore compté : valide-le quand tu l'as mangé.${was?` Au lieu de : ${esc(was.split("·")[0].trim())}.`:""}</div>
+      <button class="linkbtn small" data-act="nu93-prerm" data-v="${esc(mi)}" style="padding:0;min-height:30px">Retirer ce plat prévu</button>`;
+    card.querySelector(".acts").before(box); ok.dataset.act="nu93-preok"; ok.textContent="✅ Mangé (plat prévu)"; });
+  if(p.x.length){ const xc=[...app.querySelectorAll(".card")].find(c=>/Extras & écarts/.test((c.querySelector("h3")||{}).textContent||"")); if(xc&&!xc.querySelector(".prex93")){
+    const box=document.createElement("div"); box.className="prex93"; box.innerHTML=p.x.map((s,k)=>`<div class="pre93 row" style="flex-wrap:nowrap;gap:6px;margin:6px 0"><span class="grow">🍱 Prévu en extra : <b>${esc(s.n)}</b><br><span class="muted small">${r0(preMac93(s).k)} kcal · pas encore compté</span></span><button class="ok sm" data-act="nu93-prexok" data-v="${k}">✅ Mangé</button><button class="ghost sm" data-act="nu93-prexrm" data-v="${k}" aria-label="Retirer">✕</button></div>`).join("");
+    xc.querySelector("h3").after(box); } } }
+const _nJour93=nJour; nJour=function(){ try{ if(!coach()) preMigrate93(); }catch(e){ console.error(e); } return _nJour93.apply(this,arguments); };
+render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ preInject93(); }catch(e){ console.error(e); } return r; }; })(render);
+function preEat93(d,mi){ const L=dayLog91(d), p=preOf93(L), s=p.m[mi]; if(!s) return false; if(!L.m[mi]) putMeal91(L,+mi,s,false); delete p.m[mi]; preSet93(L,p); return true; }
+document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act^="nu93-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v||"", d=NU.day||todayISO();
+  if(a==="nu93-preok"){ preEat93(d,v); delete NU90.open[v]; render(); await nuSaveLog(d); return toast("Repas noté"); }
+  const L=dayLog91(d), p=preOf93(L);
+  if(a==="nu93-prerm"){ delete p.m[v]; preSet93(L,p); render(); await nuSaveLog(d); return toast("Plat prévu retiré"); }
+  if(a==="nu93-prexok"){ const s=p.x[+v]; if(s) L.x.push(...(s.it||[]).map(i=>Object.assign({},i))); p.x.splice(+v,1); preSet93(L,p); render(); await nuSaveLog(d); return toast("Ajouté en extra"); }
+  if(a==="nu93-prexrm"){ p.x.splice(+v,1); preSet93(L,p); render(); await nuSaveLog(d); return; } },true);
+// « Journée comme prévue » : les plats prévus passent avant le plan (exécuté avant le gestionnaire du module 79)
+window.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="nu-allok"]'); if(!b||coach()) return; const d=NU.day||todayISO(), p=preOf93(NU.logs[d]); Object.keys(p.m).forEach(mi=>preEat93(d,mi)); },true);
+
+// B. Fiches programmes : séances en tableaux (séries, reps, % 1RM, RPE), vue par mouvement (toutes les semaines), volume par muscle
+const FI93={src:null,w:1,tab:"ses",cli:null,clis:null,open:{}};
+const bankList93=()=>BANK.filter(b=>b&&b.s&&b.s.length&&!b.hidden&&!["fx","hm"].includes(b.id));
+const bankProg93=b=>({sessions:b.s.map(([name,day,ex])=>({name,day,ex:JSON.parse(JSON.stringify(ex))})),phases:(b.phases||[]).slice(),days:(b.days||[]).slice(),overload:JSON.parse(JSON.stringify(b.ov||{})),source:"Manuel"});
+function fiProg93(){ const S=FI93.src; if(!S) return null; if(S.kind==="tpl") return ((BZ.set.templates||[])[S.i]||{}).prog||null;
+  if(S.kind==="bank"){ const b=BANK.find(x=>x.id===S.id); return b?bankProg93(b):null; } return FI93.cli?FI93.cli.prog:null; }
+function fiName93(){ const S=FI93.src; if(!S) return ""; if(S.kind==="tpl") return ((BZ.set.templates||[])[S.i]||{}).name||""; if(S.kind==="bank") return (BANK.find(x=>x.id===S.id)||{}).name||""; return FI93.cli?FI93.cli.name:""; }
+function fiCalc93(p){ if(!p) return null; let prog;
+  if(p.profile){ prog=JSON.parse(JSON.stringify(p)); }
+  else { const base=blankProg(); prog=Object.assign(base,{sessions:JSON.parse(JSON.stringify(p.sessions||[])),phases:(p.phases||base.phases).slice(),overload:p.overload||{},params:p.params||{},plan:{},refs:p.refs||[]});
+    prog.profile=Object.assign(base.profile,{days:(p.days||base.profile.days).slice(),source:"Manuel"}); prog.profile.source="Manuel"; }
+  const keep=ST.prog; try{ ST.prog=prog; return compute(prog,{},{},new Date(prog.profile.start+"T12:00:00")); }catch(e){ console.error(e); return null; } finally{ ST.prog=keep; } }
+const canEdit93=()=>FI93.src&&FI93.src.kind!=="cli";
+const pctTxt93=b=>b.pct!=null?fmtN(b.pct)+" %":"";
+const rpeTxt93=b=>b.rpe!=null&&!isNaN(b.rpe)?fmtN(b.rpe):"";
+const cellTxt93=wk=>!wk||!wk.eff?"":wk.valid&&wk.blocks?wk.blocks.map(b=>`${b.sets}×${String(b.rt).replace("-","–")}${b.pct!=null?" · "+fmtN(b.pct)+"%":""}${b.kg!=null?" · "+fmtN(b.kg)+"kg":""}${b.rpe!=null&&!isNaN(b.rpe)?" · RPE "+fmtN(b.rpe):""}`).join(" + "):esc(wk.eff);
+function vFiche93(){ const p=fiProg93(), R=fiCalc93(p); if(!p||!R) return `<div class="card">Programme introuvable. <button class="ghost sm" data-act="fi93-back">← Programmes</button></div>`;
+  const NSEM=R.NSEM, w=Math.min(Math.max(1,FI93.w),NSEM), ed=canEdit93(), act=R.rows.filter(r=>r.ex), S=FI93.src;
+  let h=`<div class="row" style="margin:4px 0 8px"><button class="ghost sm" data-act="fi93-back">← Programmes</button></div>
+   <div class="card"><h3 style="margin:0">${esc(fiName93())}</h3><div class="muted small">${R.sessions.filter(s=>s.rows.some(r=>r.ex)).length} séances · ${NSEM} semaines${S.kind==="bank"?" · banque TB (une modification crée ta copie)":S.kind==="cli"?" · programme d'un client (lecture seule)":""}</div>
+    <div class="row" style="gap:6px;margin-top:8px">${S.kind==="tpl"?`<button class="ghost sm" data-act="b92-edit" data-v="${S.i}">Éditeur complet (phases, jours…)</button>`:""}${S.kind!=="tpl"?`<button class="ghost sm" data-act="fi93-save">⭐ Enregistrer dans mes programmes</button>`:""}</div></div>`;
+  h+=`<div class="wk93">${R.phases.slice(0,NSEM).map((ph,k)=>`<button class="chip ${k+1===w?"on":""}" data-act="fi93-w" data-v="${k+1}">S${k+1}<br><span class="small">${esc(String(ph||"").slice(0,5))}</span></button>`).join("")}</div>`;
+  h+=subnav([["ses","Séances"],["mvt","Par mouvement"],["vol","Volume par muscle"]],FI93.tab,"fi93-tab");
+  if(FI93.tab==="ses"){
+    h+=`<p class="muted small">Semaine ${w} · ${esc(R.phases[w-1]||"")}. ${ed?(w===1?"La semaine 1 sert de base : les semaines suivantes en mode Auto suivent la surcharge progressive.":"Valeurs calculées par la surcharge progressive ; une valeur que tu modifies est forcée pour cette semaine (en gras, ↺ pour revenir au calcul)."):""}</p>`;
+    R.sessions.forEach(ses=>{ const rows=ses.rows.filter(r=>r.ex); if(!rows.length&&!(ed&&(p.sessions||[])[ses.s])) return;
+      h+=`<div class="card"><div class="row" style="flex-wrap:nowrap;gap:6px">${ed?`<input class="grow" style="font-weight:700" data-fi93sn="${ses.s}" value="${esc(ses.name)}" aria-label="Nom de la séance"><select data-fi93sd="${ses.s}" style="width:auto;flex:none" aria-label="Jour">${["",...DAYS].map(dd=>`<option ${dd===ses.day?"selected":""} value="${esc(dd)}">${dd||"Jour"}</option>`).join("")}</select><button class="ghost sm" data-act="fi93-delses" data-v="${ses.s}" aria-label="Supprimer la séance">🗑</button>`:`<h3 class="grow" style="margin:0">${esc(ses.name)}</h3><span class="muted small">${esc(ses.day||"")}</span>`}</div>
+       <table class="fi93"><tr><th class="n">Séries</th><th class="n">Reps</th><th class="n">% 1RM</th><th class="n">RPE</th>${ed?"<th></th>":""}</tr>`;
+      rows.forEach(r=>{ const wk=r.weeks[w]||{}, bl=wk.valid&&wk.blocks&&wk.blocks.length?wk.blocks:[{sets:"",rt:"",pct:null,rpe:null}], forced=!!wk.raw&&w>1, mu=(r.binfo||{}).mP||"";
+        bl.forEach((b,bi)=>{ const k=`${ses.s}.${r.i}.${w}.${bi}`, F=f=>ed?`<input class="${forced?"f93":""}" data-fi93="${k}.${f}" inputmode="decimal" value="${esc(f==="rt"?String(b.rt||""):f==="pct"?(b.pct??""):f==="rpe"?(b.rpe!=null&&!isNaN(b.rpe)?b.rpe:""):(b.sets??""))}" aria-label="${f}">`:esc(f==="rt"?String(b.rt||"").replace("-","–"):f==="pct"?pctTxt93(b):f==="rpe"?rpeTxt93(b):String(b.sets??""));
+          if(bi===0) h+=`<tr class="exh93"><td colspan="${ed?5:4}"><div class="row" style="flex-wrap:nowrap;gap:4px">${ed?`<input class="grow" list="dl-ex" data-fi93x="${ses.s}.${r.i}" value="${esc(r.ex)}" aria-label="Exercice">${forced?`<button class="ghost sm" data-act="fi93-unforce" data-v="${ses.s}.${r.i}.${w}" aria-label="Revenir au calcul">↺</button>`:""}<button class="ghost sm" data-act="fi93-blk" data-v="${ses.s}.${r.i}.${w}" aria-label="Ajouter un bloc">＋</button><button class="ghost sm" data-act="fi93-up" data-v="${ses.s}.${r.i}" aria-label="Monter">↑</button><button class="ghost sm" data-act="fi93-delex" data-v="${ses.s}.${r.i}" aria-label="Supprimer">✕</button>`:`<b class="grow">${esc(r.ex)}</b>`}</div><div class="muted small">${esc(mu)}${r.ss?` · superset ${esc(r.ss)}`:""}${r.mode==="Manuel"?" · manuel":""}${r.cons?` · ${esc(r.cons)}`:""}</div></td></tr>`;
+          h+=`<tr><td class="n">${F("sets")}</td><td class="n">${F("rt")}</td><td class="n">${F("pct")}</td><td class="n">${F("rpe")}</td>
+            ${ed?`<td class="n" style="width:40px">${bi>0?`<button class="ghost sm" data-act="fi93-delblk" data-v="${ses.s}.${r.i}.${w}.${bi}" aria-label="Retirer ce bloc">−</button>`:""}</td>`:""}</tr>`; }); });
+      h+=`</table>${ed&&rows.length<NE?`<button class="ghost sm" style="margin-top:6px" data-act="fi93-addex" data-v="${ses.s}">＋ Exercice</button>`:""}</div>`; });
+    if(ed&&(p.sessions||[]).length<NS) h+=`<button class="ghost" data-act="fi93-addses">＋ Séance</button>`;
+    h+=`<p class="note">% 1RM : la charge est calculée pour chaque client à partir de son 1RM. RPE 8 = environ 2 répétitions en réserve.</p>`; }
+  else if(FI93.tab==="mvt"){
+    h+=`<div class="card tbl" style="overflow-x:auto"><table class="fi93 mvt93"><tr><th class="stk">Mouvement</th>${R.phases.slice(0,NSEM).map((ph,k)=>`<th>S${k+1}<br><span class="muted small">${esc(String(ph||"").slice(0,5))}</span></th>`).join("")}</tr>
+     ${act.map(r=>`<tr><td class="stk"><b>${esc(r.ex)}</b><div class="muted small">${esc(R.sessions[r.s].name)}</div></td>${R.phases.slice(0,NSEM).map((_,k)=>{ const wk=r.weeks[k+1]; return `<td class="${wk&&wk.raw&&k>0?"f93":""}${k+1===w?" cur93":""}" ${ed?`data-act="fi93-go" data-v="${k+1}"`:""}>${cellTxt93(wk)}</td>`; }).join("")}</tr>`).join("")}</table></div>
+     <p class="note">Une ligne par mouvement et par séance, une colonne par semaine. En gras : valeur forcée. ${ed?"Touche une case pour modifier cette semaine.":""}</p>`; }
+  else { const mus=Object.keys(R.vol).filter(m=>R.vol[m].some(x=>x>0)).sort((a,b)=>R.vol[b][w]-R.vol[a][w]); const mx=Math.max(1,...mus.map(m=>R.vol[m][w]));
+    h+=`<div class="card"><h3 style="margin-top:0">Séries par muscle · S${w}</h3><p class="muted small" style="margin-top:0">Muscle principal = 1 série, muscles secondaires = 0,5. Repères MEV / MRV de l'app pour situer le volume.</p>
+     ${mus.map(m=>{ const v=R.vol[m][w], L=MUSMAP[m]||{}; return `<div style="margin:6px 0"><div class="row small" style="flex-wrap:nowrap"><span class="grow">${esc(m)}</span><b>${fmtN(Math.round(v*10)/10)}</b>${L.MEV!=null?`<span class="muted" style="margin-left:6px">MEV ${L.MEV} · MRV ${L.MRV}</span>`:""}</div><div class="mb-t"><i style="width:${Math.round(v/mx*100)}%"></i></div></div>`; }).join("")||`<p class="muted small">Aucune série cette semaine.</p>`}
+     <div class="small" style="margin-top:8px">Total : <b>${fmtN(Math.round((R.W[w-1]||{}).sets*10)/10||0)}</b> séries · dont <b>${fmtN((R.W[w-1]||{}).s85||0)}</b> à 85 % ou plus</div></div>
+     <div class="card tbl" style="overflow-x:auto"><table class="fi93 mvt93"><tr><th class="stk">Muscle</th>${R.phases.slice(0,NSEM).map((_,k)=>`<th>S${k+1}</th>`).join("")}</tr>${mus.map(m=>`<tr><td class="stk">${esc(m)}</td>${R.phases.slice(0,NSEM).map((_,k)=>`<td class="n${k+1===w?" cur93":""}">${fmtN(Math.round(R.vol[m][k+1]*10)/10)}</td>`).join("")}</tr>`).join("")}
+      <tr><td class="stk"><b>Total</b></td>${R.W.slice(0,NSEM).map((o,k)=>`<td class="n${k+1===w?" cur93":""}"><b>${fmtN(Math.round(o.sets*10)/10)}</b></td>`).join("")}</tr></table></div>`; }
+  return h; }
+// édition : s'applique au modèle (copie créée automatiquement pour un programme de la banque)
+async function fiEdit93(fn){ const S=FI93.src; if(!S||S.kind==="cli") return;
+  if(S.kind==="bank"){ const b=BANK.find(x=>x.id===S.id); if(!b) return; BZ.set.templates=[...(BZ.set.templates||[]),{name:b.name,cat:b.cat,desc:b.desc||"",at:Date.now(),from:b.id,prog:bankProg93(b)}]; FI93.src={kind:"tpl",i:BZ.set.templates.length-1}; toast("Copie créée dans tes programmes"); }
+  const t=BZ.set.templates[FI93.src.i]; t.prog=JSON.parse(JSON.stringify(t.prog||{})); t.prog.sessions=t.prog.sessions||[]; fn(t.prog); t.at=Date.now(); clearTimeout(fi93T); fi93T=setTimeout(bzSaveSet,800); render(); }
+let fi93T=null;
+const exOf93=(P,s,i)=>{ const S=P.sessions[s]=P.sessions[s]||{name:"Séance "+(s+1),ex:[]}; S.ex=S.ex||[]; while(S.ex.length<=i) S.ex.push({}); return S.ex[i]; };
+const compose93=bl=>bl.filter(b=>+b.sets>0&&String(b.rt||"").trim()).map(b=>[`${b.sets}x${String(b.rt).trim()}`,b.kg!=null&&b.kg!==""?`${b.kg}kg`:null,b.pct!=null&&b.pct!==""?`${b.pct}%`:null,b.rpe!=null&&b.rpe!==""&&!isNaN(b.rpe)?`RPE${b.rpe}`:null,...(b.tags||[]).map(t=>Object.keys(TAGTOK50).find(k=>TAGTOK50[k]===t)).filter(Boolean)].filter(Boolean).join(" ")).join(" + ");
+function blocksAt93(s,i,w){ const R=fiCalc93(fiProg93()), r=R&&R.rows.find(x=>x.s===s&&x.i===i), wk=r&&r.weeks[w]; return wk&&wk.valid&&wk.blocks?wk.blocks.map(b=>({sets:b.sets,rt:b.rt,pct:b.pct,rpe:b.rpe,kg:b.kg,tags:b.tags})):[]; }
+document.addEventListener("change",e=>{ const el=e.target, ds=el.dataset||{}; if(!FI93.src) return;
+  if(ds.fi93!==undefined){ const [s,i,w,bi,f]=ds.fi93.split("."), bl=blocksAt93(+s,+i,+w); while(bl.length<=+bi) bl.push({sets:3,rt:"8-10",pct:null,rpe:null});
+    let v=String(el.value).trim().replace(",","."); if(f==="rt") v=v.replace(/[–—]/g,"-").replace(/\s/g,""); else v=v===""?null:(isNaN(+v)?null:+v); bl[+bi][f]=v;
+    const txt=compose93(bl); return fiEdit93(P=>{ const E=exOf93(P,+s,+i); E.weeks=Object.assign([],E.weeks||[]); if(!E.mode) E.mode="Auto"; E.weeks[+w]=txt; }); }
+  if(ds.fi93x!==undefined){ const [s,i]=ds.fi93x.split(".").map(Number); const v=el.value.trim(); return fiEdit93(P=>{ exOf93(P,s,i).name=v; }); }
+  if(ds.fi93sn!==undefined){ const s=+ds.fi93sn; return fiEdit93(P=>{ (P.sessions[s]=P.sessions[s]||{ex:[]}).name=el.value.trim(); }); }
+  if(ds.fi93sd!==undefined){ const s=+ds.fi93sd; return fiEdit93(P=>{ (P.sessions[s]=P.sessions[s]||{ex:[]}).day=el.value; }); } },true);
+document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act^="fi93-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v||"";
+  if(a==="fi93-open"){ const [k,id]=v.split(":"); FI93.src=k==="tpl"?{kind:"tpl",i:+id}:k==="bank"?{kind:"bank",id}:{kind:"cli",id}; if(k==="cli") FI93.cli=(FI93.clis||[]).find(c=>c.id===id)||null; FI93.w=1; FI93.tab="ses"; render(); return window.scrollTo(0,0); }
+  if(a==="fi93-back"){ FI93.src=null; return render(); }
+  if(a==="fi93-w"||a==="fi93-go"){ FI93.w=+v; if(a==="fi93-go") FI93.tab="ses"; return render(); }
+  if(a==="fi93-tab"){ FI93.tab=v; return render(); }
+  if(a==="fi93-cat"){ FI93.open[v]=!FI93.open[v]; return render(); }
+  if(a==="fi93-clis"){ if(FI93.clis) { FI93.clis=null; return render(); } const {data,error}=await SB.from("clients").select("id,name,program,archived").eq("coach_id",UID).order("name"); if(error) return toast(error.message);
+    FI93.clis=(data||[]).filter(c=>!c.archived&&c.program&&(c.program.sessions||[]).some(s=>s&&s.ex&&s.ex.some(x=>x&&x.name))).map(c=>({id:c.id,name:"Programme de "+String(c.name||"").split(" ")[0],prog:c.program})); return render(); }
+  if(a==="fi93-save"){ const p=fiProg93(); if(!p) return; const src=p.profile?{sessions:p.sessions,phases:p.phases,days:p.profile.days,source:"Manuel",overload:p.overload,params:p.params,refs:p.refs,media:p.media}:JSON.parse(JSON.stringify(p));
+    const n=(prompt("Nom du programme",fiName93().replace(/^Programme de /,"Base "))||"").trim(); if(!n) return; const bk=FI93.src.kind==="bank"?BANK.find(x=>x.id===FI93.src.id):null;
+    BZ.set.templates=[...(BZ.set.templates||[]),{name:n,cat:bk?bk.cat:"Autre",desc:bk?bk.desc||"":"",at:Date.now(),prog:JSON.parse(JSON.stringify(src))}]; FI93.src={kind:"tpl",i:BZ.set.templates.length-1}; await bzSaveSet(); return render(); }
+  const [s,i,w]=v.split(".").map(Number);
+  if(a==="fi93-unforce") return fiEdit93(P=>{ const E=exOf93(P,s,i); if(E.weeks) E.weeks[w]=null; });
+  if(a==="fi93-blk"){ const bl=blocksAt93(s,i,w); bl.push({sets:3,rt:"8-10",pct:null,rpe:8}); const txt=compose93(bl); return fiEdit93(P=>{ const E=exOf93(P,s,i); E.weeks=Object.assign([],E.weeks||[]); E.weeks[w]=txt; }); }
+  if(a==="fi93-delblk"){ const bi=+v.split(".")[3], bl=blocksAt93(s,i,w); bl.splice(bi,1); const txt=compose93(bl); return fiEdit93(P=>{ const E=exOf93(P,s,i); E.weeks=Object.assign([],E.weeks||[]); E.weeks[w]=txt; }); }
+  if(a==="fi93-up") return fiEdit93(P=>{ const L=P.sessions[s].ex; if(i>0){ [L[i-1],L[i]]=[L[i],L[i-1]]; } });
+  if(a==="fi93-delex"){ if(!confirm("Retirer cet exercice du programme ?")) return; return fiEdit93(P=>{ P.sessions[s].ex.splice(i,1); }); }
+  if(a==="fi93-addex") return fiEdit93(P=>{ const S=P.sessions[s]=P.sessions[s]||{name:"Séance "+(s+1),ex:[]}; S.ex=(S.ex||[]).filter(x=>x&&x.name); S.ex.push({name:"À choisir",mode:"Auto",weeks:[null,"3x8-10 RPE8"]}); });
+  if(a==="fi93-delses"){ if(!confirm("Supprimer cette séance du programme ?")) return; return fiEdit93(P=>{ P.sessions.splice(s,1); }); }
+  if(a==="fi93-addses") return fiEdit93(P=>{ P.sessions.push({name:"Séance "+(P.sessions.length+1),day:"",ex:[{name:"À choisir",mode:"Auto",weeks:[null,"3x8-10 RPE8"]}]}); });
+},true);
+// liste « Programmes » : mes programmes + toute la banque + programmes des clients, chacun ouvrable en fiche
+const _vProg93=vProg92;
+vProg92=function(){ if(FI93.src) return vFiche93(); let h=_vProg93(); if(!BZ.loaded) return h;
+  h=h.replace(/<button class="ghost sm" data-act="b92-edit" data-v="(\d+)">✏️ Modifier<\/button>/g,(m,i)=>`<button class="sm" data-act="fi93-open" data-v="tpl:${i}">📋 Ouvrir</button>`);
+  const L=bankList93(), cats=[...new Set(L.map(b=>b.cat))], mineFrom=new Set((BZ.set.templates||[]).map(t=>t.from).filter(Boolean));
+  let bank=`<div class="card"><h3 style="margin-top:0">Banque TB · ${L.length} programmes</h3><p class="muted small" style="margin-top:0">Tous les programmes de l'app. Ouvre-en un pour le consulter en tableaux ; si tu le modifies, une copie est créée dans « Mes programmes ».</p>
+   ${cats.map(c=>{ const B=L.filter(b=>b.cat===c), op=!!FI93.open[c]; return `<div style="border-top:1px solid var(--line);padding:6px 0"><button class="linkbtn" style="width:100%;text-align:left;font-weight:700;min-height:40px" data-act="fi93-cat" data-v="${esc(c)}">${op?"▾":"▸"} ${esc(c)} <span class="muted small">(${B.length})</span></button>
+     ${op?B.map(b=>`<div class="row" style="flex-wrap:nowrap;gap:6px;padding:6px 0"><div class="grow"><b>${esc(b.name)}</b>${mineFrom.has(b.id)?` <span class="muted small">· copie dans mes programmes</span>`:""}<div class="muted small">${esc(b.desc||"")} · ${b.s.length} séances · ${(b.phases||[]).length} sem.</div></div><button class="ghost sm" data-act="fi93-open" data-v="bank:${esc(b.id)}">📋 Ouvrir</button></div>`).join(""):""}</div>`; }).join("")}</div>`;
+  const cl=`<div class="card"><div class="row"><h3 class="grow" style="margin:0">Programmes de mes clients</h3><button class="ghost sm" data-act="fi93-clis">${FI93.clis?"Masquer":"Afficher"}</button></div>
+   ${FI93.clis?(FI93.clis.length?FI93.clis.map(c=>`<div class="row" style="flex-wrap:nowrap;gap:6px;padding:6px 0;border-top:1px solid var(--line)"><b class="grow">${esc(c.name)}</b><button class="ghost sm" data-act="fi93-open" data-v="cli:${esc(c.id)}">📋 Ouvrir</button></div>`).join(""):`<p class="muted small">Aucun programme client.</p>`):`<p class="muted small" style="margin:4px 0 0">Consulte le programme actuel de chaque client et enregistre-le comme modèle.</p>`}</div>`;
+  const cut=h.indexOf('</div><div class="card"><h3 style="margin-top:0">Mes principes');
+  return cut>=0?h.slice(0,cut+6)+bank+cl+h.slice(cut+6):h+bank+cl; };
+(function(){ const st=document.createElement("style"); st.textContent=`
+.pre93{background:var(--btn2);border-radius:12px;padding:8px 10px;margin:6px 0}
+table.fi93{width:100%;border-collapse:collapse}table.fi93 td,table.fi93 th{vertical-align:top;padding:3px}table.fi93 input{width:100%;min-width:0;padding:6px 4px;text-align:center}
+tr.exh93 td{border-top:1px solid var(--line);padding-top:8px}tr.exh93 input{text-align:left;font-weight:700}
+table.fi93 input.f93,td.f93{font-weight:800}td.cur93{background:var(--btn2)}
+table.mvt93 td,table.mvt93 th{white-space:nowrap;font-size:.82rem;padding:6px 8px}table.mvt93 .stk{position:sticky;left:0;background:var(--card,#fff);z-index:1;white-space:normal;min-width:130px}
+table.mvt93 td[data-act]{cursor:pointer}.wk93{display:flex;gap:4px;overflow-x:auto;padding:2px 0 8px}.wk93 .chip{flex:none;line-height:1.1;text-align:center}`; document.head.appendChild(st); })();
 
 boot();
 
