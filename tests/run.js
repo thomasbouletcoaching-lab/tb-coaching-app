@@ -242,6 +242,13 @@ const T = {
     ok(r.g === 170 && r.e >= r.r && r.min >= 5, 'correction : repos à −15 % de glucides, portions réalistes');
     await p.click('[data-act="pp84-apply"]'); await p.waitForTimeout(600);
     ok(!(await p.$('#pp84')) && await p.evaluate(() => NU.plan.types[0].meals[0].opts[0].it[0].q === 160), 'plan proposé appliqué puis retiré');
+    await p.evaluate(() => { NU.plan.prof = { sex: 'F', age: 32, h: 165, w: 62, adj: -20 }; NU.nv = 'besoins'; render(); }); await p.waitForTimeout(400);
+    const k0 = await p.evaluate(() => NU.calc.k);
+    await p.selectOption('select[data-nk="prof.lact"]', 'ex'); await p.waitForTimeout(500);
+    const k1 = await p.evaluate(() => NU.calc.k), at = await txt(p, '#app');
+    ok((k1 > k0 && /Allaitement/.test(at) && /limité à −12 %/.test(at) && /\(−12 %\)/.test(at)), `allaitement exclusif : +500 kcal et déficit limité à −12 % (${k0} → ${k1} kcal)`);
+    await p.evaluate(() => { NU.plan.prof.sex = 'H'; render(); }); await p.waitForTimeout(300);
+    ok(!(await p.$('select[data-nk="prof.lact"]')), 'option allaitement masquée pour un homme');
   }, coachPre(sc => (m, path, b, a, t, one) => {
     const it = (n, k, pp, g, l, q) => ({ n, k, p: pp, g, l, q });
     const ms = (a1, b1) => [{ name: 'Déjeuner', opts: [{ n: 'Poulet riz', m: 1, it: [it('Blanc de poulet (cru)', 110, 23, 0, 1.5, a1), it('Riz basmati (cuit)', 130, 3, 28, 0.4, b1), it("Huile d'olive", 900, 0, 0, 100, 10)] }] }];

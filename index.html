@@ -913,10 +913,13 @@ const subnav=(items,cur,act)=>`<div class="row" style="margin:4px 0 8px">${items
 function itemsList(o){ return `<ul class="its">${(o.it||[]).map(i=>`<li><span>${esc(i.n)}</span><span>${qtyTxt(i,o.m||1)}</span></li>`).join("")||'<li class="muted">Aucun aliment</li>'}</ul>`; }
 
 // ---------- vue Nutrition (dans le dossier client)
+// allaitement : +500 kcal/j pour un allaitement exclusif de 0 à 6 mois (EFSA, Dietary Reference Values for energy, 2013) ; partiel : valeur saisie (250 par défaut, estimation)
+function lactKcal(sex,lact,k){ if(sex!=="F") return 0; if(lact==="ex") return 500; if(lact==="part"){ const n=parseFloat(String(k??"").replace(",",".")); return isNaN(n)?250:Math.max(0,Math.min(500,n)); } return 0; }
 function nBesoins(){ const P=NU.plan, f=P.prof||(P.prof={}); const pr=ST.prog.profile||{};
   const w=+f.w||latestWeight(), h=+f.h||175, a=+f.age||35, sex=f.sex||"H", neat=+f.neat||1.35, ses=+(f.ses??((pr.days||[]).filter(Boolean).length||3)), dur=+f.dur||pr.dmax||75, met=+f.met||5, adj=+(f.adj??-12), pk=+f.pk||2, lk=+f.lk||0.9;
   const cardio=(P.cardio||[]).reduce((s,c)=>s+cardK(c,w)*(c.days||[]).filter(Boolean).length,0)/7;
-  const bmr=10*w+6.25*h-5*a+(sex==="F"?-161:5), neatK=bmr*neat, sport=(met-1)*w*(dur/60)*ses/7, tdee=neatK+sport+cardio, kcal=Math.round(tdee*(1+adj/100)/10)*10;
+  const lact=sex==="F"?(f.lact||""):"", lactK=lactKcal(sex,lact,f.lactk), adjE=lactK?Math.max(adj,-12):adj;
+  const bmr=10*w+6.25*h-5*a+(sex==="F"?-161:5), neatK=bmr*neat, sport=(met-1)*w*(dur/60)*ses/7, tdee=neatK+sport+cardio+lactK, kcal=Math.round(tdee*(1+adjE/100)/10)*10;
   const p=Math.round(pk*w), l=Math.round(lk*w), g=Math.max(0,Math.round((kcal-4*p-9*l)/4));
   NU.calc={k:kcal,p,g,l};
   const S=(k,opts,val)=>sel(opts,val,`data-nk="prof.${k}" data-t="n"`,false);
@@ -924,16 +927,18 @@ function nBesoins(){ const P=NU.plan, f=P.prof||(P.prof={}); const pr=ST.prog.pr
   const T=P.tgt;
   return `<div class="card"><h3>Profil</h3><div class="row">
     <label class="f">Sexe${sel([["H","Homme"],["F","Femme"]],sex,`data-nk="prof.sex"`,false)}</label><label class="f">Âge${N("age",a)}</label><label class="f">Taille (cm)${N("h",h)}</label><label class="f">Poids (kg)${N("w",w,w)}</label></div>
+   ${sex==="F"?`<div class="row" style="margin-top:8px"><label class="f" style="flex-basis:100%">Allaitement${sel([["","Non"],["ex","Oui, allaitement exclusif (bébé de 0 à 6 mois)"],["part","Oui, en partie ou après 6 mois"]],lact,`data-nk="prof.lact"`,false)}</label>${lact==="part"?`<label class="f">Calories ajoutées${N("lactk",250)}</label>`:""}</div>`:""}
    <div class="row" style="margin-top:8px"><label class="f" style="flex-basis:100%">Activité hors séances${S("neat",[[1.2,"Assis toute la journée (< 5 000 pas)"],[1.35,"Plutôt assis, marche un peu (5 000 à 8 000 pas)"],[1.5,"Souvent debout (8 000 à 12 000 pas)"],[1.65,"Métier physique (> 12 000 pas)"]],neat)}</label></div>
    <div class="row" style="margin-top:8px"><label class="f">Séances / semaine${N("ses",ses)}</label><label class="f">Durée (min)${N("dur",dur)}</label><label class="f">Intensité${S("met",[[4.5,"Muscu modérée"],[6,"Muscu intense"],[8,"Circuit / HIIT"]],met)}</label></div>
    <div class="row" style="margin-top:8px"><label class="f">Objectif${S("adj",[[-20,"Sèche (−20 %)"],[-12,"Sèche douce (−12 %)"],[0,"Maintien / recompo"],[8,"Prise de muscle (+8 %)"]],adj)}</label><label class="f">Protéines (g/kg)${N("pk",pk)}</label><label class="f">Lipides (g/kg)${N("lk",lk)}</label></div></div>
   <div class="card"><h3>Résultat</h3><div class="tbl"><table>
     <tr><td>Métabolisme de base (Mifflin-St Jeor)</td><td class="n">${r0(bmr)} kcal</td></tr>
     <tr><td>Avec l'activité quotidienne (NEAT)</td><td class="n">${r0(neatK)} kcal</td></tr>
-    <tr><td>Séances (moyenne par jour)</td><td class="n">+ ${r0(sport)} kcal</td></tr>${cardio?`<tr><td>Cardio prescrit (moyenne par jour)</td><td class="n">+ ${r0(cardio)} kcal</td></tr>`:""}
+    <tr><td>Séances (moyenne par jour)</td><td class="n">+ ${r0(sport)} kcal</td></tr>${cardio?`<tr><td>Cardio prescrit (moyenne par jour)</td><td class="n">+ ${r0(cardio)} kcal</td></tr>`:""}${lactK?`<tr><td>Allaitement</td><td class="n">+ ${r0(lactK)} kcal</td></tr>`:""}
     <tr><td><b>Dépense totale estimée</b></td><td class="n"><b>${r0(tdee)} kcal</b></td></tr>
-    <tr><td><b>Cible (${adj>0?"+":""}${adj} %)</b></td><td class="n"><b>${kcal} kcal</b></td></tr>
+    <tr><td><b>Cible (${adjE>0?"+":""}${adjE} %)</b></td><td class="n"><b>${kcal} kcal</b></td></tr>
     <tr><td>Protéines · Glucides · Lipides</td><td class="n">${p} g · ${g} g · ${l} g</td></tr></table></div>
+    ${lactK?`<div class="alert" style="background:var(--btn2)">${adjE!==adj?"<b>Déficit limité à −12 % pendant l'allaitement.</b> ":""}Allaitement : ${lact==="ex"?"+500 kcal par jour, valeur de référence de l'EFSA (2013) pour un allaitement exclusif les 6 premiers mois":"valeur à ajuster selon la part d'allaitement"}. Pas de sèche marquée pendant cette période : on vise une perte lente, on suit la tendance de poids et l'énergie, et on valide avec la sage-femme ou le médecin.</div>`:""}
     ${g<100?`<div class="alert ko">Glucides bas : vérifie les lipides ou l'objectif.</div>`:""}
     <div class="row" style="margin-top:10px"><button data-act="nu-settgt">Utiliser comme cible du plan</button></div></div>
   <div class="card"><h3>Cible du plan</h3>${T?`<div class="row"><label class="f">kcal<input data-nk="tgt.k" data-t="n" inputmode="decimal" value="${esc(T.k)}"></label><label class="f">Protéines (g)<input data-nk="tgt.p" data-t="n" inputmode="decimal" value="${esc(T.p)}"></label><label class="f">Glucides (g)<input data-nk="tgt.g" data-t="n" inputmode="decimal" value="${esc(T.g)}"></label><label class="f">Lipides (g)<input data-nk="tgt.l" data-t="n" inputmode="decimal" value="${esc(T.l)}"></label></div><p class="note">Tu peux ajuster chaque valeur à la main.</p>`:`<p class="muted">Pas encore de cible : utilise le résultat ci-dessus.</p>`}</div>`; }
@@ -2388,6 +2393,7 @@ const PRIO14=[["Pectoraux","Pecs"],["Dos (largeur)","Dos-largeur"],["Dos (épais
   const emp=sec("Ton emploi du temps"); const i=emp.findIndex(f=>f[0]==="equip"); emp.splice(i,1,["equipL","multi","Matériel disponible à la maison",EQUIP],["equip","text","Autre matériel, précisions"]);
   OBQ.splice(OBQ.findIndex(s=>s[0]==="Douleurs et précautions"),0,["Ton alimentation",[
    ["sex","sel","Sexe (pour estimer tes besoins énergétiques)",["Homme","Femme"]],
+   ["allait","sel","Tu allaites en ce moment ? (si concernée)",["Non","Oui, allaitement exclusif (bébé de 0 à 6 mois)","Oui, en partie ou après 6 mois"]],
    ["age","num","Âge"],["height","num","Taille (cm)"],["weight","num","Poids actuel (kg)"],
    ["nobj","sel","Ton objectif côté alimentation",["Perdre du gras","Perdre du gras en douceur","Maintenir / recomposition","Prendre du muscle"]],
    ["meals","sel","Nombre de prises alimentaires par jour",["3 repas","3 repas + 1 collation","3 repas + 2 collations"]],
@@ -2463,7 +2469,8 @@ function nutriProposal(d,T){ const w=parseFloat(String(d.weight||"").replace(","
   const pool=c=>seedSort((NU.dishes||[]).filter(x=>x.cat===c&&dishOK(x,d)),CUR||"");
   const R=pool("Repas"), C=pool("Collation"), P0=pool("Petit-déjeuner"), P=P0.length>=2?P0:[...P0,...C.filter(x=>!P0.includes(x))];
   const missing=[!w&&"poids",!h&&"taille",!age&&"âge",!d.sex&&"sexe",adj===undefined&&"objectif alimentaire"].filter(Boolean);
-  return {prof:{sex:d.sex==="Femme"?"F":"H",age:age||undefined,h:h||undefined,w:w||undefined,neat,ses:T.nd,dur:T.dmax,adj:adj??0},meals,P,R,C,missing}; }
+  const lact=d.sex==="Femme"?(/^Oui, allaitement exclusif/.test(d.allait||"")?"ex":/^Oui, en partie/.test(d.allait||"")?"part":undefined):undefined;
+  return {prof:{sex:d.sex==="Femme"?"F":"H",lact,age:age||undefined,h:h||undefined,w:w||undefined,neat,ses:T.nd,dur:T.dmax,adj:adj??0},meals,P,R,C,missing}; }
 function applyNutri(N,T){ const plan=blankNut(); plan.prof=Object.assign({},N.prof); Object.keys(plan.prof).forEach(k=>plan.prof[k]===undefined&&delete plan.prof[k]);
   NU.plan=plan; nBesoins(); plan.tgt=Object.assign({},NU.calc);
   let ri=0, ci=0; const pick=(list,i)=>list.length?list[i%list.length]:null;
@@ -4565,14 +4572,15 @@ const EN={pick:null,min:30,per:"w"};
 function profEN(){ const P=NU.plan||{}, f=P.prof||{}, ob=(X10&&X10.ob&&X10.ob.data)||{}; const num0=x=>{ const n=parseFloat(String(x??"").replace(",",".")); return isNaN(n)?null:n; };
   const w=num0(f.w)||latestWeight()||num0(ob.weight)||75, h=num0(f.h)||num0(ob.height)||175, a=num0(f.age)||num0(ob.age)||35, sex=f.sex||(ob.sex==="Femme"?"F":"H");
   const inv={1.2:3000,1.35:6500,1.5:10000,1.65:14000}; const steps=num0(f.steps)||num0(ob.steps_n)||inv[+f.neat]||(P.steps?+P.steps:6000);
-  return {w,h,a,sex,steps,met:num0(f.met)||5,bmr:10*w+6.25*h-5*a+(sex==="F"?-161:5)}; }
+  const lactK=lactKcal(sex,f.lact||(ob.sex==="Femme"?(/^Oui, allaitement exclusif/.test(ob.allait||"")?"ex":/^Oui, en partie/.test(ob.allait||"")?"part":""):""),f.lactk);
+  return {w,h,a,sex,steps,lactK,met:num0(f.met)||5,bmr:10*w+6.25*h-5*a+(sex==="F"?-161:5)}; }
 function muscuMinEN(d){ let m=0; Object.entries(ST.carnet||{}).forEach(([k,t])=>{ if(!/^\d+_t_\d+$/.test(k)||!t||!t.end||t.missed||t.manual) return; if(isoD(new Date(t.end))!==d) return; m+=Math.min(180,tDur(t)/60000); }); return m; }
 function spendEN(d){ const p=profEN(), L=NU.logs[d]||{}, w=p.w; const base=p.bmr*1.2;
   const stepsNoted=num(L.steps)!=null&&+L.steps>0, steps=stepsNoted?+L.steps:p.steps, stepK=steps*0.0005*w;
   const mm=muscuMinEN(d), muscK=(p.met-1)*w*mm/60;
   const acts=(L.act||[]).map(x=>{ const A=ACTM_EN[x.a]; return {x,A,k:A?Math.round((A[3]-1)*w*(+x.min||0)/60):0}; }); const actK=acts.reduce((s,o)=>s+o.k,0);
   const P=planOn&&planOn(); let cardK0=0; Object.entries(L.c||{}).forEach(([i,lg])=>{ const c=P&&(P.cardio||[])[+i]; cardK0+=num(lg&&lg.k)!=null?+lg.k:(c?cardK(c,w):0); });
-  const total=Math.round(base+stepK+muscK+actK+cardK0);
+  const total=Math.round(base+stepK+muscK+actK+cardK0+(p.lactK||0));
   return {p,base:Math.round(base),steps,stepsNoted,stepK:Math.round(stepK),mm:Math.round(mm),muscK:Math.round(muscK),acts,actK,cardK:Math.round(cardK0),total}; }
 function intakeEN(d){ const L=NU.logs[d]||{}; const P=planOn&&planOn(); const t=P&&P.types&&P.types.length?typeOf(L.t||P.week[DOW(d)]):null;
   const got=consumed(L), nm=Object.keys(L.m||{}).length, nx=(L.x||[]).length; const any=nm||nx;
@@ -4595,7 +4603,7 @@ function vSpendDayEN(d){ const S=spendEN(d), I=intakeEN(d), L=NU.logs[d]||{}, ba
    <table class="en-t"><tr><td>Métabolisme + vie quotidienne</td><td class="n">${fmtN(S.base)}</td></tr>
     <tr><td>Pas : ${fmtN(S.steps)}${S.stepsNoted?"":` <span class="muted small">(ta moyenne)</span>`}</td><td class="n">${fmtN(S.stepK)}</td></tr>
     <tr><td>Musculation${S.mm?` : ${S.mm} min`:""}</td><td class="n">${S.muscK?fmtN(S.muscK):"—"}</td></tr>
-    ${S.cardK?`<tr><td>Cardio du plan</td><td class="n">${fmtN(S.cardK)}</td></tr>`:""}
+    ${S.cardK?`<tr><td>Cardio du plan</td><td class="n">${fmtN(S.cardK)}</td></tr>`:""}${S.p.lactK?`<tr><td>Allaitement</td><td class="n">${fmtN(S.p.lactK)}</td></tr>`:""}
     ${S.acts.map((o,i)=>`<tr><td>${o.A?o.A[1]+" "+esc(o.A[2]):"Activité"} : ${o.x.min} min <button class="linkbtn en-x" data-act="en-del" data-v="${i}" aria-label="Retirer">✕</button></td><td class="n">${fmtN(o.k)}</td></tr>`).join("")}</table>
    <label class="f" style="margin-top:8px">Pas aujourd'hui<input data-lf="steps" inputmode="numeric" value="${esc(L.steps??"")}" placeholder="${fmtN(S.p.steps)} (moyenne)"></label>`;
   if(EN.pick){ const A=ACTM_EN[EN.pick]; h+=`<div class="edit"><b>${A[1]} ${esc(A[2])}</b><div class="row" style="margin-top:6px">${[15,20,30,45,60,90].map(m=>`<button class="chip ${EN.min===m?"on":""}" data-act="en-min" data-v="${m}">${m} min</button>`).join("")}</div>
