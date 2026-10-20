@@ -7431,7 +7431,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.
 const B92={tab:"aliments",newOpen:false};
 const TPL92={i:null,back:null,id:"00000000-0000-4000-8000-000000000092"};
 const tplOn92=()=>TPL92.i!=null&&CUR===TPL92.id;
-const homeTabs92=on=>[["clients","Mes clients"],["biz","Business"],["abo","Abonnés"+(P88.list&&P88.list.length?` (${P88.list.length})`:"")],["base","Base de données"]].map(([k,l])=>`<button class="${k===on?"on":""}" data-act="home" data-v="${k}">${esc(l)}</button>`).join("")+`<button data-act="home" data-v="vid" hidden></button>`;
+const homeTabs92=on=>[["clients","Mes clients"],["biz","Business"],["abo","Abonnés"+(P88.list&&P88.list.length?` (${P88.list.length})`:"")],["base","Base de données"]].map(([k,l])=>`<button class="${k===on?"on":""}" data-act="home" data-v="${k}">${esc(l)}</button>`).join("");
 const _homeShell92=homeShell;
 homeShell=function(shell){ if(ST.view==="lib"){ ST.view="base"; B92.tab=NU.lib==="plats"?"plats":"aliments"; } if(ST.view==="vid"){ ST.view="base"; B92.tab="ex"; }
   if(ST.view==="base") return shell(CONFIG.brand,"Espace coach · "+EMAIL,vBase92(),homeTabs92("base"));
@@ -7479,6 +7479,7 @@ const _saveProg92=saveProg;
 saveProg=function(){ if(!tplOn92()) return _saveProg92.apply(this,arguments); recompute(); tplStore92(); clearTimeout(tpl92T); tpl92T=setTimeout(bzSaveSet,700); };
 async function tplClose92(){ if(TPL92.i==null) return; tplStore92(); clearTimeout(tpl92T); await bzSaveSet(); TPL92.i=null; CUR=null; M=null; ST.view="base"; B92.tab="prog"; render(); window.scrollTo(0,0); }
 render=(function(o){ return function(){ if(TPL92.i!=null&&CUR!==TPL92.id) TPL92.i=null; if(tplOn92()&&ST.view!=="programme") ST.view="programme"; const r=o.apply(this,arguments);
+  if(MODE==="coach") document.querySelectorAll('[data-act="home"][data-v="vid"]').forEach(b=>b.remove());
   if(tplOn92()){ const t=(BZ.set.templates||[])[TPL92.i]||{}; const tabs=$("#tabs"); if(tabs) tabs.innerHTML=`<button class="on">Programme</button><button data-act="b92-done">✓ Terminer</button>`; $("#appTitle").textContent="Modèle : "+(t.name||""); $("#appSub").textContent="Modifications enregistrées dans Base de données › Programmes";
     const app=$("#app"); if(app&&!app.querySelector("#tpl92b")) app.insertAdjacentHTML("afterbegin",`<div class="alert" id="tpl92b" style="background:var(--btn2)"><b>Tu modifies un modèle</b>, pas le programme d'un client. <button class="sm" data-act="b92-done" style="margin-left:6px">✓ Terminer</button></div>`);
     app&&app.querySelectorAll('[data-act="bank-open"]').forEach(b=>b.remove()); }
