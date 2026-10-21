@@ -7933,6 +7933,15 @@ document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closes
 .dn96d{flex:none;width:46px;height:46px;border-radius:12px;background:var(--btn2);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}.dn96d b{font-size:1.15rem}.dn96d span{font-size:.7rem;text-transform:uppercase;color:var(--soft)}
 .dn96b{padding:0 12px 12px}.dn96e{padding:8px 0;border-top:1px solid var(--line)}.dn96t{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:4px;font-variant-numeric:tabular-nums}.dn96t td{padding:3px 4px}`; document.head.appendChild(st); })();
 
+// ================= MODULE 97 · LE LOGO EN HAUT À GAUCHE RAMÈNE À L'ACCUEIL (coach : tous mes clients) =================
+async function goHome97(){ if(typeof tplOn92==="function"&&tplOn92()){ await tplClose92(); }
+  if(MSG.open){ IN95.back=false; msgClose(); } ST.histEx=null; ST.printProg=false; ST.printNut=false;
+  if(coach()&&!ST.solo&&MODE==="coach"){ CUR=null; M=null; ST.view="clients"; window.scrollTo(0,0); render(); try{ await loadClients(false); }catch(e){} return; }
+  ST.todayOn=true; ST.histEx=null; window.scrollTo(0,0); render(); }
+document.addEventListener("click",e=>{ const h=e.target.closest&&e.target.closest("#appTitle"); if(!h) return; const r=h.getBoundingClientRect(); if(e.clientX>r.left+46) return;
+  e.preventDefault(); e.stopImmediatePropagation(); goHome97(); },true);
+(function(){ const st=document.createElement("style"); st.textContent=`header.top h1::before{cursor:pointer}`; document.head.appendChild(st); })();
+
 boot();
 
 </script>

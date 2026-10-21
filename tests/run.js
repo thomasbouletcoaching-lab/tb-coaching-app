@@ -599,6 +599,14 @@ const T = {
     ok(/Historique des notes/.test(await txt(p, '#app')), 'historique complet des notes dans l\'exercice');
   }, clientPre(sc => (m, path, body, acc, t) => { if (t === 'carnet' && m === 'POST') return []; })),
 
+  'coach : le logo ramène à tous mes clients': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(id => openClient(id), sc.CID); await p.waitForTimeout(1200);
+    ok(await p.evaluate(() => !!CUR && ST.view !== 'clients'), 'dossier client ouvert');
+    const r = await p.evaluate(() => { const b = document.getElementById('appTitle').getBoundingClientRect(); return { x: b.left + 18, y: b.top + b.height / 2 }; });
+    await p.mouse.click(r.x, r.y); await p.waitForTimeout(800);
+    ok(await p.evaluate(() => !CUR && ST.view === 'clients' && !!document.getElementById('cl96')), 'toucher le logo : retour à la liste de tous les clients');
+  }, coachPre()),
+
 };
 
 (async () => {
