@@ -478,7 +478,7 @@ const T = {
   'coach : onglets, base de données, programme créé sans client, principes de surcharge': () => run('coach', async (p, sc) => {
     await p.waitForTimeout(1000); await p.evaluate(() => { CUR = null; ST.view = 'clients'; render(); }); await p.waitForTimeout(300);
     const tabs = await p.evaluate(() => [...document.querySelectorAll('#tabs button:not([hidden])')].map(b => b.textContent.trim()));
-    ok(tabs.join('|') === 'Mes clients|Business|Abonnés|Base de données', 'onglets : ' + tabs.join(' · '));
+    ok(tabs.join('|').replace(/Messages \(\d+\)/, 'Messages') === 'Mes clients|Messages|Business|Abonnés|Base de données', 'onglets : ' + tabs.join(' · '));
     await p.click('#tabs [data-v="base"]'); await p.waitForTimeout(600);
     ok(/Base de données/.test(await txt(p, '#app')) && !!(await p.$('[data-act="b92-tab"][data-v="ex"]')), 'page Base de données avec ses sous-onglets');
     ok(!!(await p.$('[data-act="lib-fnew"]')), 'aliments : ajout possible');
@@ -533,6 +533,43 @@ const T = {
     const f = await p.evaluate(() => [...document.querySelectorAll('.fi94b')].map(b => b.dataset.v));
     ok(f.includes('Squat barre') && !f.includes('Leg extension'), 'fiche validée visible, brouillon caché (' + f.join(', ') + ')');
   }, sc => { clientPre()(sc); sc.extra = (m, path, b, a, t, one) => { if (/app_flags/.test(path)) return one ? { v: { all: false, ex: { 'Squat barre': '2026-10-21' } } } : [{ v: { all: false, ex: { 'Squat barre': '2026-10-21' } } }]; }; }),
+
+  'coach : onglet Messages, répondre, modifier, copier, émoji au choix ; agenda du jour': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(() => { CUR = null; ST.view = 'clients'; render(); }); await p.waitForTimeout(300);
+    const tabs = await p.evaluate(() => [...document.querySelectorAll('#tabs button:not([hidden])')].map(b => b.textContent.trim()));
+    ok(tabs[1].startsWith('Messages'), 'onglet Messages à côté de Mes clients (' + tabs.join(' · ') + ')');
+    const ag = await txt(p, '#ag-card');
+    ok(/Aujourd'hui ·/.test(ag) && !!(await p.$('[data-act="ag95-mode"][data-v="jour"].on')), 'agenda ouvert sur aujourd\'hui (vue Jour)');
+    await p.click('[data-act="ag95-mode"][data-v="semaine"]'); await p.waitForTimeout(200);
+    ok(/Agenda de la semaine/.test(await txt(p, '#ag-card')), 'bascule en vue Semaine');
+    await p.click('[data-act="ag95-mode"][data-v="jour"]'); await p.waitForTimeout(100);
+    await p.click('#tabs [data-v="msgs"]'); await p.waitForTimeout(800);
+    const ib = await txt(p, '#app');
+    ok(/Client Fictif/.test(ib) && /Tu peux regarder ma série/.test(ib) && !!(await p.$('.in95r.un .in95b')), 'conversation listée avec le dernier message et le nombre de non lus');
+    await p.click('[data-act="in95-open"]'); await p.waitForTimeout(900);
+    ok(await p.evaluate(() => MSG.open && !!document.querySelector('#mp-l .msg[data-mid="m1"]')), 'conversation ouverte depuis la messagerie');
+    await p.click('#mp-l .msg[data-mid="m1"] .mbody'); await p.waitForTimeout(200);
+    await p.click('[data-act="msg95-reply"][data-v="m1"]'); await p.waitForTimeout(200);
+    ok(/Réponse à Client/.test(await txt(p, '#msgpanel')), 'bandeau « Réponse à » au-dessus de la saisie');
+    await p.fill('#msg-txt', 'Oui, envoie-la'); await p.click('[data-act="msg-send"]'); await p.waitForTimeout(500);
+    ok(sc.sent && sc.sent.reply_to === 'm1' && sc.sent.body === 'Oui, envoie-la', 'réponse envoyée avec le message cité');
+    ok(!!(await p.$('#mp-l .mq95')), 'citation affichée dans la bulle');
+    await p.click('#mp-l .msg[data-mid="m2"] .mbody'); await p.waitForTimeout(200);
+    await p.click('[data-act="msg95-edit"][data-v="m2"]'); await p.waitForTimeout(200);
+    ok(await p.inputValue('#msg-txt') === 'Bonjour, comment ça va ?', 'modifier : texte remis dans la saisie');
+    await p.fill('#msg-txt', 'Bonjour, comment s\'est passée la séance ?'); await p.click('[data-act="msg-send"]'); await p.waitForTimeout(500);
+    ok(sc.patched && sc.patched.body === 'Bonjour, comment s\'est passée la séance ?' && /modifié/.test(await txt(p, '#mp-l')), 'message modifié, mention « modifié »');
+    await p.click('#mp-l .msg[data-mid="m1"] .mbody'); await p.waitForTimeout(200);
+    await p.click('[data-act="rx95-more"][data-v="m1"]'); await p.waitForTimeout(200);
+    await p.fill('#rx95-in', '🤙'); await p.click('[data-act="rx95-ok"]'); await p.waitForTimeout(400);
+    ok(sc.rx === '🤙' && /🤙/.test(await txt(p, '#mp-l')), 'réaction avec un émoji au choix');
+    await p.click('[data-act="msg-close"]'); await p.waitForTimeout(500);
+    ok(await p.evaluate(() => ST.view === 'msgs' && !CUR), 'fermer revient à la messagerie');
+  }, sc => { coachPre()(sc); const C = sc.CID, U = sc.user.id; sc.extra = (m, path, b, a, t, one) => {
+      if (t === 'messages' && m === 'GET') return [{ id: 'm2', client_id: C, sender: U, from_coach: true, body: 'Bonjour, comment ça va ?', media: [], created_at: new Date(Date.now() - 7200e3).toISOString(), read_at: new Date().toISOString(), reactions: {} }, { id: 'm1', client_id: C, sender: '00000000-0000-0000-0000-0000000000u1', from_coach: false, body: 'Tu peux regarder ma série de squat ?', media: [], created_at: new Date(Date.now() - 3600e3).toISOString(), read_at: null, reactions: {} }].sort((x, y) => /created_at\.desc/.test(path) ? (x.created_at < y.created_at ? 1 : -1) : (x.created_at < y.created_at ? -1 : 1));
+      if (t === 'messages' && m === 'POST') { sc.sent = b; return one ? Object.assign({ id: 'm3', created_at: new Date().toISOString(), reactions: {} }, b) : []; }
+      if (t === 'messages' && m === 'PATCH') { if (b && b.body) sc.patched = b; return []; }
+      if (/rpc\/msg_react/.test(path)) { sc.rx = b.p_emoji; return { [b.p_emoji]: ['c'] }; } }; }),
 
 };
 

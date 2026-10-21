@@ -829,7 +829,7 @@ function render(){
   if(ST.view==="auth"||(!UID&&SB)){ rb.hidden=true; return shell(CONFIG.brand,"Connexion",vAuth()); }
   if(!ST.ready){ app.innerHTML='<div class="card">Chargement…</div>'; return; }
   rb.hidden=false; rb.textContent="↻"; rb.dataset.act="refresh";
-  if(MODE==="coach"&&(["clients","biz","lib","base"].includes(ST.view)||!CUR)) return homeShell(shell);
+  if(MODE==="coach"&&(["clients","biz","lib","base","msgs"].includes(ST.view)||!CUR)) return homeShell(shell);
   if(!M){ app.innerHTML='<div class="card">Chargement du programme…</div>'; return; }
   $("#appTitle").textContent=ST.prog.profile.name||"Client";
   $("#appSub").textContent=`S${M.cw}/${M.NSEM} · ${M.phases[M.cw-1]||""} · ${M.split}${ST.clientView?" · aperçu client":""}`;
@@ -1729,9 +1729,9 @@ function msgRender(){ let el=document.getElementById("msgpanel"); if(!el){ el=do
 async function msgOpen(ref){ MSG.open=true; MSG.ref=ref||""; document.body.classList.add("mp-on"); msgRender(); if(MSG.cid!==CUR) await msgLoad(); else msgRender(); msgMarkRead(); }
 function msgClose(){ MSG.open=false; document.body.classList.remove("mp-on"); msgRender(); }
 async function msgSend(media){ const t=document.getElementById("msg-txt"); const body=(t&&t.value||"").trim(); if(!body&&!(media&&media.length)) return; MSG.busy=true;
-  const row={client_id:CUR,sender:UID,from_coach:iAmCoach(),body:body||null,media:media||[],ref:MSG.ref||null};
+  const row={client_id:CUR,sender:UID,from_coach:iAmCoach(),body:body||null,media:media||[],ref:MSG.ref||null}; if(MSG.reply) row.reply_to=MSG.reply;
   const {data,error}=await SB.from("messages").insert(row).select().single(); MSG.busy=false;
-  if(error){ toast("Message non envoyé : "+error.message); msgRender(); return; } if(t) t.value=""; MSG.ref=""; if(!MSG.list.some(m=>m.id===data.id)) MSG.list.push(data); msgRender(); }
+  if(error){ toast("Message non envoyé : "+error.message); msgRender(); return; } if(t) t.value=""; MSG.ref=""; MSG.reply=null; if(!MSG.list.some(m=>m.id===data.id)) MSG.list.push(data); msgRender(); }
 // ouverture d'un dossier : charger messages + abonnement
 const _openClient4=openClient;
 openClient=async function(id,silent){ MSG.list=[]; MSG.cid=null; MSG.unread=0; MSG.urls={}; if(MSG.open) msgClose(); await _openClient4(id,silent); if(navigator.onLine){ msgLoad(); msgSub(); } fabRender(); };
@@ -3756,7 +3756,7 @@ const MQ_K="tb-msgq", mqGet=()=>{ try{ return JSON.parse(localStorage.getItem(MQ
 const uuid41=()=>(crypto.randomUUID?crypto.randomUUID():"10000000-1000-4000-8000-100000000000".replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)));
 const _msgSend41=msgSend;
 msgSend=async function(media){ if((media&&media.length)||navigator.onLine) return _msgSend41(media); const t=document.getElementById("msg-txt"), body=(t&&t.value||"").trim(); if(!body) return;
-  const row={id:uuid41(),client_id:CUR,sender:UID,from_coach:iAmCoach(),body,media:[],ref:MSG.ref||null}; mqSet(mqGet().concat([row]));
+  const row={id:uuid41(),client_id:CUR,sender:UID,from_coach:iAmCoach(),body,media:[],ref:MSG.ref||null}; if(MSG.reply) row.reply_to=MSG.reply; MSG.reply=null; mqSet(mqGet().concat([row]));
   MSG.list.push(Object.assign({created_at:new Date().toISOString(),pending:true},row)); if(t) t.value=""; MSG.ref=""; msgRender(); toast("Hors ligne : message gardé, il partira au retour du réseau"); };
 async function mqFlush(){ if(!navigator.onLine||!SB||!UID) return; const a=mqGet(); if(!a.length) return; let ok=0;
   for(const r of a){ const {error}=await SB.from("messages").upsert(r,{onConflict:"id",ignoreDuplicates:true}); if(!error||!netErr(error)){ mqSet(mqGet().filter(x=>x.id!==r.id)); const m=MSG.list.find(x=>x.id===r.id); if(m) m.pending=false; ok++; } else break; }
@@ -7065,7 +7065,7 @@ homeShell=function(shell){ const isA=ST.view==="abo"; if(isA) ST.view="clients";
 // ---------- affichage : écran de départ, bouton outils du coach, messagerie masquée pour l'inscrit libre
 const _render88=render;
 render=function(){
-  if(ST.solo&&MODE==="coach"&&["clients","biz","lib","abo","vid","base"].includes(ST.view)) ST.view="tableau";
+  if(ST.solo&&MODE==="coach"&&["clients","biz","lib","abo","vid","base","msgs"].includes(ST.view)) ST.view="tableau";
   if(ST.view==="start"&&UID&&ST.ready&&!CUR&&!ST.isCoach){ $("#appTitle").textContent=CONFIG.brand; $("#appSub").textContent="Bienvenue"; $("#tabs").innerHTML="";
     const rb=$("#roleBtn"); if(rb){ rb.hidden=false; rb.textContent="↻"; rb.dataset.act="refresh"; } $("#app").innerHTML=vStart88(); solo88Ui(); return; }
   const r=_render88.apply(this,arguments); try{ solo88Ui(); }catch(e){} return r; };
@@ -7431,10 +7431,11 @@ document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.
 const B92={tab:"aliments",newOpen:false};
 const TPL92={i:null,back:null,id:"00000000-0000-4000-8000-000000000092"};
 const tplOn92=()=>TPL92.i!=null&&CUR===TPL92.id;
-const homeTabs92=on=>[["clients","Mes clients"],["biz","Business"],["abo","Abonnés"+(P88.list&&P88.list.length?` (${P88.list.length})`:"")],["base","Base de données"]].map(([k,l])=>`<button class="${k===on?"on":""}" data-act="home" data-v="${k}">${esc(l)}</button>`).join("");
+const homeTabs92=on=>[["clients","Mes clients"],["msgs","Messages"+(typeof IN95!=="undefined"&&in95Unread()?` (${in95Unread()})`:"")],["biz","Business"],["abo","Abonnés"+(P88.list&&P88.list.length?` (${P88.list.length})`:"")],["base","Base de données"]].map(([k,l])=>`<button class="${k===on?"on":""}" data-act="home" data-v="${k}">${esc(l)}</button>`).join("");
 const _homeShell92=homeShell;
 homeShell=function(shell){ if(ST.view==="lib"){ ST.view="base"; B92.tab=NU.lib==="plats"?"plats":"aliments"; } if(ST.view==="vid"){ ST.view="base"; B92.tab="ex"; }
   if(ST.view==="base") return shell(CONFIG.brand,"Espace coach · "+EMAIL,vBase92(),homeTabs92("base"));
+  if(ST.view==="msgs") return shell(CONFIG.brand,"Espace coach · "+EMAIL,vInbox95(),homeTabs92("msgs"));
   let cap=null; _homeShell92((t,s,b,tabs)=>{ cap={t,s,b}; }); if(!cap) return;
   const on=["biz","abo"].includes(ST.view)?ST.view:"clients"; return shell(cap.t,cap.s,cap.b,homeTabs92(on)); };
 function vBase92(){ const T=B92.tab;
@@ -7710,6 +7711,126 @@ render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ co
 #fi94[hidden]{display:none}.fi94in{max-width:640px;margin:0 auto;background:var(--bg,#fff);border-radius:18px;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
 details.fi94s{border-top:1px solid var(--line);padding:6px 0}details.fi94s>summary{cursor:pointer;font-weight:700;min-height:36px;display:flex;align-items:center}
 .fi94b{margin-left:8px;font-size:.85rem}`; document.head.appendChild(st); })();
+
+// ================= MODULE 95 · MESSAGERIE : CONVERSATIONS DU COACH, RÉPONDRE / MODIFIER / COPIER, ÉMOJIS AU CHOIX ; AGENDA DU JOUR =================
+// messages.reply_to (message cité), messages.edited_at (modifié) ; seul l'auteur peut modifier le contenu (déclencheur messages_guard).
+const IN95={list:null,busy:false,q:"",back:false,at:0}, RX95={more:null};
+const MORE95=["😀","😅","🤣","😍","🥰","😎","🤔","😮","😢","😭","😤","🤯","🥵","😴","🫡","👀","🙈","🤝","🙌","👊","✌️","👌","🤞","💯","✅","❌","⚡","🎯","🏆","🥇","🏋️","🏃","🥗","🍗","🥩","☕","💧","🎉","🌟","❤️‍🔥","💙","🤍"];
+const who95=m=>m.sender===UID?"Toi":(iAmCoach()?String((ST.prog&&ST.prog.profile&&ST.prog.profile.name)||"Client").split(" ")[0]:"Ton coach");
+const snip95=m=>m?(m.body?m.body.slice(0,90)+(m.body.length>90?"…":""):(m.media||[]).some(x=>/audio/.test(x.type||x.kind||""))?"🎙️ Message vocal":(m.media||[]).length?"📎 Photo ou vidéo":""):"Message supprimé";
+// réactions : tous les émojis présents, barre « ＋ » avec une grille et un champ libre, puis les actions du message
+rxHTML82=function(m){ const R=m.reactions||{}, mine=me82(), ks=Object.keys(R).filter(e=>(R[e]||[]).length);
+  let h=ks.length?`<div class="rx82">${ks.map(e=>{ const w=R[e]||[], on=w.includes(mine); return `<button class="${on?"on":""}" data-act="msg-rx" data-v="${m.id}|${esc(e)}" aria-pressed="${on}" aria-label="${esc(e)} ${w.length>1?"(vous deux)":on?"(toi)":""}">${esc(e)}${w.length>1?`<span>2</span>`:""}</button>`; }).join("")}</div>`:"";
+  if(RX82.open!==m.id) return h; const own=m.sender===UID;
+  h+=`<div class="rxb82" role="group" aria-label="Réagir">${EMO82.map(e=>`<button data-act="msg-rx" data-v="${m.id}|${e}" class="${(R[e]||[]).includes(mine)?"on":""}">${e}</button>`).join("")}<button data-act="rx95-more" data-v="${m.id}" aria-label="Choisir un autre émoji" aria-expanded="${RX95.more===m.id}">＋</button></div>`;
+  h+=`<div class="ma95" role="group" aria-label="Actions sur le message"><button data-act="msg95-reply" data-v="${m.id}">↩ Répondre</button>${m.body?`<button data-act="msg95-copy" data-v="${m.id}">📋 Copier</button>`:""}${own&&m.body&&!m.pending?`<button data-act="msg95-edit" data-v="${m.id}">✏️ Modifier</button>`:""}${own?`<button data-act="msg-del" data-v="${m.id}">🗑 Supprimer</button>`:""}</div>`;
+  if(RX95.more===m.id) h+=`<div class="rxm95">${MORE95.map(e=>`<button data-act="msg-rx" data-v="${m.id}|${e}" class="${(R[e]||[]).includes(mine)?"on":""}">${e}</button>`).join("")}
+     <div class="rxi95"><input id="rx95-in" maxlength="12" placeholder="Ou un émoji de ton clavier" aria-label="Émoji au choix" autocomplete="off"><button data-act="rx95-ok" data-v="${m.id}">OK</button></div></div>`;
+  return h; };
+const _msgRender95=msgRender;
+msgRender=function(){ _msgRender95(); const el=document.getElementById("msgpanel"); if(!el||!MSG.open) return;
+  el.querySelectorAll("#mp-l .msg[data-mid]").forEach(b=>{ const m=MSG.list.find(x=>x.id===b.dataset.mid); if(!m) return;
+    if(m.reply_to&&!b.querySelector(".mq95")){ const t=MSG.list.find(x=>x.id===m.reply_to); b.insertAdjacentHTML("afterbegin",`<button class="mq95" data-act="msg95-goto" data-v="${esc(m.reply_to)}"><b>${t?esc(who95(t)):""}</b><span>${esc(snip95(t))}</span></button>`); }
+    if(m.edited_at){ const mt=b.querySelector(".mt"); if(mt&&!mt.querySelector(".med95")) mt.insertAdjacentHTML("afterbegin",`<span class="med95">modifié · </span>`); }
+    const del=b.querySelector('.mt [data-act="msg-del"]'); if(del) del.remove(); });
+  const c=el.querySelector(".mp-c"); if(!c||c.querySelector(".mbar95")) return;
+  const tm=MSG.edit?MSG.list.find(x=>x.id===MSG.edit):null, rm=MSG.reply?MSG.list.find(x=>x.id===MSG.reply):null;
+  if(tm) c.insertAdjacentHTML("afterbegin",`<div class="mbar95"><span class="grow"><b>✏️ Modifier le message</b><br><span class="muted small">${esc(snip95(tm))}</span></span><button class="ghost sm" data-act="msg95-cancel" aria-label="Annuler">✕</button></div>`);
+  else if(rm) c.insertAdjacentHTML("afterbegin",`<div class="mbar95"><span class="grow"><b>↩ Réponse à ${esc(who95(rm))}</b><br><span class="muted small">${esc(snip95(rm))}</span></span><button class="ghost sm" data-act="msg95-cancel" aria-label="Annuler la réponse">✕</button></div>`);
+  if(tm){ const s=c.querySelector('[data-act="msg-send"]'); if(s) s.textContent="Enregistrer"; } };
+const _msgSend95=msgSend;
+msgSend=async function(media){ if(!MSG.edit||(media&&media.length)) return _msgSend95(media);
+  const t=document.getElementById("msg-txt"), body=(t&&t.value||"").trim(), m=MSG.list.find(x=>x.id===MSG.edit);
+  if(!m){ MSG.edit=null; return msgRender(); } if(!body) return toast("Le message ne peut pas être vide");
+  MSG.edit=null; if(t) t.value=""; if(body===m.body) return msgRender();
+  const old={body:m.body,edited_at:m.edited_at}; m.body=body; m.edited_at=new Date().toISOString(); RX82.hold=true; msgRender();
+  const {error}=await SB.from("messages").update({body}).eq("id",m.id); if(error){ Object.assign(m,old); msgRender(); toast("Modification non enregistrée : "+error.message); } };
+const _msgClose95=msgClose;
+msgClose=function(){ MSG.reply=null; MSG.edit=null; RX95.more=null; _msgClose95(); if(IN95.back){ IN95.back=false; CUR=null; M=null; ST.view="msgs"; IN95.at=0; render(); } };
+async function rx95(id,emo){ const m=MSG.list.find(x=>x.id===id); if(!m) return; const mine=me82(), R=Object.assign({},m.reactions||{}), arr=(R[emo]||[]).slice();
+  if(arr.includes(mine)) arr.splice(arr.indexOf(mine),1); else arr.push(mine); if(arr.length) R[emo]=arr; else delete R[emo];
+  const old=m.reactions; m.reactions=R; RX82.open=null; RX95.more=null; RX82.hold=true; msgRender();
+  const {data,error}=await SB.rpc("msg_react",{p_msg:id,p_emoji:emo}); if(error){ m.reactions=old; RX82.hold=true; msgRender(); toast("Réaction non enregistrée : "+error.message); } else { m.reactions=data||R; RX82.hold=true; msgRender(); } }
+function txtFocus95(v){ setTimeout(()=>{ const t=document.getElementById("msg-txt"); if(!t) return; if(v!=null) t.value=v; t.focus(); try{ t.setSelectionRange(t.value.length,t.value.length); }catch(e){} t.dispatchEvent(new Event("input",{bubbles:true})); },30); }
+document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act^="msg95-"],[data-act^="rx95-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v||"", m=MSG.list.find(x=>x.id===v);
+  if(a==="rx95-more"){ RX95.more=RX95.more===v?null:v; RX82.hold=true; return msgRender(); }
+  if(a==="rx95-ok"){ const val=((document.getElementById("rx95-in")||{}).value||"").trim(); if(!val) return; if(/[A-Za-z0-9<>"'&\s]/.test(val)||[...val].length>6) return toast("Choisis un seul émoji"); return rx95(v,val); }
+  if(a==="msg95-reply"){ MSG.reply=v; MSG.edit=null; RX82.open=null; RX95.more=null; RX82.hold=true; msgRender(); return txtFocus95(); }
+  if(a==="msg95-edit"&&m){ MSG.edit=v; MSG.reply=null; RX82.open=null; RX95.more=null; RX82.hold=true; msgRender(); return txtFocus95(m.body||""); }
+  if(a==="msg95-cancel"){ const wasEdit=!!MSG.edit; MSG.edit=null; MSG.reply=null; msgRender(); if(wasEdit) txtFocus95(""); return; }
+  if(a==="msg95-copy"&&m){ RX82.open=null; RX82.hold=true; msgRender(); try{ await navigator.clipboard.writeText(m.body||""); toast("Message copié"); }
+    catch(err){ const ta=document.createElement("textarea"); ta.value=m.body||""; ta.style.cssText="position:fixed;opacity:0"; document.body.appendChild(ta); ta.select(); let ok=false; try{ ok=document.execCommand("copy"); }catch(x){} ta.remove(); toast(ok?"Message copié":"Copie impossible sur cet appareil"); } return; }
+  if(a==="msg95-goto"){ const t=document.querySelector(`#mp-l .msg[data-mid="${v}"]`); if(!t) return toast("Message introuvable"); t.scrollIntoView({block:"center",behavior:"smooth"}); t.classList.add("hl95"); setTimeout(()=>t.classList.remove("hl95"),1400); } },true);
+document.addEventListener("keydown",e=>{ if(e.target&&e.target.id==="rx95-in"&&e.key==="Enter"){ e.preventDefault(); const b=document.querySelector('[data-act="rx95-ok"]'); if(b) b.click(); } });
+// glisser une bulle vers la droite pour y répondre (comme WhatsApp)
+(function(){ let s=null;
+  document.addEventListener("touchstart",e=>{ const b=e.target.closest&&e.target.closest("#mp-l .msg[data-mid]"); if(!b||e.target.closest("button,a,input,textarea,video,audio")||e.touches.length!==1){ s=null; return; } s={b,x:e.touches[0].clientX,y:e.touches[0].clientY,dx:0,on:false}; },{passive:true});
+  document.addEventListener("touchmove",e=>{ if(!s) return; const dx=e.touches[0].clientX-s.x, dy=e.touches[0].clientY-s.y; if(!s.on){ if(Math.abs(dy)>12){ s=null; return; } if(dx>10&&dx>Math.abs(dy)*1.5) s.on=true; else return; }
+    s.dx=Math.max(0,Math.min(80,dx)); s.b.style.transform=`translateX(${s.dx}px)`; s.b.classList.toggle("sw95",s.dx>55); },{passive:true});
+  document.addEventListener("touchend",()=>{ if(!s) return; const {b,dx,on}=s; s=null; b.style.transition="transform .15s"; b.style.transform=""; b.classList.remove("sw95"); setTimeout(()=>{ b.style.transition=""; },160);
+    if(on&&dx>55){ MSG.reply=b.dataset.mid; MSG.edit=null; RX82.open=null; RX82.hold=true; msgRender(); txtFocus95(); try{ navigator.vibrate&&navigator.vibrate(10); }catch(x){} } });
+})();
+
+// ---------- coach : onglet « Messages », toutes les conversations
+async function inLoad95(force){ if(IN95.busy||(!force&&IN95.list&&Date.now()-IN95.at<20000)) return; IN95.busy=true;
+  try{ const {data,error}=await SB.from("messages").select("id,client_id,body,media,created_at,from_coach,read_at").order("created_at",{ascending:false}).range(0,2999); if(error) throw error;
+    const last={}, un={}; (data||[]).forEach(m=>{ if(!last[m.client_id]) last[m.client_id]=m; if(!m.from_coach&&!m.read_at) un[m.client_id]=(un[m.client_id]||0)+1; });
+    IN95.list=CLIENTS.filter(c=>c.coach_id===UID&&!c.archived).map(c=>({id:c.id,name:c.name||"Client",last:last[c.id]||null,unread:un[c.id]||0}))
+      .sort((a,b)=>(b.last?b.last.created_at:"")>(a.last?a.last.created_at:"")?1:(b.last?b.last.created_at:"")<(a.last?a.last.created_at:"")?-1:a.name.localeCompare(b.name,"fr"));
+    IN95.at=Date.now(); }catch(e){ console.error(e); IN95.list=IN95.list||[]; }
+  IN95.busy=false; if(MODE==="coach"&&!CUR) scheduleRender(); }
+const in95Unread=()=>(IN95.list||[]).reduce((s,x)=>s+x.unread,0);
+function vInbox95(){ if(!IN95.list){ inLoad95(); return `<h2>Messages</h2><div class="card muted">Chargement des conversations…</div>`; } setTimeout(()=>inLoad95(),0);
+  const q=nrm91(IN95.q), L=IN95.list.filter(x=>!q||nrm91(x.name).includes(q)), fmt=t=>{ const d=new Date(t), td=new Date(); return d.toDateString()===td.toDateString()?d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString("fr-FR",{day:"numeric",month:"short"}); };
+  const n=in95Unread();
+  return `<h2>Messages</h2><p class="muted small" style="margin:-4px 0 8px">${n?`${n} message${n>1?"s":""} non lu${n>1?"s":""}`:"Tout est lu"} · ${IN95.list.length} client${IN95.list.length>1?"s":""}</p>
+   <label class="f"><span class="sr95">Rechercher un client</span><input data-in95q value="${esc(IN95.q)}" placeholder="Rechercher un client" autocomplete="off"></label>
+   <div class="card in95" style="padding:4px 0;margin-top:8px">${L.map(x=>`<button class="in95r${x.unread?" un":""}" data-act="in95-open" data-v="${x.id}"><span class="in95a" aria-hidden="true">${esc((x.name||"?").trim().charAt(0).toUpperCase())}</span>
+     <span class="grow"><span class="row" style="flex-wrap:nowrap;gap:6px"><b class="grow">${esc(x.name)}</b><span class="muted small">${x.last?fmt(x.last.created_at):""}</span></span>
+     <span class="row" style="flex-wrap:nowrap;gap:6px"><span class="grow small ${x.unread?"":"muted"} in95s">${x.last?(x.last.from_coach?"Toi : ":"")+esc(snip95(x.last)):"Pas encore de message"}</span>${x.unread?`<span class="in95b">${x.unread}</span>`:""}</span></span></button>`).join("")||`<p class="muted small" style="padding:10px 12px">Aucun client trouvé.</p>`}</div>
+`; }
+document.addEventListener("input",e=>{ if(e.target.dataset&&e.target.dataset.in95q!==undefined){ IN95.q=e.target.value; const pos=e.target.selectionStart; render(); const i=document.querySelector("[data-in95q]"); if(i){ i.focus(); try{ i.setSelectionRange(pos,pos); }catch(x){} } } });
+document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act="in95-open"]'); if(!b) return; e.stopImmediatePropagation(); await openClient(b.dataset.v); IN95.back=true; await msgOpen(); const x=(IN95.list||[]).find(r=>r.id===b.dataset.v); if(x) x.unread=0; },true);
+
+// ---------- agenda du coach : vue « Jour » (aujourd'hui par défaut) ou « Semaine »
+const AG95={mode:(()=>{ try{ return localStorage.getItem("tb-ag-mode")||"jour"; }catch(e){ return "jour"; } })(),day:null};
+try{ if(localStorage.getItem("tb-ag-open")===null) AG.open=true; }catch(e){ AG.open=true; }
+const _vAgenda95=vAgenda;
+vAgenda=function(){ if(!AG.rows) return _vAgenda95(); const today=todayISO(); if(!AG95.day) AG95.day=today;
+  const tabs=`<div class="row ag95t" role="group" aria-label="Affichage de l'agenda"><button class="chip ${AG95.mode==="jour"?"on":""}" data-act="ag95-mode" data-v="jour" aria-pressed="${AG95.mode==="jour"}">Jour</button><button class="chip ${AG95.mode==="semaine"?"on":""}" data-act="ag95-mode" data-v="semaine" aria-pressed="${AG95.mode==="semaine"}">Semaine</button></div>`;
+  if(AG95.mode==="semaine"){ const h=_vAgenda95(); return h.replace("</summary>","</summary>"+tabs); }
+  setTimeout(()=>agLoad(),0); const d=AG95.day, w0=mondayOf(d), L=agDay(d), nowHM=new Date().toTimeString().slice(0,5);
+  const strip=[...Array(7)].map((_,i)=>{ const x=addDays(w0,i), n=agDay(x).length, dt=new Date(x+"T12:00:00"); return `<button class="ag95d${x===d?" on":""}${x===today?" td":""}" data-act="ag95-day" data-v="${x}" aria-pressed="${x===d}" aria-label="${dt.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})}, ${n} séance${n>1?"s":""}"><span>${dt.toLocaleDateString("fr-FR",{weekday:"short"}).replace(".","")}</span><b>${dt.getDate()}</b><i>${n?n:""}</i></button>`; }).join("");
+  const lbl=(d===today?"Aujourd'hui · ":"")+new Date(d+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+  let nowShown=d!==today;
+  const items=L.map(x=>{ let pre=""; if(!nowShown&&x.tm&&x.tm>nowHM){ pre=`<div class="ag95now"><span>${nowHM}</span></div>`; nowShown=true; }
+    return pre+`<button class="agi${d===today&&x.tm&&x.tm<nowHM&&x.st!=="done"?" ag95p":""}" data-act="ag-go" data-v="${x.id}|${x.w}|${d}"><span class="agt">${x.tm?esc(x.tm):"—"}</span><span class="grow"><b>${esc(x.name)}</b> · ${esc(x.ses)}${x.moved?` <span class="muted small">(déplacée)</span>`:""}</span><span class="cs ${x.st}">${ST_IC[x.st]} ${ST_TX[x.st].replace(" aujourd'hui","")}</span></button>`; }).join("");
+  return `<details class="card" id="ag-card"${AG.open?" open":""}><summary><b>📅 Agenda</b> <span class="muted small">${d===today?"aujourd'hui":"ce jour"} : ${L.length} séance${L.length>1?"s":""}</span></summary>${tabs}
+    <div class="ag95s">${strip}</div>
+    <div class="row" style="margin:6px 0;flex-wrap:nowrap"><button class="ghost sm" data-act="ag95-step" data-v="-1" aria-label="Jour précédent">‹</button><b class="grow" style="text-align:center;text-transform:capitalize">${lbl}</b><button class="ghost sm" data-act="ag95-step" data-v="1" aria-label="Jour suivant">›</button></div>
+    ${d!==today?`<div class="row" style="justify-content:center"><button class="chip" data-act="ag95-day" data-v="${today}">Revenir à aujourd'hui</button></div>`:""}
+    ${items||`<div class="muted small" style="padding:10px 0;text-align:center">Aucune séance prévue ce jour-là.</div>`}
+    <p class="note">Heures choisies par tes clients (ou par toi) dans leur calendrier. Appuie sur une séance pour la déplacer, changer l'heure ou la marquer faite / loupée.</p></details>`; };
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act^="ag95-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v;
+  if(a==="ag95-mode"){ AG95.mode=v; try{ localStorage.setItem("tb-ag-mode",v); }catch(x){} if(v==="semaine") AG.w0=mondayOf(AG95.day||todayISO()); }
+  else if(a==="ag95-day") AG95.day=v;
+  else if(a==="ag95-step") AG95.day=addDays(AG95.day||todayISO(),+v);
+  render(); },true);
+(function(){ const st=document.createElement("style"); st.textContent=`
+.rxm95{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;padding:6px;border-radius:12px;background:var(--card);border:1px solid var(--line)}.rxm95>button{min-width:40px;min-height:40px;font-size:1.25rem;background:transparent;border:0;border-radius:8px}.rxm95>button.on{background:var(--btn2)}
+.rxi95{display:flex;gap:6px;width:100%;margin-top:4px}.rxi95 input{flex:1;min-width:0}
+.ma95{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.ma95 button{font-size:.85rem;padding:6px 10px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:999px}
+.mq95{display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--blue,#3b82f6);background:rgba(127,127,127,.12);border-radius:8px;padding:5px 8px;margin-bottom:5px;font-size:.82rem;color:inherit;min-height:0}.mq95 b{display:block;font-size:.78rem}.mq95 span{display:block;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mbar95{display:flex;gap:8px;align-items:center;border-left:3px solid var(--blue,#3b82f6);background:var(--btn2);border-radius:8px;padding:6px 8px;margin-bottom:6px;font-size:.9rem}.mbar95 .muted{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:62vw}
+.med95{font-style:italic}.msg.hl95{outline:2px solid var(--blue,#3b82f6);outline-offset:2px}.msg.sw95::before{content:"↩";position:absolute;left:-26px;top:50%;transform:translateY(-50%);font-size:1.1rem}#mp-l .msg{position:relative}
+.in95r{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);padding:10px 12px;color:var(--ink);font-weight:400;border-radius:0}.in95r:first-child{border-top:0}
+.in95a{flex:none;width:40px;height:40px;border-radius:50%;background:var(--btn2);display:flex;align-items:center;justify-content:center;font-weight:700}.in95r.un .in95a{background:var(--blue,#3b82f6);color:#fff}.in95r .grow{min-width:0}
+.in95s{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}.in95r.un b,.in95r.un .in95s{font-weight:700}.in95b{flex:none;background:var(--blue,#3b82f6);color:#fff;border-radius:999px;font-size:.75rem;font-weight:700;padding:2px 7px}
+.sr95{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ag95t{gap:6px;margin:6px 0}.ag95s{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:6px 0}
+.ag95d{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 0;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink);font-weight:400;min-width:0}.ag95d span{font-size:.72rem;text-transform:capitalize;opacity:.8}.ag95d b{font-size:1rem}.ag95d i{font-style:normal;font-size:.7rem;min-height:.9rem;color:var(--blue,#3b82f6);font-weight:700}
+.ag95d.td{border-color:var(--blue,#3b82f6)}.ag95d.on{background:var(--ink);color:var(--card,#fff)}.ag95d.on i{color:inherit}
+.ag95now{display:flex;align-items:center;gap:6px;margin:6px 0;color:#e5484d;font-size:.75rem;font-weight:700}.ag95now::after{content:"";flex:1;height:2px;background:#e5484d;border-radius:2px}.agi.ag95p{opacity:.6}`; document.head.appendChild(st); })();
 
 boot();
 
