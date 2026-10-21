@@ -607,6 +607,21 @@ const T = {
     ok(await p.evaluate(() => !CUR && ST.view === 'clients' && !!document.getElementById('cl96')), 'toucher le logo : retour à la liste de tous les clients');
   }, coachPre()),
 
+  'client : macros de chaque aliment et répartition du jour par aliment': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(800); await p.evaluate(() => { ST.todayOn = false; ST.view = 'nutrition'; NU.nv = 'jour'; NU.day = todayISO(); render(); }); await p.waitForTimeout(500);
+    // Déjeuner prévu : poulet 150 g (23 g P/100 g) = 35 g de protéines, riz 200 g (3 g P/100 g) = 6 g
+    const li = await p.evaluate(() => [...document.querySelectorAll('.card.meal')][1].querySelector('ul.its').innerText);
+    ok(/P 35/.test(li) && /P 6 /.test(li), 'chaque aliment du repas prévu affiche ses macros (' + li.replace(/\n/g, ' | ') + ')');
+    await p.click('[data-act="nu-ok"][data-v="1"]'); await p.waitForTimeout(400);
+    const lg = await p.evaluate(() => [...document.querySelectorAll('.card.meal')][1].innerText);
+    ok(/P 35/.test(lg), 'repas noté : macros sous chaque aliment');
+    await p.evaluate(() => { document.getElementById('src98').open = true; }); await p.waitForTimeout(100);
+    const sr = await txt(p, '#src98');
+    ok(/Protéines mangés : 41 g/.test(sr) && /Blanc de poulet \(cru\)[\s\S]*35 g[\s\S]*85 %/.test(sr), 'répartition : 35 g sur 41 g viennent du poulet (85 %)');
+    await p.click('[data-act="src98"][data-v="g"]'); await p.waitForTimeout(200);
+    ok(/Glucides mangés : 56 g/.test(await txt(p, '#src98')), 'bascule sur les glucides');
+  }, clientPre(sc => (m, path, b, a, t) => { if (t === 'nutri_log' && m === 'POST') return []; })),
+
 };
 
 (async () => {

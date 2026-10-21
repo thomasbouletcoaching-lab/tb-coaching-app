@@ -7942,6 +7942,38 @@ document.addEventListener("click",e=>{ const h=e.target.closest&&e.target.closes
   e.preventDefault(); e.stopImmediatePropagation(); goHome97(); },true);
 (function(){ const st=document.createElement("style"); st.textContent=`header.top h1::before{cursor:pointer}`; document.head.appendChild(st); })();
 
+// ================= MODULE 98 · MACROS DE CHAQUE ALIMENT (quantité réelle) ET RÉPARTITION DES MACROS DU JOUR PAR ALIMENT =================
+const NU98={k:"p"};
+const g98=x=>{ const v=Math.round(x*10)/10; return fmtN(v>=10?Math.round(v):v); };
+const im98=t=>`<span class="im98"><b>P ${g98(t.p)}</b> · G ${g98(t.g)} · L ${g98(t.l)} g · ${r0(t.k)} kcal</span>`;
+itemsList=function(o){ const m=o.m||1; return `<ul class="its">${(o.it||[]).map(i=>`<li><span>${esc(i.n)}${i.est?"":im98(mac([i],m))}</span><span>${qtyTxt(i,m)}</span></li>`).join("")||'<li class="muted">Aucun aliment</li>'}</ul>`; };
+// aliments réellement mangés dans un repas noté (mêmes règles que le total du repas)
+function mealIts98(st,mi,t){ if(!st||st.s==="skip") return []; if(st.it&&st.it.length) return st.it.map(i=>({i,m:1}));
+  const ml=t&&t.meals[mi]; if(!ml) return []; const o=(st.s==="ok"?ml.opts[0]:ml.opts.find(o=>o.n===st.n))||null; return o?(o.it||[]).map(i=>({i,m:o.m||1})):[]; }
+function dayIts98(d){ const L=NU.logs[d]||{}, P=planOn(), t=P&&P.types&&P.types.length?typeOf(L.t||P.week[DOW(d)]):null, out=[];
+  Object.entries(L.m||{}).forEach(([mi,st])=>{ mealIts98(st,+mi,t).forEach(x=>out.push(Object.assign({meal:t&&t.meals[+mi]?t.meals[+mi].name:""},x))); });
+  (L.x||[]).forEach(e=>out.push({i:e,m:1,meal:"Extra"})); return out; }
+function vSrc98(d){ const its=dayIts98(d); if(!its.length) return ""; const agg={};
+  its.forEach(({i,m})=>{ const t=mac([i],m), k=i.n||"Aliment"; const a=agg[k]=agg[k]||{n:k,p:0,g:0,l:0,k:0,q:0,est:!!i.est}; a.p+=t.p; a.g+=t.g; a.l+=t.l; a.k+=t.k; a.q+=i.est?0:(+i.q||0)*m; });
+  const K=NU98.k, lab={p:"Protéines",g:"Glucides",l:"Lipides",k:"Calories"}[K], unit=K==="k"?"kcal":"g", L=Object.values(agg).filter(a=>a[K]>0.05).sort((a,b)=>b[K]-a[K]), tot=L.reduce((s,a)=>s+a[K],0);
+  return `<details class="card src98" id="src98"${NU98.open?" open":""}><summary><b>🔎 D'où viennent tes macros</b> <span class="muted small">aliment par aliment</span></summary>
+   <div class="row" style="gap:6px;margin:8px 0">${[["p","Protéines"],["g","Glucides"],["l","Lipides"],["k","Calories"]].map(([k,l])=>`<button class="chip ${K===k?"on":""}" data-act="src98" data-v="${k}" aria-pressed="${K===k}">${l}</button>`).join("")}</div>
+   <div class="muted small" style="margin-bottom:4px">${lab} mangés : <b>${K==="k"?r0(tot):g98(tot)} ${unit}</b></div>
+   ${L.map(a=>{ const pc=tot?a[K]/tot*100:0; return `<div class="sr98"><div class="row" style="flex-wrap:nowrap;gap:6px"><span class="grow">${esc(a.n)}${a.q?` <span class="muted small">${fmtN(Math.round(a.q))} g</span>`:a.est?` <span class="muted small">estimation</span>`:""}</span><b>${K==="k"?r0(a[K]):g98(a[K])} ${unit}</b><span class="muted small" style="width:42px;text-align:right">${Math.round(pc)} %</span></div><div class="mb-t"><i style="width:${pc.toFixed(1)}%"></i></div></div>`; }).join("")||`<p class="muted small">Rien pour l'instant.</p>`}
+   <p class="note">Calculé avec les quantités notées. Les repas validés « comme prévu » comptent les quantités du plan.</p></details>`; }
+const _nJour98=nJour;
+nJour=function(){ const h=_nJour98(); const {d}=nDayCtx(), c=vSrc98(d); if(!c) return h; const i=h.indexOf('<div class="card meal'); return i>=0?h.slice(0,i)+c+h.slice(i):h+c; };
+// repas notés et extras : macros sous chaque aliment (après le rendu)
+function nuMac98(){ if(ST.view!=="nutrition"||NU.nv!=="jour") return; const app=$("#app"); if(!app) return; const {d,L,t}=nDayCtx();
+  app.querySelectorAll(".card.meal").forEach(card=>{ const b=card.querySelector('[data-act="nu-mclear"]'); if(!b) return; const mi=+b.dataset.v, its=mealIts98((L.m||{})[mi],mi,t), lis=card.querySelectorAll("ul.its > li");
+    if(lis.length!==its.length) return; lis.forEach((li,k)=>{ if(li.querySelector(".im98")||its[k].i.est) return; const sp=li.querySelector("span"); if(sp) sp.insertAdjacentHTML("beforeend",im98(mac([its[k].i],its[k].m))); }); });
+  app.querySelectorAll('[data-act="nu-xdel"]').forEach(b=>{ const e=(L.x||[])[+b.dataset.v], row=b.closest(".row"), sm=row&&row.querySelector(".muted.small"); if(!e||!sm||sm.dataset.m98||e.est) return; sm.dataset.m98="1"; const t=mac([e]); sm.insertAdjacentHTML("beforeend",` · P ${g98(t.p)} · G ${g98(t.g)} · L ${g98(t.l)} g`); }); }
+render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ nuMac98(); }catch(e){ console.error(e); } return r; }; })(render);
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="src98"]'); if(!b) return; e.stopImmediatePropagation(); NU98.k=b.dataset.v; NU98.open=true; render(); },true);
+document.addEventListener("toggle",e=>{ if(e.target&&e.target.id==="src98") NU98.open=e.target.open; },true);
+(function(){ const st=document.createElement("style"); st.textContent=`.im98{display:block;font-size:.78rem;color:var(--soft);font-variant-numeric:tabular-nums;margin-top:1px}.im98 b{color:var(--ink);font-weight:600}
+ul.its li{align-items:flex-start}.src98 summary{cursor:pointer;min-height:36px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.sr98{padding:6px 0;border-top:1px solid var(--line)}.sr98 .mb-t{margin-top:4px}.sr98 b{font-variant-numeric:tabular-nums}`; document.head.appendChild(st); })();
+
 boot();
 
 </script>
