@@ -516,6 +516,24 @@ const T = {
     ok(/^6x6-8/.test(w3) && await p.$('[data-act="fi93-unforce"][data-v="0.1.3"]'), 'semaine 3 forcée (' + w3 + '), retour au calcul possible');
   }, coachPre()),
 
+  'coach : fiches exercices (brouillon, schéma, biomécanique, validation) puis client : fiche visible seulement si validée': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(() => { CUR = null; ST.view = 'base'; B92.tab = 'ex'; VL.q = 'squat barre'; render(); }); await p.waitForTimeout(1200);
+    ok(/280 fiches/.test(await txt(p, '#app')), 'carte fiches : 280 fiches');
+    await p.click('[data-act="fi94-open"][data-v="Squat barre"]'); await p.waitForTimeout(400);
+    const t = await txt(p, '#fi94');
+    ok(/Brouillon/.test(t) && /Moment de force/.test(t) && /Courbe de résistance/.test(t) && /Sagittal/.test(t) && !!(await p.$('#fi94 svg')), 'fiche complète avec schéma, en brouillon');
+    await p.click('#fi94 [data-act="fi94-ok"]'); await p.waitForTimeout(400);
+    ok(sc.flags && sc.flags.v.ex['Squat barre'], 'validation enregistrée');
+    await p.click('#fi94 [data-act="fi94-close"]'); await p.waitForTimeout(200);
+    ok(await p.evaluate(() => document.getElementById('fi94').hidden), 'fiche fermée');
+  }, sc => { coachPre()(sc); sc.extra = (m, path, b) => { if (/app_flags/.test(path)) { if (m === 'POST') { sc.flags = b; return []; } return null; } }; }),
+  'client : bouton Fiche seulement pour les fiches validées': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(800);
+    await p.evaluate(() => { ST.prog.sessions = [{ name: 'Séance A', day: 'Lundi', ex: [{ name: 'Squat barre', mode: 'Auto', weeks: [null, '3x5 RPE8'] }, { name: 'Leg extension', mode: 'Auto', weeks: [null, '3x12 RPE8'] }] }]; ST.prog.profile.source = 'Manuel'; recompute(); ST.todayOn = false; ST.week = 1; ST.view = 'carnet'; render(); }); await p.waitForTimeout(1500);
+    const f = await p.evaluate(() => [...document.querySelectorAll('.fi94b')].map(b => b.dataset.v));
+    ok(f.includes('Squat barre') && !f.includes('Leg extension'), 'fiche validée visible, brouillon caché (' + f.join(', ') + ')');
+  }, sc => { clientPre()(sc); sc.extra = (m, path, b, a, t, one) => { if (/app_flags/.test(path)) return one ? { v: { all: false, ex: { 'Squat barre': '2026-10-21' } } } : [{ v: { all: false, ex: { 'Squat barre': '2026-10-21' } } }]; }; }),
+
 };
 
 (async () => {

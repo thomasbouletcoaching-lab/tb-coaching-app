@@ -7645,6 +7645,72 @@ table.fi93 input.f93,td.f93{font-weight:800}td.cur93{background:var(--btn2)}
 table.mvt93 td,table.mvt93 th{white-space:nowrap;font-size:.82rem;padding:6px 8px}table.mvt93 .stk{position:sticky;left:0;background:var(--card,#fff);z-index:1;white-space:normal;min-width:130px}
 table.mvt93 td[data-act]{cursor:pointer}.wk93{display:flex;gap:4px;overflow-x:auto;padding:2px 0 8px}.wk93 .chip{flex:none;line-height:1.1;text-align:center}`; document.head.appendChild(st); })();
 
+// ================= MODULE 94 · FICHES EXERCICES (exécution, réglages, biomécanique, programmation, schémas) =================
+// Contenu : data/fiches.json (familles de mouvements + spécificités de chaque exercice + schémas SVG).
+// Validation par le coach (app_flags « fiches_ok ») : un client ne voit que les fiches validées.
+const FI94={d:null,busy:null,ok:null,open:null};
+function fiLoad94(){ if(FI94.d) return Promise.resolve(FI94.d); if(FI94.busy) return FI94.busy;
+  FI94.busy=Promise.all([fetch("data/fiches.json?v=1").then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }),
+    SB.from("app_flags").select("v").eq("k","fiches_ok").maybeSingle().then(r=>(r.data&&r.data.v)||{},()=>({}))])
+    .then(([d,ok])=>{ FI94.d=d; FI94.ok=Object.assign({all:false,ex:{}},ok||{}); FI94.busy=null; return d; }).catch(e=>{ FI94.busy=null; console.error(e); return null; });
+  return FI94.busy; }
+const fiValid94=n=>!!(FI94.ok&&(FI94.ok.all||(FI94.ok.ex||{})[n]));
+const fiCan94=n=>!!(FI94.d&&FI94.d.ex[n]&&(coach()||fiValid94(n)));
+const li94=a=>`<ul class="small" style="margin:4px 0 0;padding-left:18px">${(a||[]).map(x=>`<li style="margin:3px 0">${esc(x)}</li>`).join("")}</ul>`;
+const sec94=(t,body,open)=>`<details class="fi94s" ${open?"open":""}><summary>${t}</summary><div style="padding:4px 0 8px">${body}</div></details>`;
+function vFiche94(n){ const D=FI94.d, e=D&&D.ex[n]; if(!e) return `<p class="muted">Fiche introuvable.</p>`; const f=D.fam[e.fam]||{}, b=BASEMAP[n]||{}, v=VL&&VL.map&&VL.map[n];
+  const mus=[b.mP&&`<b>${esc(b.mP)}</b>`,b.s1,b.s2].filter(Boolean).map(x=>x.startsWith("<b>")?x:esc(x)).join(" · ");
+  let h=`<div class="row" style="flex-wrap:nowrap;gap:6px;align-items:flex-start"><h2 class="grow" style="margin:0">${esc(n)}</h2><button class="ghost sm" data-act="fi94-close" aria-label="Fermer">✕</button></div>
+   <div class="muted small" style="margin:4px 0 8px">${esc(f.nom||"")}${b.eq?` · ${esc(b.eq)}`:""}</div>`;
+  if(coach()) h+=fiValid94(n)?`<div class="alert ok small">✓ Fiche validée : visible par tes clients. <button class="linkbtn small" data-act="fi94-ok" data-v="${esc(n)}">Retirer la validation</button></div>`
+    :`<div class="alert small" style="background:var(--btn2)">Brouillon : seulement visible par toi. Relis-la, puis <button class="sm" data-act="fi94-ok" data-v="${esc(n)}">✓ Valider cette fiche</button></div>`;
+  if(mus) h+=`<div class="small" style="margin:6px 0">Muscles : ${mus}</div>`;
+  if(v) h+=`<button class="ghost sm" data-act="vl-play" data-v="${esc(n)}">▶ Voir la vidéo</button>`;
+  if(D.svg[f.schema]) h+=`<div class="card" style="padding:8px;margin:8px 0">${D.svg[f.schema]}<div class="muted small">Schéma du mouvement de base de la famille « ${esc(f.nom)} ».</div></div>`;
+  if(e.note) h+=`<div class="card" style="margin:8px 0"><b>Particularité de cette variante</b><p class="small" style="margin:4px 0 0">${esc(e.note)}</p></div>`;
+  h+=sec94("🛠️ Installation et réglages",`<p class="small" style="margin:0">${esc(e.setup)}</p>${f.setup&&f.setup!==e.setup?`<p class="small muted" style="margin:6px 0 0">${esc(f.setup)}</p>`:""}`,true);
+  h+=sec94("▶️ Exécution",`${li94(e.cues)}${li94(f.exec)}<p class="small" style="margin:6px 0 0"><b>Respiration :</b> ${esc(f.resp||"")}</p>`,true);
+  h+=sec94("⚠️ Erreurs fréquentes",li94(f.erreurs));
+  h+=sec94("💡 Conseils techniques",li94(f.conseils));
+  h+=sec94("🧠 Biomécanique",`<div class="small"><p style="margin:0"><b>Plan de mouvement :</b> ${esc(f.plan||"")}</p><p style="margin:6px 0 0"><b>Type :</b> ${esc(f.type||"")}</p><p style="margin:6px 0 0"><b>Articulations :</b> ${esc(f.artic||"")}</p>
+    <p style="margin:6px 0 0"><b>Muscles et rôles :</b> ${esc(f.muscles||"")}</p><p style="margin:6px 0 0"><b>Moment de force :</b> ${esc(f.moment||"")}</p><p style="margin:6px 0 0"><b>Courbe de résistance :</b> ${esc(f.courbe||"")}</p><p style="margin:6px 0 0"><b>Bras de levier et morphologie :</b> ${esc(f.levier||"")}</p></div>`);
+  h+=sec94("📈 Progresser",li94(f.progresser));
+  h+=sec94("🗓️ Programmation",`<p class="small" style="margin:0">${esc(f.prog||"")}</p>`);
+  const acc=(f.access||[]).filter(x=>x!==n);
+  if(acc.length) h+=sec94("🧩 Exercices pour renforcer ce mouvement",`<div class="row" style="gap:4px">${acc.map(x=>fiCan94(x)?`<button class="chip" data-act="fi94-open" data-v="${esc(x)}">${esc(x)}</button>`:`<span class="chip">${esc(x)}</span>`).join("")}</div>`);
+  return h; }
+function fiShow94(n){ FI94.open=n; let o=document.getElementById("fi94"); if(!o){ o=document.createElement("div"); o.id="fi94"; o.setAttribute("role","dialog"); o.setAttribute("aria-modal","true"); document.body.appendChild(o); }
+  o.innerHTML=`<div class="fi94in">${FI94.d?vFiche94(n):`<p>Chargement…</p>`}</div>`; o.hidden=false; o.scrollTop=0; document.body.style.overflow="hidden";
+  if(!FI94.d) fiLoad94().then(()=>{ if(FI94.open===n) fiShow94(n); }); }
+function fiClose94(){ FI94.open=null; const o=document.getElementById("fi94"); if(o) o.hidden=true; document.body.style.overflow=""; }
+async function fiSaveOk94(){ const {error}=await SB.from("app_flags").upsert({k:"fiches_ok",v:FI94.ok,updated_at:new Date().toISOString()}); if(error) toast("Validation non enregistrée : "+error.message); }
+document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act^="fi94-"]'); if(!b) return; e.preventDefault(); e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v||"";
+  if(a==="fi94-open") return fiShow94(v);
+  if(a==="fi94-close") return fiClose94();
+  if(a==="fi94-ok"&&coach()){ FI94.ok.ex=Object.assign({},FI94.ok.ex); if(FI94.ok.ex[v]) delete FI94.ok.ex[v]; else FI94.ok.ex[v]=new Date().toISOString().slice(0,10); fiShow94(v); await fiSaveOk94(); render(); return toast(FI94.ok.ex[v]?"Fiche validée : visible par tes clients":"Validation retirée"); }
+  if(a==="fi94-all"&&coach()){ if(!confirm(FI94.ok.all?"Rendre toutes les fiches non validées invisibles pour tes clients ?":"Rendre toutes les fiches visibles par tes clients, même celles que tu n'as pas relues une par une ?")) return; FI94.ok.all=!FI94.ok.all; await fiSaveOk94(); render(); return toast(FI94.ok.all?"Toutes les fiches sont visibles":"Seules les fiches validées une par une sont visibles"); }
+},true);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&FI94.open) fiClose94(); });
+document.addEventListener("click",e=>{ const o=document.getElementById("fi94"); if(o&&!o.hidden&&e.target===o) fiClose94(); });
+// coach : bouton « Fiche » dans Base de données › Exercices & vidéos, avec l'état de validation
+const _vlList94=vlList;
+vlList=function(names){ const h=_vlList94(names); if(!coach()) return h; if(!FI94.d){ fiLoad94().then(()=>vlRefresh()); return h; }
+  return h.replace(/<div class="vrow"><div class="row"><span class="grow"><b>([^<]*)<\/b>/g,(m,nm)=>{ const n=nm.replace(/&amp;/g,"&").replace(/&#39;/g,"'").replace(/&quot;/g,'"'); if(!FI94.d.ex[n]) return m;
+    return m.replace(/<b>[^<]*<\/b>/,`<b>${nm}</b> <button class="ghost sm" data-act="fi94-open" data-v="${nm}">📘 Fiche</button> <span class="small ${fiValid94(n)?"":"muted"}">${fiValid94(n)?"✓ validée":"brouillon"}</span>`); }); };
+const _vVideos94=vVideos;
+vVideos=function(){ const h=_vVideos94(); if(!coach()||!FI94.d) { if(!FI94.d) fiLoad94().then(()=>render()); return h; } const n=Object.keys(FI94.d.ex).length, ok=FI94.ok.all?n:Object.keys(FI94.ok.ex||{}).filter(x=>FI94.d.ex[x]).length;
+  const card=`<div class="card"><b>📘 Fiches exercices</b><p class="muted small" style="margin:4px 0">${n} fiches : installation, exécution, erreurs, biomécanique (plan, moment de force, courbe de résistance, bras de levier), progression, programmation, exercices complémentaires et schéma. ${FI94.ok.all?"Toutes visibles par tes clients.":`${ok} validée${ok>1?"s":""} sur ${n} : tes clients ne voient que les fiches validées.`}</p>
+   <button class="ghost sm" data-act="fi94-all">${FI94.ok.all?"Ne montrer que les fiches validées une par une":"Tout rendre visible sans relecture"}</button></div>`;
+  const i=h.indexOf('<div class="card" id="vl-list">'); return i>=0?h.slice(0,i)+card+h.slice(i):h+card; };
+// programme (client et coach) : bouton « Fiche » à côté de « ▶ Démo »
+render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ const app=$("#app"); if(app){ const L=app.querySelectorAll("a.demo"); if(L.length){ if(!FI94.d) fiLoad94().then(()=>scheduleRender()); else L.forEach(a=>{ if(a.nextElementSibling&&a.nextElementSibling.classList.contains("fi94b")) return; const n=(a.getAttribute("aria-label")||"").replace(/^Voir la démo de /,""); if(!fiCan94(n)) return;
+    const b=document.createElement("button"); b.type="button"; b.className="linkbtn fi94b"; b.dataset.act="fi94-open"; b.dataset.v=n; b.textContent="📘 Fiche"; b.setAttribute("aria-label","Fiche de "+n); a.after(b); }); } } }catch(e){ console.error(e); } return r; }; })(render);
+(function(){ const st=document.createElement("style"); st.textContent=`
+#fi94{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(12px,env(safe-area-inset-top)) 10px 24px}
+#fi94[hidden]{display:none}.fi94in{max-width:640px;margin:0 auto;background:var(--bg,#fff);border-radius:18px;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+details.fi94s{border-top:1px solid var(--line);padding:6px 0}details.fi94s>summary{cursor:pointer;font-weight:700;min-height:36px;display:flex;align-items:center}
+.fi94b{margin-left:8px;font-size:.85rem}`; document.head.appendChild(st); })();
+
 boot();
 
 </script>
