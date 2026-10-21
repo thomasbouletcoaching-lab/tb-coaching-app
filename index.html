@@ -7832,6 +7832,107 @@ document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closes
 .ag95d.td{border-color:var(--blue,#3b82f6)}.ag95d.on{background:var(--ink);color:var(--card,#fff)}.ag95d.on i{color:inherit}
 .ag95now{display:flex;align-items:center;gap:6px;margin:6px 0;color:#e5484d;font-size:.75rem;font-weight:700}.ag95now::after{content:"";flex:1;height:2px;background:#e5484d;border-radius:2px}.agi.ag95p{opacity:.6}`; document.head.appendChild(st); })();
 
+// ================= MODULE 96 · ICÔNES DES ONGLETS COACH, LISTE CLIENTS COMPACTE (AVEC L'APERÇU DE LA SEMAINE), SÉANCES FAITES ET HISTORIQUE DES NOTES =================
+Object.assign(IC45,{msg:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/>',
+  star:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
+  db:'<ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>'});
+Object.assign(ICV45,{msgs:"msg",abo:"star",base:"db"});
+
+// ---------- liste des clients : une ligne par client, l'activité de la semaine dans la même ligne, gestion dans « ⋯ »
+const CL96={open:null,add:false,sort:(()=>{ try{ return localStorage.getItem("tb-cl96-sort")||"prio"; }catch(e){ return "prio"; } })(),q:""};
+function act96(id){ const o=(OV.data||{})[id]; if(!o) return {lvl:-1,txt:"chargement…"}; const days=o.last?Math.floor((Date.now()-new Date(o.last))/864e5):null, lvl=days==null?2:days>=4?2:days>=2?1:0;
+  const un=(((IN95.list||[]).find(x=>x.id===id)||{}).unread)||o.unread||0;
+  return {lvl,days,un,ex7:o.ex7||0,nut7:o.nut7||0,checkin:o.checkin,pain:o.pain,txt:days==null?"rien depuis 14 j":days===0?"actif aujourd'hui":days===1?"actif hier":`inactif depuis ${days} j`}; }
+const _vClients96=vClients;
+vClients=function(){ const h=_vClients96(); if(!coach()||ST.solo) return h; const T=document.createElement("template"); T.innerHTML=h; const R=T.content;
+  const cards=[...R.querySelectorAll(".card.ses")].filter(c=>c.querySelector('[data-act="open"]')); if(!cards.length) return h;
+  const ov=R.querySelector("#ov-card"); if(ov) ov.remove();
+  const form=R.querySelector("#nc-name"), formCard=form&&form.closest(".card");
+  const rows=cards.map(c=>{ const b=c.querySelector('[data-act="open"]'), id=b.dataset.v, cl=CLIENTS.find(x=>x.id===id)||{}, A=act96(id);
+    const head=c.querySelector(".row"), info=head&&head.querySelector(".muted.small"); if(head) head.remove(); const d=c.querySelector("details"); if(d){ d.setAttribute("open",""); const sm=d.querySelector("summary"); if(sm) sm.remove(); }
+    return {id,cl,A,info:info?info.outerHTML:"",panel:c.innerHTML}; });
+  if(CL96.sort==="prio") rows.sort((a,b)=>(b.cl.archived?-9:b.A.lvl)-(a.cl.archived?-9:a.A.lvl)||(b.A.days??99)-(a.A.days??99)||String(a.cl.name).localeCompare(String(b.cl.name),"fr"));
+  else rows.sort((a,b)=>(a.cl.archived-b.cl.archived)||String(a.cl.name).localeCompare(String(b.cl.name),"fr"));
+  const nAl=rows.filter(r=>!r.cl.archived&&r.A.lvl===2).length;
+  let L=`<div class="card cl96" id="cl96">
+    <div class="row" style="flex-wrap:nowrap;gap:6px"><input id="cl96q" class="grow" placeholder="Rechercher un client" value="${esc(CL96.q)}" autocomplete="off" aria-label="Rechercher un client"><button class="sm" data-act="cl96-add" aria-expanded="${CL96.add}">${CL96.add?"✕ Fermer":"＋ Client"}</button></div>
+    <div class="row" style="gap:6px;margin:8px 0 2px;align-items:center"><span class="muted small grow">${nAl?`<b style="color:var(--red)">${nAl} à relancer</b> · `:""}🟢 actif · 🟠 2-3 j · 🔴 4 j et plus</span>
+      <button class="chip ${CL96.sort==="prio"?"on":""}" data-act="cl96-sort" data-v="prio" aria-pressed="${CL96.sort==="prio"}">Priorité</button><button class="chip ${CL96.sort==="nom"?"on":""}" data-act="cl96-sort" data-v="nom" aria-pressed="${CL96.sort==="nom"}">A → Z</button></div>
+    <div class="cl96l">${rows.map(r=>{ const A=r.A, op=CL96.open===r.id, tags=[A.un?`<span class="cl96t m">💬 ${A.un}</span>`:"",A.checkin?`<span class="cl96t b">Bilan S${A.checkin}</span>`:"",A.pain?`<span class="cl96t r">Douleur</span>`:""].join("");
+      return `<div class="cl96i${r.cl.archived?" arch":""}" data-n="${esc(nrm91(r.cl.name||""))}"><div class="cl96r"><button class="cl96o" data-act="open" data-v="${r.id}"><span class="dot l${Math.max(0,A.lvl)}"${A.lvl<0?' style="opacity:.3"':""}></span>
+        <span class="grow"><span class="cl96n"><b>${esc(r.cl.name||"Client")}</b>${r.cl.archived?` <span class="muted small">archivé</span>`:""}${tags}</span><span class="muted small cl96s">${esc(A.txt)} · ${A.ex7} exo${A.ex7>1?"s":""} · nutri ${A.nut7}/7</span></span><span class="cl96c" aria-hidden="true">›</span></button>
+        <button class="ghost sm cl96m" data-act="cl96-more" data-v="${r.id}" aria-expanded="${op}" aria-label="Gérer ${esc(r.cl.name||"")}">⋯</button></div>${op?`<div class="cl96p">${r.info}${r.panel}</div>`:""}</div>`; }).join("")}</div></div>`;
+  const first=cards[0]; first.insertAdjacentHTML("beforebegin",L); cards.forEach(c=>c.remove());
+  if(formCard){ if(CL96.add) R.querySelector("#cl96").after(formCard); else formCard.remove(); }
+  return T.innerHTML; };
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act^="cl96-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v;
+  if(a==="cl96-more") CL96.open=CL96.open===v?null:v;
+  else if(a==="cl96-add"){ CL96.add=!CL96.add; if(CL96.add) setTimeout(()=>{ const i=document.getElementById("nc-name"); if(i) i.focus(); },50); }
+  else if(a==="cl96-sort"){ CL96.sort=v; try{ localStorage.setItem("tb-cl96-sort",v); }catch(x){} }
+  render(); },true);
+document.addEventListener("input",e=>{ if(e.target.id!=="cl96q") return; CL96.q=e.target.value; const q=nrm91(CL96.q); document.querySelectorAll("#cl96 .cl96i").forEach(r=>{ r.hidden=!!q&&!r.dataset.n.includes(q); }); });
+
+// ---------- carnet : notes de la séance précédente sur chaque exercice
+function prevNotes96(r,w,name){ const pick=(w2,v)=>{ const sets=(v.sets||[]).map((x,i)=>x&&x.n?{i,n:x.n}:null).filter(Boolean); return sets.length||v.j?{w:w2,j:v.j||"",sets}:null; };
+  for(let w2=w-1;w2>=1;w2--){ const v=ST.carnet[w2+"_"+r.key]; if(v&&(v.ex||r.ex)===name){ const p=pick(w2,v); if(p) return p; }
+    for(const [k,v] of Object.entries(ST.carnet)){ const q=k.split("_"); if(q.length!==3||+q[0]!==w2||q[1]==="o"||q[1]==="t"||q[1]==="n"||k===w2+"_"+r.key) continue; const o=rowOf(k); if(!o.r||(v.ex||o.r.ex)!==name) continue; const p=pick(w2,v); if(p) return p; } }
+  return null; }
+const _carnetEx96=carnetEx;
+carnetEx=function(r,w){ let h=_carnetEx96(r,w); const v=ST.carnet[w+"_"+r.key]||{}, name=v.ex||r.ex, P=prevNotes96(r,w,name); if(!P) return h;
+  const items=[...P.sets.map(x=>`<li><b>Série ${x.i+1}</b> : ${esc(x.n)}</li>`),P.j?`<li><b>Exercice</b> : ${esc(P.j)}</li>`:""].join("");
+  const box=`<details class="pn96"${P.sets.length+(P.j?1:0)<=2?" open":""}><summary>📝 Notes de la dernière fois <span class="muted small">(S${P.w})</span></summary><ul>${items}</ul><button class="linkbtn small" data-act="cx-hist" data-v="${esc(name)}">Toutes les notes de cet exercice</button></details>`;
+  const i=h.indexOf('<div class="tbl"><table class="sets">'); return i>=0?h.slice(0,i)+box+h.slice(i):h+box; };
+// historique de l'exercice : toutes les notes, semaine par semaine
+const _vHist96=vHist;
+vHist=function(name){ let h=_vHist96(name); const out=[];
+  Object.entries(ST.carnet).forEach(([k,v])=>{ const q=k.split("_"); if(q.length!==3||q[1]==="o"||q[1]==="t"||q[1]==="n") return; const o=rowOf(k); if(!o.r||(v.ex||o.r.ex)!==name) return;
+    const sets=(v.sets||[]).map((x,i)=>x&&x.n?{i,n:x.n,x}:null).filter(Boolean); if(sets.length||v.j) out.push({w:o.w,s:o.s,j:v.j||"",sets}); });
+  if(!out.length) return h; out.sort((a,b)=>b.w-a.w||a.s-b.s);
+  return h+`<div class="card"><h3 style="margin-top:0">📝 Historique des notes</h3>${out.map(e=>`<div class="pnh96"><b>S${e.w}</b> <span class="muted small">${esc((M.sessions[e.s]||{}).name||"")}</span><ul>${e.sets.map(x=>`<li>Série ${x.i+1}${x.x.g!=null?` (${fmtN(x.x.g)} × ${fmtN(x.x.h)}${x.x.r!=null?" @"+fmtN(x.x.r):""})`:""} : ${esc(x.n)}</li>`).join("")}${e.j?`<li>Exercice : ${esc(e.j)}</li>`:""}</ul></div>`).join("")}</div>`; };
+
+// ---------- carnet : espace « Séances faites » (récapitulatif, séparé du carnet à remplir)
+const CV96={mode:"fill",open:null};
+function doneSessions96(){ const out=[]; if(!M) return out;
+  for(let w=1;w<=M.NSEM;w++) M.sessions.forEach(S=>{ const rows=S.rows.filter(r=>r.ex); const t=ST.carnet[w+"_t_"+S.s]||{}; let n=0,vol=0,last=0,prs=0;
+    const ex=rows.map(r=>{ const v=ST.carnet[w+"_"+r.key]; if(!v) return null; const name=v.ex||r.ex, sets=setsOf(v).filter(x=>x.d||x.g!=null||x.h!=null); if(!sets.length&&!v.j) return null;
+      sets.forEach(x=>{ if(x.d||x.g!=null){ n++; vol+=tonSet(x,name,v.ex?null:r)||0; } if(x.pr) prs++; }); return {name,sets,j:v.j||""}; }).filter(Boolean);
+    if(!ex.length&&!t.end) return; const end=t.end||null, date=end?isoD(new Date(end)):isoD(new Date(M.dateOf(w).getTime()+S.dayOff*864e5));
+    out.push({w,s:S.s,name:S.name,date,dur:t.start&&t.end?t.end-t.start:null,n,vol,prs,ex,feel:(ST.carnet[w+"_n_"+S.s]||{}).j||"",missed:!!t.missed}); });
+  return out.sort((a,b)=>b.date<a.date?-1:b.date>a.date?1:b.w-a.w); }
+function vDone96(){ const L=doneSessions96();
+  let h=`<h2>Séances faites</h2>`;
+  if(!L.length) return h+`<div class="card muted">Aucune séance notée pour l'instant. Les séances apparaissent ici dès que tu notes une série.</div>`;
+  h+=`<p class="muted small" style="margin:-4px 0 8px">${L.length} séance${L.length>1?"s":""} · touche une séance pour voir le détail.</p>`;
+  L.forEach(S=>{ const k=S.w+"_"+S.s, op=CV96.open===k, d=new Date(S.date+"T12:00:00");
+    h+=`<div class="card dn96"><button class="dn96h" data-act="cv96-open" data-v="${k}" aria-expanded="${op}"><span class="dn96d"><b>${d.getDate()}</b><span>${d.toLocaleDateString("fr-FR",{month:"short"}).replace(".","")}</span></span>
+      <span class="grow"><b>${esc(S.name)}</b> <span class="muted small">S${S.w}</span><br><span class="muted small">${S.n} série${S.n>1?"s":""}${S.vol?` · ${fmtN(Math.round(S.vol))} kg soulevés`:""}${S.dur?` · ${fmtDurTxt(S.dur)}`:""}${S.prs?` · 🏆 ${S.prs}`:""}</span></span><span aria-hidden="true">${op?"▾":"▸"}</span></button>`;
+    if(op){ h+=`<div class="dn96b">${S.ex.map(e=>`<div class="dn96e"><b>${esc(e.name)}</b><table class="dn96t">${e.sets.map((x,i)=>`<tr><td class="muted">${i+1}</td><td>${x.g!=null?fmtN(x.g)+" kg":"—"}</td><td>× ${x.h!=null?fmtN(x.h):"—"}</td><td>${x.r!=null?"RPE "+fmtN(x.r):""}</td><td>${x.pr?"🏆":""}${x.d?"":`<span class="muted small">non validée</span>`}</td></tr>${x.n?`<tr><td></td><td colspan="4" class="small">📝 ${esc(x.n)}</td></tr>`:""}`).join("")}</table>${e.j?`<div class="small">📝 ${esc(e.j)}</div>`:""}</div>`).join("")}
+        ${S.feel?`<div class="small" style="margin-top:6px"><b>Ressenti :</b> ${esc(S.feel)}</div>`:""}
+        <button class="ghost sm" style="margin-top:8px" data-act="cv96-go" data-v="${k}">Ouvrir dans le carnet</button></div>`; }
+    h+=`</div>`; });
+  return h; }
+const _vCarnet96=vCarnet;
+vCarnet=function(){ if(ST.printProg||ST.histEx) return _vCarnet96(); const seg=`<div class="row cv96" role="group" aria-label="Carnet"><button class="chip ${CV96.mode==="fill"?"on":""}" data-act="cv96-mode" data-v="fill" aria-pressed="${CV96.mode==="fill"}">✍️ À remplir</button><button class="chip ${CV96.mode==="done"?"on":""}" data-act="cv96-mode" data-v="done" aria-pressed="${CV96.mode==="done"}">✅ Séances faites</button></div>`;
+  return seg+(CV96.mode==="done"?vDone96():_vCarnet96()); };
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act^="cv96-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, v=b.dataset.v;
+  if(a==="cv96-mode"){ CV96.mode=v; window.scrollTo(0,0); }
+  else if(a==="cv96-open") CV96.open=CV96.open===v?null:v;
+  else if(a==="cv96-go"){ const [w,s]=v.split("_").map(Number); CV96.mode="fill"; ST.week=w; ST.cses=s; ST.csesW=w; window.scrollTo(0,0); }
+  render(); },true);
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest("#tabs button"); if(b) CV96.mode="fill"; },true);
+(function(){ const st=document.createElement("style"); st.textContent=`
+.cl96{padding:10px}.cl96l{display:flex;flex-direction:column;margin-top:6px}.cl96i{border-top:1px solid var(--line)}.cl96i:first-child{border-top:0}.cl96i.arch{opacity:.6}
+.cl96r{display:flex;align-items:center;gap:4px}.cl96o{flex:1;min-width:0;display:flex;align-items:center;gap:10px;background:transparent;border:0;color:var(--ink);text-align:left;padding:10px 4px;font-weight:400;border-radius:8px}
+.cl96o .grow{min-width:0;display:flex;flex-direction:column}.cl96n{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.cl96s{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cl96c{color:var(--soft);font-size:1.2rem}
+.cl96t{font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:999px;border:1px solid currentColor}.cl96t.m{color:var(--blue,#3b82f6)}.cl96t.b{color:var(--accent)}.cl96t.r{color:var(--red)}
+.cl96m{flex:none}.cl96p{padding:4px 4px 12px 30px;font-size:.92rem}.cl96p .row{flex-wrap:wrap}
+.pn96{background:var(--btn2);border-radius:10px;padding:6px 10px;margin:6px 0}.pn96 summary{cursor:pointer;font-weight:600;font-size:.9rem;min-height:30px;display:flex;align-items:center;gap:6px}.pn96 ul{margin:4px 0 4px;padding-left:18px;font-size:.88rem}#app .pn96 .linkbtn{font-size:.85rem;font-weight:600;min-height:32px;padding:2px 0;text-align:left}.pn96 li{margin:2px 0}
+.pnh96{padding:6px 0;border-top:1px solid var(--line)}.pnh96:first-of-type{border-top:0}.pnh96 ul{margin:4px 0 0;padding-left:18px;font-size:.9rem}
+.cv96{gap:6px;margin:4px 0 10px}
+.dn96{padding:0;overflow:hidden}.dn96h{display:flex;align-items:center;gap:12px;width:100%;background:transparent;border:0;color:var(--ink);text-align:left;padding:12px;font-weight:400}
+.dn96d{flex:none;width:46px;height:46px;border-radius:12px;background:var(--btn2);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}.dn96d b{font-size:1.15rem}.dn96d span{font-size:.7rem;text-transform:uppercase;color:var(--soft)}
+.dn96b{padding:0 12px 12px}.dn96e{padding:8px 0;border-top:1px solid var(--line)}.dn96t{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:4px;font-variant-numeric:tabular-nums}.dn96t td{padding:3px 4px}`; document.head.appendChild(st); })();
+
 boot();
 
 </script>

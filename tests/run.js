@@ -571,6 +571,34 @@ const T = {
       if (t === 'messages' && m === 'PATCH') { if (b && b.body) sc.patched = b; return []; }
       if (/rpc\/msg_react/.test(path)) { sc.rx = b.p_emoji; return { [b.p_emoji]: ['c'] }; } }; }),
 
+  'coach : icônes des onglets, liste clients compacte avec l\'activité de la semaine': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(() => { CUR = null; ST.view = 'clients'; render(); }); await p.waitForTimeout(1200);
+    const ic = await p.evaluate(() => ['msgs', 'abo', 'base'].map(v => { const b = document.querySelector(`#tabs [data-v="${v}"] svg.ic45`); return b && !/circle cx="5" cy="12"/.test(b.innerHTML); }));
+    ok(ic.every(Boolean), 'Messages, Abonnés et Base de données ont leur icône (plus de « ••• »)');
+    ok(!!(await p.$('#cl96 .cl96i')) && !(await p.$('#ov-card')) && !(await p.$('#app .card.ses [data-act="open"]')), 'une ligne par client, aperçu de la semaine intégré');
+    ok(/Client Fictif/.test(await txt(p, '#cl96')) && /nutri \d\/7/.test(await txt(p, '#cl96')), 'activité de la semaine dans la ligne');
+    ok(!(await p.$('#nc-name')), 'formulaire nouveau client replié');
+    await p.click('[data-act="cl96-add"]'); await p.waitForTimeout(200); ok(!!(await p.$('#nc-name')), '« ＋ Client » ouvre le formulaire');
+    await p.click('[data-act="cl96-more"]'); await p.waitForTimeout(200);
+    ok(!!(await p.$('.cl96p [data-act="arch"]')) && !!(await p.$('.cl96p [data-cemail]')), '« ⋯ » : gestion du client (e-mail, archiver…)');
+    await p.fill('#cl96q', 'zzz'); await p.waitForTimeout(100); ok(await p.evaluate(() => [...document.querySelectorAll('#cl96 .cl96i')].every(r => r.hidden)), 'recherche filtre la liste');
+  }, coachPre()),
+  'client : séances faites (récapitulatif) et notes de la séance précédente': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(800);
+    await p.evaluate(() => { const C = ST.carnet; C['1_0_0'] = { sets: [{ g: 60, h: 8, r: 8, d: 1, n: 'Genou qui rentre à la dernière rep' }, { g: 60, h: 7, r: 9, d: 1 }], j: 'Pieds un peu plus larges' };
+      C['1_t_0'] = { start: Date.now() - 86400e3 * 6 - 3600e3, end: Date.now() - 86400e3 * 6 }; recompute(); ST.todayOn = false; ST.week = 2; ST.view = 'carnet'; render(); }); await p.waitForTimeout(600);
+    const pn = await txt(p, '#app');
+    ok(/Notes de la dernière fois/.test(pn) && /Genou qui rentre/.test(pn) && /Pieds un peu plus larges/.test(pn), 'notes de la séance précédente affichées sur l\'exercice');
+    await p.click('[data-act="cv96-mode"][data-v="done"]'); await p.waitForTimeout(300);
+    ok(/Séances faites/.test(await txt(p, '#app')) && !!(await p.$('.dn96')), 'espace « Séances faites » séparé');
+    await p.click('.dn96 [data-act="cv96-open"]'); await p.waitForTimeout(200);
+    const d = await txt(p, '.dn96');
+    ok(/60 kg/.test(d) && /RPE 8/.test(d) && /Genou qui rentre/.test(d) && /2 séries/.test(d), 'récapitulatif : charges, reps, RPE, notes');
+    await p.click('[data-act="cv96-mode"][data-v="fill"]'); await p.waitForTimeout(200);
+    await p.evaluate(() => { const b = document.querySelector('.pn96 [data-act="cx-hist"]'); b && b.closest('details').setAttribute('open', ''); b && b.click(); }); await p.waitForTimeout(300);
+    ok(/Historique des notes/.test(await txt(p, '#app')), 'historique complet des notes dans l\'exercice');
+  }, clientPre(sc => (m, path, body, acc, t) => { if (t === 'carnet' && m === 'POST') return []; })),
+
 };
 
 (async () => {
