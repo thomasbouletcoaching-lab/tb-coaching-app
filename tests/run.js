@@ -276,7 +276,7 @@ const T = {
     await p.click('#es85 [data-act="es85-apply"]'); await p.waitForTimeout(400);
     ok(await p.evaluate(() => NU.logs[todayISO()].m[0].it.length === 4), 'repas noté depuis la description');
     await p.click('[data-act="nu-xopen"]'); await p.waitForTimeout(300); await p.click('[data-act="xm85-mi"][data-v="1"]'); await p.waitForTimeout(200);
-    await p.fill('[data-nuq="xq"]', 'galette bretonne'); await p.waitForTimeout(200); await p.click('[data-act="nf85-new"]'); await p.waitForTimeout(300);
+    await p.fill('[data-nuq="xq"]', 'galette bretonne'); await p.waitForTimeout(200); await p.click('#nu-xres [data-act="nf85-new"]'); await p.waitForTimeout(300);
     await p.fill('[data-nf85="p"]', '6'); await p.fill('[data-nf85="g"]', '60'); await p.fill('[data-nf85="l"]', '17'); await p.click('[data-act="nf85-save"]'); await p.waitForTimeout(600);
     ok(await p.evaluate(() => { const x = NU.logs[todayISO()].x; return x.length === 1 && x[0].n === 'Galette bretonne' && x[0].mi === 1; }), 'aliment absent créé, ajouté en extra et rattaché au 2e repas');
     ok((await p.$$('.xm85')).length === 1, "l'extra apparaît dans la carte du repas");
@@ -621,6 +621,34 @@ const T = {
     await p.click('[data-act="src98"][data-v="g"]'); await p.waitForTimeout(200);
     ok(/Glucides mangés : 56 g/.test(await txt(p, '#src98')), 'bascule sur les glucides');
   }, clientPre(sc => (m, path, b, a, t) => { if (t === 'nutri_log' && m === 'POST') return []; })),
+
+  'client : menus qui restent à l\'écran, scanner plein écran, photo depuis la pellicule, créer un aliment': () => run('client', async (p, sc) => {
+    await p.click('nav.tabs [data-v="nutrition"]'); await p.waitForTimeout(1200);
+    const x = p.locator('#app [data-act="nu-xopen"]'); await x.scrollIntoViewIfNeeded(); await x.click(); await p.waitForTimeout(600);
+    const box = await p.evaluate(() => { const c = document.querySelector('#app [data-act="nu-xscan"]').closest('.card').getBoundingClientRect(); return { top: c.top, bottom: c.bottom, h: innerHeight }; });
+    ok(box.top >= 60 && box.bottom <= box.h - 60, `panneau Extras ouvert entièrement visible (haut ${Math.round(box.top)}, bas ${Math.round(box.bottom)})`);
+    ok(/Crée-le avec son étiquette/.test(await txt(p, '#nu-xres')), 'bouton « créer un aliment » visible sans recherche');
+    await p.click('#nu-xres [data-act="nf85-new"]'); await p.waitForTimeout(300);
+    ok(!!(await p.$('#nf85 [data-nf85="name"]')), 'formulaire « Nouvel aliment » ouvert');
+    await p.click('[data-act="nf85-cancel"]'); await p.waitForTimeout(200);
+    await p.click('#app [data-act="nu-xscan"]'); await p.waitForTimeout(500);
+    const sc99 = await p.evaluate(() => { const o = document.getElementById('scan99'); if (!o || o.hidden) return null; const r = o.getBoundingClientRect(), v = document.getElementById('scan-v').getBoundingClientRect(); return { top: r.top, h: r.height, vt: v.top, ih: innerHeight }; });
+    ok(sc99 && sc99.top === 0 && sc99.h === sc99.ih && sc99.vt < 120, 'scanner en plein écran, caméra visible en haut de l\'écran sans défiler');
+    ok(!(await p.$('#app #scan-v')), 'plus de scanner coincé dans la page');
+    await p.click('#scan99 [data-act="scan-stop"]'); await p.waitForTimeout(300);
+    ok(await p.evaluate(() => document.getElementById('scan99').hidden), 'scanner fermé');
+    ok(await p.evaluate(() => { const f = phInput62(); return !!f && !f.hasAttribute('capture'); }), 'photo de repas : appareil photo OU pellicule (pas de capture forcée)');
+  }, clientPre()),
+
+  'fiches : schéma propre à l\'exercice (back extension ≠ soulevé de terre)': () => run('coach', async (p) => {
+    await p.evaluate(() => fiShow94('45° back extension (focus ischios)')); await p.waitForTimeout(1500);
+    const t = await p.evaluate(() => document.querySelector('#fi94 svg').getAttribute('aria-label'));
+    ok(t === 'Schéma : back_ext', 'back extension : schéma back_ext (' + t + ')');
+    await p.evaluate(() => fiShow94('Pompes')); await p.waitForTimeout(300);
+    ok((await p.evaluate(() => document.querySelector('#fi94 svg').getAttribute('aria-label'))) === 'Schéma : pushup', 'pompes : schéma pushup');
+    await p.evaluate(() => fiShow94('Soulevé de terre')); await p.waitForTimeout(300);
+    ok((await p.evaluate(() => document.querySelector('#fi94 svg').getAttribute('aria-label'))) === 'Schéma : hinge', 'soulevé de terre : schéma de la famille');
+  }, coachPre()),
 
 };
 

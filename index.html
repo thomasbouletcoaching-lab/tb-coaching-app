@@ -4754,7 +4754,7 @@ nJour=function(){ let h=_nJour62(); const {L,t,P}=nDayCtx(); if(!t||!hasMeals(P)
     pos=h.indexOf('<div class="card meal',he)>=0?h.indexOf('<div class="card meal',he):h.length; });
   if(!coach()) h=h.replace(/(repas sur \d+ notés[^<]*<\/div>)/,`$1<div class="muted small" style="margin-top:4px">Pas le temps de détailler ? Prends ton repas en photo (📷), ton coach s'occupe du reste.</div>`);
   return h; };
-function phInput62(){ let f=document.getElementById("nph-file"); if(!f){ f=document.createElement("input"); f.type="file"; f.accept="image/*"; f.setAttribute("capture","environment"); f.id="nph-file"; f.hidden=true; document.body.appendChild(f);
+function phInput62(){ let f=document.getElementById("nph-file"); if(!f){ f=document.createElement("input"); f.type="file"; f.accept="image/*"; f.id="nph-file"; f.hidden=true; document.body.appendChild(f);
     f.addEventListener("change",async()=>{ const file=f.files&&f.files[0]; f.value=""; const T=NPH.target; if(!file||!T||!CUR) return; NPH.busy=true; toast("Envoi de la photo…");
       try{ const blob=await compressImg(file,1280,0.75); const path=`${CUR}/repas/${T.d}_${T.mi}_${Date.now()}.jpg`;
         const {error}=await SB.storage.from("media").upload(path,blob,{contentType:"image/jpeg",upsert:false}); if(error) throw error;
@@ -7667,7 +7667,7 @@ function vFiche94(n){ const D=FI94.d, e=D&&D.ex[n]; if(!e) return `<p class="mut
     :`<div class="alert small" style="background:var(--btn2)">Brouillon : seulement visible par toi. Relis-la, puis <button class="sm" data-act="fi94-ok" data-v="${esc(n)}">✓ Valider cette fiche</button></div>`;
   if(mus) h+=`<div class="small" style="margin:6px 0">Muscles : ${mus}</div>`;
   if(v) h+=`<button class="ghost sm" data-act="vl-play" data-v="${esc(n)}">▶ Voir la vidéo</button>`;
-  if(D.svg[f.schema]) h+=`<div class="card" style="padding:8px;margin:8px 0">${D.svg[f.schema]}<div class="muted small">Schéma du mouvement de base de la famille « ${esc(f.nom)} ».</div></div>`;
+  { const sk=e.schema||f.schema; if(D.svg[sk]) h+=`<div class="card" style="padding:8px;margin:8px 0">${D.svg[sk]}<div class="muted small">${e.schema?"Schéma de cet exercice.":`Schéma du mouvement de base de la famille « ${esc(f.nom)} ».`}</div></div>`; }
   if(e.note) h+=`<div class="card" style="margin:8px 0"><b>Particularité de cette variante</b><p class="small" style="margin:4px 0 0">${esc(e.note)}</p></div>`;
   h+=sec94("🛠️ Installation et réglages",`<p class="small" style="margin:0">${esc(e.setup)}</p>${f.setup&&f.setup!==e.setup?`<p class="small muted" style="margin:6px 0 0">${esc(f.setup)}</p>`:""}`,true);
   h+=sec94("▶️ Exécution",`${li94(e.cues)}${li94(f.exec)}<p class="small" style="margin:6px 0 0"><b>Respiration :</b> ${esc(f.resp||"")}</p>`,true);
@@ -7973,6 +7973,59 @@ document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closes
 document.addEventListener("toggle",e=>{ if(e.target&&e.target.id==="src98") NU98.open=e.target.open; },true);
 (function(){ const st=document.createElement("style"); st.textContent=`.im98{display:block;font-size:.78rem;color:var(--soft);font-variant-numeric:tabular-nums;margin-top:1px}.im98 b{color:var(--ink);font-weight:600}
 ul.its li{align-items:flex-start}.src98 summary{cursor:pointer;min-height:36px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.sr98{padding:6px 0;border-top:1px solid var(--line)}.sr98 .mb-t{margin-top:4px}.sr98 b{font-variant-numeric:tabular-nums}`; document.head.appendChild(st); })();
+
+// ================= MODULE 99 · CONFORT : MENUS QUI S'OUVRENT, SCANNER PLEIN ÉCRAN, PHOTOS, AJOUT D'ALIMENTS =================
+// 1. Ouvrir un menu ne décale plus la page : le bloc (carte) touché reste au même endroit de l'écran,
+//    la page ne rétrécit pas pendant le rendu, et le panneau ouvert est ramené dans l'écran s'il dépasse en bas.
+const AN99={act:null,v:null,top:0,y:0,card:0,t:0};
+window.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest("#app [data-act]"); if(!b){ AN99.act=null; return; } const c=b.closest(".card");
+  Object.assign(AN99,{act:b.dataset.act,v:b.dataset.v==null?null:b.dataset.v,top:(c||b).getBoundingClientRect().top,y:window.scrollY,card:c?c.offsetHeight:0,t:Date.now()}); },true);
+// reste actif ~2 s pour suivre les rendus qui complètent le panneau (aliments chargés…), tant que l'utilisateur n'a pas défilé lui-même
+function anchor99(y0){ const A=AN99; if(!A.act) return; if(Date.now()-A.t>2000||Math.abs(y0-A.y)>2){ A.act=null; return; }
+  const sel=`#app [data-act="${CSS.escape(A.act)}"]`+(A.v==null?"":`[data-v="${CSS.escape(A.v)}"]`), el=document.querySelector(sel); if(!el||!el.offsetParent){ A.y=window.scrollY; return; }
+  const c=el.closest(".card"), box=c||el; const d=box.getBoundingClientRect().top-A.top; if(Math.abs(d)>2) window.scrollBy(0,d);
+  if(c&&c.offsetHeight>=A.card+40){ const cr=c.getBoundingClientRect(), bottom=window.innerHeight-76, need=cr.bottom-bottom, room=cr.top-72;
+    if(need>0&&room>0) window.scrollBy(0,Math.min(need,room)); }
+  A.top=box.getBoundingClientRect().top; A.y=window.scrollY; }
+render=(function(o){ return function(){ const app=document.getElementById("app"), y0=window.scrollY;
+  if(app&&app.offsetHeight) app.style.minHeight=app.offsetHeight+"px"; // la page garde sa hauteur pendant le rendu : la position de défilement n'est pas rabotée
+  let r; try{ r=o.apply(this,arguments); } finally{ if(app) app.style.minHeight=""; }
+  try{ anchor99(y0); }catch(e){ console.error(e); } return r; }; })(render);
+
+// 2. Scanner de code-barres en plein écran : la caméra s'ouvre directement, sans avoir à remonter la page
+scanStart=async function(){ if(SCAN.ov) return; SCAN.ov=true; let o=document.getElementById("scan99");
+  if(!o){ o=document.createElement("div"); o.id="scan99"; o.setAttribute("role","dialog"); o.setAttribute("aria-modal","true"); o.setAttribute("aria-label","Scanner un code-barres"); document.body.appendChild(o); }
+  o.innerHTML=`<div class="sc99top"><b>Scanner un code-barres</b><button class="ghost sm" data-act="scan-stop">✕ Fermer</button></div>
+    <div class="sc99v"><video id="scan-v" playsinline muted autoplay></video><div class="sc99f"></div></div>
+    <p class="sc99h">Vise le code-barres du produit : il se lit tout seul.</p>
+    <div class="sc99m"><label class="f">Ou tape le code<input id="scan-code" inputmode="numeric" autocomplete="off" placeholder="3017620422003"></label><button data-act="scan-go">Chercher</button></div>`;
+  o.hidden=false; document.body.classList.add("sc99on");
+  try{ await loadZX(); if(!SCAN.ov) return; const v=document.getElementById("scan-v"); SCAN.reader=new ZXing.BrowserMultiFormatReader();
+    await SCAN.reader.decodeFromConstraints({video:{facingMode:"environment"}},v,res=>{ if(res&&!SCAN.busy&&SCAN.ov){ const c=res.getText(); scanStop(); offLookup(c); } }); }
+  catch(e){ if(SCAN.ov) toast("Caméra indisponible : tape le code à la main"); } };
+scanStop=function(){ try{ SCAN.reader&&SCAN.reader.reset(); }catch(e){} SCAN.reader=null; SCAN.on=false; SCAN.ov=false;
+  const o=document.getElementById("scan99"); if(o){ o.hidden=true; o.innerHTML=""; } document.body.classList.remove("sc99on"); render(); };
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&SCAN.ov) scanStop(); });
+// produit scanné trouvé : il rejoint aussi la base d'aliments (s'il n'y est pas déjà), pour être retrouvé par la recherche
+const _offLookup99=offLookup;
+offLookup=async function(code){ const L=NU.logs[NU.day], n0=L&&L.x?L.x.length:0; await _offLookup99(code); const L2=NU.logs[NU.day], it=L2&&L2.x&&L2.x.length>n0?L2.x[L2.x.length-1]:null;
+  if(!it||it.c!=="Scanné"||!(it.k>0)) return; const nm=String(it.n||"").trim(); if(nm.length<2||(NU.foods||[]).some(f=>nrm(f.name)===nrm(nm))) return;
+  try{ const {data,error}=await SB.rpc("nutri_food_add",{f:{name:nm.replace(/œ/g,"oe").replace(/Œ/g,"Oe"),kcal:Math.round(it.k),p:it.p||0,g:it.g||0,l:it.l||0,unit:it.ug?"portion":null,unit_g:it.ug||null,cat:nfGuessCat85(nm)}});
+    if(!error&&data&&NU.foods&&!NU.fmap[data.id]){ NU.foods.push(data); NU.foods.sort((x,y)=>x.name.localeCompare(y.name,"fr")); NU.fmap[data.id]=data; } }catch(e){} };
+
+// 4. Ajouter un aliment à la base : bouton toujours visible dans les recherches d'aliments (pas seulement après une recherche sans résultat)
+Object.keys(NFACT85).forEach(k=>{ const o=RES[k]; RES[k]=function(){ const h=o?o():""; if(NF85.k===k||String(NU[k]||"").trim().length>=2) return h;
+  return h+`<button class="ghost nf85b" data-act="nf85-new" data-k="${k}">＋ Aliment introuvable ? Crée-le avec son étiquette</button>`; }; });
+
+(function(){ const st=document.createElement("style"); st.textContent=`
+#scan99{position:fixed;inset:0;z-index:1100;background:#000;color:#fff;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px calc(env(safe-area-inset-bottom,0px) + 12px)}
+#scan99[hidden]{display:none}body.sc99on{overflow:hidden}
+.sc99top{display:flex;justify-content:space-between;align-items:center;gap:8px}.sc99top .ghost{color:#fff;border-color:rgba(255,255,255,.7);background:transparent}
+.sc99v{position:relative;flex:1;min-height:0;margin:10px 0;border-radius:14px;overflow:hidden;background:#111}
+.sc99v video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.sc99f{position:absolute;left:10%;right:10%;top:36%;height:28%;border:3px solid rgba(255,255,255,.9);border-radius:12px;box-shadow:0 0 0 2000px rgba(0,0,0,.28)}
+.sc99h{margin:0 0 8px;text-align:center;font-size:.9rem;opacity:.85}
+.sc99m{display:flex;gap:8px;align-items:flex-end}.sc99m .f{flex:1;color:#fff;margin:0}.sc99m input{width:100%}`; document.head.appendChild(st); })();
 
 boot();
 
