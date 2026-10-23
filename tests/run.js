@@ -664,6 +664,20 @@ const T = {
     ok(await p.evaluate(() => getComputedStyle(document.getElementById('sw89u')).display === 'none'), 'bandeau masqué au bout de 6 s');
   }, clientPre()),
 
+  'suivi : scanner un code-barres depuis un repas (rattaché à ce repas)': () => run('client', async (p) => {
+    await p.route('https://world.openfoodfacts.org/**', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ product: { product_name: 'Skyr nature', brands: 'Marque Test', serving_quantity: 150, nutriments: { 'energy-kcal_100g': 63, proteins_100g: 11, carbohydrates_100g: 4, fat_100g: 0.2 } } }) }));
+    await p.click('nav.tabs [data-v="nutrition"]'); await p.waitForTimeout(1200);
+    await p.click('#app [data-act="nu90-more"][data-v="1"]'); await p.waitForTimeout(200);
+    const sb = p.locator('#app [data-act="nu99-scan"][data-v="1"]');
+    ok(await sb.isVisible(), 'bouton « Scanner un code-barres » dans le repas');
+    await sb.click(); await p.waitForTimeout(400);
+    ok(await p.evaluate(() => !document.getElementById('scan99').hidden), 'scanner plein écran ouvert depuis le repas');
+    await p.fill('#scan-code', '3017620422003'); await p.click('#scan99 [data-act="scan-go"]'); await p.waitForTimeout(1200);
+    const it = await p.evaluate(() => { const x = NU.logs[NU.day].x; return x[x.length - 1]; });
+    ok(it && /Skyr nature/.test(it.n) && it.mi === 1, 'produit scanné ajouté et rattaché au 2e repas (' + JSON.stringify(it && { n: it.n, mi: it.mi }) + ')');
+    ok(/Skyr nature/.test(await p.evaluate(() => [...document.querySelectorAll('.card.meal')][1].innerText)), 'le produit apparaît dans la carte du repas');
+  }, clientPre(sc => (m, path, b, a, t) => { if (t === 'nutri_log' && m === 'POST') return []; })),
+
 };
 
 (async () => {

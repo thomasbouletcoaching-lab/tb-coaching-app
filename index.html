@@ -8242,6 +8242,19 @@ offLookup=async function(code){ const L=NU.logs[NU.day], n0=L&&L.x?L.x.length:0;
   try{ const {data,error}=await SB.rpc("nutri_food_add",{f:{name:nm.replace(/œ/g,"oe").replace(/Œ/g,"Oe"),kcal:Math.round(it.k),p:it.p||0,g:it.g||0,l:it.l||0,unit:it.ug?"portion":null,unit_g:it.ug||null,cat:nfGuessCat85(nm)}});
     if(!error&&data&&NU.foods&&!NU.fmap[data.id]){ NU.foods.push(data); NU.foods.sort((x,y)=>x.name.localeCompare(y.name,"fr")); NU.fmap[data.id]=data; } }catch(e){} };
 
+// 3. Scanner un code-barres depuis chaque repas : le produit scanné est rattaché à ce repas (ajustable ensuite en grammes)
+SCAN.mi=null;
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="nu99-scan"],[data-act="nu-xscan"]'); if(!b) return;
+  if(b.dataset.act==="nu-xscan"){ SCAN.mi=XM85.mi===undefined?null:XM85.mi; return; }
+  e.preventDefault(); e.stopImmediatePropagation(); SCAN.mi=+b.dataset.v; scanStart(); },true);
+const _offLookup99b=offLookup;
+offLookup=async function(code){ const mi=SCAN.mi; SCAN.mi=null; const d=NU.day, n0=((NU.logs[d]||{}).x||[]).length; await _offLookup99b(code);
+  const L=NU.logs[d]; if(mi==null||!L||!L.x||L.x.length<=n0) return; const i=L.x.length-1; if(L.x[i].mi!=null) return;
+  L.x=[...L.x]; L.x[i]=Object.assign({},L.x[i],{mi}); await nuSaveLog(d); render(); };
+render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ if(!coach()&&ST.view==="nutrition") document.querySelectorAll("#app .card.meal").forEach(card=>{ const m=card.querySelector(".more90"), ok=card.querySelector('[data-act="nu-ok"]');
+    if(!m||!ok||m.querySelector('[data-act="nu99-scan"]')) return; const b=document.createElement("button"); b.type="button"; b.className="ghost"; b.dataset.act="nu99-scan"; b.dataset.v=ok.dataset.v; b.textContent="🔎 Scanner un code-barres";
+    const ph=m.querySelector('[data-act="nph-take"]'); if(ph) ph.after(b); else m.appendChild(b); }); }catch(e){ console.error(e); } return r; }; })(render);
+
 // 4. Ajouter un aliment à la base : bouton toujours visible dans les recherches d'aliments (pas seulement après une recherche sans résultat)
 Object.keys(NFACT85).forEach(k=>{ const o=RES[k]; RES[k]=function(){ const h=o?o():""; if(NF85.k===k||String(NU[k]||"").trim().length>=2) return h;
   return h+`<button class="ghost nf85b" data-act="nf85-new" data-k="${k}">＋ Aliment introuvable ? Crée-le avec son étiquette</button>`; }; });
