@@ -200,6 +200,24 @@ const DEFAULT_PARAMS={WU:10,T1:4,T2:3,T3:2.5,SSF:0.65,DLS:0.5,DLP:10,DLR:2,AFL:0
   RATES:{"Débutant":[0.04,0.06,0.04],"Intermédiaire":[0.015,0.025,0.02],"Avancé":[0.006,0.01,0.008],"Élite":[0.0025,0.005,0.004]},
   PRIL:[[0.55,0.6999,24,30],[0.70,0.7999,18,24],[0.80,0.8999,15,20],[0.90,1.5,7,10]]};
 
+// Exercices « maillons faibles & dos solide » (module 66) : réathlétisation lombaire, gainage, hanche, ischios
+LIB.BASE.push(
+ ["Dead bug","Abdos",null,null,"Poids de corps",null,0.8],
+ ["McGill curl-up","Abdos",null,null,"Poids de corps",null,0.6],
+ ["Suitcase carry (marche valise)","Abdos","Avant-bras","Trapèzes","Haltères",null,1.4],
+ ["Extension latérale QL (chaise romaine)","Lombaires","Abdos",null,"Machine",null,1.2],
+ ["Extension lombaire unilatérale (single-leg back extension)","Lombaires","Fessiers","Ischios","Machine",null,1.3],
+ ["Extension lombaire isométrique (banc 45°)","Lombaires","Fessiers",null,"Machine",null,0.9],
+ ["Relevé de genoux suspendu","Abdos",null,null,"Poids de corps",null,1.0],
+ ["L-sit (barres parallèles)","Abdos","Triceps",null,"Poids de corps",null,1.0],
+ ["Marche psoas élastique (psoas march)","Abdos","Quadriceps",null,"Élastique",null,0.6],
+ ["Élévation de genou isométrique debout (psoas)","Abdos","Quadriceps",null,"Poids de corps",null,0.5],
+ ["Elephant walk","Ischios","Mollets",null,"Poids de corps",null,0.4],
+ ["Couch stretch avec rétroversion","Quadriceps",null,null,"Poids de corps",null,0.3],
+ ["Étirement pigeon actif","Fessiers",null,null,"Poids de corps",null,0.3],
+ ["Clamshell élastique","Fessiers",null,null,"Élastique",null,0.5],
+ ["Hip airplane","Fessiers","Adducteurs",null,"Poids de corps",null,0.6]
+);
 const BASEMAP={}; LIB.BASE.forEach(r=>BASEMAP[r[0]]={mP:r[1],s1:r[2],s2:r[3],eq:r[4],sch:r[5],cost:r[6]});
 const CATMAP={}; LIB.CATS.forEach(c=>CATMAP[c[0]]={type:c[1],mus:c[2],d:[c[3],c[4],c[5]]});
 const RECOMAP={}; LIB.RECO.forEach(r=>RECOMAP[r[0]]={d:[r[1],r[2],r[3]],cons:r[4]});
@@ -1956,7 +1974,7 @@ document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); i
   render(); });
 
 // ================= PACK 7 : exercices au temps + banque de programmes (créer, aperçu) =================
-const TIMED_RE=/gainage|planche|chaise contre|suspension|dead hang|hollow|l-sit|isométri|wall sit|farmer|mountain climbers|vacuum/i;
+const TIMED_RE=/gainage|planche|chaise contre|suspension|dead hang|hollow|l-sit|isométri|wall sit|farmer|carry|stretch|pigeon|mountain climbers|vacuum/i;
 const isTimed=(name,E)=>E&&E.unit?E.unit==="s":TIMED_RE.test(name||"");
 const fmtTimed=t=>String(t||"").replace(/(\d+ × \d+(?:[–-]\d+)?)(?: reps)?/g,"$1 s").replace(/ — charge à choisir, note-la/g,"");
 const _recompute7=recompute;
@@ -3737,7 +3755,7 @@ BANK.forEach(b=>{ if(!b.nd) b.nd=b.days.filter(Boolean).length; if(META[b.id]){ 
 })();
 const BKF={lvl:"",nd:0,split:""};
 const _vBank40=vBank;
-vBank=function(){ const full=_vBank40(), cut=full.indexOf('<h3 style="margin:14px 0 4px">Mes programmes</h3>'); if(cut<0) return full; const tail=full.slice(cut); const L=BANK.filter(b=>(!BKF.lvl||b.lvl===BKF.lvl)&&(!BKF.nd||b.nd===BKF.nd)&&(!BKF.split||b.split===BKF.split)), T=(BZ.set&&BZ.set.templates)||[];
+vBank=function(){ const full=_vBank40(), cut=full.indexOf('<h3 style="margin:14px 0 4px">Mes programmes</h3>'); if(cut<0) return full; const tail=full.slice(cut); const L=BANK.filter(b=>(!BKF.lvl||b.lvl===BKF.lvl||b.lvl==="Tous niveaux")&&(!BKF.nd||b.nd===BKF.nd)&&(!BKF.split||b.split===BKF.split)), T=(BZ.set&&BZ.set.templates)||[];
   const chips=(k,opts,lab)=>`<div class="row" style="gap:4px;margin:4px 0"><span class="muted small" style="min-width:52px">${lab}</span>${[["","Tous"],...opts].map(([v,t])=>`<button class="chip ${String(BKF[k]||"")===String(v)?"on":""}" data-act="bkf" data-k="${k}" data-v="${v}">${esc(t)}</button>`).join("")}</div>`;
   const splits=[...new Set(BANK.map(b=>b.split))];
   return `<div class="card"><h3 style="margin-top:0">Banque de programmes <span class="muted small">(${BANK.length})</span></h3><p class="muted small">Appliquer remplace les séances, jours et phases de ce client (son profil et ses 1RM sont gardés). Les exercices non réalisables avec son matériel sont remplacés automatiquement. Tu peux ensuite tout modifier.</p>
@@ -4987,7 +5005,25 @@ const SC66={
   // avancé powerbuilding : force en % du 1RM (méthode TB), secondaires 6-8, isolation 10-15
   pb:{F:["4x6@72%","4x6@74%","4x6@76%","4x6@78%","1x3@85% + 4x5@75%","1x3@87% + 4x5@77%","1x3@89% + 4x5@79%","1x3@91% + 4x5@80%","1x1@90% + 3x3@80%","1x1@92% + 3x3@82%","1x1@94% + 3x3@84%","1x1 RPE10"],
       S:[...R66("3x6-8",[7,8,8.5,9]),...R66("3x6-8",[7,8,8.5,9]),...R66("3x6-8",[7,8,8.5,8])],
-      I:[...R66("3x12-15",[7,8,9]),"2x12-15 RPE9 + 1x12-15 RPE10 DS",...R66("3x10-12",[7,8,9]),"2x10-12 RPE9 + 1x10-12 RPE10 DS",...R66("3x10-12",[7,8,8.5,8])]}
+      I:[...R66("3x12-15",[7,8,9]),"2x12-15 RPE9 + 1x12-15 RPE10 DS",...R66("3x10-12",[7,8,9]),"2x10-12 RPE9 + 1x10-12 RPE10 DS",...R66("3x10-12",[7,8,8.5,8])]},
+  // dos (option A, 6 semaines) : réathlétisation lombaire — tout se fait 100 % sans douleur, RPE bas, la charge monte lentement
+  dos:{G:["3x5 RPE5","3x5 RPE5","3x6 RPE5.5","3x6 RPE6","3x8 RPE6","3x8 RPE6.5"],
+       C:["3x10 RPE5","3x15 RPE5.5","3x20 RPE6","3x20 RPE6.5","3x25 RPE7","3x30 RPE7"],
+       R:["2x8 RPE5","2x8-10 RPE5.5","3x8-10 RPE6","3x10 RPE6","3x10-12 RPE6.5","3x10-12 RPE7"],
+       P:["3x10-12 RPE6","3x10-12 RPE6.5","3x8-10 RPE7","3x8-10 RPE7","3x6-8 RPE7.5","3x6-8 RPE8"],
+       J:["2x8 RPE5","2x8 RPE5","2x10 RPE5","2x10 RPE5","2x10 RPE5.5","2x10 RPE6"],
+       U:["3x10-12 RPE7","3x10-12 RPE7.5","3x8-10 RPE8","3x8-10 RPE8","3x8-10 RPE8.5","3x8-10 RPE8.5"],
+       I:["2x12-15 RPE7","3x12-15 RPE7.5","3x12-15 RPE8","3x12-15 RPE8","3x10-12 RPE8.5","3x10-12 RPE8.5"],
+       M:["2x30","2x30","2x40","2x45","2x45","2x60"]},
+  // maillons faibles (option B, 6 semaines) : top sets en % du 1RM, accessoires lourds placés après le lift, volume accessoire réduit avant le test
+  ml:{F:["1x5@80% + 3x5@72%","1x4@83% + 3x4@76%","1x3@86% + 3x3@79%","1x2@89% + 3x2@82%","1x1@92% + 2x2@84%","1x1 RPE10"],
+      S:["3x6-8 RPE7","3x6-8 RPE7.5","3x5-7 RPE8","3x5-6 RPE8","2x4-6 RPE8","2x4-6 RPE7"],
+      A:["3x8-10 RPE7","3x8-10 RPE8","4x6-8 RPE8","3x6-8 RPE8.5","2x6-8 RPE8","2x6-8 RPE7"],
+      N:["2x4-5 RPE7","3x4-5 RPE7.5","3x5-6 RPE8","3x5-6 RPE8","2x5 RPE8","2x4 RPE7"],
+      C:["3x20 RPE7","3x25 RPE7.5","3x30 RPE8","3x30 RPE8.5","2x30 RPE8","2x20 RPE7"],
+      K:["2x6-8 RPE5","2x6-8 RPE5","2x6-8 RPE5","2x6-8 RPE5","2x6-8 RPE5","2x6-8 RPE5"],
+      I:["3x10-12 RPE8","3x10-12 RPE8.5","3x10-12 RPE9","2x10-12 RPE9 + 1x10-12 RPE10 DS","2x10-12 RPE8","2x10-12 RPE7"],
+      M:["2x30","2x30","2x40","2x40","2x45","2x45"]}
 };
 const TBP66=[
  {id:"tb-rep3",name:"Reprise · Perte de ventre · Full body 3 j",lvl:"Débutant",split:"Full body",days:DAYS3,sc:"deb",
@@ -5080,12 +5116,47 @@ const TBP66=[
   s:[["Haut A","Lundi",[["Développé couché barre","F"],["Tractions lestées (pronation)","S"],["Développé incliné haltères","S"],["Rowing haltère unilatéral","S"],["Élévation latérale haltères","I"],["Extension triceps corde poulie","I",null,"A"],["Curl barre EZ","I",null,"A"]]],
      ["Bas A","Mardi",[["Squat barre","F"],["Soulevé de terre roumain barre","S"],["Leg press","S"],["Leg curl assis","I"],["Mollets debout machine","I"],["Crunch poulie","I"]]],
      ["Haut B","Jeudi",[["Développé militaire barre (OHP)","F"],["Développé couché barre avec pause","S","Pause de 1 s sur la poitrine"],["Rowing barre Pendlay","S"],["Tirage vertical prise neutre","S"],["Élévation latérale unilatérale poulie","I"],["Face pull","I"],["Curl incliné assis haltères","I",null,"A"],["Extension triceps overhead unilatérale poulie","I",null,"A"]]],
-     ["Bas B","Vendredi",[["Soulevé de terre","F"],["Squat barre avec pause","S","Pause de 2 s en bas"],["Fentes marchées haltères","S"],["Hip thrust barre","S"],["Leg extension","I"],["Mollets assis machine (soléaire)","I"]]]]}
+     ["Bas B","Vendredi",[["Soulevé de terre","F"],["Squat barre avec pause","S","Pause de 2 s en bas"],["Fentes marchées haltères","S"],["Hip thrust barre","S"],["Leg extension","I"],["Mollets assis machine (soléaire)","I"]]]]},
+ {id:"tb-dos4",name:"Dos solide · Récupération & anti-douleur lombaire · Haut / Bas 4 j",lvl:"Tous niveaux",split:"Haut / Bas",days:DAYS4,sc:"dos",ph:["Accumulation","Accumulation","Accumulation","Transmutation","Transmutation","Transmutation"],
+  prof:"Hernie discale, sciatalgie ou gêne récurrente au bas du dos, en dehors de la phase aiguë et avec un avis médical si la douleur descend dans la jambe. 4 séances de 50 à 60 min + marche quotidienne.",
+  desc:"6 semaines pour supprimer la douleur, rebâtir la stabilité (McGill big 3, hanche, unilatéral) et réintroduire belt squat, goblet squat, soulevé de terre roumain léger et Jefferson curl très léger.",
+  why:"Le but n'est pas de « faire avec » la douleur mais de trouver, pour chaque mouvement, la version qui passe à 100 % sans douleur, puis de la rendre plus lourde semaine après semaine. Le dos redevient tolérant à la charge quand on lui en donne un peu plus à chaque fois, sans jamais le réveiller. Les gros mouvements reviennent sous des formes qui chargent peu la colonne (belt squat, goblet squat, haltères) avant de retrouver la barre.",
+  rules:["Règle d'or : la douleur pendant l'exercice reste à 2/10 maximum, redescend dès la fin de la série et n'est pas plus forte le lendemain matin. Sinon, on réduit l'amplitude, puis la charge, puis on change de variante.",
+   "Si la douleur descend plus bas dans la jambe, ou si fourmillements ou engourdissement apparaissent : arrête l'exercice tout de suite, même si c'est léger, et préviens ton coach.",
+   "Chaque séance du bas commence par les « McGill big 3 » (curl-up, gainage latéral, bird dog) : 10 minutes qui préparent ton dos à la charge. Tu peux aussi les faire chaque matin.",
+   "Amplitude : descends seulement jusqu'où le mouvement est 100 % confortable. On gagne l'amplitude avant la charge.",
+   "Charge : on garde 3 à 4 répétitions en réserve (RPE 6 à 7) les 3 premières semaines, puis RPE 7 à 8. Jamais d'échec sur les squats et les charnières.",
+   "Jefferson curl : uniquement si te pencher en avant ne réveille aucune douleur. S1 à S3 sans charge, ensuite 2,5 à 10 kg maximum, très lentement. Sinon, remplace-le par un bird dog.",
+   "Marche tous les jours 30 minutes (ou 8 000 pas) : c'est l'un des meilleurs traitements du mal de dos et ça réduit les rechutes.",
+   "Pour passer au programme Performance : 2 semaines sans douleur au-dessus de 2/10, aucune douleur dans la jambe, gainage latéral 45 s par côté, goblet squat et soulevé de terre roumain 3 × 8 à RPE 8 sans gêne.",
+   "Douleur la nuit sans bouger, perte de force dans une jambe, troubles urinaires ou insensibilité entre les cuisses : consulte un médecin sans attendre."],
+  cardio:[{mach:"Marche extérieure",dur:30,days:[true,true,true,true,true,true,true]}],steps:8000,kb:["dos-douleur","dos-intro","dos-erect","dos-core","dos-progs"],
+  s:[["Bas A · Fondation & charnière","Lundi",[["McGill curl-up","G","Chaque rép = 10 s de maintien. Une jambe pliée, mains sous les lombaires, décolle tête et épaules de 2 à 3 cm sans enrouler le dos"],["Side plank lesté","C","Secondes par côté. Sans lest, genoux au sol au début ; ligne tête-bassin-genoux droite"],["Bird dog lesté","G","Chaque rép = 10 s de maintien par côté, sans lest au début. Bassin immobile, poing serré, talon poussé loin"],["Belt squat","P","Buste droit, aucune charge sur la colonne. Descends jusqu'où c'est 100 % sans douleur",null,"3-1-1"],["Soulevé de terre roumain haltères","P","Dos neutre, hanches vers l'arrière. Arrête-toi 5 cm avant la première gêne",null,"3-0-1"],["Hip thrust machine","I","Menton rentré, côtes basses, fessiers serrés 1 s en haut"],["Leg curl assis","I","Buste penché en avant pour étirer les ischios"],["Pallof press poulie","R","Par côté. Bras tendus 2 s, rien ne tourne : ni les épaules, ni le bassin"],["Couch stretch avec rétroversion","M","Secondes par côté. Serre le fessier et rentre le bassin : l'étirement doit être devant la hanche, jamais dans le bas du dos"]]],
+     ["Haut A","Mardi",[["Dead bug","R","Par côté. Bas du dos plaqué au sol, souffle longuement en allongeant bras et jambe opposés"],["Développé couché haltères","U","Pieds au sol, fessiers sur le banc, cambrure modérée"],["Chest supported row machine","U","Poitrine appuyée : ton dos ne porte rien"],["Tirage vertical poulie","U"],["Développé épaules machine","U","Assis, dos contre le dossier, sans creuser"],["Élévation latérale haltères","I"],["Curl incliné assis haltères","I",null,"A"],["Extension triceps corde poulie","I",null,"A"],["Suitcase carry (marche valise)","C","Secondes par côté. Haltère d'un seul côté, reste parfaitement droit, ne penche pas"]]],
+     ["Bas B · Squat & hanche","Jeudi",[["McGill curl-up","G","Chaque rép = 10 s de maintien"],["Side plank lesté","C","Secondes par côté"],["Bird dog lesté","G","Chaque rép = 10 s de maintien par côté"],["Goblet squat","P","Sur une box si besoin. Haltère contre la poitrine, buste droit, amplitude sans douleur",null,"3-1-1"],["Step-up haltères","U","Par jambe. Le genou reste dans l'axe du pied"],["Extension lombaire isométrique (banc 45°)","C","Secondes. Dos neutre, fessiers serrés, ne remonte pas au-dessus de l'alignement"],["Clamshell élastique","R","Par côté. Le bassin ne bascule pas en arrière"],["Marche psoas élastique (psoas march)","R","Par jambe. Allongé, élastique aux pieds, dos plaqué : monte le genou au-delà de 90° et tiens 2 s"],["Jefferson curl","J","Seulement si la flexion est indolore. S1-S3 sans charge (ou un bâton), puis 2,5 à 10 kg max. Enroule vertèbre par vertèbre",null,"4-1-4"],["Étirement pigeon actif","M","Secondes par côté. Pousse le genou avant dans le sol 5 s, relâche, va un peu plus loin"]]],
+     ["Haut B","Vendredi",[["Dead bug","R","Par côté"],["Tractions machine assistée","U","Corps gainé (position creuse), pas de balancement"],["Développé incliné haltères","U"],["Tirage horizontal poulie prise serrée","U","Buste fixe : seuls les bras et les omoplates bougent"],["Dips machine assistée","U","Amplitude confortable pour les épaules"],["Face pull","I"],["Copenhagen plank","C","Secondes par côté. Genou posé sur le banc (levier court) les 3 premières semaines"]]]]},
+ {id:"tb-ml4",name:"Performance · Facteurs limitants · Powerbuilding / Street lifting · Haut / Bas 4 j",lvl:"Avancé",split:"Haut / Bas",days:DAYS4,sc:"ml",ph:["Accumulation","Accumulation","Transmutation","Transmutation","Réalisation","Test"],
+  prof:"Pratiquant avancé, sans douleur, qui veut monter ses maxis au squat, soulevé de terre, développé couché, dips et tractions lestés en renforçant ses maillons faibles (dos, gainage, hanche, ischios).",
+  desc:"6 semaines : top sets en % du 1RM (5 → 1 rép), back-off, et les 6 maillons faibles travaillés lourd après les lifts, avec un volume accessoire qui baisse avant le test.",
+  why:"Ton squat, ton soulevé de terre et tes mouvements lestés sont limités par le maillon le plus faible de la chaîne : un dos qui s'arrondit, un gainage qui cède, un bassin qui bascule, des ischios qui lâchent. On garde la priorité absolue aux top sets, et on renforce ces maillons lourdement, juste après, sans jamais leur laisser voler la récupération des gros mouvements.",
+  rules:["Top sets : charges en % de ton 1RM (renseigné dans Athlète). Dips et tractions lestés : le % se calcule sur ton poids de corps + le lest. La série principale doit rester propre (RPE 8 à 9) ; au-delà, garde la même charge la semaine suivante.",
+   "Échauffement de chaque séance : 8 à 10 min de pré-activation (dead bug, bird dog, hip airplane, elephant walk, marche latérale) à RPE 5 maximum. Rien qui fatigue le gainage ou les ischios avant un lift lourd.",
+   "Accessoires « maillons faibles » après les lifts : lourds mais propres, RPE 7 à 8,5, jamais à l'échec sur le dos (extensions, QL, good morning). L'échec est réservé à l'isolation sur machine.",
+   "Pas d'accessoire lourd pour le bas du dos dans les 48 h qui précèdent ta séance de soulevé de terre : c'est pour ça que l'extension unilatérale est le lundi et le QL le jeudi, après le soulevé.",
+   "Semaines 5 et 6 : le volume accessoire baisse d'environ un tiers pour que tu arrives frais au test. C'est voulu : garde l'intensité, pas le volume.",
+   "Si ton top set est 1 point de RPE plus dur que prévu, coupe de moitié les accessoires du bas du dos ce jour-là.",
+   "Douleur au dos ou dans la jambe : applique la règle d'or (2/10 maximum, rien qui descend dans la jambe) et préviens ton coach : on bascule sur les variantes du programme Dos solide le temps qu'il faut.",
+   "Semaine 6 : test des maxis (single à RPE 10, propre). Ensuite, reprise avec les nouveaux 1RM."],
+  cardio:[{mach:"Vélo",dur:20,days:[false,false,true,false,false,true,false]}],steps:8000,kb:["dos-intro","dos-integ","dos-core","dos-ischios","dos-progs"],
+  s:[["Bas A · Squat","Lundi",[["Dead bug","K","Pré-activation : souffle à fond, côtes basses, sans fatigue"],["Hip airplane","K","Par côté, appui sur un rack au début : contrôle la rotation de la hanche"],["Squat barre","F","Respiration et ceinture sur les séries lourdes (85 % et plus)"],["Soulevé de terre roumain barre","S","Barre contre les cuisses, étirement des ischios",null,"3-0-1"],["Bulgarian split squat haltères","A","Par jambe"],["Extension lombaire unilatérale (single-leg back extension)","A","Par jambe. Dos neutre, pousse le talon vers le plafond : fessier + érecteurs. Disque contre la poitrine quand 12 reps passent"],["Relevé de jambes suspendu lesté","A","Rétroversion du bassin en haut, aucun balancement. Sans lest tant que 10 reps strictes ne passent pas"],["Couch stretch avec rétroversion","M","Secondes par côté, en fin de séance"]]],
+     ["Haut A · Développé couché + Tractions","Mardi",[["Face pull","K","Pré-activation des épaules"],["Développé couché barre","F"],["Tractions lestées (pronation)","F","Départ bras tendus, corps gainé en position creuse, menton au-dessus de la barre"],["Développé couché barre prise serrée","S"],["Rowing haltère unilatéral","S"],["Élévation latérale haltères","I"],["L-sit (barres parallèles)","C","Secondes. Jambes tendues ; genoux pliés (tuck) si tu ne tiens pas 20 s"]]],
+     ["Bas B · Soulevé de terre","Jeudi",[["Bird dog lesté","K","Sans lest, 5 s par côté"],["Elephant walk","K","Mains au sol, genoux tendus, alterne les talons"],["Marche latérale élastique","K"],["Soulevé de terre","F","Pousse le sol, barre collée aux tibias, verrouille avec les fessiers sans te cambrer"],["Squat barre avec pause","S","Pause de 2 s en bas, gainage maintenu"],["Nordic hamstring curl","N","Descente de 3 à 5 s, mains prêtes à amortir. Aide d'un élastique si besoin"],["Extension latérale QL (chaise romaine)","A","Par côté. Hanche sur le coussin, descends sur le côté puis remonte au-delà de l'horizontale, sans tourner"],["Suitcase carry (marche valise)","C","Secondes par côté. Lourd : le buste reste vertical"],["Copenhagen plank","C","Secondes par côté. Levier long (pied sur le banc)"]]],
+     ["Haut B · Dips + volume","Vendredi",[["Face pull","K"],["Dips lestés","F","Épaules basses, descends jusqu'à l'épaule au niveau du coude"],["Développé couché barre avec pause","S","Pause de 1 s sur la poitrine"],["Tractions prise neutre lestées","S"],["Chest supported row machine","S"],["Pallof press poulie","A","Par côté. Bras tendus 2 s, rien ne tourne"],["Curl incliné assis haltères","I",null,"A"],["Extension triceps overhead unilatérale poulie","I",null,"A"],["Étirement pigeon actif","M","Secondes par côté"]]]]}
 ];
-const ROLE66={P:"Polyarticulaire principal",S:"Polyarticulaire secondaire",I:"Isolation",C:"Gainage",F:"Mouvement de force (% du 1RM)"};
+const ROLE66={P:"Polyarticulaire principal",S:"Polyarticulaire secondaire",I:"Isolation",C:"Gainage / isométrie (secondes)",F:"Mouvement de force (% du 1RM)",G:"Maintiens de 10 s (McGill)",R:"Contrôle moteur / réathlétisation",J:"Mobilité chargée (très léger)",U:"Haut du corps",M:"Mobilité active (secondes)",K:"Pré-activation",A:"Accessoire maillon faible (lourd)",N:"Excentrique ischios"};
 TBP66.forEach(p=>{ const sc=SC66[p.sc];
   BANK.unshift({id:p.id,name:p.name,cat:"Méthode TB",lvl:p.lvl,split:p.split,nd:p.days.filter(Boolean).length,desc:p.desc,days:p.days.slice(),phases:(p.ph||PH66).slice(),ov:{},tb:p,
-    s:p.s.map(([n,day,ex])=>[n,day,ex.map(([name,role,note,ss])=>{ const wk=sc[role]||sc.I||sc.P; return Object.assign({name,mode:"Auto",weeks:[null,...wk]},note?{note}:{},ss?{ss}:{}); })])}); });
+    s:p.s.map(([n,day,ex])=>[n,day,ex.map(([name,role,note,ss,tempo])=>{ const wk=sc[role]||sc.I||sc.P; return Object.assign({name,mode:"Auto",weeks:[null,...wk]},note?{note}:{},ss?{ss}:{},tempo?{tempo}:{},/^(dos|ml)$/.test(p.sc)&&/^[CM]$/.test(role)?{unit:"s"}:{}); })])}); });
 BANK.sort((a,b)=>(b.cat==="Méthode TB")-(a.cat==="Méthode TB"));
 const method66=()=>{ const id=ST.prog&&ST.prog.method&&ST.prog.method.id; return id?TBP66.find(p=>p.id===id)||null:null; };
 function cardioOf66(p){ const days=(ST.prog&&ST.prog.profile&&ST.prog.profile.days)||p.days; return (p.cardio||[]).map(c=>({mach:c.mach,int:c.int||"LISS",dur:c.dur,days:(c.days==="ses"?days:c.days).map(Boolean),tb66:1})); }
@@ -5300,9 +5371,164 @@ const KB66=[
    <tr><td>Intermédiaire, 4 séances</td><td>Hypertrophie · Haut / Bas 4 j</td><td>Recomposition ou prise propre</td></tr>
    <tr><td>Avancé, objectif muscle</td><td>Hypertrophie avancée 5 j</td><td>Prise propre (+8 %) ou recomposition</td></tr>
    <tr><td>Avancé, objectif force</td><td>Powerbuilding 4 j</td><td>Performance / force</td></tr>
+   <tr><td>Hernie, sciatique, bas du dos qui coince</td><td>Dos solide · Récupération & anti-douleur lombaire 4 j</td><td>Selon l'objectif (recomposition le plus souvent)</td></tr>
+   <tr><td>Avancé qui stagne sur ses maxis (powerbuilding, street lifting)</td><td>Performance · Facteurs limitants 4 j</td><td>Performance / force</td></tr>
    <tr><td>50 ans et plus</td><td>Full body 2-3 j, machines</td><td>50 ans et plus (2 g/kg, 30-40 g par repas)</td></tr></table>
    <p class="small">Le générateur du questionnaire choisit automatiquement le programme selon le niveau, le nombre de séances et l'objectif ; la Banque de programmes → filtre « Méthode TB » les regroupe. Les modèles alimentaires sont dans Suivi → Nutrition.</p>`}
 ];
+// ---------- maillons faibles & dos solide : répertoire d'exercices (niveau 1 rééducation → niveau 3 lourd)
+const LV66=["","Niveau 1 · rééducation, sans douleur","Niveau 2 · renforcement","Niveau 3 · lourd / performance"];
+const xk66=L=>L.map(x=>`<div class="xk66"><div><b>${x.n}</b> <span class="lv80 l${x.l}">${LV66[x.l]}</span></div>
+  <div class="small"><b>🎯 Objectif & transfert :</b> ${x.o}</div><div class="small"><b>🛠️ Exécution & sécurité :</b> ${x.e}</div><div class="small"><b>📋 Dosage :</b> ${x.d}</div></div>`).join("");
+const KBDOS66=[
+ {id:"dos-intro",g:"dos",ic:"🧱",t:"Maillons faibles : pourquoi ton dos (ou ton max) bloque",
+  cli:`<p>Sur un squat, un soulevé de terre, des dips ou des tractions lestées, la force part des jambes ou des bras… mais elle doit <b>traverser le tronc et le bassin</b>. Si un maillon cède, la barre ralentit, la technique se dégrade, et c'est souvent le bas du dos qui encaisse.</p>
+   <p>Six zones reviennent presque toujours :</p>
+   <table class="kb66t"><tr><th>Zone</th><th>Quand elle lâche…</th></tr>
+   <tr><td>🦴 Érecteurs du rachis</td><td>le dos s'arrondit au décollage du soulevé de terre, le buste tombe en sortie de squat</td></tr>
+   <tr><td>🛡️ Sangle abdominale profonde</td><td>le gainage cède sous la barre, balancement aux tractions, bas du dos qui se creuse aux dips</td></tr>
+   <tr><td>↔️ Carré des lombes</td><td>le bassin part d'un côté (« shift ») en remontée de squat, gêne d'un seul côté du bas du dos</td></tr>
+   <tr><td>🦵 Fléchisseurs de hanche (psoas)</td><td>bassin qui bascule en avant au verrouillage, tractions et L-sit sans gainage, hanche avant raide</td></tr>
+   <tr><td>🍑 Fessiers stabilisateurs & rotateurs</td><td>genoux qui rentrent, bassin instable sur une jambe, gêne fessière ou « sciatique » d'origine musculaire</td></tr>
+   <tr><td>🔗 Ischio-jambiers</td><td>le soulevé de terre décolle mal, les hanches remontent trop vite au squat, claquages</td></tr></table>
+   <p>Chaque chapitre ci-dessous te donne 3 exercices, du plus doux (rééducation) au plus lourd. Commence toujours par le niveau où <b>tout est 100 % sans douleur</b>.</p>`,
+  co:`<ul><li><b>Logique « chaîne » :</b> le tronc transmet le moment de force entre hanches et épaules. La rigidité du tronc (co-contraction + pression intra-abdominale) conditionne la force exprimée aux membres ; une perte de rigidité locale = micro-mouvement rachidien sous charge, principal mécanisme de surcharge tissulaire proposé par McGill.</li>
+   <li><b>Diagnostic du maillon :</b> filmer de profil et de face le top set. Indices : perte de neutralité lombaire au décollage (érecteurs/ischios), shift latéral (QL, moyen fessier, asymétrie de hanche), « good morning » en sortie de squat (érecteurs, quadriceps), valgus (moyen fessier/adducteurs), rétroversion en bas (butt wink : mobilité de hanche/cheville plus que faiblesse), antéversion au verrouillage (psoas/droit fémoral courts, gainage).</li>
+   <li><b>Tests terrain :</b> gainage latéral (écart gauche/droite &lt; 5 %, gainage latéral/extension &lt; 0,75, flexion/extension &lt; 1 : repères de McGill), Biering-Sørensen (repère : 90 à 120 s et plus), test de Thomas (fléchisseurs de hanche), single-leg bridge 20 reps, Copenhagen, élévation jambe tendue (SLR) et slump pour séparer raideur musculaire et tension neurale.</li>
+   <li>Ces facteurs ne remplacent pas les lifts : ils ne valent que s'ils corrigent un déficit identifié et sont dosés pour ne pas voler la récupération des top sets.</li></ul>
+   <p class="muted small">Références : McGill S. <i>Low Back Disorders</i>, Human Kinetics ; McGill S. <i>Back Mechanic</i> ; Hayden J.A. et al., Cochrane Database Syst Rev, 2021 (exercice et lombalgie chronique).</p>`},
+ {id:"dos-erect",g:"dos",ic:"🦴",t:"Érecteurs du rachis",
+  cli:`<p>Les érecteurs tiennent ton dos <b>droit sous la charge</b>. On ne cherche pas à les rendre mobiles, mais <b>endurants et forts en position neutre</b>.</p>${xk66([
+   {n:"Bird dog (McGill)",l:1,o:"Endurance des extenseurs et contrôle anti-rotation, presque sans charge sur la colonne. Base de toute reprise.",e:"À quatre pattes, tends bras et jambe opposés, poing serré, talon poussé loin. Le bassin ne bouge pas (imagine un verre d'eau sur le dos). Tiens 10 s.",d:"Pyramide 6-4-2 reps de 10 s par côté (ou 3 × 5), RPE 5-6. Possible tous les jours."},
+   {n:"Extension lombaire isométrique puis dynamique au banc 45° → extension unilatérale",l:2,o:"Force-endurance des érecteurs et du grand fessier en position neutre : c'est elle qui garde ton dos plat en bas du squat et au décollage du soulevé de terre.",e:"Bassin au bord du coussin, dos neutre du début à la fin, le mouvement vient de la hanche. Ne remonte pas au-dessus de l'alignement (pas d'hyperextension). Version unilatérale : une jambe dans le vide.",d:"Isométrique 3 × 20-45 s RPE 6-7 → dynamique 3 × 10-15, tempo 3-1-1, RPE 7-8 → unilatéral 3 × 8-12 par jambe → disque contre la poitrine 3-4 × 6-10 RPE 8."},
+   {n:"Good morning barre",l:3,o:"Force des érecteurs quand le buste est penché sous une grosse charge : transfert direct sur la sortie de squat et le milieu du soulevé de terre.",e:"Barre en position de squat, genoux souples, hanches vers l'arrière jusqu'à ce que le buste approche 45°. Le dos reste neutre : l'amplitude s'arrête où la neutralité s'arrête.",d:"3-4 × 5-8, tempo 3-0-1, RPE 7-8, environ 30 à 50 % du 1RM squat. Jamais à l'échec. Une fois par semaine, loin du soulevé de terre lourd."}])}
+   <p class="small">💡 Le <b>Jefferson curl</b> (enroulement lent avec une charge très légère) travaille la tolérance à la flexion. Il est réservé aux dos qui n'ont pas mal en se penchant, avec 2,5 à 10 kg maximum.</p>`,
+  co:`<ul><li><b>Rôle mécanique :</b> au soulevé de terre et au squat penché, les érecteurs travaillent surtout en isométrie pour contrer le moment de flexion ; leur capacité à rester en isométrie sous fatigue est donc plus importante que leur force concentrique. D'où la priorité à l'endurance (bird dog, isométrie au banc) puis à la force en neutre.</li>
+   <li><b>Endurance et lombalgie :</b> une faible endurance des extenseurs au test de Biering-Sørensen est associée à la lombalgie ; c'est un critère simple à suivre (objectif ≥ 90-120 s).</li>
+   <li><b>Extension isolée :</b> l'extension lombaire isolée (bassin fixé) donne de bons résultats sur la douleur et la fonction dans la lombalgie chronique (Steele et al., PM&amp;R, 2015). En salle, le banc 45° avec bassin calé s'en rapproche.</li>
+   <li><b>Flexion :</b> pas d'association claire entre flexion lombaire pendant le soulevé et lombalgie (Saraceni et al., JOSPT, 2020). La neutralité reste la règle sous charge lourde, mais on ne diabolise pas la flexion : le Jefferson curl très léger développe une tolérance, à condition que la flexion soit indolore (pas en phase aiguë d'une hernie sensible à la flexion).</li>
+   <li><b>Reverse hyper :</b> bonne alternative niveau 2-3 si le banc 45° irrite (charge de compression plus faible, travail fessiers/érecteurs).</li></ul>
+   <p class="muted small">Références : McGill S., <i>Low Back Disorders</i> ; Biering-Sørensen F., Spine, 1984 ; Steele J. et al., PM&amp;R, 2015 ; Saraceni N. et al., J Orthop Sports Phys Ther, 2020.</p>`},
+ {id:"dos-core",g:"dos",ic:"🛡️",t:"Sangle abdominale profonde & transverse",
+  cli:`<p>Le gainage n'est pas « avoir des abdos » : c'est <b>rendre le tronc rigide comme un tube</b> pour que la force passe. On l'entraîne en <b>résistant au mouvement</b> (anti-extension, anti-rotation, anti-inclinaison), puis lourd et dynamique.</p>
+   <p><b>Le bracing (respiration de gainage) :</b> inspire par le ventre en gonflant aussi les flancs et le bas du dos (360°), puis verrouille comme si on allait te donner un coup dans le ventre. Sur les séries lourdes, garde l'air pendant la descente et la remontée.</p>${xk66([
+   {n:"Dead bug + McGill curl-up",l:1,o:"Apprendre à garder le bas du dos immobile pendant que les membres bougent. Base du gainage pour les tractions et les dips.",e:"Dead bug : sur le dos, bras et cuisses à la verticale, bas du dos plaqué ; allonge bras et jambe opposés en soufflant longuement. Curl-up : une jambe pliée, mains sous les lombaires, décolle tête et épaules de 2-3 cm, tiens 10 s, sans enrouler le cou.",d:"Dead bug 3 × 6-10 par côté, lent, RPE 5-6. Curl-up 3 × 5-8 maintiens de 10 s."},
+   {n:"Pallof press + suitcase carry",l:2,o:"Anti-rotation et anti-inclinaison sous charge : exactement ce qu'il faut pour un squat qui ne vrille pas et des tractions lestées stables.",e:"Pallof : debout de profil à la poulie, pousse les mains devant toi, tiens 2 s, rien ne tourne. Carry : un haltère lourd d'un seul côté, marche parfaitement droit.",d:"Pallof 3 × 8-12 par côté. Carry 3 × 20-40 m ou 30 s par côté, 25 à 50 % du poids de corps."},
+   {n:"Roue abdominale, relevé de jambes suspendu lesté, planche RKC",l:3,o:"Gainage lourd et dynamique : rigidité maximale sous un long levier. Transfert : squat et soulevé lourds, position creuse aux tractions, L-sit aux dips.",e:"Roue : à genoux puis debout, le bas du dos ne se creuse jamais, tu reviens en tirant avec les abdos. Planche RKC : coudes sous les épaules, contracte fessiers, cuisses et abdos au maximum, tire les coudes vers les pieds.",d:"Roue 3 × 6-10 RPE 8. Relevé lesté 3 × 6-10 strict. Planche RKC 3 × 10-20 s à contraction maximale."}])}`,
+  co:`<ul><li><b>Pression intra-abdominale (PIA) :</b> le bracing augmente la rigidité du tronc ; la ceinture augmente la PIA et l'activité des obliques sur les séries lourdes. Ceinture conseillée à ≥ 85 % ; apprendre le bracing sans ceinture d'abord.</li>
+   <li><b>Transverse :</b> l'idée d'un déficit d'activation isolé du transverse comme cause de lombalgie (« hollowing ») n'a pas montré de supériorité sur un renforcement global. On préfère le bracing (co-contraction globale) aux consignes de « rentrer le nombril » sous charge.</li>
+   <li><b>Spécificité :</b> anti-extension (dead bug, roue, planche) → squat, soulevé, dips ; anti-rotation et anti-flexion latérale (Pallof, carries) → asymétries, unilatéral, charges pendues à la ceinture ; flexion de hanche avec rétroversion (relevés, L-sit) → tractions strictes et street lifting.</li>
+   <li><b>Compression :</b> les relevés de jambes et sit-ups génèrent des compressions lombaires élevées (activité importante du psoas) : à éviter en phase douloureuse, remplacés par dead bug et curl-up (Juker et al., Med Sci Sports Exerc, 1998).</li>
+   <li><b>Placement :</b> pas de gainage fatigant avant un lift lourd (un tronc fatigué gaine moins bien) : dead bug/bird dog en activation, gainage lourd après les lifts.</li></ul>
+   <p class="muted small">Références : McGill S., <i>Low Back Disorders</i> ; Juker D. et al., Med Sci Sports Exerc, 1998 ; Lander J.E. et al., Med Sci Sports Exerc, 1992 (ceinture et PIA).</p>`},
+ {id:"dos-ql",g:"dos",ic:"↔️",t:"Carré des lombes (QL)",
+  cli:`<p>Le carré des lombes relie le bassin aux côtes de chaque côté. Il <b>empêche ton tronc de pencher sur le côté</b> et stabilise le bassin quand tu es sur une jambe ou que la charge est asymétrique. Une gêne d'un seul côté du bas du dos vient souvent de là.</p>${xk66([
+   {n:"Gainage latéral (side plank McGill)",l:1,o:"Endurance du QL et des obliques avec très peu de compression sur la colonne.",e:"Sur l'avant-bras, coude sous l'épaule, ligne droite tête-bassin-pieds (genoux au sol au début). Ne laisse pas le bassin tomber ni partir en arrière.",d:"3 × 10-30 s par côté (ou pyramide de maintiens de 10 s), RPE 5-7. Objectif : 45 à 60 s par côté, écart gauche/droite < 5 %."},
+   {n:"Suitcase carry & suitcase deadlift",l:2,o:"Résister à l'inclinaison sous une charge lourde d'un seul côté : stabilité frontale du squat, soulevé de terre, charges lestées.",e:"Un haltère ou kettlebell d'un côté, épaules à l'horizontale, buste vertical. Suitcase deadlift : charge à côté du pied, descends et remonte sans pencher.",d:"Carry 3 × 20-30 m par côté, lourd. Suitcase deadlift 3 × 6-8 par côté, RPE 7-8."},
+   {n:"Extension latérale QL à la chaise romaine",l:3,o:"Renforcement dynamique et lesté du QL et des obliques : pour les squats et soulevés lourds qui « shiftent », et le street lifting (charges pendues à la ceinture).",e:"De profil sur la chaise romaine, hanche calée sur le coussin, pieds bloqués. Descends en inclinaison latérale contrôlée, remonte au-delà de l'horizontale sans tourner le buste.",d:"3 × 8-12 par côté, tempo 2-1-2, RPE 7-8. Lest contre la poitrine quand 12 reps passent."}])}`,
+  co:`<ul><li><b>Rôle :</b> stabilisateur frontal majeur du rachis lombaire (McGill le classe parmi les stabilisateurs les plus importants pour le contrôle latéral) ; actif dans les tâches asymétriques et la marche en charge.</li>
+   <li><b>Shift au squat :</b> d'abord exclure une cause de hanche (asymétrie de rotation, douleur unilatérale, mobilité de cheville) avant d'accuser le QL. Le shift est souvent un évitement de la douleur ou une asymétrie de hanche ; l'extension latérale renforce, mais le travail unilatéral (split squat, single-leg RDL) corrige souvent davantage.</li>
+   <li><b>Douleur aiguë :</b> le QL est fréquemment en défense (spasme protecteur). Pas d'étirement agressif en phase aiguë ; gainage latéral court et respiration d'abord.</li>
+   <li><b>Ratios :</b> asymétrie de gainage latéral &gt; 5 % = signal à corriger (repère clinique de McGill).</li></ul>
+   <p class="muted small">Références : McGill S., <i>Low Back Disorders</i> ; McGill S. et al., Arch Phys Med Rehabil, 1999 (endurance du tronc).</p>`},
+ {id:"dos-psoas",g:"dos",ic:"🦵",t:"Fléchisseurs de hanche (psoas-iliaque)",
+  cli:`<p>Le psoas monte la cuisse et participe au maintien du bassin. Assis toute la journée, il devient souvent <b>raide et faible en même temps</b> : on l'étire en ouverture de hanche et on le renforce là où il est seul à travailler, <b>genou au-dessus de la hanche</b>.</p>${xk66([
+   {n:"Marche psoas allongé (psoas march)",l:1,o:"Renforcer le psoas en flexion de hanche au-delà de 90° avec le bassin et le dos immobiles, sans charge sur la colonne.",e:"Sur le dos, élastique autour des pieds, bas du dos plaqué. Monte un genou vers la poitrine contre l'élastique, tiens 2 s, l'autre jambe reste tendue.",d:"3 × 8-10 par jambe, RPE 6."},
+   {n:"Élévation de genou isométrique debout + couch stretch avec rétroversion",l:2,o:"Force du psoas en course interne et longueur de l'avant de la hanche : moins de bassin qui bascule en avant au verrouillage du soulevé de terre.",e:"Debout, monte un genou au-dessus de la hanche sans pencher en arrière, tiens. Couch stretch : genou au sol contre un mur, serre le fessier et rentre le bassin : l'étirement doit être devant la hanche, jamais dans le dos.",d:"Isométrie 3 × 10-20 s par jambe. Couch stretch 2 × 45-60 s par côté, en fin de séance ou les jours de repos."},
+   {n:"Relevé de genoux puis de jambes suspendu → L-sit",l:3,o:"Flexion de hanche forte avec rétroversion : tractions strictes sans balancement, dips gainés, base du street lifting.",e:"Suspendu, enroule le bassin pour monter les genoux (puis les jambes tendues) sans élan. L-sit aux barres parallèles : épaules basses, jambes tendues à l'horizontale.",d:"Relevés 3 × 8-12 stricts (lest quand 12 passent). L-sit 3 × 10-30 s cumulés."}])}`,
+  co:`<ul><li><b>Fonction :</b> le psoas est avant tout un fléchisseur de hanche ; son rôle de stabilisateur lombaire est modeste. Il est le seul fléchisseur efficace au-delà de ~90° de flexion de hanche : d'où le travail genou au-dessus de la hanche.</li>
+   <li><b>« Psoas raide = lombalgie » :</b> lien faible dans la littérature. On traite la raideur (test de Thomas positif, antéversion au verrouillage) quand elle limite l'extension de hanche, pas par principe. Le couch stretch avec rétroversion cible psoas et droit fémoral sans mettre la lombaire en extension.</li>
+   <li><b>Compression :</b> forte activité du psoas = forte compression lombaire (Juker et al., 1998 ; Santaguida &amp; McGill, J Biomech, 1995). En phase douloureuse : psoas march et isométrie debout, pas de relevés de jambes tendues.</li>
+   <li><b>Street lifting :</b> le hollow body et le L-sit conditionnent la qualité des tractions et dips lestés (moins de balancement = moins de perte d'énergie, charge qui pend plus stable).</li></ul>
+   <p class="muted small">Références : Santaguida P.L. &amp; McGill S.M., J Biomech, 1995 ; Juker D. et al., Med Sci Sports Exerc, 1998.</p>`},
+ {id:"dos-hanche",g:"dos",ic:"🍑",t:"Fessiers stabilisateurs & rotateurs de hanche",
+  cli:`<p>Le moyen et le petit fessier tiennent ton bassin à l'horizontale et tes genoux dans l'axe ; le piriforme et les rotateurs externes contrôlent la rotation de la hanche. Faibles, ils laissent les genoux rentrer au squat et le bassin tanguer en unilatéral, et le bas du dos compense.</p>${xk66([
+   {n:"Clamshell élastique & marche latérale élastique",l:1,o:"Réveiller le moyen fessier et les rotateurs externes, sans aucune charge sur le dos. Parfait en échauffement.",e:"Clamshell : sur le côté, genoux pliés, élastique au-dessus des genoux, ouvre le genou du dessus sans que le bassin roule en arrière. Marche latérale : demi-squat, pas courts, genoux qui poussent vers l'extérieur.",d:"2-3 × 12-20 par côté, RPE 6-7."},
+   {n:"Pigeon actif & hip airplane",l:2,o:"Mobilité active en rotation et contrôle du bassin sur une jambe : squat profond plus confortable, unilatéral stable.",e:"Pigeon actif : jambe avant pliée devant toi, pousse le genou dans le sol 5 s, relâche et va un peu plus loin. Hip airplane : sur une jambe, buste penché, ouvre puis ferme le bassin lentement en gardant l'équilibre (appui sur un rack au début).",d:"Pigeon 2 × 30-60 s par côté avec 3 à 5 contractions. Hip airplane 2-3 × 5-6 lents par côté."},
+   {n:"Abduction hanche machine lourde & Copenhagen plank",l:3,o:"Force frontale de la hanche (abducteurs et adducteurs) : genoux qui tiennent au squat lourd, sumo, et moins de blessures à l'aine.",e:"Abduction : buste légèrement penché en avant, contrôle le retour. Copenhagen : gainage latéral avec la jambe du dessus sur un banc (genou posé = levier court, pied posé = levier long), monte le bassin.",d:"Abduction 3 × 10-15 RPE 8-9 (l'échec est possible). Copenhagen 3 × 10-30 s par côté."}])}
+   <p class="small">⚠️ Si la douleur descend dans la jambe (sciatique), ne force jamais l'étirement du piriforme : reste sur une version douce, sans fourmillement.</p>`,
+  co:`<ul><li><b>Hanche et lombalgie :</b> une faiblesse des abducteurs/extenseurs de hanche est associée à la lombalgie chez les sportifs (Nadler et al., Clin J Sport Med, 2000) ; le renforcement de hanche est un complément cohérent au travail du tronc.</li>
+   <li><b>Valgus au squat :</b> souvent multifactoriel (mobilité de cheville, contrôle moteur, fatigue). Le moyen fessier et les rotateurs externes aident, mais le cue « genoux vers l'extérieur » et le travail unilatéral sont prioritaires.</li>
+   <li><b>Adducteurs :</b> le grand adducteur est un extenseur de hanche majeur en bas du squat. Le programme Copenhagen réduit les blessures de l'aine (Harøy et al., Br J Sports Med, 2019).</li>
+   <li><b>Piriforme vs radiculopathie :</b> une douleur fessière qui irradie peut être musculaire ou discale. Douleur sous le genou, fourmillements, déficit sensitif ou SLR positif (Lasègue) orientent vers une origine radiculaire : pas d'étirement en tension neurale, avis médical/kiné.</li></ul>
+   <p class="muted small">Références : Nadler S.F. et al., Clin J Sport Med, 2000 ; Harøy J. et al., Br J Sports Med, 2019.</p>`},
+ {id:"dos-ischios",g:"dos",ic:"🔗",t:"Ischio-jambiers : longueur et force",
+  cli:`<p>Les ischios relient le bassin au genou. Trop courts, ils tirent le bassin et arrondissent le dos quand tu te penches ; trop faibles, ils lâchent au décollage du soulevé de terre. On les veut <b>longs et forts en position allongée</b>.</p>${xk66([
+   {n:"Elephant walk (et glissements nerveux si sciatique)",l:1,o:"Gagner de la longueur sans forcer et apprendre à basculer le bassin plutôt qu'arrondir le dos.",e:"Elephant walk : mains au sol, genoux tendus, plie un genou pendant que tu pousses l'autre talon au sol, alterne. Glissement nerveux (sciatique) : assis, tends la jambe en relevant la tête, puis plie la jambe en baissant la tête, sans aucune douleur.",d:"Elephant walk 2 × 10 par côté. Glissements 2 × 10, très doux."},
+   {n:"Soulevé de terre roumain (haltères → barre → unilatéral)",l:2,o:"Force des ischios en position étirée et charnière de hanche parfaite : la base du soulevé de terre et de la sortie du squat.",e:"Genoux souples, hanches vers l'arrière, barre ou haltères contre les cuisses, dos neutre. Descends tant que le dos reste neutre, remonte en poussant les hanches.",d:"3 × 8-10, tempo 3-0-1, RPE 7-8. Unilatéral : 3 × 8 par jambe."},
+   {n:"Nordic hamstring curl / glute-ham raise",l:3,o:"Force excentrique maximale : l'exercice qui protège le mieux des claquages, et des ischios qui ne lâchent pas sous la barre.",e:"À genoux, chevilles bloquées, corps droit de la tête aux genoux : descends le plus lentement possible (3 à 5 s), amortis avec les mains, remonte en t'aidant des mains. Élastique d'assistance au début.",d:"2-3 × 4-6, 1 à 2 fois par semaine, loin des jours de sprint ou de soulevé lourd. GHR : 3 × 6-10."}])}`,
+  co:`<ul><li><b>Prévention :</b> le Nordic réduit d'environ 50 % les blessures des ischios (van der Horst et al., Am J Sports Med, 2015 ; méta-analyse van Dyk et al., Br J Sports Med, 2019). Volume faible suffisant (2 × 4-6, 1 à 2 fois par semaine).</li>
+   <li><b>Hypertrophie :</b> le leg curl assis (ischios en position allongée, hanche fléchie) donne plus d'hypertrophie que le leg curl allongé (Maeo et al., Med Sci Sports Exerc, 2021). Combiner une charnière (RDL) et une flexion de genou assise.</li>
+   <li><b>Raideur vs tension neurale :</b> SLR limité avec sensation d'étirement postérieur de cuisse = composante musculaire ; reproduit par la dorsiflexion de cheville ou la flexion cervicale (slump) = composante neurale → glissements (« sliders ») doux plutôt qu'étirements en tension.</li>
+   <li><b>Placement :</b> pas de Nordic lourd dans les 48 h avant un soulevé de terre lourd (courbatures excentriques importantes les premières semaines) : introduire à faible volume.</li></ul>
+   <p class="muted small">Références : van der Horst N. et al., Am J Sports Med, 2015 ; van Dyk N. et al., Br J Sports Med, 2019 ; Maeo S. et al., Med Sci Sports Exerc, 2021.</p>`},
+ {id:"dos-integ",g:"dos",ic:"🧩",t:"Intégrer ces exercices aux gros lifts",
+  cli:`<p>Les gros mouvements (squat, soulevé de terre, développé couché, dips, tractions) restent la priorité. Les exercices « maillons faibles » se placent autour, <b>sans jamais te fatiguer avant un lift lourd</b>.</p>
+   <table class="kb66t"><tr><th>Moment</th><th>Quoi</th><th>Comment</th></tr>
+   <tr><td>🔆 Échauffement (8-12 min)</td><td>Bird dog, dead bug, curl-up, gainage latéral court, clamshell, marche latérale, hip airplane, elephant walk</td><td>Facile (RPE 5 max) : activer, pas fatiguer</td></tr>
+   <tr><td>🏋️ Juste après le lift principal</td><td>Extensions lombaires lestées, good morning, Nordic, QL, carries lourds, relevés de jambes lestés, roue, Copenhagen</td><td>Lourd et propre, RPE 7 à 8,5, jamais l'échec sur le dos</td></tr>
+   <tr><td>🌙 Fin de séance & jours off</td><td>Couch stretch, pigeon actif, McGill big 3, marche 30 min</td><td>Doux, aucune douleur</td></tr></table>
+   <p><b>Pour progresser sans gêner les gros lifts :</b></p>
+   <ul><li>Passe au niveau suivant quand tu réussis le haut de la fourchette 2 séances de suite, sans douleur et avec la même technique.</li>
+   <li>Dans l'ordre : plus d'amplitude → plus de durée ou de reps → tempo plus lent → plus de charge → levier plus long.</li>
+   <li>Pas d'exercice lourd pour le bas du dos dans les 2 jours avant ta séance de soulevé de terre.</li>
+   <li>Quand les gros lifts deviennent très lourds (fin de cycle, test), baisse le volume des accessoires d'un tiers environ.</li></ul>`,
+  co:`<h4>Associations par jour</h4>
+   <ul><li><b>Jour squat :</b> érecteurs (extension unilatérale/lestée), psoas (relevés, L-sit), adducteurs ; activation : dead bug, hip airplane.</li>
+   <li><b>Jour soulevé de terre :</b> ischios excentriques (Nordic) après le lift, QL, carries lourds ; activation : bird dog, elephant walk, marche latérale.</li>
+   <li><b>Jours haut :</b> L-sit/hollow (tractions, dips), Pallof, carries légers ; aucun travail lombaire lourd la veille d'un soulevé.</li></ul>
+   <h4>Budget de fatigue lombaire</h4>
+   <ul><li>Le bas du dos est commun au squat, au soulevé, au good morning, aux rowings penchés : compter environ 6 à 10 séries dures « lombaires » par semaine hors lifts principaux, et moins si squat et soulevé sont lourds la même semaine.</li>
+   <li>Ordre de priorité de récupération : top sets &gt; back-off &gt; accessoires maillons faibles &gt; isolation. Si quelque chose doit sauter, c'est dans cet ordre inverse.</li>
+   <li>Autorégulation : top set à +1 RPE par rapport au prévu, ou vitesse nettement plus lente → accessoires lombaires ÷ 2 ce jour-là.</li></ul>
+   <h4>Règles de progression codées dans les programmes</h4>
+   <ul><li>Accessoires en double progression, RPE 7 → 8,5 sur 4 semaines, puis volume −30 à −40 % en réalisation/test (programme Performance, S5-S6).</li>
+   <li>Isométries : +5 s par semaine jusqu'à 30-45 s, puis lest ou levier plus long.</li>
+   <li>Échec autorisé seulement sur machine (abduction, leg curl), jamais sur les charnières ni les extensions lombaires.</li></ul>
+   <p class="muted small">Logique de gestion de la fatigue inspirée des modèles de périodisation par blocs (Issurin V., Sports Med, 2010) et de l'autorégulation par RPE (Helms E. et al., Strength Cond J, 2016).</p>`},
+ {id:"dos-douleur",g:"dos",ic:"🚦",t:"Douleur, hernie, sciatique : la règle d'or",
+  cli:`<p><b>On ne s'entraîne pas « à travers » la douleur, on s'entraîne autour.</b> Le but : trouver pour chaque exercice la version qui passe à 100 %, puis la faire progresser.</p>
+   <table class="kb66t"><tr><th>Douleur (0 à 10)</th><th>Que faire</th></tr>
+   <tr><td>🟢 0 à 2</td><td>Continue : c'est la zone d'entraînement.</td></tr>
+   <tr><td>🟡 3 à 4</td><td>Acceptable seulement si elle disparaît à la fin de la série et n'est pas pire le lendemain matin. Sinon, régresse.</td></tr>
+   <tr><td>🔴 5 et plus, ou qui augmente de série en série</td><td>Stop : passe à une version plus douce.</td></tr></table>
+   <p><b>Sciatique :</b> si la douleur <b>descend</b> dans la jambe, ou si tu as des fourmillements ou un engourdissement, arrête l'exercice immédiatement, même si c'est léger. Si au contraire la douleur <b>remonte</b> vers le bas du dos et quitte la jambe, c'est bon signe.</p>
+   <p><b>Comment trouver ta version sans douleur</b>, dans cet ordre :</p>
+   <ol><li><b>L'amplitude</b> : squat sur une box, soulevé de terre depuis des blocs, descendre moins bas.</li>
+   <li><b>La variante</b> : belt squat ou goblet squat plutôt que barre sur le dos, haltères plutôt que barre.</li>
+   <li><b>Le tempo</b> : plus lent et contrôlé.</li>
+   <li><b>La charge</b> : −20 %.</li>
+   <li><b>Le volume</b> : moins de séries.</li></ol>
+   <p>Et chaque jour : <b>marche</b>. Une marche régulière fait partie des meilleurs remèdes contre les rechutes de mal de dos.</p>
+   <div class="alert x small"><b>Consulte un médecin sans attendre</b> si : perte de contrôle des urines ou des selles, insensibilité entre les cuisses, perte de force dans une jambe (pied qui « tombe »), douleur la nuit sans bouger, fièvre, chute ou choc, perte de poids inexpliquée. Ton coach adapte l'entraînement, il ne pose pas de diagnostic.</div>`,
+  co:`<ul><li><b>Modèle de surveillance de la douleur</b> (pain monitoring model : Thomeé, Phys Ther, 1997 ; Silbernagel et al., Am J Sports Med, 2007) : douleur ≤ 5/10 tolérée en tendinopathie, mais pour le rachis on resserre le seuil à 2-3/10 et on ajoute le critère du lendemain matin (retour au niveau de base sous 24 h).</li>
+   <li><b>Centralisation / périphéralisation :</b> la périphéralisation (douleur qui descend) est un critère d'arrêt absolu ; la centralisation est un marqueur pronostique favorable.</li>
+   <li><b>Préférence directionnelle</b> (méthode McKenzie) : si l'extension soulage (fréquent dans la hernie postéro-latérale), privilégier extensions et isométries, retirer temporairement la flexion chargée (Jefferson curl, sit-ups, RDL profond) ; si la flexion soulage (sténose, facettes), l'inverse. Les exercices adaptés à la préférence directionnelle donnent de meilleurs résultats (Long A. et al., Spine, 2004).</li>
+   <li><b>Pas d'interdiction définitive :</b> la tolérance aux positions (flexion comprise) se reconstruit progressivement ; le but final est un dos robuste, pas un dos protégé à vie.</li>
+   <li><b>Marche :</b> un programme de marche progressive réduit les récidives de lombalgie (Pocovi N.C. et al., Lancet, 2024, essai WalkBack).</li>
+   <li><b>Aucun exercice n'est supérieur</b> pour la lombalgie chronique (Hayden et al., Cochrane, 2021) : la meilleure option est celle qui est tolérée et qu'on fait progresser.</li>
+   <li><b>Drapeaux rouges</b> (syndrome de la queue de cheval, déficit moteur progressif, signes systémiques) : orientation médicale immédiate, pas d'entraînement. Radiculopathie confirmée : travailler avec le médecin ou le kiné du client.</li></ul>
+   <p class="muted small">Références : Thomeé R., Phys Ther, 1997 ; Silbernagel K.G. et al., Am J Sports Med, 2007 ; Long A. et al., Spine, 2004 ; Pocovi N.C. et al., Lancet, 2024 ; Hayden J.A. et al., Cochrane, 2021.</p>`},
+ {id:"dos-progs",g:"dos",ic:"🗂️",t:"Les deux programmes : Dos solide et Performance",
+  cli:`<p><b>🩹 Dos solide · Récupération & anti-douleur lombaire (6 semaines, 4 séances)</b> : pour une hernie, une sciatique ou un bas du dos qui coince souvent. On supprime la douleur, on reconstruit la stabilité (McGill big 3, hanche, unilatéral) et on réintroduit belt squat, goblet squat, soulevé de terre roumain léger et Jefferson curl très léger. Marche tous les jours.</p>
+   <p><b>🚀 Performance · Facteurs limitants (6 semaines, 4 séances)</b> : pour monter tes maxis au squat, soulevé de terre, développé couché, dips et tractions lestés. Top sets en pourcentage de ton 1RM, puis les 6 maillons faibles travaillés lourd, et un test en semaine 6.</p>
+   <p><b>Passer de Dos solide à Performance :</b></p>
+   <ul><li>2 semaines sans douleur au-dessus de 2/10, et plus aucune douleur dans la jambe ;</li>
+   <li>gainage latéral 45 s par côté, bird dog 10 × 10 s sans bouger le bassin ;</li>
+   <li>goblet squat et soulevé de terre roumain 3 × 8 à RPE 8 sans gêne, ni pendant ni le lendemain ;</li>
+   <li>tousser ou éternuer ne fait plus mal.</li></ul>
+   <p>Ensuite, on reprend la barre à 50-60 % de tes anciennes charges (5 × 5 faciles) avant de lancer le programme Performance.</p>`,
+  co:`<table class="kb66t"><tr><th></th><th>A · Dos solide</th><th>B · Performance</th></tr>
+   <tr><td>Durée</td><td>6 sem. (3 fondation + 3 réintroduction)</td><td>6 sem. (accumulation, transmutation, réalisation, test)</td></tr>
+   <tr><td>Lifts</td><td>Belt squat, goblet squat, RDL haltères, Jefferson curl, haut du corps poitrine appuyée</td><td>Squat, soulevé, développé couché, dips et tractions lestés en % du 1RM</td></tr>
+   <tr><td>Intensité</td><td>RPE 6 → 8, échec interdit sur bas du corps</td><td>Top set 80 → 92 % puis single RPE 10 ; back-off −8 à −10 %</td></tr>
+   <tr><td>Maillons faibles</td><td>Niveaux 1-2, McGill big 3 avant chaque séance du bas</td><td>Niveaux 2-3 après les lifts, pré-activation niveau 1</td></tr>
+   <tr><td>Cardio</td><td>Marche 30 min/jour</td><td>Vélo 2 × 20 min zone 2</td></tr></table>
+   <ul><li>Après A : si les critères de passage ne sont pas remplis, refaire les semaines 4 à 6 avec des variantes plus chargées plutôt que forcer la barre.</li>
+   <li>Après B : enchaîner sur Powerbuilding 4 j avec les nouveaux 1RM, en gardant 2 accessoires maillons faibles par séance du bas.</li>
+   <li>Les deux programmes sont dans la Banque de programmes → « Méthode TB ».</li></ul>`}
+];
+KB66.push(...KBDOS66);
 // ---------- modèles alimentaires par profil (individualisés ensuite avec le questionnaire du client)
 const NM66=[
  {id:"ventre",ic:"🔥",name:"Perte de ventre · homme actif",adj:-20,pk:2,lk:0.8,rest:0.85,meals:"3 repas + 1 collation",steps:8000,
@@ -5348,7 +5574,7 @@ const NM66=[
 ];
 function nmRec66(){ const d=(X10.obCid===CUR&&X10.ob&&X10.ob.data)||{}, age=parseInt(d.age)||null, m=method66();
   if(d.diet==="Vegan") return "vegan"; if(d.diet==="Végétarien") return "vege";
-  if(m&&m.id==="tb-pb4") return "force";
+  if(m&&(m.id==="tb-pb4"||m.id==="tb-ml4")) return "force";
   if(d.nobj==="Prendre du muscle") return "prise"; if(d.nobj==="Maintenir / recomposition") return "recompo";
   if(age&&age>=50) return "senior"; if(d.sex==="Femme"&&/^Perdre/.test(d.nobj||"")) return "femme";
   if(d.meals==="3 repas"&&/^Perdre/.test(d.nobj||"")) return "charge";
@@ -5393,7 +5619,7 @@ function vKB66(){ const co=coach()&&KBS66.v==="co";
   if(coach()) h+=`<div class="row" style="margin:4px 0 8px"><button class="chip ${co?"on":""}" data-act="kb66-v" data-v="co">Version coach</button><button class="chip ${co?"":"on"}" data-act="kb66-v" data-v="cli">Version client</button></div>`;
   h+=`<p class="muted small">${co?"Ta théorie complète : principes, règles chiffrées appliquées par l'app, sources. Tes clients voient la version simplifiée.":"Les principes derrière ton programme et ton plan alimentaire. Pas besoin de tout lire d'un coup : un chapitre à la fois."}</p>`;
   const p=method66(); if(p&&CUR&&!co) h+=`<div class="alert ok small">Ton programme : <b>${esc(p.name)}</b>. Les règles de progression sont dans l'onglet Semaine (📘 Ma méthode de progression).</div>`;
-  h+=KB66.map(c=>`<details class="card kb66" id="kb66-${c.id}" ${KBS66.open===c.id?"open":""}><summary><b>${c.ic} ${esc(c.t)}</b></summary><div class="kbb66">${c.cli}${co?`<div class="kbco66"><div class="muted small" style="margin-bottom:4px">🎓 Pour le coach</div>${c.co}</div>`:""}</div></details>`).join("");
+  h+=KB66.map((c,i)=>(c.g&&c.g!==(KB66[i-1]||{}).g?`<h3 class="kbg66">🧱 Dos solide & maillons faibles</h3><p class="muted small">${co?"Répertoire d'exercices par zone (rééducation → lourd), intégration aux lifts, gestion de la douleur et les deux trames de programmation.":"Renforcer les 6 zones qui protègent ton dos et débloquent tes gros mouvements."}</p>`:"")+`<details class="card kb66" id="kb66-${c.id}" ${KBS66.open===c.id?"open":""}><summary><b>${c.ic} ${esc(c.t)}</b></summary><div class="kbb66">${c.cli}${co?`<div class="kbco66"><div class="muted small" style="margin-bottom:4px">🎓 Pour le coach</div>${c.co}</div>`:""}</div></details>`).join("");
   h+=`<p class="note">${co?"Contenu rédigé à partir des méta-analyses et consensus actuels (références dans chaque chapitre). Les chiffres sont des repères à individualiser.":"Une question sur un chapitre ? Écris à ton coach dans la messagerie."}</p>`;
   return h; }
 const _render66=render;
@@ -5427,6 +5653,7 @@ const _css66=document.createElement("style"); _css66.textContent=`.mc66 summary,
 .nx66{margin-top:6px;padding:6px 10px;border-radius:8px;background:var(--chalk);font-size:.88rem;line-height:1.35}.nx66.up{border-left:3px solid var(--green)}.nx66.hold{border-left:3px solid var(--yellow)}.nx66.new{border-left:3px solid var(--accent,var(--blue))}.nx66.keep{border-left:3px solid var(--line)}
 .nm66{display:flex;gap:8px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}.nm66 .grow{min-width:0}.nm66.on b{color:var(--accent,var(--blue))}
 .kbb66{line-height:1.5}.kbb66 p,.kbb66 li{font-size:.94rem}.kbb66 ul,.kbb66 ol{padding-left:20px}.kbb66 h4{margin:12px 0 4px}
+.kbg66{margin:18px 0 2px}.xk66{padding:8px 0;border-top:1px solid var(--line)}.xk66 .small{margin-top:3px;line-height:1.4}.xk66 .lv80{margin-left:4px}
 .kbco66{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--chalk)}
 .kb66t{width:100%;border-collapse:collapse;font-size:.88rem;margin:6px 0}.kb66t th,.kb66t td{text-align:left;padding:5px 6px;border-top:1px solid var(--line);vertical-align:top}
 .kbb66 code{font-size:.82rem;overflow-wrap:anywhere}`; document.head.appendChild(_css66);
