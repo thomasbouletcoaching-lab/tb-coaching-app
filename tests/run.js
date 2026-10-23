@@ -184,7 +184,11 @@ const T = {
       L.forEach(b => { applyBank(b.id); recompute(); b.s.forEach(s => s[2].forEach(e => { if (!BASEMAP[e.name]) miss.push(e.name); }));
         M.rows.forEach(r => { for (let w = 1; w <= 12; w++) { const k = r.weeks[w]; if (r.ex && k && k.eff && k.valid === false) bad.push(b.id + ' ' + r.ex + ' S' + w); } }); });
       return { n: L.length, miss, bad, first: BANK[0].cat }; });
-    ok(chk.n === 6 && chk.first === 'Méthode TB', '6 programmes Méthode TB en tête de la banque');
+    ok(chk.n === 8 && chk.first === 'Méthode TB', '8 programmes Méthode TB en tête de la banque');
+    const dos = await p.evaluate(() => { applyBank('tb-dos4'); recompute(); const rows = M.rows.filter(r => r.ex);
+      return { nw: M.phases.filter(Boolean).length, tempo: ST.prog.sessions.some(s => s.ex.some(e => e.tempo === '3-1-1')), timed: rows.filter(r => /Side plank|Couch stretch|Suitcase/.test(r.ex)).every(r => isTimed(r.ex, r.E)), m: ST.prog.method && ST.prog.method.id }; });
+    ok(dos.nw === 6 && dos.m === 'tb-dos4', 'programme Dos solide : 6 semaines, règles rattachées');
+    ok(dos.tempo && dos.timed, 'tempos et exercices en secondes (gainage, étirements, carries) bien repris');
     ok(!chk.miss.length, 'tous les exercices existent dans la bibliothèque' + (chk.miss.length ? ' : ' + chk.miss.join(', ') : ''));
     ok(!chk.bad.length, 'toutes les prescriptions des 12 semaines sont valides' + (chk.bad.length ? ' : ' + chk.bad.slice(0, 3).join(', ') : ''));
     const tp = await p.evaluate(() => [trainProposal({ years: "Moins d'1 an", n_ses: '3', obj: 'Améliorer ma composition corporelle' }).bank.id, trainProposal({ years: 'Plus de 5 ans', n_ses: '4', obj: 'Gagner en force' }).bank.id]);
@@ -225,6 +229,7 @@ const T = {
     await p.evaluate(() => { ST.view = 'plus'; render(); }); await p.waitForTimeout(300);
     await p.click('.menu [data-act="kb66-go"]'); await p.waitForTimeout(400);
     ok((await txt(p, '#app h2')).includes('Méthode & théorie') && (await p.$$('.kb66')).length >= 12, 'chapitres affichés');
+    ok((await p.$$('.kb66[id^="kb66-dos-"]')).length === 10 && !!(await p.$('.kbg66')) && (await p.$$('#kb66-dos-erect .xk66')).length === 3, 'chapitres Dos solide & maillons faibles (10, avec 3 exercices par zone)');
     ok((await p.$$('.kbco66')).length >= 12, 'version coach avec la théorie complète');
     await p.click('[data-act="kb66-v"][data-v="cli"]'); await p.waitForTimeout(200);
     ok(!(await p.$('.kbco66')), 'aperçu de la version client');

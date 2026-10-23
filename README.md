@@ -45,14 +45,17 @@ hébergée **gratuitement** sur GitHub Pages.
 
 ## Méthode TB (programmes, charge conseillée, nutrition, théorie)
 
-- **Banque de programmes → « Méthode TB »** : 6 programmes par profil (reprise/ventre 2 ou 3 j, recomposition 3 j,
-  hypertrophie 4 j, hypertrophie avancée 5 j, powerbuilding 4 j), progression écrite semaine par semaine sur 12 semaines.
+- **Banque de programmes → « Méthode TB »** : 8 programmes par profil (reprise/ventre 2 ou 3 j, recomposition 3 j,
+  hypertrophie 4 j, hypertrophie avancée 5 j, powerbuilding 4 j sur 12 semaines ; « Dos solide » récupération lombaire 4 j
+  et « Performance · Facteurs limitants » 4 j sur 6 semaines), progression écrite semaine par semaine.
   Les règles du programme s'affichent au client (Semaine → « Ma méthode de progression ») et au coach (Programme).
   Le questionnaire propose automatiquement le bon programme.
 - **Charge conseillée** dans le Carnet : double progression calculée depuis la dernière séance (hors exercices en %).
 - **Suivi → Nutrition → « Modèles par profil »** : 10 modèles (objectif, protéines, lipides, repas, pas),
   individualisés avec le questionnaire du client. Le client voit « Pourquoi ce plan ».
 - **📘 Méthode** : base de connaissances, version coach (théorie complète, sources) et version client (principes).
+  Section « Dos solide & maillons faibles » : 6 zones (érecteurs, gainage profond, carré des lombes, psoas, fessiers/rotateurs,
+  ischios) avec 3 exercices chacune (rééducation → lourd), intégration aux gros lifts, règle d'or de la douleur, les deux trames.
   Accès : Plus (coach), Accueil et Compte (client).
 - Le contenu est dans `index.html`, module 66 (`TBP66`, `NM66`, `KB66`).
 
