@@ -7494,7 +7494,7 @@ tr.sw89{position:relative;z-index:2;background:var(--paper)}tr.sw89 td{backgroun
 .sw89bg{position:absolute;z-index:3;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;padding:0;border:0;border-radius:0;background:#d9534f;color:#fff;font:600 1.05rem/1 inherit;min-height:0;box-shadow:none}
 .sw89bg.go{background:#c62828}
 #sw89u{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:1200;display:flex;gap:14px;align-items:center;background:var(--ink);color:var(--paper);padding:10px 14px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
-#sw89u button{background:none;border:0;color:#7fb2ff;font-weight:700;font-size:1rem;min-height:36px}`; document.head.appendChild(st); })();
+#sw89u button{background:none;border:0;color:#7fb2ff;font-weight:700;font-size:1rem;min-height:36px}#sw89u[hidden]{display:none}`; document.head.appendChild(st); })();
 
 // ================= MODULE 90 · SUIVI ALIMENTAIRE PLUS SIMPLE CÔTÉ CLIENT =================
 // Chaque repas : « ✅ Mangé » ou « ✏️ J'ai mangé autre chose » (qui déplie photo, description, autre option, quantités, équivalent), et « Sauté ».
@@ -8233,6 +8233,8 @@ scanStart=async function(){ if(SCAN.ov) return; SCAN.ov=true; let o=document.get
 scanStop=function(){ try{ SCAN.reader&&SCAN.reader.reset(); }catch(e){} SCAN.reader=null; SCAN.on=false; SCAN.ov=false;
   const o=document.getElementById("scan99"); if(o){ o.hidden=true; o.innerHTML=""; } document.body.classList.remove("sc99on"); render(); };
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&SCAN.ov) scanStop(); });
+// bandeau « Série supprimée · Annuler » : se ferme aussi quand on change d'onglet
+document.addEventListener("click",e=>{ if(!(e.target.closest&&e.target.closest("#tabs [data-act], nav.tabs [data-act]"))) return; const u=document.getElementById("sw89u"); if(u&&!u.hidden){ clearTimeout(SW89.ut); u.hidden=true; SW89.undo=null; } },true);
 // produit scanné trouvé : il rejoint aussi la base d'aliments (s'il n'y est pas déjà), pour être retrouvé par la recherche
 const _offLookup99=offLookup;
 offLookup=async function(code){ const L=NU.logs[NU.day], n0=L&&L.x?L.x.length:0; await _offLookup99(code); const L2=NU.logs[NU.day], it=L2&&L2.x&&L2.x.length>n0?L2.x[L2.x.length-1]:null;

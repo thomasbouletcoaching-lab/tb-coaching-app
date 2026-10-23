@@ -655,6 +655,15 @@ const T = {
     ok((await p.evaluate(() => document.querySelector('#fi94 svg').getAttribute('aria-label'))) === 'Schéma : hinge', 'soulevé de terre : schéma de la famille');
   }, coachPre()),
 
+  'carnet : le bandeau « Série supprimée » disparaît': () => run('client', async (p) => {
+    await p.evaluate(() => swUndo89(() => {})); await p.waitForTimeout(100);
+    ok(await p.evaluate(() => getComputedStyle(document.getElementById('sw89u')).display !== 'none'), 'bandeau affiché après suppression');
+    await p.click('nav.tabs [data-v="nutrition"]'); await p.waitForTimeout(200);
+    ok(await p.evaluate(() => getComputedStyle(document.getElementById('sw89u')).display === 'none'), 'bandeau masqué en changeant d\'onglet');
+    await p.evaluate(() => swUndo89(() => {})); await p.waitForTimeout(6300);
+    ok(await p.evaluate(() => getComputedStyle(document.getElementById('sw89u')).display === 'none'), 'bandeau masqué au bout de 6 s');
+  }, clientPre()),
+
 };
 
 (async () => {
