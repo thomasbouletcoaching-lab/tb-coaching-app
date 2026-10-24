@@ -1692,10 +1692,23 @@ async function compressImg(file,max=1600,q=0.8){ if(!/^image\/(jpeg|png|webp)/.t
   const img=await new Promise((ok,ko)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=ko; i.src=URL.createObjectURL(file); });
   const s=Math.min(1,max/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s); c.getContext("2d").drawImage(img,0,0,c.width,c.height);
   return await new Promise(ok=>c.toBlob(b=>ok(b||file),"image/jpeg",q)); }
-async function uploadMedia(file){ if(!CUR) return null; const isV=/^video\//.test(file.type)||/\.(mov|mp4|m4v|webm)$/i.test(file.name||""); if(isV&&file.size>30*1024*1024){ MSG.err="Vidéo trop lourde (30 Mo max) : filme une seule série, en 720p si possible."; toast(MSG.err); return null; }
+// fichiers jamais modifiés (nom unique) : cache d'un an
+const MEDIA_CC="31536000", VID_MAX_MB=20;
+// image d'aperçu d'une vidéo (petit JPEG), pour ne pas charger la vidéo dans les listes
+async function videoPoster(file){ const url=URL.createObjectURL(file); const v=document.createElement("video"); v.muted=true; v.playsInline=true; v.setAttribute("playsinline",""); v.preload="auto"; v.src=url;
+  v.style.cssText="position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none"; document.body.appendChild(v);
+  try{ await new Promise((ok,ko)=>{ v.onloadeddata=ok; v.onerror=()=>ko(new Error("lecture")); setTimeout(()=>ko(new Error("timeout")),4000); });
+    await new Promise(ok=>{ v.onseeked=ok; setTimeout(ok,2500); try{ v.currentTime=Math.min(0.5,(v.duration||1)/2); }catch(e){ ok(); } });
+    if(!v.videoWidth) return null; const sc=Math.min(1,480/Math.max(v.videoWidth,v.videoHeight)), c=document.createElement("canvas"); c.width=Math.round(v.videoWidth*sc); c.height=Math.round(v.videoHeight*sc);
+    c.getContext("2d").drawImage(v,0,0,c.width,c.height); return await new Promise(ok=>c.toBlob(b=>ok(b&&b.size>2000?b:null),"image/jpeg",0.7)); }
+  catch(e){ return null; } finally{ URL.revokeObjectURL(url); v.removeAttribute("src"); v.remove(); } }
+async function uploadMedia(file){ if(!CUR) return null; const isV=/^video\//.test(file.type)||/\.(mov|mp4|m4v|webm)$/i.test(file.name||""); if(isV&&file.size>VID_MAX_MB*1024*1024){ MSG.err=`Vidéo trop lourde (${Math.round(file.size/1048576)} Mo, ${VID_MAX_MB} Mo max) : filme une seule série, en 720p si possible, ou coupe-la dans l'app Photos.`; toast(MSG.err); return null; }
   const blob=isV?file:await compressImg(file); const ext=isV?((file.name.split(".").pop()||"mp4").toLowerCase()):"jpg"; const path=`${CUR}/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
-  const {error}=await SB.storage.from("media").upload(path,blob,{contentType:isV?(file.type||"video/mp4"):"image/jpeg",upsert:false});
-  if(error){ MSG.err="Envoi impossible : "+error.message; toast(MSG.err); return null; } return {path,type:isV?"video":"image"}; }
+  const {error}=await SB.storage.from("media").upload(path,blob,{contentType:isV?(file.type||"video/mp4"):"image/jpeg",upsert:false,cacheControl:MEDIA_CC});
+  if(error){ MSG.err="Envoi impossible : "+error.message; toast(MSG.err); return null; }
+  if(isV){ try{ const pb=await videoPoster(file), pp=path.replace(/\.[^.\/]+$/,"")+"_apercu.jpg";
+      if(pb){ const {error:pe}=await SB.storage.from("media").upload(pp,pb,{contentType:"image/jpeg",upsert:false,cacheControl:MEDIA_CC}); if(!pe){ MSG.urls[pp]=URL.createObjectURL(pb); return {path,type:"video",poster:pp}; } } }catch(e){} }
+  return {path,type:isV?"video":"image"}; }
 async function compressVideo(file,onp,o={}){ const SHORT=o.short||720, BPS=o.bps||2500000; if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream) throw new Error("no recorder");
   const mime=["video/mp4;codecs=avc1","video/mp4","video/webm;codecs=vp9","video/webm"].find(m=>{ try{ return MediaRecorder.isTypeSupported(m); }catch(e){ return false; } }); if(!mime) throw new Error("no mime");
   const url=URL.createObjectURL(file); const v=document.createElement("video"); v.src=url; v.muted=true; v.playsInline=true; v.setAttribute("playsinline",""); v.style.cssText="position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none"; document.body.appendChild(v);
@@ -1711,23 +1724,53 @@ async function compressVideo(file,onp,o={}){ const SHORT=o.short||720, BPS=o.bps
 async function videoDuration(file){ const url=URL.createObjectURL(file); const v=document.createElement("video"); v.preload="metadata"; v.muted=true; v.src=url;
   try{ return await new Promise(ok=>{ v.onloadedmetadata=()=>ok(isFinite(v.duration)?v.duration:0); v.onerror=()=>ok(0); setTimeout(()=>ok(0),8000); }); } finally{ URL.revokeObjectURL(url); } }
 const VID_MAX_S=90, VID_KEEP_DAYS=30;
-async function signUrls(paths){ const need=paths.filter(p=>p&&!MSG.urls[p]); if(need.length){ const {data}=await SB.storage.from("media").createSignedUrls(need,3600*6); (data||[]).forEach(d=>{ if(d.signedUrl) MSG.urls[d.path]=d.signedUrl; else if(d.path) MSG.gone[d.path]=1; }); } }
-const mediaHTML=(m,msg)=>{ const u=MSG.urls[m.path];
-  if(!u) return MSG.gone[m.path]?`<div class="mph">${m.type==="video"?"Vidéo supprimée automatiquement après "+VID_KEEP_DAYS+" jours":"Fichier indisponible"}</div>`:`<div class="mph">…</div>`;
-  if(m.type!=="video") return `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" class="mmedia" alt="Photo"></a>`;
+// URL signées réutilisées (mémoire + localStorage, par compte) : la même URL d'un affichage à l'autre, donc le fichier reste en cache (navigateur + service worker)
+const SU_TTL=7*86400, SU_MIN=864e5, SU={uid:null,m:null,busy:{},fail:{}};
+const suKey=()=>"tb-su:"+(UID||"");
+function suMap(){ if(SU.m&&SU.uid===UID) return SU.m; SU.uid=UID; try{ SU.m=JSON.parse(localStorage.getItem(suKey())||"{}")||{}; }catch(e){ SU.m={}; } return SU.m; }
+function suSave(){ const c=suMap(), now=Date.now(); Object.keys(c).forEach(p=>{ if(!c[p]||c[p].x<now) delete c[p]; }); try{ localStorage.setItem(suKey(),JSON.stringify(c)); }catch(e){} }
+// renvoie true si une nouvelle URL est disponible (sinon pas de nouvel affichage : évite les boucles)
+async function signUrls(paths){ const now=Date.now(), c=suMap(); let got=false;
+  (paths||[]).forEach(p=>{ if(p&&!MSG.urls[p]&&c[p]&&c[p].x-now>SU_MIN){ MSG.urls[p]=c[p].u; got=true; } });
+  const want=[...new Set((paths||[]).filter(p=>p&&!MSG.urls[p]&&!MSG.gone[p]))], wait=want.filter(p=>SU.busy[p]).map(p=>SU.busy[p]);
+  const need=want.filter(p=>!SU.busy[p]&&!(SU.fail[p]>now));
+  if(need.length){ const job=(async()=>{ try{ const {data,error}=await SB.storage.from("media").createSignedUrls(need,SU_TTL); if(error) throw error;
+        (data||[]).forEach(d=>{ if(d.signedUrl){ MSG.urls[d.path]=d.signedUrl; c[d.path]={u:d.signedUrl,x:Date.now()+SU_TTL*1000}; got=true; } else if(d.path){ MSG.gone[d.path]=1; delete c[d.path]; got=true; } }); suSave(); }
+      catch(e){ need.forEach(p=>SU.fail[p]=Date.now()+60000); }
+      finally{ need.forEach(p=>delete SU.busy[p]); } })();
+    need.forEach(p=>SU.busy[p]=job); wait.push(job); }
+  if(wait.length){ await Promise.all(wait); if(want.some(p=>MSG.urls[p]||MSG.gone[p])) got=true; } return got; }
+async function signUrl(path){ await signUrls([path]); if(!MSG.urls[path]) throw new Error(MSG.gone[path]?"fichier introuvable":"réseau indisponible"); return MSG.urls[path]; }
+// déconnexion : on oublie les URL et les médias gardés sur ce téléphone
+function mediaForget(){ try{ Object.keys(localStorage).filter(k=>k.startsWith("tb-su:")).forEach(k=>localStorage.removeItem(k)); }catch(e){} SU.m=null; MSG.urls={}; try{ if(window.caches) caches.delete("tb-media-v1"); }catch(e){} }
+document.addEventListener("click",e=>{ if(e.target.closest&&e.target.closest('[data-act="logout"]')) mediaForget(); },true);
+// vidéo : une vignette (aperçu si disponible) ; rien n'est téléchargé tant qu'on n'appuie pas sur lecture
+const vidTile=(m,cls)=>{ const pu=m.poster&&MSG.urls[m.poster]; return `<button type="button" class="vtile${cls?" "+cls:""}" data-act="vt-play" data-p="${esc(m.path)}" data-c="${esc(cls||"")}" aria-label="Lire la vidéo">${pu?`<img src="${esc(pu)}" alt="" loading="lazy" decoding="async">`:""}<span class="vtp">▶</span></button>`; };
+const mediaPaths=L=>(L||[]).flatMap(x=>[x.path,x.poster]).filter(Boolean);
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="vt-play"]'); if(!b) return; e.preventDefault(); e.stopImmediatePropagation(); const u=MSG.urls[b.dataset.p]; if(!u) return;
+  const v=document.createElement("video"); v.controls=true; v.playsInline=true; v.setAttribute("playsinline",""); v.preload="auto"; v.className=b.dataset.c||""; v.dataset.p=b.dataset.p;
+  v.onerror=()=>{ const d=document.createElement("div"); d.className="mph"; d.textContent="Vidéo indisponible (supprimée ?)"; if(v.isConnected) v.replaceWith(d); };
+  v.src=u; b.replaceWith(v); const pr=v.play(); if(pr&&pr.catch) pr.catch(()=>{}); },true);
+// un nouvel affichage garde les vidéos et vocaux déjà lancés (sinon ils seraient recréés et retéléchargés)
+function keepMedia(fn){ return function(){ const old=[...document.querySelectorAll("video[data-p],audio[data-p]")].filter(x=>!x.paused||x.currentTime>0); const r=fn.apply(this,arguments);
+  old.forEach(x=>{ if(x.isConnected) return; const q=CSS.escape(x.dataset.p), t=document.querySelector(`[data-act="vt-play"][data-p="${q}"],audio[data-p="${q}"]`); if(t) t.replaceWith(x); }); return r; }; }
+const mediaHTML=(m,msg)=>{ const u=MSG.urls[m.path], old=m.type==="video"&&msg&&msg.created_at&&Date.now()-new Date(msg.created_at).getTime()>(VID_KEEP_DAYS+1)*864e5;
+  if(!u||old) return old||MSG.gone[m.path]?`<div class="mph">${m.type==="video"?"Vidéo supprimée automatiquement après "+VID_KEEP_DAYS+" jours":"Fichier indisponible"}</div>`:`<div class="mph">…</div>`;
+  if(m.type==="audio") return `<audio class="maudio" controls preload="none" src="${esc(u)}" data-p="${esc(m.path)}"></audio>`;
+  if(m.type!=="video") return `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" class="mmedia" alt="Photo" loading="lazy" decoding="async"></a>`;
   const fin=msg&&msg.created_at?new Date(new Date(msg.created_at).getTime()+VID_KEEP_DAYS*864e5):null;
   const dl=u+(u.includes("?")?"&":"?")+"download="+encodeURIComponent("video_"+(msg&&msg.created_at?msg.created_at.slice(0,10):"tb")+".mp4");
-  return `<video src="${esc(u)}" controls playsinline preload="metadata" class="mmedia"></video><div class="muted small" style="margin-top:2px"><a href="${esc(dl)}" download>⬇ Enregistrer</a>${fin?` · supprimée le ${fin.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}`:""}</div>`; };
+  return `${vidTile(m,"mmedia")}<div class="muted small" style="margin-top:2px"><a href="${esc(dl)}" download>⬇ Enregistrer</a>${fin?` · supprimée le ${fin.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}`:""}</div>`; };
 // ---------- messagerie
 const iAmCoach=()=>!!ST.isCoach;
 async function msgLoad(){ if(!CUR) return; const cid=CUR; const {data,error}=await SB.from("messages").select("*").eq("client_id",cid).order("created_at").range(0,999);
-  if(error||cid!==CUR) return; MSG.list=data||[]; MSG.cid=cid; await signUrls(MSG.list.flatMap(m=>(m.media||[]).map(x=>x.path))); msgCount(); if(MSG.open) msgRender(); }
+  if(error||cid!==CUR) return; MSG.list=data||[]; MSG.cid=cid; await signUrls(MSG.list.flatMap(m=>mediaPaths(m.media))); msgCount(); if(MSG.open) msgRender(); }
 function msgCount(){ MSG.unread=MSG.list.filter(m=>!m.read_at&&m.from_coach!==iAmCoach()).length; fabRender(); }
 async function msgMarkRead(){ const ids=MSG.list.filter(m=>!m.read_at&&m.from_coach!==iAmCoach()).map(m=>m.id); if(!ids.length) return; const now=new Date().toISOString();
   MSG.list.forEach(m=>{ if(ids.includes(m.id)) m.read_at=now; }); msgCount(); await SB.from("messages").update({read_at:now}).in("id",ids); if(OV.data&&OV.data[CUR]) OV.data[CUR].unread=0; }
 function msgSub(){ if(MSG.chan){ try{ SB.removeChannel(MSG.chan); }catch(e){} MSG.chan=null; } if(!CUR||!SB.channel) return; const cid=CUR;
   MSG.chan=SB.channel("msg-"+cid).on("postgres_changes",{event:"*",schema:"public",table:"messages",filter:`client_id=eq.${cid}`},async p=>{ if(cid!==CUR) return;
-    if(p.eventType==="INSERT"){ if(!MSG.list.some(m=>m.id===p.new.id)){ MSG.list.push(p.new); await signUrls((p.new.media||[]).map(x=>x.path)); if(p.new.from_coach!==iAmCoach()){ if(MSG.open) msgMarkRead(); else toast("💬 Nouveau message"); } } }
+    if(p.eventType==="INSERT"){ if(!MSG.list.some(m=>m.id===p.new.id)){ MSG.list.push(p.new); await signUrls(mediaPaths(p.new.media)); if(p.new.from_coach!==iAmCoach()){ if(MSG.open) msgMarkRead(); else toast("💬 Nouveau message"); } } }
     else if(p.eventType==="UPDATE"){ const i=MSG.list.findIndex(m=>m.id===p.new.id); if(i>=0) MSG.list[i]=p.new; }
     else if(p.eventType==="DELETE"){ MSG.list=MSG.list.filter(m=>m.id!==(p.old&&p.old.id)); }
     msgCount(); if(MSG.open) msgRender(); }).subscribe(); }
@@ -1757,13 +1800,13 @@ const _render4=render; render=function(){ _render4(); fabRender(); };
 // ---------- photos de progression (dans Mesures)
 const POSES=[["face","Face"],["profil","Profil"],["dos","Dos"]];
 function vPhotos(){ const dates=Object.keys(NU.mes).sort(); const withPh=dates.filter(d=>NU.mes[d].ph&&Object.keys(NU.mes[d].ph).length);
-  const paths=withPh.flatMap(d=>Object.values(NU.mes[d].ph)); if(paths.some(p=>!MSG.urls[p])){ signUrls(paths).then(()=>scheduleRender()); }
+  const paths=withPh.flatMap(d=>Object.values(NU.mes[d].ph)); if(paths.some(p=>!MSG.urls[p]&&!MSG.gone[p])){ signUrls(paths).then(ch=>{ if(ch) scheduleRender(); }); }
   const D=NU.mdraft||{d:todayISO()}; const cur=NU.mes[D.d]&&NU.mes[D.d].ph||{};
   let h=`<div class="card"><h3 style="margin-top:0">Photos de progression</h3><p class="muted small">Même lumière, même tenue, même distance, le matin. Les photos sont privées : seuls toi et ton coach les voyez.</p>
-    <div class="phgrid">${POSES.map(([k,l])=>`<label class="phslot">${cur[k]&&MSG.urls[cur[k]]?`<img src="${esc(MSG.urls[cur[k]])}" alt="${l}">`:`<span>＋ ${l}</span>`}<input type="file" accept="image/*" data-ph="${k}" style="display:none"></label>`).join("")}</div>
+    <div class="phgrid">${POSES.map(([k,l])=>`<label class="phslot">${cur[k]&&MSG.urls[cur[k]]?`<img src="${esc(MSG.urls[cur[k]])}" alt="${l}" loading="lazy" decoding="async">`:`<span>＋ ${l}</span>`}<input type="file" accept="image/*" data-ph="${k}" style="display:none"></label>`).join("")}</div>
     <div class="muted small" style="margin-top:4px">Pour le ${frDate(D.d)} (date choisie dans « Nouvelle mesure »)${NU.phUp?" · envoi…":""}</div>`;
   if(withPh.length>=2){ if(!NU.cmpA||!withPh.includes(NU.cmpA)) NU.cmpA=withPh[0]; if(!NU.cmpB||!withPh.includes(NU.cmpB)) NU.cmpB=withPh[withPh.length-1]; const pose=NU.cmpP||"face";
-    const img=d=>{ const p=(NU.mes[d].ph||{})[pose]; return p&&MSG.urls[p]?`<img src="${esc(MSG.urls[p])}" alt="">`:`<div class="mph">—</div>`; };
+    const img=d=>{ const p=(NU.mes[d].ph||{})[pose]; return p&&MSG.urls[p]?`<img src="${esc(MSG.urls[p])}" alt="" loading="lazy" decoding="async">`:`<div class="mph">—</div>`; };
     h+=`<h3>Avant / après</h3><div class="row">${POSES.map(([k,l])=>`<button class="chip ${pose===k?"on":""}" data-act="ph-pose" data-v="${k}">${l}</button>`).join("")}</div>
      <div class="row" style="margin-top:6px"><label class="f">Avant${sel(withPh.map(d=>[d,frDate(d)]),NU.cmpA,`data-cmp="A"`,false)}</label><label class="f">Après${sel(withPh.map(d=>[d,frDate(d)]),NU.cmpB,`data-cmp="B"`,false)}</label></div>
      <div class="cmp"><div>${img(NU.cmpA)}<span>${frDate(NU.cmpA)}</span></div><div>${img(NU.cmpB)}<span>${frDate(NU.cmpB)}</span></div></div>`; }
@@ -1785,7 +1828,7 @@ document.addEventListener("change",async e=>{ const el=e.target;
     if(isV){ const d=await videoDuration(f); if(d>VID_MAX_S+2){ el.value=""; MSG.err=`Vidéo trop longue (${Math.round(d)} s) : envoie une seule série, ${VID_MAX_S} secondes maximum. Tu peux la couper dans l'app Photos avant de l'envoyer.`; msgRender(); return; } }
     if(isV&&f.size>4*1024*1024){ MSG.up="Compression de la vidéo… 0 %"; msgRender();
       try{ f=await compressVideo(f,p=>{ MSG.up=`Compression de la vidéo… ${Math.round(p*100)} %`; const x=document.getElementById("mp-up"); if(x) x.textContent=MSG.up; },{short:640,bps:1200000}); }
-      catch(err){ console.error(err); if(f.size>30*1024*1024){ MSG.up=0; MSG.err="Vidéo trop lourde et compression impossible sur ce téléphone : filme une seule série, en 720p si possible."; msgRender(); return; } } }
+      catch(err){ console.error(err); if(f.size>VID_MAX_MB*1024*1024){ MSG.up=0; MSG.err="Vidéo trop lourde et compression impossible sur ce téléphone : filme une seule série, en 720p si possible."; msgRender(); return; } } }
     MSG.up="Envoi de "+(isV?"la vidéo":"la photo")+"…"; msgRender(); const m=await uploadMedia(f); MSG.up=0; if(m){ MSG.urls[m.path]=URL.createObjectURL(f); await msgSend([m]); } else msgRender(); return; }
   if(el.dataset&&el.dataset.ph&&el.files&&el.files[0]){ const pose=el.dataset.ph; const D=NU.mdraft||(NU.mdraft={d:todayISO()}); NU.phUp=1; render(); const m=await uploadMedia(el.files[0]); NU.phUp=0;
     if(m){ const cur=Object.assign({},NU.mes[D.d]||{}); cur.ph=Object.assign({},cur.ph,{[pose]:m.path}); NU.mes[D.d]=cur; MSG.urls[m.path]=URL.createObjectURL(el.files[0]);
@@ -2182,7 +2225,7 @@ async function deleteAccount(){ const t=prompt("Suppression définitive de ton c
   if((t||"").trim().toUpperCase()!=="SUPPRIMER") return toast("Suppression annulée");
   toast("Suppression en cours…"); const {data,error}=await SB.functions.invoke("delete-account",{body:{}});
   if(error||!data||!data.ok){ let msg=error?error.message:"erreur inconnue"; try{ const j=error&&error.context&&await error.context.json(); if(j&&j.error) msg=j.error; }catch(e){} alert("Suppression impossible : "+msg); return; }
-  try{ await pushOff(); }catch(e){} try{ localStorage.clear(); }catch(e){} alert("Ton compte et tes données ont été supprimés de l'application. Ils disparaîtront des sauvegardes de ton coach au plus tard dans 12 mois."); await SB.auth.signOut().catch(()=>{}); location.reload(); }
+  try{ await pushOff(); }catch(e){} try{ localStorage.clear(); }catch(e){} alert("Ton compte et tes données ont été supprimés de l'application. Ils disparaîtront des sauvegardes de ton coach au plus tard dans 12 mois."); mediaForget(); await SB.auth.signOut().catch(()=>{}); location.reload(); }
 
 // ---------- actions
 document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v; if(!/^x10-/.test(a)) return;
@@ -2263,7 +2306,7 @@ async function recStop(){ if(!REC.on) return; clearInterval(REC.iv); REC.on=fals
   const type=(REC.rec.mimeType||REC.mime||"audio/mp4").split(";")[0], ext=type.includes("mp4")||type.includes("aac")?"m4a":type.includes("ogg")?"ogg":"webm";
   const blob=new Blob(REC.chunks,{type}), path=`${cid}/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
   MSG.up="Envoi du vocal…"; msgRender();
-  const {error}=await SB.storage.from("media").upload(path,blob,{contentType:type,upsert:false}); MSG.up=0;
+  const {error}=await SB.storage.from("media").upload(path,blob,{contentType:type,upsert:false,cacheControl:MEDIA_CC}); MSG.up=0;
   if(error){ MSG.err="Vocal non envoyé : "+error.message; msgRender(); return; }
   if(cid!==CUR) return; await signUrls([path]); await msgSend([{path,type:"audio",dur:Math.round(dur)}]); }
 document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="msg-rec"&&a!=="msg-reccancel") return;
@@ -2302,7 +2345,7 @@ function bilanData(){ const NS=M.NSEM, lastW=Math.max(1,Math.min(M.cw,NS)), d0=i
   const checkins=Object.keys(ST.suivi||{}).filter(w=>+w>=1&&+w<=NS&&Object.values(ST.suivi[w]||{}).some(v=>v!==""&&v!=null)).length;
   return {NS,lastW,d0,d1,planned,done,lifts,meas,photo,nd,elapsed,checkins,ended:today>d1}; }
 function vBilan(){ const B=bilanData(), P=ST.prog, bl=P.bilan||{}, fr=d=>new Date(d+"T12:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
-  if(B.photo&&(!MSG.urls[B.photo.a]||!MSG.urls[B.photo.b])) signUrls([B.photo.a,B.photo.b]).then(()=>scheduleRender());
+  if(B.photo&&[B.photo.a,B.photo.b].some(p=>!MSG.urls[p]&&!MSG.gone[p])) signUrls([B.photo.a,B.photo.b]).then(ch=>{ if(ch) scheduleRender(); });
   let h=`<div class="row noprint" style="margin:8px 0"><button class="ghost sm" data-act="bil-close">‹ Retour</button><span class="grow"></span><button class="sm" data-act="bil-print">Enregistrer en PDF</button></div>
   <div class="bil"><h2 style="margin-bottom:2px">Bilan de cycle · ${esc(P.profile.name||"")}</h2>
   <p class="muted" style="margin-top:0">${fr(B.d0)} → ${fr(B.d1)} · ${B.ended?`${B.NS} semaines`:`bilan intermédiaire, semaine ${B.lastW} sur ${B.NS}`}</p>`;
@@ -2314,7 +2357,7 @@ function vBilan(){ const B=bilanData(), P=ST.prog, bl=P.bilan||{}, fr=d=>new Dat
     <p class="note">1RM estimé à partir des séries notées dans le carnet (charge, répétitions, RPE). C'est une estimation, pas un test maximal.</p>`:`<p class="muted">Pas encore assez de séries notées sur les mouvements suivis.</p>`}</div>`;
   h+=`<div class="card"><h3>Mesures</h3>${B.meas.length?`<table class="bt"><tr><th>Mesure</th><th class="num">Début</th><th class="num">Dernière</th><th class="num">Écart</th></tr>${B.meas.map(m=>`<tr><td>${esc(m.l)}</td><td class="num">${fmtN(m.a)} ${m.u}</td><td class="num">${m.n>1?fmtN(m.b)+" "+m.u:"—"}</td><td class="num">${m.n>1?signed(m.b-m.a,m.u):"—"}</td></tr>`).join("")}</table>
     <p class="note">Première mesure du ${new Date(B.meas[0].da+"T12:00:00").toLocaleDateString("fr-FR")}, dernière du ${new Date(B.meas.reduce((a,m)=>m.db>a?m.db:a,"")+"T12:00:00").toLocaleDateString("fr-FR")}.</p>`:`<p class="muted">Aucune mesure enregistrée pendant ce cycle.</p>`}</div>`;
-  if(B.photo){ const u=MSG.urls; h+=`<div class="card"><h3>Photos (${esc(B.photo.pose)})</h3><div class="ph2"><div>${u[B.photo.a]?`<img src="${esc(u[B.photo.a])}" alt="Début">`:"…"}<div class="muted small">${new Date(B.photo.da+"T12:00:00").toLocaleDateString("fr-FR")}</div></div><div>${u[B.photo.b]?`<img src="${esc(u[B.photo.b])}" alt="Dernière">`:"…"}<div class="muted small">${new Date(B.photo.db+"T12:00:00").toLocaleDateString("fr-FR")}</div></div></div></div>`; }
+  if(B.photo){ const u=MSG.urls; h+=`<div class="card"><h3>Photos (${esc(B.photo.pose)})</h3><div class="ph2"><div>${u[B.photo.a]?`<img src="${esc(u[B.photo.a])}" alt="Début" loading="lazy" decoding="async">`:"…"}<div class="muted small">${new Date(B.photo.da+"T12:00:00").toLocaleDateString("fr-FR")}</div></div><div>${u[B.photo.b]?`<img src="${esc(u[B.photo.b])}" alt="Dernière" loading="lazy" decoding="async">`:"…"}<div class="muted small">${new Date(B.photo.db+"T12:00:00").toLocaleDateString("fr-FR")}</div></div></div></div>`; }
   h+=`<div class="card"><h3>Le mot du coach</h3>${coach()
     ?`<label class="f">Ce qui a bien marché, les points à travailler, le ressenti du cycle<textarea rows="5" data-bil="note">${esc(bl.note||"")}</textarea></label>
       <label class="f" style="margin-top:8px">La suite proposée<textarea rows="3" data-bil="next" placeholder="Ex. objectif et priorités du prochain cycle, ajustements prévus…">${esc(bl.next||"")}</textarea></label>
@@ -2352,7 +2395,7 @@ async function vlLoad(force){ const cid=vlCoachId(); if(!cid||!SB||!navigator.on
   VL.coach=cid; VL.map={}; (data||[]).forEach(r=>VL.map[r.ex]=r); VL.loaded=true; scheduleRender(); }
 const _afterAuth13=afterAuth; afterAuth=async function(s){ VL.loaded=false; VL.map={}; return _afterAuth13(s); };
 const _openClient13=openClient; openClient=async function(id,silent){ await _openClient13(id,silent); vlLoad(); };
-async function vlUrl(r){ if(r.kind==="url") return r.url; const {data,error}=await SB.storage.from("media").createSignedUrl(r.path,3600*6); if(error) throw error; return data.signedUrl; }
+async function vlUrl(r){ if(r.kind==="url") return r.url; return signUrl(r.path); }
 function vlShow(name,url){ let m=document.getElementById("vidmodal"); if(m) m.remove(); m=document.createElement("div"); m.id="vidmodal";
   m.innerHTML=`<div class="vh">${esc(name)}</div><video src="${esc(url)}" controls autoplay playsinline loop></video><button class="ghost" style="margin-top:12px;color:#fff;border-color:#fff" data-act="vl-close">Fermer</button>`;
   document.body.appendChild(m); }
@@ -2385,11 +2428,11 @@ document.addEventListener("change",async e=>{ const el=e.target; if(!el.dataset)
   if(el.dataset.vlonly){ VL.only=el.checked; vlRefresh(); return; }
   if(el.dataset.vlfile===undefined||!el.files||!el.files[0]) return; const ex=el.dataset.vlfile; let f=el.files[0];
   VL.busy=ex; vlRefresh();
-  try{ if(f.size>20*1024*1024){ try{ f=await compressVideo(f); }catch(err){} }
-    if(f.size>50*1024*1024) throw new Error("vidéo trop lourde (50 Mo max) : filme un clip plus court");
+  try{ if(f.size>10*1024*1024){ try{ f=await compressVideo(f); }catch(err){} }
+    if(f.size>30*1024*1024) throw new Error("vidéo trop lourde (30 Mo max) : filme un clip plus court");
     const type=f.type||"video/mp4", ext=(type.split("/")[1]||"mp4").replace("quicktime","mov"), slug=nrm(ex).replace(/[^a-z0-9]+/g,"-").slice(0,40);
     const path=`lib/${UID}/${slug}_${Date.now()}.${ext}`;
-    const {error}=await SB.storage.from("media").upload(path,f,{contentType:type,upsert:false}); if(error) throw error;
+    const {error}=await SB.storage.from("media").upload(path,f,{contentType:type,upsert:false,cacheControl:MEDIA_CC}); if(error) throw error;
     const old=VL.map[ex]; const {data,error:e2}=await SB.from("video_lib").upsert({coach_id:UID,ex,kind:"file",path,url:null,updated_at:new Date().toISOString()}).select().single(); if(e2) throw e2;
     VL.map[ex]=data; if(old&&old.kind==="file"&&old.path) SB.storage.from("media").remove([old.path]).then(()=>{});
     toast("Vidéo ajoutée"); }
@@ -2761,10 +2804,10 @@ async function veExport(){ const v=VE.v, c=veCrop(), o=veOut(c);
   const type=mime.split(";")[0]; const out=new File([new Blob(chunks,{type})],"demo."+(type.includes("mp4")?"mp4":"webm"),{type}); if(!out.size) throw new Error("vidéo vide"); return out; }
 // envoi vers la bibliothèque (même logique que l'ajout direct)
 async function vlUpload(ex,f){ VL.busy=ex; vlRefresh();
-  try{ if(f.size>20*1024*1024){ try{ f=await compressVideo(f); }catch(err){} }
-    if(f.size>50*1024*1024) throw new Error("vidéo trop lourde (50 Mo max) : garde un extrait plus court");
+  try{ if(f.size>10*1024*1024){ try{ f=await compressVideo(f); }catch(err){} }
+    if(f.size>30*1024*1024) throw new Error("vidéo trop lourde (30 Mo max) : garde un extrait plus court");
     const type=f.type||"video/mp4", ext=(type.split("/")[1]||"mp4").replace("quicktime","mov"), slug=nrm(ex).replace(/[^a-z0-9]+/g,"-").slice(0,40), path=`lib/${UID}/${slug}_${Date.now()}.${ext}`;
-    const {error}=await SB.storage.from("media").upload(path,f,{contentType:type,upsert:false}); if(error) throw error;
+    const {error}=await SB.storage.from("media").upload(path,f,{contentType:type,upsert:false,cacheControl:MEDIA_CC}); if(error) throw error;
     const old=VL.map[ex]; const {data,error:e2}=await SB.from("video_lib").upsert({coach_id:UID,ex,kind:"file",path,url:null,updated_at:new Date().toISOString()}).select().single(); if(e2) throw e2;
     VL.map[ex]=data; if(old&&old.kind==="file"&&old.path) SB.storage.from("media").remove([old.path]).then(()=>{}); toast("Vidéo ajoutée"); }
   catch(err){ toast("Envoi impossible : "+err.message); }
@@ -4756,8 +4799,8 @@ document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); i
 
 // ---------- photos des repas
 const phOf62=(L,mi)=>(L.ph||[]).filter(p=>p.mi===mi);
-function phStrip62(L,mi){ const P=phOf62(L,mi); if(!P.length) return ""; const need=P.map(p=>p.p).filter(p=>!MSG.urls[p]&&!MSG.gone[p]); if(need.length) signUrls(need).then(scheduleRender);
-  return `<div class="nph62">${P.map(p=>{ const u=MSG.urls[p.p]; return `<span class="nphi">${u?`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="Photo du repas"></a>`:`<span class="nphx">${MSG.gone[p.p]?"Photo indisponible":"…"}</span>`}<button class="nphd" data-act="nph-del" data-v="${mi}|${esc(p.p)}" aria-label="Supprimer la photo">✕</button></span>`; }).join("")}</div>${NPH.ask&&P.some(p=>p.p===NPH.ask)?`<div class="phask62"><span class="grow">Supprimer cette photo ?</span><button class="sm" data-act="nph-delok" data-v="${mi}|${esc(NPH.ask)}">Supprimer</button><button class="ghost sm" data-act="nph-delno">Annuler</button></div>`:""}`; }
+function phStrip62(L,mi){ const P=phOf62(L,mi); if(!P.length) return ""; const need=P.map(p=>p.p).filter(p=>!MSG.urls[p]&&!MSG.gone[p]); if(need.length) signUrls(need).then(ch=>{ if(ch) scheduleRender(); });
+  return `<div class="nph62">${P.map(p=>{ const u=MSG.urls[p.p]; return `<span class="nphi">${u?`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="Photo du repas" loading="lazy" decoding="async"></a>`:`<span class="nphx">${MSG.gone[p.p]?"Photo indisponible":"…"}</span>`}<button class="nphd" data-act="nph-del" data-v="${mi}|${esc(p.p)}" aria-label="Supprimer la photo">✕</button></span>`; }).join("")}</div>${NPH.ask&&P.some(p=>p.p===NPH.ask)?`<div class="phask62"><span class="grow">Supprimer cette photo ?</span><button class="sm" data-act="nph-delok" data-v="${mi}|${esc(NPH.ask)}">Supprimer</button><button class="ghost sm" data-act="nph-delno">Annuler</button></div>`:""}`; }
 const _nJour62=nJour;
 nJour=function(){ let h=_nJour62(); const {L,t,P}=nDayCtx(); if(!t||!hasMeals(P)) return h;
   let pos=0; t.meals.forEach((m,mi)=>{ const st=L.m&&L.m[mi], o0=m.opts[0]; const ci=h.indexOf('<div class="card meal',pos); if(ci<0) return;
@@ -4775,7 +4818,7 @@ nJour=function(){ let h=_nJour62(); const {L,t,P}=nDayCtx(); if(!t||!hasMeals(P)
 function phInput62(){ let f=document.getElementById("nph-file"); if(!f){ f=document.createElement("input"); f.type="file"; f.accept="image/*"; f.id="nph-file"; f.hidden=true; document.body.appendChild(f);
     f.addEventListener("change",async()=>{ const file=f.files&&f.files[0]; f.value=""; const T=NPH.target; if(!file||!T||!CUR) return; NPH.busy=true; toast("Envoi de la photo…");
       try{ const blob=await compressImg(file,1280,0.75); const path=`${CUR}/repas/${T.d}_${T.mi}_${Date.now()}.jpg`;
-        const {error}=await SB.storage.from("media").upload(path,blob,{contentType:"image/jpeg",upsert:false}); if(error) throw error;
+        const {error}=await SB.storage.from("media").upload(path,blob,{contentType:"image/jpeg",upsert:false,cacheControl:MEDIA_CC}); if(error) throw error;
         const d=T.d; NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); const L=NU.logs[d]; L.m=Object.assign({},L.m); L.ph=(L.ph||[]).concat([{mi:T.mi,p:path,at:new Date().toISOString(),by:coach()?"coach":"client"}]);
         const {t}=nDayCtx(), o=t&&t.meals[T.mi]&&t.meals[T.mi].opts[0];
         if(!L.m[T.mi]&&o&&!coach()) L.m[T.mi]={s:"alt",n:"📷 "+(o.n||"Repas")+" (en photo)",mac:optMac(o),it:planItems62(o),pend:1};
@@ -4894,8 +4937,8 @@ saveCarnet=async function(key){ const v=ST.carnet[key]||{};
   return _saveCarnet64.apply(this,arguments); };
 const _setEditor64=setEditor50;
 setEditor50=function(key,i){ let h=_setEditor64(key,i); const v=ST.carnet[key]||{}, x=(v.sets&&v.sets[i])||{}, V=x.v||[];
-  const need=V.map(m=>m.path).filter(p=>!MSG.urls[p]&&!MSG.gone[p]); if(need.length) signUrls(need).then(scheduleRender);
-  const vids=V.map((m,k)=>{ const u=MSG.urls[m.path]; return `<div class="sv64">${u?`<video src="${esc(u)}" controls playsinline preload="metadata"></video>`:`<div class="mph">${MSG.gone[m.path]?"Vidéo supprimée automatiquement après "+VID_KEEP_DAYS+" jours":"Chargement…"}</div>`}<button class="ghost sm" data-act="sv-del" data-v="${key}|${i}|${k}">Supprimer la vidéo</button></div>`; }).join("");
+  const need=mediaPaths(V).filter(p=>!MSG.urls[p]&&!MSG.gone[p]); if(need.length) signUrls(need).then(ch=>{ if(ch) scheduleRender(); });
+  const vids=V.map((m,k)=>{ const u=MSG.urls[m.path]; return `<div class="sv64">${u?vidTile(m):`<div class="mph">${MSG.gone[m.path]?"Vidéo supprimée automatiquement après "+VID_KEEP_DAYS+" jours":"Chargement…"}</div>`}<button class="ghost sm" data-act="sv-del" data-v="${key}|${i}|${k}">Supprimer la vidéo</button></div>`; }).join("");
   const extra=`<label class="f" style="margin-top:8px">📝 Note sur cette série<textarea class="big64" rows="3" data-sn="${key}|${i}" placeholder="Ex. dernière rep lente, genou qui rentre, très bonne vitesse…">${esc(x.n||"")}</textarea></label>
    ${vids}<div class="row" style="margin-top:6px">${SV64.up===key+"|"+i?`<span class="muted small">${esc(SV64.msg||"Envoi de la vidéo…")}</span>`:`<button class="ghost sm" data-act="sv-take" data-v="${key}|${i}">🎥 ${V.length?"Ajouter une autre vidéo":"Ajouter la vidéo de cette série"}</button>`}</div>
    <div class="muted small">Une seule série par vidéo, ${VID_MAX_S} s maximum. Les vidéos sont supprimées après ${VID_KEEP_DAYS} jours.</div>`;
@@ -4923,9 +4966,9 @@ function svInput64(){ let f=document.getElementById("sv-file"); if(f) return f; 
     const dur=await videoDuration(file); if(dur>VID_MAX_S+2) return toast(`Vidéo trop longue (${Math.round(dur)} s) : une seule série, ${VID_MAX_S} s maximum.`);
     SV64.up=T; SV64.msg="Préparation de la vidéo…"; render();
     try{ if(file.size>4*1024*1024){ try{ file=await compressVideo(file,p=>{ SV64.msg=`Compression… ${Math.round(p*100)} %`; const x=document.querySelector(".sv-msg"); if(x) x.textContent=SV64.msg; },{short:640,bps:1200000}); }
-        catch(err){ if(file.size>30*1024*1024) throw new Error("vidéo trop lourde : filme une seule série, en 720p si possible"); } }
+        catch(err){ if(file.size>VID_MAX_MB*1024*1024) throw new Error(`vidéo trop lourde (${VID_MAX_MB} Mo max) : filme une seule série, en 720p si possible`); } }
       SV64.msg="Envoi de la vidéo…"; render(); const m=await uploadMedia(file); if(!m) throw new Error(MSG.err||"envoi impossible");
-      MSG.urls[m.path]=URL.createObjectURL(file); const c=ensureSets(key); while(c.sets.length<=+i) c.sets.push({}); const x=c.sets[+i]; x.v=(x.v||[]).concat([{path:m.path}]);
+      MSG.urls[m.path]=URL.createObjectURL(file); const c=ensureSets(key); while(c.sets.length<=+i) c.sets.push({}); const x=c.sets[+i]; x.v=(x.v||[]).concat([m.poster?{path:m.path,poster:m.poster}:{path:m.path}]);
       await saveCarnet(key); toast("Vidéo ajoutée à la série "+(+i+1)+" ✅"); }
     catch(err){ toast("Vidéo non envoyée : "+(err.message||err)); }
     SV64.up=null; SV64.msg=""; render(); });
@@ -4934,7 +4977,7 @@ document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); i
   if(a==="sv-take"){ if(SV64.up) return; SV64.target=v; svInput64().click(); return; }
   const [key,i,k]=v.split("|"); if(b.dataset.sure!=="1"){ b.dataset.sure="1"; b.textContent="Confirmer la suppression"; b.classList.remove("ghost"); return; }
   const c=ensureSets(key), x=c.sets[+i]; if(!x||!x.v) return; const m=x.v.splice(+k,1)[0]; if(!x.v.length) delete x.v; saveCarnet(key);
-  if(m) SB.storage.from("media").remove([m.path]).catch(()=>{}); toast("Vidéo supprimée"); render(); },true);
+  if(m) SB.storage.from("media").remove(mediaPaths([m])).catch(()=>{}); toast("Vidéo supprimée"); render(); },true);
 const _css64=document.createElement("style"); _css64.textContent=`
 textarea.big64{width:100%;box-sizing:border-box;min-height:90px;resize:vertical;font-size:16px;line-height:1.4;padding:10px 12px}
 .sv64{margin-top:8px}.sv64 video{width:100%;max-height:60vh;border-radius:10px;background:#000;display:block;margin-bottom:6px}
@@ -5783,11 +5826,11 @@ hxHTML=function(S,w){ const key=hxKey(w,S.s), L=(ST.carnet[key]||{}).list||[], o
     :`<div class="row" style="margin-top:8px"><button class="ghost sm" data-act="hx-open" data-v="${key}">＋ Exercice hors programme</button></div>`;
   return h; };
 function hxSetEditor70(key,li,i){ const x=((ST.carnet[key]||{}).list||[])[li]; const s=x&&x.sets[i]; if(!s) return ""; const t=s.t||[], V=s.v||[];
-  const need=V.map(m=>m.path).filter(p=>!MSG.urls[p]&&!MSG.gone[p]); if(need.length) signUrls(need).then(scheduleRender);
+  const need=mediaPaths(V).filter(p=>!MSG.urls[p]&&!MSG.gone[p]); if(need.length) signUrls(need).then(ch=>{ if(ch) scheduleRender(); });
   return `<div class="edit st50"><div class="row" style="justify-content:space-between"><b>Série ${i+1} : type, note, vidéo</b><button class="ghost sm" data-act="hx-set" data-v="">Fermer</button></div>
     <div class="row" style="gap:6px;margin:6px 0">${Object.entries(TAG50).map(([k,o])=>`<button class="chip ${t.includes(k)?"on":""}" data-act="hx-tag" data-v="${key}|${li}|${i}|${k}">${o.e} ${o.l}</button>`).join("")}</div>
     <label class="f">📝 Note sur cette série<textarea class="big64" rows="3" data-hxn="${key}|${li}|${i}">${esc(s.n||"")}</textarea></label>
-    ${V.map((m,k)=>{ const u=MSG.urls[m.path]; return `<div class="sv64">${u?`<video src="${esc(u)}" controls playsinline preload="metadata"></video>`:`<div class="mph">Chargement…</div>`}<button class="ghost sm" data-act="hx-vdel" data-v="${key}|${li}|${i}|${k}">Supprimer la vidéo</button></div>`; }).join("")}
+    ${V.map((m,k)=>{ const u=MSG.urls[m.path]; return `<div class="sv64">${u?vidTile(m):`<div class="mph">${MSG.gone[m.path]?"Vidéo indisponible":"Chargement…"}</div>`}<button class="ghost sm" data-act="hx-vdel" data-v="${key}|${li}|${i}|${k}">Supprimer la vidéo</button></div>`; }).join("")}
     <div class="row" style="margin-top:6px;gap:6px"><button class="ghost sm" data-act="hx-vid" data-v="${key}|${li}|${i}">🎥 Ajouter la vidéo de cette série</button><button class="ghost sm" data-act="hx-sdel" data-v="${key}|${li}|${i}">🗑 Supprimer cette série</button></div></div>`; }
 const hxGet70=key=>ST.carnet[key]=Object.assign({list:[]},ST.carnet[key]);
 document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||""; if(!/^hx-(set|tag|sdel|vid|vdel|sadd|done)$/.test(a)) return; e.stopImmediatePropagation();
@@ -5798,15 +5841,15 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   else if(a==="hx-done"){ const s=x.sets[+si]; if(s.d) delete s.d; else { s.d=1; startRest(90); } }
   else if(a==="hx-tag"){ const s=x.sets[+si], t=(s.t||[]).slice(), j=t.indexOf(k); if(j>=0) t.splice(j,1); else t.push(k); s.t=t; }
   else if(a==="hx-sdel"){ if(b.dataset.sure!=="1"){ b.dataset.sure="1"; b.textContent="Confirmer la suppression"; return; } x.sets.splice(+si,1); CX70.hset=null; toast("Série supprimée"); }
-  else if(a==="hx-vdel"){ if(b.dataset.sure!=="1"){ b.dataset.sure="1"; b.textContent="Confirmer"; return; } const s=x.sets[+si], m=(s.v||[]).splice(+k,1)[0]; if(s.v&&!s.v.length) delete s.v; if(m) SB.storage.from("media").remove([m.path]).catch(()=>{}); }
+  else if(a==="hx-vdel"){ if(b.dataset.sure!=="1"){ b.dataset.sure="1"; b.textContent="Confirmer"; return; } const s=x.sets[+si], m=(s.v||[]).splice(+k,1)[0]; if(s.v&&!s.v.length) delete s.v; if(m) SB.storage.from("media").remove(mediaPaths([m])).catch(()=>{}); }
   else if(a==="hx-vid"){ hxVideo70(key,+li,+si); return; }
   saveCarnet(key); render(); },true);
 document.addEventListener("change",e=>{ const el=e.target, d=el.dataset||{}; if(d.hxj===undefined&&d.hxn===undefined) return; const [key,li,si]=(d.hxj||d.hxn).split("|"); const o=hxGet70(key), x=o.list[+li]; if(!x) return;
   const val=String(el.value).trim(); if(d.hxj!==undefined){ if(val) x.j=val; else delete x.j; } else { const s=x.sets[+si]; if(val) s.n=val; else delete s.n; } saveCarnet(key); render(); });
 function hxVideo70(key,li,si){ let f=document.getElementById("hxv-file"); if(!f){ f=document.createElement("input"); f.type="file"; f.accept="video/*"; f.id="hxv-file"; f.hidden=true; document.body.appendChild(f); }
   f.onchange=async()=>{ let file=f.files&&f.files[0]; f.value=""; if(!file) return; const dur=await videoDuration(file); if(dur>VID_MAX_S+2) return toast(`Vidéo trop longue (${Math.round(dur)} s)`); toast("Envoi de la vidéo…");
-    try{ if(file.size>4*1024*1024){ try{ file=await compressVideo(file,null,{short:640,bps:1200000}); }catch(err){ if(file.size>30*1024*1024) throw new Error("vidéo trop lourde"); } }
-      const m=await uploadMedia(file); if(!m) throw new Error(MSG.err||"envoi impossible"); MSG.urls[m.path]=URL.createObjectURL(file); const s=hxGet70(key).list[li].sets[si]; s.v=(s.v||[]).concat([{path:m.path}]); await saveCarnet(key); toast("Vidéo ajoutée ✅"); }
+    try{ if(file.size>4*1024*1024){ try{ file=await compressVideo(file,null,{short:640,bps:1200000}); }catch(err){ if(file.size>VID_MAX_MB*1024*1024) throw new Error(`vidéo trop lourde (${VID_MAX_MB} Mo max)`); } }
+      const m=await uploadMedia(file); if(!m) throw new Error(MSG.err||"envoi impossible"); MSG.urls[m.path]=URL.createObjectURL(file); const s=hxGet70(key).list[li].sets[si]; s.v=(s.v||[]).concat([m.poster?{path:m.path,poster:m.poster}:{path:m.path}]); await saveCarnet(key); toast("Vidéo ajoutée ✅"); }
     catch(err){ toast("Vidéo non envoyée : "+(err.message||err)); } render(); };
   f.click(); }
 // ---------- réorganiser (≡ ou bouton) : programme + hors programme
@@ -8523,6 +8566,12 @@ document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.
 
 boot();
 
+// ---------- médias : vignettes vidéo, et vidéos/vocaux en cours gardés d'un affichage à l'autre (à laisser en fin de fichier : enveloppe toutes les versions de render et msgRender)
+{ const st=document.createElement("style"); st.textContent=`.vtile{position:relative;display:flex;align-items:center;justify-content:center;width:100%;max-width:280px;aspect-ratio:3/4;max-height:320px;background:#111;border:0;border-radius:10px;overflow:hidden;padding:0;margin:2px 0 4px;cursor:pointer}
+.sv64 .vtile{max-width:none;max-height:40vh;margin-bottom:6px}
+.vtile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.vtile .vtp{position:relative;width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;padding-left:4px;box-sizing:border-box}`; document.head.appendChild(st); }
+render=keepMedia(render); msgRender=keepMedia(msgRender);
 </script>
 </body>
 </html>
