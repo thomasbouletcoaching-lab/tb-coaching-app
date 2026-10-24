@@ -7181,10 +7181,10 @@ render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ nc
 // Premium : en plus, les outils du coach sur son propre dossier (programme, banque, surcharge auto, plan alimentaire…), la vue par exercice et l'estimateur de repas.
 // Coaching léger : le dossier passe chez le coach (déclencheur « subs_owner_sync »), le client retrouve l'app d'un client coaché.
 const P88={me:null,list:null,busy:false,err:"",chk:null,terms:false,iv:"year",offers:false,filt:"tous",ret:null};
-const PLAN88={free:"Gratuit",premium:"Premium",light:"Coaching léger",coaching:"Coaching"};
+const PLAN88={free:"Gratuit",premium:"App complète",light:"Coaching suivi",coaching:"Coaching complet"};
 const STAT88={active:"actif",trialing:"essai gratuit",past_due:"paiement en retard",canceled:"résilié",incomplete:"paiement non finalisé",unpaid:"impayé"};
 const sub88=()=>(P88.me&&P88.me.sub)||null;
-const price88=()=>Object.assign({premium_month:9.99,premium_year:59.99,light_month:89,coaching:1620,coaching_month:540,trial_days:7},(P88.me&&P88.me.prices)||{});
+const price88=()=>Object.assign({premium_month:19.99,premium_year:119.99,light_month:99,coaching:1620,coaching_month:540,coaching_once:1490,trial_days:7},(P88.me&&P88.me.prices)||{});
 const ready88=()=>!!(P88.me&&P88.me.stripe_ready===true);
 function tier88(){ const s=sub88(); if(!ST.solo) return s&&s.plan==="light"?"light":"coaching";
   if(s&&s.plan==="premium"&&["active","trialing","past_due"].includes(s.status)&&(!s.period_end||new Date(s.period_end).getTime()>Date.now()-3*864e5)) return "premium";
@@ -7216,18 +7216,19 @@ function offers88(ctx){ const P=price88(), t=ctx==="start"?null:tier88(), s=sub8
   const terms=can&&rdy&&t!=="premium"?`<label class="row small" style="gap:8px;align-items:flex-start;margin:8px 0"><input type="checkbox" id="p88-terms" style="width:auto;margin-top:3px" ${P88.terms?"checked":""}><span>J'accepte les <a href="cgv.html#abonnements" target="_blank" rel="noopener">conditions générales de vente</a>. Je demande l'accès immédiat au service et je reconnais perdre mon droit de rétractation une fois l'accès commencé (art. L221-28 du Code de la consommation). Résiliation possible à tout moment, effective à la fin de la période payée.</span></label>`:"";
   const premBtn=!can?(ctx==="start"?`<p class="muted small" style="margin:6px 0 0">Commence gratuitement : l'essai de ${P.trial_days} jours s'active ensuite depuis ton compte.</p>`:""):!rdy?soon:
     `<div class="row" style="gap:6px;margin-top:6px">${[["year",`${fmtE(P.premium_year)} / an`],["month",`${fmtE(P.premium_month)} / mois`]].map(([v,l])=>`<button type="button" class="chip ${P88.iv===v?"on":""}" data-act="p88-iv" data-v="${v}">${l}</button>`).join("")}</div>
-     <button style="margin-top:8px" data-act="p88-buy" data-v="premium">${trial?`Essayer ${P.trial_days} jours gratuitement`:"Passer Premium"}</button>${trial?`<p class="muted small" style="margin:4px 0 0">Aucun prélèvement pendant l'essai. Résiliable en 2 clics avant la fin.</p>`:""}`;
-  const lightBtn=!can?"":!rdy?soon:`<button class="ghost" style="margin-top:8px" data-act="p88-buy" data-v="light">Choisir le coaching léger</button>`;
+     <button style="margin-top:8px" data-act="p88-buy" data-v="premium">${trial?`Essayer ${P.trial_days} jours gratuitement`:"Passer à l'App complète"}</button>${trial?`<p class="muted small" style="margin:4px 0 0">Aucun prélèvement pendant l'essai. Résiliable en 2 clics avant la fin.</p>`:""}`;
+  const lightBtn=!can?"":!rdy?soon:`<button class="ghost" style="margin-top:8px" data-act="p88-buy" data-v="light">Choisir le Coaching suivi</button>`;
   let h=terms;
   h+=card("free","Gratuit","0 €",["Ton programme de départ, généré à partir de ton questionnaire","Carnet d'entraînement, chronos de récupération, records","Suivi du poids et des mensurations","Journal alimentaire simple"],ctx==="start"?"":"");
-  h+=card("premium","Premium",`${fmtE(P.premium_month)} / mois`,[`Tout le gratuit, et l'onglet « Programme » pour gérer toi-même ton entraînement`,"Modifier ou régénérer ton programme, banque de programmes, surcharge progressive automatique","Vue par exercice : tout le travail prévu semaine par semaine","Plan alimentaire calculé, estimateur de repas (texte ou voix)",`ou ${fmtE(P.premium_year)} / an · ${P.trial_days} jours d'essai`],premBtn,true);
-  h+=card("light","Coaching léger",`${fmtE(P.light_month)} / mois`,["Thomas construit et ajuste ton programme et ton plan","Messagerie avec ton coach dans l'app","Un bilan régulier de ta progression","Sans engagement : résiliable chaque mois"],lightBtn);
-  h+=card("coaching","Coaching",`${fmtE(P.coaching_month||540).replace(",00","")} / mois`,["Suivi complet et personnalisé sur 12 semaines",`3 mensualités, soit ${fmtE(P.coaching||1620).replace(",00","")} au total`,"Ajustements réguliers, cadre méthodologique clair","Sur candidature : places limitées"],`<a class="chip" style="display:inline-block;margin-top:6px;padding:8px 14px" href="coaching.html" target="_blank" rel="noopener">Candidater</a>`);
+  const E0=v=>fmtE(v).replace(",00","");
+  h+=card("premium","App complète",`${fmtE(P.premium_month)} / mois`,["Tout le Gratuit","Macros, fibres et plan alimentaire calculé, liste de courses","Estimateur de repas (texte ou voix)","Onglet « Programme » : modifier ou régénérer ton programme, banque de programmes, surcharge progressive automatique","Vue par exercice et analyse de ton volume",`ou ${fmtE(P.premium_year)} / an (soit ${fmtE(Math.round(P.premium_year/12*100)/100)} / mois) · ${P.trial_days} jours d'essai`],premBtn);
+  h+=card("light",`Coaching suivi <span class="b107">⭐ Le plus choisi</span>`,`${E0(P.light_month)} / mois`,["Tout l'App complète","Thomas ajuste ton programme et ton plan selon tes séances","Bilan chaque semaine, avec son retour écrit","Messages avec Thomas dans l'app","Sans engagement : résiliable chaque mois"],lightBtn,true);
+  h+=card("coaching","Coaching complet",`${E0(P.coaching_month||540)} / mois`,["Tout le Coaching suivi","Programme et plan alimentaire 100 % sur mesure","Messages illimités avec Thomas, coach sportif diplômé avec une expérience terrain réelle","Retours sur ta technique à partir des vidéos que tu envoies","Rendez-vous téléphoniques pour en discuter de vive voix",`12 semaines : 3 × ${E0(P.coaching_month||540)}, ou ${E0(P.coaching_once||1490)} en une fois`,"Sur candidature : places limitées"],`<a class="chip" style="display:inline-block;margin-top:6px;padding:8px 14px" href="coaching.html" target="_blank" rel="noopener">Candidater</a>`);
   if(can&&paid) h+=`<div class="card"><h3 style="margin-top:0">Mon abonnement</h3><p class="small">${esc(PLAN88[s.plan]||s.plan)} · ${esc(STAT88[s.status]||s.status)}${s.period_end?` · ${s.cancel_at_period_end?"se termine le":"prochain renouvellement le"} ${frD88(s.period_end)}`:""}</p><button class="ghost" data-act="p88-portal">Gérer mon abonnement (carte, factures, résiliation)</button></div>`;
   else if(can&&s&&s.source==="manual"&&s.plan!=="free") h+=`<p class="muted small">Formule offerte par ton coach${s.period_end?` jusqu'au ${frD88(s.period_end)}`:""}.</p>`;
   h+=`<p class="note">Aucune formule ne garantit un résultat chiffré : la progression dépend de facteurs individuels (régularité, récupération, historique…).</p>`;
   return h; }
-function upsell88(feat){ return `<div class="card"><h3 style="margin-top:0">🔒 ${esc(feat)}</h3><p class="muted small">Inclus dans Premium${ready88()?`, avec ${price88().trial_days} jours d'essai gratuit`:""}.</p><button data-act="p88-offers">Voir les formules</button></div>`; }
+function upsell88(feat){ return `<div class="card"><h3 style="margin-top:0">🔒 ${esc(feat)}</h3><p class="muted small">Inclus dans l'App complète${ready88()?`, avec ${price88().trial_days} jours d'essai gratuit`:""}.</p><button data-act="p88-offers">Voir les formules</button></div>`; }
 function offersPanel88(){ let el=document.getElementById("p88"); if(!P88.offers){ if(el) el.remove(); return; }
   if(!el){ el=document.createElement("div"); el.id="p88"; document.body.appendChild(el); }
   el.innerHTML=`<div class="cs85bg" data-act="p88-close"></div><div class="cs85p p88p" role="dialog" aria-label="Formules"><div class="row" style="flex-wrap:nowrap;align-items:center"><b class="grow" style="font-size:1.1rem">Formules</b><button class="ghost sm" data-act="p88-close" aria-label="Fermer">✕</button></div>${offers88("panel")}</div>`; }
@@ -7255,7 +7256,7 @@ function vAbo88(){ if(!P88.list){ abo88Load(); return `<div class="card">Chargem
   const mrr=L.filter(s=>s.source==="stripe"&&s.status==="active").reduce((a,s)=>a+(s.plan==="light"?P.light_month:s.plan==="premium"?(s.interval==="year"?P.premium_year/12:P.premium_month):0),0);
   let h=`<h2>Abonnés</h2>`;
   if(P88.err) h+=`<div class="alert ko">${esc(P88.err)}</div>`;
-  h+=`<div class="card"><div class="row" style="gap:14px">${[["Gratuit",n("free")],["Premium",n("premium")],["Coaching léger",n("light")],["En essai",trial]].map(([l,v])=>`<div><div class="muted small">${l}</div><b style="font-size:1.4rem">${v}</b></div>`).join("")}<div><div class="muted small">Revenu mensuel récurrent (Stripe)</div><b style="font-size:1.4rem">${fmtE(mrr)}</b></div></div><p class="note" style="margin-bottom:0">Estimation hors frais Stripe ; les formules offertes et les essais ne comptent pas.</p></div>`;
+  h+=`<div class="card"><div class="row" style="gap:14px">${[["Gratuit",n("free")],["App complète",n("premium")],["Coaching suivi",n("light")],["En essai",trial]].map(([l,v])=>`<div><div class="muted small">${l}</div><b style="font-size:1.4rem">${v}</b></div>`).join("")}<div><div class="muted small">Revenu mensuel récurrent (Stripe)</div><b style="font-size:1.4rem">${fmtE(mrr)}</b></div></div><p class="note" style="margin-bottom:0">Estimation hors frais Stripe ; les formules offertes et les essais ne comptent pas.</p></div>`;
   const open=me.signup_open===true;
   h+=`<div class="card"><h3 style="margin-top:0">Inscriptions publiques : ${open?"🟢 ouvertes":"⚪ fermées"}</h3><p class="muted small">${open?"N'importe qui peut créer un compte et démarrer gratuitement.":"Les nouveaux comptes voient « Les inscriptions ouvrent bientôt ». Teste d'abord le parcours avec un autre e-mail, puis ouvre."}</p><button class="${open?"ghost":""}" data-act="p88-open">${open?"Fermer les inscriptions":"Ouvrir les inscriptions"}</button></div>`;
   const C=P88.chk;
@@ -7263,23 +7264,23 @@ function vAbo88(){ if(!P88.list){ abo88Load(); return `<div class="card">Chargem
     ${C?`<div class="alert ${C.ok?"ok":"ko"} small">${C.error?esc(C.error)+"<br>":""}${C.mode?`Mode ${C.mode==="live"?"réel":"test"} · `:""}Prix trouvés : ${(C.found||[]).map(f=>`${esc(f.key)} (${fmtE(f.amount)}${f.interval?" / "+(f.interval==="year"?"an":"mois"):""})`).join(", ")||"aucun"}${(C.missing||[]).length?`<br>Manquants : ${C.missing.map(esc).join(", ")}`:""}${C.webhook===false?"<br>Secret STRIPE_WEBHOOK_SECRET absent":""}</div>`:""}
     <button class="ghost" data-act="p88-check">Vérifier la configuration</button>
     <details style="margin-top:10px"><summary>Mettre en place le paiement (une fois, environ 20 minutes)</summary><ol class="small" style="padding-left:18px">
-     <li>Dans Stripe, <b>en mode test</b> d'abord : Catalogue de produits → crée « TB my Coach Premium » avec deux prix récurrents : ${fmtE(P.premium_month)} par mois (clé de recherche <code>tb_premium_month</code>) et ${fmtE(P.premium_year)} par an (<code>tb_premium_year</code>). Crée « Coaching léger » à ${fmtE(P.light_month)} par mois (<code>tb_light_month</code>). La clé de recherche se règle dans les options avancées du prix.</li>
+     <li>Dans Stripe, <b>en mode test</b> d'abord : Catalogue de produits → crée « TB my Coach – App complète » avec deux prix récurrents : ${fmtE(P.premium_month)} par mois (clé de recherche <code>tb_premium_month</code>) et ${fmtE(P.premium_year)} par an (<code>tb_premium_year</code>). Crée « Coaching suivi » à ${fmtE(P.light_month)} par mois (<code>tb_light_month</code>). La clé de recherche se règle dans les options avancées du prix.</li>
      <li>Développeurs → Webhooks → ajoute un point de terminaison : <code>https://xtapitojdvicgcaygeqj.supabase.co/functions/v1/stripe-webhook</code>, événements <code>checkout.session.completed</code>, <code>customer.subscription.created</code>, <code>customer.subscription.updated</code>, <code>customer.subscription.deleted</code>. Copie le secret de signature (whsec_…).</li>
      <li>Supabase → Edge Functions → Secrets : ajoute <code>STRIPE_SECRET_KEY</code> (ta clé secrète sk_test_…) et <code>STRIPE_WEBHOOK_SECRET</code> (whsec_…). Ne colle jamais ces clés dans un message, un e-mail ou ici.</li>
      <li>Stripe → Paramètres → Facturation → Portail client : active-le (changement de carte, factures, résiliation, changement de formule). Factures : ajoute la mention de TVA qui s'applique à ton statut.</li>
      <li>Valide la section « Abonnements » des CGV, puis reviens ici : « Vérifier la configuration ».</li>
      <li>Teste un abonnement avec un compte de test et la carte 4242 4242 4242 4242. Ensuite seulement, refais les étapes 1 à 3 en mode réel (clé sk_live_…).</li></ol></details></div>`;
-  const F=[["tous","Tous"],["free","Gratuit"],["premium","Premium"],["light","Léger"],["trial","Essai"]];
+  const F=[["tous","Tous"],["free","Gratuit"],["premium","App"],["light","Suivi"],["trial","Essai"]];
   const show=L.filter(s=>P88.filt==="tous"||(P88.filt==="trial"?s.status==="trialing":s.plan===P88.filt));
   h+=`<div class="card"><h3 style="margin-top:0">Liste (${L.length})</h3><div class="row" style="gap:6px;margin-bottom:8px">${F.map(([k,l])=>`<button type="button" class="chip ${P88.filt===k?"on":""}" data-act="p88-filt" data-v="${k}">${l}</button>`).join("")}</div>
    ${show.length?show.map(s=>`<div class="ab88r"><div class="row" style="flex-wrap:nowrap;gap:8px;align-items:baseline"><b class="grow">${esc(s.name||"—")}</b><span class="b88 p-${esc(s.plan)}">${esc(PLAN88[s.plan]||s.plan)}</span></div>
      <div class="muted small">${esc(s.email||"")} · ${esc(STAT88[s.status]||s.status)}${s.source==="manual"?" · offert":s.source==="stripe"?" · Stripe":""}${s.period_end?` · jusqu'au ${frD88(s.period_end)}`:""}${s.cancel_at_period_end?" · résiliation demandée":""}</div>
      <div class="muted small">Inscrit le ${frD88(s.created_at)}${s.last_seen?` · vu le ${frD88(s.last_seen)}`:""}${s.last_log?` · dernière séance notée le ${frD88(s.last_log)}`:" · aucune séance notée"}</div>
      <div class="row ab88a" style="gap:6px;margin-top:6px"><select data-ab88p="${esc(s.client_id)}" style="flex:1 1 140px;min-width:0">${Object.entries(PLAN88).map(([k,l])=>`<option value="${k}" ${k===s.plan?"selected":""}>${l}</option>`).join("")}</select><input type="date" data-ab88d="${esc(s.client_id)}" title="Jusqu'au (vide = sans limite)" value="${s.source==="manual"&&s.period_end?String(s.period_end).slice(0,10):""}" style="flex:1 1 140px;min-width:0"><button class="ghost sm" data-act="p88-set" data-v="${esc(s.client_id)}">Appliquer</button></div></div>`).join(""):`<p class="muted small">Personne pour l'instant.</p>`}
-   <p class="note">Changer la formule ici l'offre (activation manuelle, sans paiement). Coaching léger ou Coaching : le dossier rejoint « Mes clients ». Pour un abonné payant, la résiliation se fait dans Stripe.</p></div>`;
+   <p class="note">Changer la formule ici l'offre (activation manuelle, sans paiement). Coaching suivi ou Coaching complet : le dossier rejoint « Mes clients ». Pour un abonné payant, la résiliation se fait dans Stripe.</p></div>`;
   const own=(CLIENTS||[]).filter(c=>c.coach_id===UID&&!c.archived&&!L.some(s=>s.client_id===c.id));
-  h+=`<div class="card"><h3 style="margin-top:0">Fin d'un coaching</h3><p class="muted small">Le client garde son historique et devient autonome, en Premium offert jusqu'à la date choisie (puis Gratuit) ou directement en Gratuit. Son dossier quitte « Mes clients » et apparaît ici ; tu peux le reprendre en coaching à tout moment.</p>
-    <div class="row" style="gap:6px"><select id="p88-cv" style="flex:1 1 180px">${own.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("")}</select><select id="p88-cvp" style="flex:0 0 auto;width:auto"><option value="premium">Premium offert</option><option value="free">Gratuit</option></select><input type="date" id="p88-cvd" style="flex:0 0 auto;width:auto" value="${isoD(new Date(Date.now()+90*864e5))}"><button class="ghost sm" data-act="p88-conv" ${own.length?"":"disabled"}>Passer en autonomie</button></div></div>`;
+  h+=`<div class="card"><h3 style="margin-top:0">Fin d'un coaching</h3><p class="muted small">Le client garde son historique et devient autonome, avec l'App complète offerte jusqu'à la date choisie (puis Gratuit) ou directement en Gratuit. Son dossier quitte « Mes clients » et apparaît ici ; tu peux le reprendre en coaching à tout moment.</p>
+    <div class="row" style="gap:6px"><select id="p88-cv" style="flex:1 1 180px">${own.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("")}</select><select id="p88-cvp" style="flex:0 0 auto;width:auto"><option value="premium">App complète offerte</option><option value="free">Gratuit</option></select><input type="date" id="p88-cvd" style="flex:0 0 auto;width:auto" value="${isoD(new Date(Date.now()+90*864e5))}"><button class="ghost sm" data-act="p88-conv" ${own.length?"":"disabled"}>Passer en autonomie</button></div></div>`;
   return h; }
 const _homeShell88=homeShell;
 homeShell=function(shell){ const isA=ST.view==="abo"; if(isA) ST.view="clients"; let cap=null;
@@ -7358,7 +7359,7 @@ document.addEventListener("click",async e=>{ const t=e.target;
     toast(`Formule ${PLAN88[p]} appliquée`); P88.list=null; if(p==="light"||p==="coaching") await loadClients(false); ST.view="abo"; return render(); }
   if(a==="p88-conv"){ const id=(document.getElementById("p88-cv")||{}).value, p=(document.getElementById("p88-cvp")||{}).value, d=(document.getElementById("p88-cvd")||{}).value; const c=CLIENTS.find(x=>x.id===id); if(!c) return;
     if(!c.email) return toast("Ce client n'a pas d'e-mail de connexion");
-    if(!confirm(`Passer ${c.name} en autonomie (${p==="premium"?"Premium offert"+(d?" jusqu'au "+frDate(d):""):"Gratuit"}) ? Son dossier quittera « Mes clients ».`)) return;
+    if(!confirm(`Passer ${c.name} en autonomie (${p==="premium"?"App complète offerte"+(d?" jusqu'au "+frDate(d):""):"Gratuit"}) ? Son dossier quittera « Mes clients ».`)) return;
     const {error}=await SB.rpc("coach_set_plan",{p_client:id,p_plan:p,p_until:p==="premium"&&d?new Date(d+"T23:59:59").toISOString():null,p_note:"fin de coaching"}); if(error) return toast("Impossible : "+error.message);
     toast(`${c.name} est passé en autonomie`); P88.list=null; await loadClients(false); ST.view="abo"; return render(); } },true);
 document.addEventListener("change",e=>{ const el=e.target; if(!el) return; if(el.id==="p88-terms") P88.terms=el.checked; if(el.id==="p88-ck") P88.ck=el.checked; if(el.id==="p88-name") P88.name=el.value; });
@@ -7368,7 +7369,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&P88.offers){ P88.o
   let n=0; (function wait(){ if(!(ST.ready&&UID)){ if(++n<80) setTimeout(wait,250); return; }
     if(r==="cancel") return toast("Paiement annulé : rien n'a été prélevé");
     toast(r==="ok"?"Merci ! Activation de ton abonnement…":"Abonnement mis à jour"); let k=0;
-    (async function poll(){ const before=tier88(); await me88(); if((tier88()!==before||k>=5)||r!=="ok"){ await loadClients(false); if(r==="ok") toast(prem88()?"Premium activé ✅ Ouvre l'onglet « Programme » pour modifier ton programme":"Abonnement enregistré ✅"); return; } k++; setTimeout(poll,3000); })(); })(); }catch(e){} })();
+    (async function poll(){ const before=tier88(); await me88(); if((tier88()!==before||k>=5)||r!=="ok"){ await loadClients(false); if(r==="ok") toast(prem88()?"App complète activée ✅ Ouvre l'onglet « Programme » pour modifier ton programme":"Abonnement enregistré ✅"); return; } k++; setTimeout(poll,3000); })(); })(); }catch(e){} })();
 // écran de connexion : invitation à créer un compte
 const _vAuth88=vAuth;
 vAuth=function(){ const h=_vAuth88(); return AUTH.mode==="login"?h.replace(/<p class="note">Client : /,`<p class="note">Nouveau ? « Créer un compte » pour démarrer gratuitement avec ton programme de départ.<br>Client : `):h; };
@@ -8531,7 +8532,7 @@ const SUB106=[["programme","Programme"],["athlete","Profil & 1RM"],["nutrition",
 const sub106=v=>SUB106.some(x=>x[0]===v);
 function tools106(on,view){ PG106.on=on; ST.soloCoach=on; MODE=on?"coach":"client"; ST.isCoach=on; ST.clientView=false;
   if(on){ ST.todayOn=false; ST.view=view||"programme"; } }
-function pgOpen106(){ if(!prem88()){ P88.offers=true; return offersPanel88(); } tools106(true,"programme"); window.scrollTo(0,0); render(); }
+function pgOpen106(){ if(!prem88()){ PL107.open=true; return pl107(); } tools106(true,"programme"); window.scrollTo(0,0); render(); }
 const _render106=render;
 render=function(){
   if(PG106.on&&!(ST.solo&&CUR&&prem88())) tools106(false);
@@ -8551,7 +8552,7 @@ function deco106(){ document.body.classList.remove("cs85on"); const h=$("#appTit
   const app=$("#app"); if(!app) return;
   const h2=app.querySelector("h2"), T={athlete:"Mon profil & 1RM",nutrition:"Plan alimentaire"}; if(h2&&T[ST.view]) h2.textContent=T[ST.view];
   app.querySelectorAll("#rv-card,#cn-card,#act-card,#cg-coach,#pn-coach,#onb-card").forEach(x=>x.remove());
-  app.insertAdjacentHTML("afterbegin",`<div class="pg106h"><div class="muted small">Premium · tes outils</div>${subnav(SUB106,ST.view,"pg106s")}</div>`);
+  app.insertAdjacentHTML("afterbegin",`<div class="pg106h"><div class="muted small">App complète · tes outils</div>${subnav(SUB106,ST.view,"pg106s")}</div>`);
   const f=document.getElementById("msgfab"); if(f) f.hidden=true; }
 document.addEventListener("click",e=>{ const t=e.target; if(!t.closest) return;
   const b=t.closest('[data-act="pg106"],[data-act="pg106s"],[data-act="cf106"]');
@@ -8570,29 +8571,33 @@ document.addEventListener("click",e=>{ const t=e.target; if(!t.closest) return;
 const CF106={open:false};
 function cf106(){ let el=document.getElementById("cf106"); if(!CF106.open){ if(el) el.remove(); return; }
   if(!el){ el=document.createElement("div"); el.id="cf106"; document.body.appendChild(el); }
-  const P=price88(), t=ST.solo?tier88():"coaching", col=["free","premium","coaching"], cur=col.indexOf(t);
-  const R=[["Programme de départ généré à partir de ton questionnaire",1,1,1],
-    ["Carnet, chronos de récupération, records, suivi du poids",1,1,1],
-    ["Modifier ou régénérer ton programme, surcharge progressive automatique",0,1,1],
-    ["Plan alimentaire calculé",0,1,1],
-    ["Programme sur mesure, ajusté selon tes séances",0,0,1],
-    ["Plan alimentaire sur mesure",0,0,1],
-    ["Bilan chaque semaine, avec le retour écrit de Thomas",0,0,1],
-    ["Messages illimités avec Thomas, coach sportif diplômé avec une expérience terrain réelle",0,0,1],
-    ["Retours sur ta technique à partir des vidéos que tu envoies",0,0,1],
-    ["Rendez-vous téléphoniques pour en discuter de vive voix",0,0,1]];
-  const ck=v=>v?`<span class="cf106y" aria-label="inclus">✓</span>`:`<span class="cf106n" aria-label="non inclus">—</span>`;
-  const gain=R.filter(r=>r[3]&&!r[1+Math.max(cur,0)]);
+  const P=price88(), E0=v=>fmtE(v).replace(",00",""), t=ST.solo?tier88():"coaching", col=["free","premium","light","coaching"], cur=col.indexOf(t);
+  const R=[["Programme de départ généré à partir de ton questionnaire",1,1,1,1],
+    ["Carnet, chronos de récupération, records, suivi du poids",1,1,1,1],
+    ["Journal des repas avec les calories",1,1,1,1],
+    ["Macros, fibres, plan alimentaire calculé et liste de courses",0,1,1,1],
+    ["Estimateur de repas (texte ou voix)",0,1,1,1],
+    ["Modifier ou régénérer ton programme, surcharge progressive automatique",0,1,1,1],
+    ["Vue par exercice et analyse de ton volume",0,1,1,1],
+    ["Programme et plan ajustés par Thomas selon tes séances",0,0,1,1],
+    ["Bilan chaque semaine, avec le retour écrit de Thomas",0,0,1,1],
+    ["Messages avec Thomas (illimités en Coaching complet)",0,0,1,1],
+    ["Programme et plan alimentaire 100 % sur mesure",0,0,0,1],
+    ["Retours sur ta technique à partir des vidéos que tu envoies",0,0,0,1],
+    ["Rendez-vous téléphoniques pour en discuter de vive voix",0,0,0,1]];
+  const ck=v=>v?`<span class="cf106y" aria-label="inclus">✓</span>`:`<span class="cf106n" aria-label="non inclus">🔒</span>`;
+  const gain=R.filter(r=>r[4]&&!r[1+Math.max(cur,0)]);
   el.innerHTML=`<div class="cs85bg" data-act="cf106x"></div><div class="cs85p cf106p" role="dialog" aria-label="Le coaching avec Thomas">
-    <div class="row" style="flex-wrap:nowrap;align-items:center"><b class="grow" style="font-size:1.1rem">🚀 Le coaching avec Thomas</b><button class="ghost sm" data-act="cf106x" aria-label="Fermer">✕</button></div>
-    <div class="cf106hero"><div class="cf106pr">${fmtE(P.coaching_month||540).replace(",00","")}<span> / mois</span></div><div class="small">Suivi complet sur 12 semaines · 3 mensualités, soit ${fmtE(P.coaching||1620).replace(",00","")} au total · sur candidature, places limitées</div></div>
-    ${gain.length&&cur<2?`<h3 style="margin:14px 0 6px">Ce que tu débloques${cur>=0?` par rapport à ta formule ${esc(PLAN88[t]||"")}`:""}</h3><ul class="cf106g">${gain.map(r=>`<li>${esc(r[0])}</li>`).join("")}</ul>`:""}
-    <h3 style="margin:14px 0 6px">Comparer</h3>
-    <div class="cf106t" role="table"><div class="cf106r cf106hd" role="row"><span role="columnheader"></span>${["Gratuit","Premium","Coaching"].map((l,i)=>`<span role="columnheader" class="${i===cur?"cur":""}${i===2?" hl":""}">${l}${i===cur?"<br><i>ta formule</i>":""}</span>`).join("")}</div>
-    ${R.map(r=>`<div class="cf106r" role="row"><span role="cell">${esc(r[0])}</span>${[1,2,3].map(i=>`<span role="cell" class="${i===3?"hl":""}">${ck(r[i])}</span>`).join("")}</div>`).join("")}</div>
-    <a class="btn cf106cta" href="coaching.html" target="_blank" rel="noopener">Candidater au coaching</a>
+    <div class="row" style="flex-wrap:nowrap;align-items:center"><b class="grow" style="font-size:1.1rem">🚀 Coaching complet avec Thomas</b><button class="ghost sm" data-act="cf106x" aria-label="Fermer">✕</button></div>
+    <div class="cf106hero"><div class="cf106pr">${E0(P.coaching_month||540)}<span> / mois</span></div><div class="small">12 semaines : 3 mensualités de ${E0(P.coaching_month||540)}, ou <b>${E0(P.coaching_once||1490)} en une fois</b> · sur candidature, places limitées</div></div>
+    ${gain.length&&cur<3?`<h3 style="margin:14px 0 6px">Ce que tu débloques${cur>=0?` par rapport à ta formule ${esc(PLAN88[t]||"")}`:""}</h3><ul class="cf106g">${gain.map(r=>`<li>${esc(r[0])}</li>`).join("")}</ul>`:""}
+    <a class="btn cf106cta" href="coaching.html" target="_blank" rel="noopener">Candidater au coaching complet</a>
     <p class="muted small" style="text-align:center;margin:6px 0 0">Tu décris ton objectif, Thomas te répond pour voir si le coaching te convient.</p>
-    ${ST.solo?`<button class="ghost" style="width:100%;margin-top:12px" data-act="cf106f">Voir toutes les formules (dont Coaching léger à ${fmtE(P.light_month)} / mois)</button>`:""}
+    <h3 style="margin:16px 0 6px">Comparer les formules</h3>
+    <div class="cf106t" role="table"><div class="cf106r cf106hd" role="row"><span role="columnheader"></span>${[["Gratuit","0 €"],["App",fmtE(P.premium_month)],["Suivi",E0(P.light_month)],["Complet",E0(P.coaching_month||540)]].map(([l,pr],i)=>`<span role="columnheader" class="${i===cur?"cur":""}${i===3?" hl":""}">${i===cur?"● ":""}${l}<br><i>${pr}</i></span>`).join("")}</div>
+    ${R.map(r=>`<div class="cf106r" role="row"><span role="cell">${esc(r[0])}</span>${[1,2,3,4].map(i=>`<span role="cell" class="${i===4?"hl":""}">${ck(r[i])}</span>`).join("")}</div>`).join("")}</div>
+    ${ST.solo&&cur<2?`<div class="cf106alt"><b>Pas prêt pour le coaching complet ?</b> Le <b>Coaching suivi</b> à ${E0(P.light_month)} / mois : Thomas ajuste ton programme et ton plan, et te fait un retour chaque semaine. <span class="b107">⭐ Le plus choisi</span></div>`:""}
+    ${ST.solo?`<button class="ghost" style="width:100%;margin-top:12px" data-act="cf106f">Voir toutes les formules</button>`:""}
     <p class="note">Aucune formule ne garantit un résultat chiffré : la progression dépend de facteurs individuels (régularité, récupération, historique…).</p></div>`; }
 document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="cf106x"],[data-act="cf106f"]'); if(!b) return; e.stopImmediatePropagation();
   CF106.open=false; cf106(); if(b.dataset.act==="cf106f"){ P88.offers=true; offersPanel88(); } },true);
@@ -8604,11 +8609,42 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&CF106.open){ CF106
 .cf106pr{font-size:1.7rem;font-weight:800}.cf106pr span{font-size:.95rem;font-weight:600;color:var(--soft)}
 .cf106g{margin:0;padding-left:0;list-style:none}.cf106g li{margin:6px 0;padding-left:26px;position:relative}.cf106g li::before{content:"✓";position:absolute;left:4px;font-weight:800;color:var(--green,#2e9d5b)}
 .cf106t{border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:.86rem}
-.cf106r{display:grid;grid-template-columns:minmax(0,1fr) 52px 58px 64px;align-items:center;border-top:1px solid var(--line)}.cf106r:first-child{border-top:0}
-.cf106r>span{padding:7px 6px;text-align:center}.cf106r>span:first-child{text-align:left}.cf106r .hl{background:color-mix(in srgb,var(--blue) 12%,transparent)}
-.cf106hd{font-weight:700;font-size:.78rem}.cf106hd .cur{color:var(--blue)}.cf106hd i{font-weight:500;font-style:normal;font-size:.68rem}
+.cf106r{display:grid;grid-template-columns:minmax(0,1fr) 44px 50px 38px 56px;align-items:center;border-top:1px solid var(--line)}.cf106r:first-child{border-top:0}
+.cf106r>span{padding:7px 2px;text-align:center}.cf106r>span:first-child{padding-left:8px}.cf106r>span:first-child{text-align:left}.cf106r .hl{background:color-mix(in srgb,var(--blue) 12%,transparent)}
+.cf106hd{font-weight:700;font-size:.74rem}.cf106hd i{white-space:nowrap;font-size:.64rem}.cf106hd .cur{color:var(--blue)}.cf106hd i{font-weight:500;font-style:normal;font-size:.68rem}
 .cf106y{color:var(--green,#2e9d5b);font-weight:800}.cf106n{color:var(--soft)}
 a.cf106cta{display:block;text-align:center;margin-top:14px;padding:12px;border-radius:12px;background:var(--blue);color:#fff;font-weight:700;text-decoration:none}`; document.head.appendChild(st); })();
+
+// ================= MODULE 107 · CADENAS : fonctions de l'App complète visibles mais verrouillées pour l'inscrit Gratuit =================
+// Suivi : macros, fibres, « d'où viennent tes macros » et liste de courses floutés sous 🔒 ; onglet Programme : aperçu des outils sous 🔒.
+const lock107=()=>!!(ST.solo&&CUR&&MODE==="client"&&!prem88());
+const PL107={open:false};
+function pl107(){ let el=document.getElementById("pl107"); if(!PL107.open){ if(el) el.remove(); return; }
+  if(!el){ el=document.createElement("div"); el.id="pl107"; document.body.appendChild(el); }
+  const P=price88(), T=[["📋 Programme","Modifier ou régénérer ton programme, piocher dans la banque de programmes, surcharge progressive automatique"],["🏋️ Profil & 1RM","Tes 1RM, tes jours, ton objectif : les charges se calculent toutes seules"],["🍽️ Plan alimentaire","Plan calculé selon ton objectif, macros, fibres et liste de courses"],["📊 Analyse","Volume par muscle et vue par exercice, semaine par semaine"],["⚙️ Réglages","Durée des cycles, deload, règles de progression"]];
+  el.innerHTML=`<div class="cs85bg" data-act="pl107x"></div><div class="cs85p" role="dialog" aria-label="Onglet Programme"><div class="row" style="flex-wrap:nowrap;align-items:center"><b class="grow" style="font-size:1.1rem">🔒 Tes outils de l'App complète</b><button class="ghost sm" data-act="pl107x" aria-label="Fermer">✕</button></div>
+    ${T.map(([a,b])=>`<div class="pl107r"><b>${a}</b> <span class="lk107i">🔒</span><div class="muted small">${b}</div></div>`).join("")}
+    <button style="width:100%;margin-top:12px" data-act="pl107o">${sub88()&&sub88().trial_used?"Passer à l'App complète":`Essayer ${P.trial_days} jours gratuitement`}</button>
+    <p class="muted small" style="text-align:center;margin:6px 0 0">${fmtE(P.premium_month)} / mois ou ${fmtE(P.premium_year)} / an · résiliable à tout moment</p></div>`; }
+function lockNu107(){ if(!lock107()||ST.view!=="nutrition"||ST.todayOn) return; const app=$("#app"); if(!app) return;
+  app.querySelectorAll(".mb3,.fb102,#src98").forEach(el=>{ if(el.closest(".lk107w")) return; const w=document.createElement("div"); w.className="lk107w"; el.parentNode.insertBefore(w,el); w.appendChild(el);
+    w.insertAdjacentHTML("beforeend",`<button class="lk107b" data-act="lk107">🔒 ${el.id==="src98"?"D'où viennent tes macros":el.classList.contains("fb102")?"Fibres":"Protéines, glucides, lipides"} · App complète</button>`); });
+  app.querySelectorAll('[data-act="nu-nv"][data-v="courses"]').forEach(b=>{ if(!/🔒/.test(b.textContent)) b.textContent+=" 🔒"; }); }
+const _render107=render;
+render=function(){ const r=_render107.apply(this,arguments); try{ document.body.classList.toggle("free107",lock107()); lockNu107(); }catch(e){ console.error(e); } return r; };
+document.addEventListener("click",e=>{ const t=e.target; if(!t.closest) return;
+  const b=t.closest('[data-act="lk107"],[data-act="pl107x"],[data-act="pl107o"]');
+  if(b){ e.preventDefault(); e.stopImmediatePropagation(); const a=b.dataset.act; if(a!=="lk107"){ PL107.open=false; pl107(); } if(a!=="pl107x"){ P88.offers=true; offersPanel88(); } return; }
+  if(lock107()&&t.closest('[data-act="nu-nv"][data-v="courses"]')){ e.preventDefault(); e.stopImmediatePropagation(); P88.offers=true; offersPanel88(); } },true);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&PL107.open){ PL107.open=false; pl107(); } });
+(function(){ const st=document.createElement("style"); st.textContent=`
+.b107{display:inline-block;vertical-align:middle;font:700 .7rem/1 system-ui,sans-serif;padding:4px 8px;border-radius:10px;background:#f5a524;color:#1b1b1b;white-space:nowrap;margin-left:4px}
+.cf106alt{margin-top:12px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);font-size:.9rem}
+.lk107w{position:relative;border-radius:12px;overflow:hidden}.lk107w>:not(.lk107b){filter:blur(5px);opacity:.55;pointer-events:none;user-select:none}
+.lk107b{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);white-space:nowrap;font-size:.85rem;padding:8px 12px;border-radius:999px;background:var(--paper);color:var(--ink);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18)}
+#pl107{position:fixed;inset:0;z-index:1000}#pl107 .cs85bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}#pl107 .cs85p{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);max-width:520px;max-height:88vh;margin:0 auto;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.pl107r{border-top:1px solid var(--line);padding:10px 2px}.lk107i{float:right}
+body.free107 .mmac,body.free107 .im98{display:none}`; document.head.appendChild(st); })();
 
 boot();
 
