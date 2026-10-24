@@ -114,6 +114,38 @@ const T = {
       { id: 'v2', client_id: sc.CID, sender: 'coach', from_coach: true, body: '', media: [{ path: sc.CID + '/vieille.mp4', type: 'video' }], created_at: '2026-08-01T10:00:00Z' } ];
   })),
 
+  'client : médias sans retéléchargement (vignettes, URL signées réutilisées)': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(() => msgOpen()); await p.waitForTimeout(800);
+    ok((await p.$$('#mp-l video')).length === 0, 'aucune vidéo chargée à l\'ouverture de la messagerie');
+    ok((await p.$$('#mp-l [data-act="vt-play"]')).length === 1, 'vignette « lecture » à la place de la vidéo');
+    ok(!!(await p.$('#mp-l [data-act="vt-play"] img[loading="lazy"]')), 'image d\'aperçu affichée sur la vignette');
+    ok((await p.getAttribute('#mp-l audio.maudio', 'preload')) === 'none', 'vocal : rien téléchargé avant lecture');
+    ok(!(await p.$('#mp-l img.mmedia[src*="vocal"]')), 'vocal jamais chargé comme une image');
+    ok((await p.getAttribute('#mp-l img.mmedia', 'loading')) === 'lazy', 'photo : chargement différé');
+    ok(sc.signs.length === 1 && sc.signs[0].expiresIn === 604800, 'une seule demande d\'URL signées, valables 7 jours (' + JSON.stringify(sc.signs.map(x => x.expiresIn)) + ')');
+    const u1 = await p.getAttribute('#mp-l img.mmedia', 'src');
+    for (let i = 0; i < 5; i++) await p.evaluate(() => msgRender());
+    await p.evaluate(async () => { MSG.urls = {}; await signUrls(MSG.list.flatMap(m => mediaPaths(m.media))); msgRender(); });
+    ok(sc.signs.length === 1, 'nouveaux affichages : aucune nouvelle demande d\'URL (gardées sur le téléphone)');
+    ok((await p.getAttribute('#mp-l img.mmedia', 'src')) === u1, 'même URL d\'un affichage à l\'autre (le cache du navigateur fonctionne)');
+    ok(await p.evaluate(() => Object.keys(localStorage).some(k => k.startsWith('tb-su:'))), 'URL gardées dans le stockage du téléphone, par compte');
+    ok(!sc.gets.some(x => /\.(mp4|m4a)$/.test(x)), 'aucune vidéo ni aucun vocal téléchargé sans appui sur lecture');
+    await p.click('#mp-l [data-act="vt-play"]'); await p.waitForTimeout(600);
+    ok(sc.gets.some(x => x.endsWith('recente.mp4')), 'appui sur lecture : la vidéo se charge');
+    await p.evaluate(() => { const v = document.createElement('video'); v.dataset.p = MSG.list[0].media[0].path; Object.defineProperty(v, 'paused', { get: () => false }); v.dataset.mark = '1';
+      document.querySelector('#mp-l video, #mp-l .msg .mph').replaceWith(v); msgRender(); });
+    ok(await p.evaluate(() => { const v = document.querySelector('#mp-l video'); return !!v && v.dataset.mark === '1'; }), 'vidéo en cours de lecture gardée quand la messagerie se met à jour');
+    await p.evaluate(() => mediaForget());
+    ok(await p.evaluate(() => !Object.keys(localStorage).some(k => k.startsWith('tb-su:'))), 'déconnexion : URL oubliées');
+  }, clientPre(sc => { sc.signs = []; sc.gets = []; return (m, path, b, a, t) => {
+    if (path.startsWith('/storage/v1/object/sign/media/') && m === 'GET') { sc.gets.push(path.split('?')[0]); return {}; }
+    if (path.startsWith('/storage/v1/object/sign/media')) { sc.signs.push(b || {}); return (b && b.paths || []).map(x => ({ path: x, signedURL: '/object/sign/media/' + x + '?token=t' + sc.signs.length })); }
+    if (t === 'messages' && m === 'GET') return [
+      { id: 'v1', client_id: sc.CID, sender: 'coach', from_coach: true, body: '', media: [{ path: sc.CID + '/recente.mp4', type: 'video', poster: sc.CID + '/recente_apercu.jpg' }], created_at: new Date().toISOString() },
+      { id: 'a1', client_id: sc.CID, sender: 'coach', from_coach: true, body: '', media: [{ path: sc.CID + '/vocal.m4a', type: 'audio', dur: 4 }], created_at: new Date().toISOString() },
+      { id: 'i1', client_id: sc.CID, sender: 'coach', from_coach: true, body: '', media: [{ path: sc.CID + '/photo.jpg', type: 'image' }], created_at: new Date().toISOString() } ];
+  }; })),
+
   'coach : activation et revue de la semaine': () => run('coach', async (p, sc) => {
     await p.waitForTimeout(1200); ok((await txt(p, '#app')).includes('Activation 3/5'), 'activation dans À traiter');
     await p.click('[data-act="act-open"]'); await p.waitForTimeout(1200);

@@ -64,6 +64,15 @@ hébergée **gratuitement** sur GitHub Pages.
 - Une seule série, 90 secondes maximum.
 - Toute vidéo de plus de 4 Mo est compressée sur le téléphone avant l'envoi (640p, environ 1 Mo par 10 secondes).
 - Supprimées automatiquement 30 jours après l'envoi : bouton « Enregistrer » sous chaque vidéo pour la garder sur son téléphone.
+- 20 Mo maximum après compression (message clair sinon). Une image d'aperçu est créée à l'envoi.
+
+## Photos, vidéos et vocaux : économiser le trafic Supabase
+
+Le plan gratuit autorise 5 Go de téléchargement de fichiers par mois. Pour ne pas retélécharger les mêmes fichiers :
+- les URL signées sont valables 7 jours et gardées sur le téléphone (par compte, effacées à la déconnexion) ;
+- `sw.js` garde chaque fichier déjà vu dans le cache `tb-media-v1` (300 Mo max) et sert les morceaux de vidéo demandés ;
+- dans les listes, une vidéo est une vignette : rien n'est téléchargé avant l'appui sur ▶ ; les vocaux ne se chargent qu'à la lecture ;
+- les fichiers envoyés ont un cache d'un an (`cacheControl`) et un nom unique qui ne change jamais.
 
 ## Faire une modification
 
