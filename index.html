@@ -8335,19 +8335,27 @@ vSpendDayEN=function(d){ const S=spendEN(d), I=intakeEN(d), L=NU.logs[d]||{}, ba
 
 // ================= MODULE 102 · FIBRES =================
 // Fibres de chaque aliment (base d'aliments : table Ciqual 2020 de l'ANSES, estimations pour les produits de marque et plats),
-// affichées sous chaque aliment, dans la répartition par aliment, et en total du jour. Elles ne changent pas les calories :
-// l'app compte 4 kcal/g (protéines, glucides) et 9 kcal/g (lipides), comme les objectifs.
-const FB102={n:-1,map:null};
+// affichées sous chaque aliment, dans la répartition par aliment, et en total du jour avec le repère quotidien.
+// Elles comptent dans les calories : 2 kcal/g (en plus de 4 kcal/g pour protéines et glucides, 9 kcal/g pour lipides).
+// Repère : 30 g/jour chez l'adulte (ANSES, apport satisfaisant) — fiche sources/fibres-repere-quotidien.md.
+const FB102={n:-1,map:null}, FIB_KCAL=2, FIB_REF=30;
 function fibOf(i){ if(i&&i.fb!=null&&i.fb!==""&&!isNaN(+i.fb)) return +i.fb; const F=NU.foods; if(!F||!i) return null;
   if(FB102.n!==F.length){ FB102.map=new Map(); F.forEach(f=>{ if(f.fib!=null&&f.fib!==""&&!isNaN(+f.fib)){ const k=nrm(f.name); if(!FB102.map.has(k)) FB102.map.set(k,+f.fib); } }); FB102.n=F.length; }
   const v=FB102.map.get(nrm(i.n||"")); return v==null?null:v; }
-mac=(function(o){ return function(its,m=1){ const t=o(its,m); t.f=(its||[]).reduce((s,i)=>{ const f=i&&!i.est?fibOf(i):null; return s+(f?(+i.q||0)*m/100*f:0); },0); return t; }; })(mac);
+mac=(function(o){ return function(its,m=1){ const t=o(its,m); t.f=(its||[]).reduce((s,i)=>{ const f=i&&!i.est?fibOf(i):null; return s+(f?(+i.q||0)*m/100*f:0); },0); t.k+=FIB_KCAL*t.f; return t; }; })(mac);
+// repas notés avant ce changement : leurs calories enregistrées n'avaient pas les fibres, on les complète (une seule fois, marqué par mac.f)
+function fibNorm102(){ if(!NU.foods||!NU.logs) return; const P=planOn&&planOn();
+  Object.entries(NU.logs).forEach(([d,L])=>{ if(!L||!L.m) return; const t=P&&P.types&&P.types.length?typeOf(L.t||P.week[DOW(d)]):null;
+    Object.entries(L.m).forEach(([mi,st])=>{ if(!st||!st.mac||st.mac.f!==undefined||st.s==="skip") return; let f=0;
+      mealIts98(st,+mi,t).forEach(({i,m})=>{ const v=i.est?null:fibOf(i); if(v) f+=(+i.q||0)*m/100*v; }); st.mac=Object.assign({},st.mac,{f,k:(+st.mac.k||0)+FIB_KCAL*f}); }); }); }
+render=(function(o){ return function(){ try{ fibNorm102(); }catch(e){ console.error(e); } return o.apply(this,arguments); }; })(render);
 function fibDay102(d){ let f=0,n=0,miss=0; dayIts98(d).forEach(({i,m})=>{ if(i.est) return; const v=fibOf(i); n++; if(v==null){ miss++; return; } f+=(+i.q||0)*m/100*v; }); return {f,n,miss}; }
 const _nJour102=nJour;
 nJour=function(){ let h=_nJour102(); const {d}=nDayCtx(), F=fibDay102(d); if(!F.n) return h;
-  const line=`<div class="fb102">🌾 Fibres : <b>${fmtN(round(F.f,1))} g</b>${F.miss?` <span class="muted small">(${F.miss} aliment${F.miss>1?"s":""} sans valeur)</span>`:""}</div>`;
+  const ref=+((NU.plan&&NU.plan.tgt&&NU.plan.tgt.fib)||FIB_REF), pc=Math.min(100,F.f/ref*100);
+  const line=`<div class="fb102"><div class="row" style="justify-content:space-between;gap:6px"><span>🌾 Fibres</span><span><b>${fmtN(round(F.f,1))}</b> / ${fmtN(ref)} g</span></div><div class="mb-t"><i style="width:${pc.toFixed(1)}%"></i></div>${F.miss?`<div class="muted small">${F.miss} aliment${F.miss>1?"s":""} sans valeur de fibres</div>`:""}</div>`;
   return h.replace(/(<div class="muted small">\d+ repas sur \d+ notés)/,line+"$1"); };
-(function(){ const st=document.createElement("style"); st.textContent=`.fb102{margin:8px 0 4px;font-size:.92rem}`; document.head.appendChild(st); })();
+(function(){ const st=document.createElement("style"); st.textContent=`.fb102{margin:10px 0 6px;font-size:.92rem}.fb102 .mb-t{margin-top:4px}`; document.head.appendChild(st); })();
 
 boot();
 
