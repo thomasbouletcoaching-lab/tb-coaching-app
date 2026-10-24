@@ -678,6 +678,19 @@ const T = {
     ok(/Skyr nature/.test(await p.evaluate(() => [...document.querySelectorAll('.card.meal')][1].innerText)), 'le produit apparaît dans la carte du repas');
   }, clientPre(sc => (m, path, b, a, t) => { if (t === 'nutri_log' && m === 'POST') return []; })),
 
+  'suivi : dépense = MB + NEAT (vie quotidienne + pas, sans double comptage) + EAT + effet thermique des aliments': () => run('client', async (p) => {
+    await p.click('nav.tabs [data-v="nutrition"]'); await p.waitForTimeout(1200);
+    const S = await p.evaluate(() => { NU.plan.prof = Object.assign({}, NU.plan.prof, { w: 80, h: 180, age: 40, sex: 'H', steps: 8000 }); NU.mes = {}; const d = '2026-09-01'; NU.logs[d] = { m: {}, x: [], steps: 10000 }; return spendEN(d); });
+    // MB = 10×80 + 6,25×180 − 5×40 + 5 = 1 730 ; vie quotidienne 10 % = 173 ; 10 000 pas × 0,0005 × 80 = 400
+    ok(S.bmr === 1730 && S.vie === 173 && S.stepK === 400 && S.neat === 573, `MB 1 730, NEAT 573 = 173 + 400 pas (${S.bmr} / ${S.vie} / ${S.stepK})`);
+    ok(S.tefEst && S.tef === Math.round((1730 + 173 + 400) / 9), 'effet thermique estimé à l\'équilibre quand la journée n\'est pas notée (' + S.tef + ')');
+    ok(S.total === Math.round(1730 + 173 + 400 + (1730 + 173 + 400) / 9), 'total = MB + NEAT + EAT + ETA (' + S.total + ')');
+    const old = Math.round(1730 * 1.2 + 400);
+    ok(S.base === 1903 && old !== S.base + S.stepK, 'plus de « MB × 1,2 + tous les pas »');
+    const h = await p.evaluate(() => { NU.day = todayISO(); render(); return document.getElementById('en-day').textContent; });
+    ok(/Métabolisme de base/.test(h) && /NEAT/.test(h) && /EAT/.test(h) && /Effet thermique des aliments/.test(h), 'carte « Dépense du jour » détaillée en 4 blocs');
+  }, clientPre()),
+
 };
 
 (async () => {
