@@ -6965,7 +6965,7 @@ function csRender85(){ let el=document.getElementById("cs85"); if(!CS85.open){ i
     <button class="ghost sm" style="margin-top:8px" data-act="cs85-all">☰ Tous mes clients (accueil coach)</button></div>`; }
 async function csOpen85(){ CS85.open=true; CS85.q=""; csRender85(); try{ if(!OV.data) await loadOverview(); if(!TD.data) await loadTodo(); }catch(e){} if(CS85.open) csRender85(); }
 document.addEventListener("click",async e=>{ const t=e.target;
-  if(t.closest&&t.closest("#appTitle")&&typeof coach==="function"&&coach()&&CUR){ e.preventDefault(); return csOpen85(); }
+  if(t.closest&&t.closest("#appTitle")&&!logoHit97(e)&&typeof coach==="function"&&coach()&&CUR){ e.preventDefault(); return csOpen85(); }
   const b=t.closest&&t.closest('[data-act^="cs85-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act;
   if(a==="cs85-close"){ CS85.open=false; return csRender85(); }
   if(a==="cs85-all"){ CS85.open=false; csRender85(); const rb=document.getElementById("roleBtn"); if(rb&&!rb.hidden) rb.click(); return; }
@@ -7497,13 +7497,13 @@ tr.sw89{position:relative;z-index:2;background:var(--paper)}tr.sw89 td{backgroun
 #sw89u button{background:none;border:0;color:#7fb2ff;font-weight:700;font-size:1rem;min-height:36px}#sw89u[hidden]{display:none}`; document.head.appendChild(st); })();
 
 // ================= MODULE 90 · SUIVI ALIMENTAIRE PLUS SIMPLE CÔTÉ CLIENT =================
-// Chaque repas : « ✅ Mangé » ou « ✏️ J'ai mangé autre chose » (qui déplie photo, description, autre option, quantités, équivalent), et « Sauté ».
+// Chaque repas : « ✅ Mangé » ou « ✏️ Modifier » (qui déplie photo, description, autre option, quantités, équivalent), et « Sauté ».
 // Un seul bouton « comme prévu » ; journée type, dépense du jour et ressenti repliés (un toucher pour les ouvrir).
 const NU90={open:{},det:{}};
 function nuSimplify90(){ if(coach()||ST.view!=="nutrition") return; const app=$("#app"); if(!app) return;
   // un seul bouton « comme prévu » : on garde celui au-dessus des repas
   if(app.querySelector('[data-act="nu-allok"]')){ const b=app.querySelector('[data-act="na-all"]'); if(b){ const r=b.closest(".row"); (r||b).remove(); } }
-  app.querySelectorAll("p.muted.small").forEach(p=>{ if(/Valide d'abord, puis/.test(p.textContent)) p.textContent="Un repas différent ? Touche « J'ai mangé autre chose » sur ce repas."; });
+  app.querySelectorAll("p.muted.small").forEach(p=>{ if(/Valide d'abord, puis/.test(p.textContent)) p.textContent="Un repas différent ? Touche « Modifier » sur ce repas."; });
   // repas : deux choix principaux, le reste replié
   app.querySelectorAll(".card.meal").forEach(card=>{ if(card.dataset.s90) return; const acts=card.querySelector(".acts"); const ok=acts&&acts.querySelector('[data-act="nu-ok"]'); if(!ok) return;
     const mi=ok.dataset.v; card.dataset.s90="1";
@@ -7513,7 +7513,7 @@ function nuSimplify90(){ if(coach()||ST.view!=="nutrition") return; const app=$(
     if(!L.length) return;
     const more=document.createElement("div"); more.className="more90"; more.hidden=!NU90.open[mi]&&!card.querySelector(".edit,#es85,.na-ed,.eqbox");
     L.forEach(([b,t])=>{ const r=b.closest(".row"); b.textContent=t; b.className="ghost"; b.removeAttribute("aria-label"); more.appendChild(b); if(r&&r!==acts&&!r.children.length) r.remove(); });
-    const tg=document.createElement("button"); tg.type="button"; tg.className="ghost"; tg.dataset.act="nu90-more"; tg.dataset.v=mi; tg.textContent=more.hidden?"✏️ J'ai mangé autre chose":"✕ Fermer";
+    const tg=document.createElement("button"); tg.type="button"; tg.className="ghost"; tg.dataset.act="nu90-more"; tg.dataset.v=mi; tg.textContent=more.hidden?"✏️ Modifier":"✕ Fermer";
     acts.innerHTML=""; acts.appendChild(ok); acts.appendChild(tg); acts.after(more);
     if(skip){ skip.className="linkbtn sk90"; skip.textContent="Repas sauté"; more.after(skip); } });
   // blocs secondaires repliés
@@ -7524,7 +7524,7 @@ function nuSimplify90(){ if(coach()||ST.view!=="nutrition") return; const app=$(
   const jt=app.querySelector("details#jt85"); if(jt&&!("jt" in NU90.det)){ jt.open=false; } else if(jt) jt.open=!!NU90.det.jt;
   if(jt&&!jt.dataset.f90){ jt.dataset.f90="1"; jt.addEventListener("toggle",()=>{ NU90.det.jt=jt.open; }); } }
 document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="nu90-more"]'); if(!b) return; e.stopImmediatePropagation(); const mi=b.dataset.v, card=b.closest(".card.meal"), more=card&&card.querySelector(".more90"); if(!more) return;
-  NU90.open[mi]=more.hidden; more.hidden=!more.hidden; b.textContent=more.hidden?"✏️ J'ai mangé autre chose":"✕ Fermer"; },true);
+  NU90.open[mi]=more.hidden; more.hidden=!more.hidden; b.textContent=more.hidden?"✏️ Modifier":"✕ Fermer"; },true);
 // après « Mangé », « Sauté » ou une modification, on referme le repas
 document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="nu-ok"],[data-act="nu-skip"]'); if(b) delete NU90.open[b.dataset.v]; },true);
 render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ nuSimplify90(); }catch(e){ console.error(e); } return r; }; })(render);
@@ -7535,7 +7535,7 @@ render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ nu
 details.f90>summary{cursor:pointer;font-weight:700;padding:2px 0}`; document.head.appendChild(st); })();
 
 // ================= MODULE 91 · REPAS NOTÉS À L'AVANCE (BATCH COOKING), MES REPAS ET JOURNÉE TYPE DANS CHAQUE REPAS, BUDGET =================
-// « Un de mes repas » dans le panneau « J'ai mangé autre chose » ; « J'ai mangé ma journée type » en un geste ;
+// « Un de mes repas » dans le panneau « Modifier » ; « J'ai mangé ma journée type » en un geste ;
 // carte « Prévoir des repas à l'avance » (un plat sur plusieurs jours) ; budget estimé (prix au kg de la base, prix perso par magasin, carnet « nu_px »).
 const B91={my:null,open:false,src:"",slot:"",days:{},px:null};
 const nrm91=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/œ/g,"oe").trim();
@@ -8165,7 +8165,9 @@ async function goHome97(){ if(typeof tplOn92==="function"&&tplOn92()){ await tpl
   if(MSG.open){ IN95.back=false; msgClose(); } ST.histEx=null; ST.printProg=false; ST.printNut=false;
   if(coach()&&!ST.solo&&MODE==="coach"){ CUR=null; M=null; ST.view="clients"; window.scrollTo(0,0); render(); try{ await loadClients(false); }catch(e){} return; }
   ST.todayOn=true; ST.histEx=null; window.scrollTo(0,0); render(); }
-document.addEventListener("click",e=>{ const h=e.target.closest&&e.target.closest("#appTitle"); if(!h) return; const r=h.getBoundingClientRect(); if(e.clientX>r.left+46) return;
+// zone du logo : sa largeur réelle + l'espace qui le suit (le reste du titre ouvre le sélecteur de client)
+function logoHit97(e){ const h=e.target.closest&&e.target.closest("#appTitle"); if(!h) return false; const r=h.getBoundingClientRect(), cs=getComputedStyle(h,"::before"), w=(parseFloat(cs.width)||44)+(parseFloat(getComputedStyle(h).columnGap)||8)+6; return e.clientX<=r.left+w; }
+document.addEventListener("click",e=>{ const h=e.target.closest&&e.target.closest("#appTitle"); if(!h) return; if(!logoHit97(e)) return;
   e.preventDefault(); e.stopImmediatePropagation(); goHome97(); },true);
 (function(){ const st=document.createElement("style"); st.textContent=`header.top h1::before{cursor:pointer}`; document.head.appendChild(st); })();
 
@@ -8394,6 +8396,130 @@ document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closes
   if(a==="dt103-set"){ const x=P&&P.types.find(y=>y.id===b.dataset.v); log().t=b.dataset.v; DT103.open=null; nuSaveLog(d); render(); return toast(`Objectif du jour : ${x?x.name:""}`); }
   if(a==="dt103-auto"){ const L=log(); delete L.t; DT103.open=null; nuSaveLog(d); render(); return toast("Type de jour automatique"); } },true);
 (function(){ const st=document.createElement("style"); st.textContent=`.dt103{margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}`; document.head.appendChild(st); })();
+
+// ================= MODULE 104 · BASE D'ALIMENTS MODIFIABLE PAR LE COACH, BUDGET PRÉCIS (MAGASIN PAR ALIMENT, CRU / CUIT), FAVORIS =================
+// 1. Coach : toucher le nom d'un aliment ouvre sa fiche, tout se modifie (ajoutés par les clients compris), suppression possible.
+const FE104={id:null,f:null,busy:false};
+const n104=v=>{ const x=parseFloat(String(v??"").replace(",",".")); return isNaN(x)?null:x; };
+function feOpen104(id){ const f=(NU.foods||[]).find(x=>x.id===id); if(!f) return; FE104.id=id; FE104.f={name:f.name,cat:f.cat||"Divers",kcal:f.kcal,p:f.p,g:f.g,l:f.l,fib:f.fib,unit:f.unit||"",unit_g:f.unit_g,price_kg:f.price_kg,cook_yield:f.cook_yield,src:f.src||"",db:!/^(cq|off):/.test(f.id)}; feRender104(); }
+function feClose104(){ FE104.id=null; FE104.f=null; const o=document.getElementById("fe104"); if(o){ o.hidden=true; o.innerHTML=""; } document.body.classList.remove("sc99on"); }
+function feRender104(){ const F=FE104.f; let o=document.getElementById("fe104"); if(!o){ o=document.createElement("div"); o.id="fe104"; o.setAttribute("role","dialog"); o.setAttribute("aria-modal","true"); document.body.appendChild(o); }
+  const fld=(k,l,w,mode)=>`<label class="f" style="flex:${w||"1 1 70px"}">${l}<input data-fe104="${k}" inputmode="${mode||"decimal"}" value="${esc(F[k]==null?"":String(F[k]))}" autocomplete="off"></label>`;
+  const cats=[...new Set([...FCATS,F.cat].filter(Boolean))], y=yield91(F.name);
+  o.innerHTML=`<div class="fe104in"><div class="row" style="flex-wrap:nowrap;gap:6px;align-items:flex-start"><h3 class="grow" style="margin:0">${F.db?"Modifier l'aliment":"Aliment de la Table Ciqual"}</h3><button class="ghost sm" data-act="fe104-close" aria-label="Fermer">✕</button></div>
+    ${F.src==="client"?`<div class="muted small" style="margin:4px 0">Ajouté par un client : vérifie le nom, les valeurs et la portion.</div>`:""}${F.db?"":`<div class="muted small" style="margin:4px 0">Pour le modifier, il sera enregistré dans ta base (copie) et remplacera la version Ciqual dans les recherches.</div>`}
+    <div class="row">${fld("name","Nom","2 1 220px","text")}<label class="f" style="flex:1 1 150px">Catégorie<select data-fe104="cat">${cats.map(c=>`<option ${c===F.cat?"selected":""}>${esc(c)}</option>`).join("")}</select></label></div>
+    <div class="small muted" style="margin-top:6px">Valeurs pour 100 g</div>
+    <div class="row">${fld("kcal","kcal")}${fld("p","Protéines")}${fld("g","Glucides")}${fld("l","Lipides")}${fld("fib","Fibres")}</div>
+    <div class="row">${fld("unit","Portion (nom seul : pot, tranche…)","1 1 150px","text")}${fld("unit_g","Poids de la portion (g)","1 1 120px")}</div>
+    <div class="row">${fld("price_kg","Prix au kg (€)","1 1 120px")}${/cuit/i.test(F.name)?fld("cook_yield",`Rendement cuisson (cuit ÷ cru)${y>1?` · auto ${fmtN(round(y,2))}`:""}`,"1 1 160px"):""}</div>
+    ${/cuit/i.test(F.name)?`<div class="muted small">Aliment noté cuit : le prix au kg est celui du produit <b>tel qu'acheté (cru / sec)</b>, le budget le convertit avec le rendement de cuisson.</div>`:""}
+    <div class="row" style="margin-top:10px;gap:6px"><button class="ok" data-act="fe104-save" ${FE104.busy?"disabled":""}>Enregistrer</button>${F.db?`<button class="ghost" data-act="fe104-del">Supprimer</button>`:""}<button class="ghost" data-act="fe104-close">Annuler</button></div></div>`;
+  o.hidden=false; document.body.classList.add("sc99on"); }
+document.addEventListener("input",e=>{ const k=e.target.dataset&&e.target.dataset.fe104; if(k&&FE104.f) FE104.f[k]=e.target.value; });
+document.addEventListener("change",e=>{ const k=e.target.dataset&&e.target.dataset.fe104; if(k&&FE104.f) FE104.f[k]=e.target.value; });
+document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act^="fe104-"]'); if(!b) return; e.preventDefault(); e.stopImmediatePropagation(); const a=b.dataset.act;
+  if(a==="fe104-open") return feOpen104(b.dataset.v);
+  if(a==="fe104-close") return feClose104();
+  const F=FE104.f; if(!F||!coach()) return;
+  if(a==="fe104-del"){ if(!confirm(`Supprimer « ${F.name} » de la base ? Les repas déjà notés gardent leurs valeurs.`)) return; const {error}=await SB.from("nutri_foods").delete().eq("id",FE104.id); if(error) return toast("Non supprimé : "+error.message);
+    feClose104(); NU.foods=null; NU.fn91=null; await nuFoods(); render(); return toast("Aliment supprimé"); }
+  if(a==="fe104-save"){ const name=String(F.name||"").trim().replace(/\s+/g," "); if(name.length<2) return toast("Indique le nom");
+    const p=n104(F.p)||0, g=n104(F.g)||0, l=n104(F.l)||0; if(p<0||g<0||l<0||p+g+l>100.5) return toast("Protéines + glucides + lipides : 100 g maximum pour 100 g");
+    let unit=String(F.unit||"").replace(/^\s*\d+([.,]\d+)?\s*/,"").trim().toLowerCase().slice(0,20)||null, ug=n104(F.unit_g); if(!unit||!(ug>0)){ unit=null; ug=null; }
+    const cy=n104(F.cook_yield); if(cy!=null&&(cy<1||cy>6)) return toast("Rendement de cuisson entre 1 et 6 (ex. riz ≈ 2,6)");
+    const row={name,cat:F.cat||"Divers",kcal:n104(F.kcal)??Math.round(4*p+4*g+9*l),p,g,l,fib:n104(F.fib),unit,unit_g:ug,price_kg:n104(F.price_kg),cook_yield:cy};
+    FE104.busy=true; feRender104(); const q=F.db?SB.from("nutri_foods").update(Object.assign({},row,F.price_kg!=null&&F.price_kg!==""?{price_src:"coach"}:{})).eq("id",FE104.id):SB.from("nutri_foods").insert(Object.assign({coach_id:UID,src:"coach"},row));
+    const {error}=await q; FE104.busy=false; if(error){ feRender104(); return toast("Non enregistré : "+error.message); }
+    feClose104(); NU.foods=null; NU.fn91=null; await nuFoods(); render(); return toast("Aliment enregistré"); } },true);
+// tableau de la base : le nom ouvre la fiche, suppression pour tous les aliments de la base
+const _RESfq104=RES.fq;
+RES.fq=function(){ const h=_RESfq104(); if(!coach()) return h;
+  return h.replace(/<tr><td>([^<]*)(<br><span class="muted small">[^<]*<\/span>)?<\/td>([\s\S]*?)<\/tr>/g,(m,nm,unit,rest)=>{ const f=(NU.foods||[]).find(x=>esc(x.name)===nm); if(!f) return m;
+    const del=!/^(cq|off):/.test(f.id)&&!/data-act="lib-fdel"/.test(rest)?rest.replace(/<td><\/td>$/,`<td><button class="ghost sm" data-act="lib-fdel" data-v="${f.id}" aria-label="Supprimer">✕</button></td>`):rest;
+    return `<tr><td><button class="linkbtn fe104n" data-act="fe104-open" data-v="${f.id}">${nm}</button>${f.src==="client"?` <span class="chip" style="font-size:.7rem;padding:2px 6px">client</span>`:""}${unit||""}</td>${del}</tr>`; }); };
+
+// 2. Budget : rendement de cuisson (aliment noté cuit, acheté cru / sec)
+const COOK104=[[/riz sauvage/,3],[/riz/,2.6],[/p[âa]tes|nouille|spaghetti|tagliatelle|macaroni/,2.3],[/quinoa/,2.7],[/semoule|couscous/,2.4],[/boulgour/,2.5],[/lentille/,2.5],[/pois chiche/,2.3],[/haricot|flageolet|pois cass|f[èe]ve/,2.5],[/[ée]peautre|sarrasin|millet|bl[ée]/,2.5],[/orge/,2.8],[/polenta/,4]];
+function rawOf104(f){ if(!f||!NU.foods) return null; const base=nrm91(f.name).replace(/\s*\((cuit|cuite|cuits|cuites)\)\s*$/,"").replace(/,\s*cuit.*$/,"").trim();
+  return NU.foods.find(x=>x!==f&&new RegExp("^"+base.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\s*(\\((crue?s?|secs?|s[eè]che?s?)\\)|,\\s*(crue?s?|secs?|s[eè]che?s?)\\b)").test(nrm91(x.name)))||null; }
+function yield91(n){ if(!/cuit/i.test(n||"")) return 1; const f=foodByName91(n); if(f&&+f.cook_yield>=1) return +f.cook_yield;
+  const r=rawOf104(f); if(f&&r&&+r.kcal>0&&+f.kcal>0){ const y=+r.kcal/+f.kcal; if(y>=1.2&&y<=5) return y; }
+  const s=nrm91(n); for(const [re,y] of COOK104) if(re.test(s)) return y; return 1; }
+// prix : magasin choisi pour cet aliment, sinon magasin par défaut, sinon n'importe quel prix saisi ; aliment cuit acheté cru → prix converti
+priceOf91=function(n,cat){ const X=PX91(), S=X.st||{}, y=yield91(n), by=(X.by||{})[n];
+  let store=null, mine=null; for(const s of [by,X.store||"",""]) if(s!=null&&S[s]&&S[s][n]){ store=s; mine=S[s][n]; break; }
+  if(!mine) for(const s of Object.keys(S)) if(S[s][n]){ store=s; mine=S[s][n]; break; }
+  if(mine&&+mine.p>0&&+mine.g>0){ const buy=+mine.p/+mine.g*1000, raw=y>1&&mine.raw!==false; return {pk:raw?buy/y:buy,src:"perso",mine,store,y,raw,buy}; }
+  const f=foodByName91(n);
+  if(y>1){ const r=rawOf104(f); if(r&&r.price_kg!=null&&r.price_kg!=="") return {pk:+r.price_kg/y,src:"estim",y,raw:true,buy:+r.price_kg}; if(f&&f.price_kg!=null&&f.price_kg!=="") return {pk:+f.price_kg,src:"estim",y,raw:false}; }
+  else if(f&&f.price_kg!=null&&f.price_kg!=="") return {pk:+f.price_kg,src:"estim",y};
+  const cm=catMed91((f&&f.cat)||cat); return cm!=null?{pk:cm,src:"cat",y}:{pk:null,src:null,y}; };
+// liste de courses : magasin de chaque aliment, quantité à acheter crue, total par magasin
+nCourses=function(){ const P=coach()?NU.plan:planOn(), agg={}; if(!P) return `<div class="card muted">Pas encore de plan.</div>`;
+  P.week.forEach(id=>{ typeOf(id).meals.forEach(m=>{ const o=m.opts[0]; if(!o) return; o.it.forEach(i=>{ const k=i.n; if(!agg[k]) agg[k]={...i,q:0}; agg[k].q+=(+i.q||0)*(o.m||1); }); }); });
+  const X=PX91(), stores=Object.keys(X.st||{}).filter(Boolean), f=NU.shopDays/7, groups={}, byStore={}; let tot=0; Object.values(agg).forEach(i=>{ const c=i.c||"Divers"; (groups[c]=groups[c]||[]).push({...i,q:i.q*f}); });
+  let h=budgetCard91()+subnav([[3,"3 jours"],[7,"7 jours"],[14,"14 jours"]].map(([v,l])=>[String(v),l]),String(NU.shopDays),"nu-shopd");
+  h+=`<p class="note">Basé sur les plats prévus. Coche ce que tu as déjà. ✏️ : ton prix et le magasin où tu achètes chaque aliment.</p>`;
+  Object.keys(groups).sort().forEach(c=>{ h+=`<div class="card"><h3 style="margin-top:0">${esc(c)}</h3>${groups[c].sort((a,b)=>a.n.localeCompare(b.n)).map(i=>{ const on=!!NU.shop[i.n], p=priceOf91(i.n,i.c), cost=p.pk!=null?i.q/1000*p.pk:null;
+    if(cost){ tot+=cost; const sk=p.src==="perso"?(p.store||"Prix perso"):"Prix moyens (estimés)"; byStore[sk]=(byStore[sk]||0)+cost; }
+    const ed=B91.px===i.n, mine=p.mine||{}, buyQ=p.y>1&&p.raw?i.q/p.y:null, st0=ed?(B91.st!=null?B91.st:(p.store!=null?p.store:(X.store||""))):"", raw0=ed?(B91.raw!=null?B91.raw:(mine.raw!==false)):true;
+    return `<div class="shop91" style="border-top:1px solid var(--line)"><div class="row" style="padding:6px 0;flex-wrap:nowrap;gap:6px"><label class="row shop ${on?"got":""} grow" style="flex-wrap:nowrap;gap:6px;margin:0"><input type="checkbox" style="width:auto" data-shop="${esc(i.n)}" ${on?"checked":""}><span class="grow">${esc(i.n)}<br><span class="muted small">${qtyTxt(i)}${buyQ?` · à acheter ≈ ${fmtN(Math.round(buyQ))} g cru`:""}${p.src==="perso"&&p.store?` · 🛒 ${esc(p.store)}`:""}</span></span></label>
+      <span class="small" style="flex:none;text-align:right">${cost!=null?`${fmtE(cost)}<br><span class="muted">${p.src==="perso"?"mon prix":p.src==="cat"?"estimé (catégorie)":"estimé"}</span>`:`<span class="muted">—</span>`}</span>${coach()?"":`<button class="ghost sm" data-act="px91-ed" data-v="${esc(i.n)}" aria-label="Mon prix pour ${esc(i.n)}">✏️</button>`}</div>
+      ${ed?`<div class="edit" style="margin-bottom:8px"><div class="small">Où j'achète <b>${esc(i.n.replace(/\s*\((cuit|cuite|cuits|cuites)\)/i,""))}</b></div>
+        <div class="row" style="gap:4px;margin-top:4px">${stores.map(s=>`<button class="chip ${st0===s?"on":""}" data-act="px104-st" data-v="${esc(s)}">${esc(s)}</button>`).join("")}<button class="ghost sm" data-act="px104-newst">＋ Autre magasin</button></div>
+        ${p.y>1?`<div class="row" style="gap:4px;margin-top:6px"><button class="chip ${raw0?"on":""}" data-act="px104-raw" data-v="1">J'achète cru / sec</button><button class="chip ${raw0?"":"on"}" data-act="px104-raw" data-v="0">Déjà cuit (conserve, sachet)</button></div>`:""}
+        <div class="row" style="gap:6px;margin-top:6px;flex-wrap:nowrap"><label class="f" style="flex:1 1 0">Prix payé (€)<input id="px91p" inputmode="decimal" value="${esc(mine.p??"")}" placeholder="2,49"></label><label class="f" style="flex:1 1 0">Poids du paquet${p.y>1&&raw0?" (cru)":""} (g ou ml)<input id="px91g" inputmode="decimal" value="${esc(mine.g??"")}" placeholder="500"></label></div>
+        ${p.y>1&&raw0?`<div class="muted small" style="margin-top:4px">Noté cuit dans tes repas : 100 g cru ≈ ${fmtN(Math.round(100*p.y))} g cuit. Le budget convertit tout seul.</div>`:""}
+        <div class="row" style="gap:6px;margin-top:6px"><button class="ok sm" data-act="px91-save" data-v="${esc(i.n)}">Enregistrer</button>${p.src==="perso"?`<button class="ghost sm" data-act="px91-del" data-v="${esc(i.n)}">Revenir au prix estimé</button>`:""}<button class="ghost sm" data-act="px91-ed" data-v="">Annuler</button></div></div>`:""}</div>`; }).join("")}</div>`; });
+  if(!Object.keys(groups).length) h+=`<div class="card muted">La liste se remplit dès que des plats sont prévus.</div>`;
+  else h+=`<div class="card"><b>Total de la liste (${NU.shopDays} jours) : ≈ ${fmtE(tot)}</b>${Object.keys(byStore).length>1||stores.length?`<div class="small" style="margin-top:6px">${Object.entries(byStore).sort((a,b)=>b[1]-a[1]).map(([s,v])=>`<div class="row" style="justify-content:space-between"><span>🛒 ${esc(s)}</span><b>${fmtE(v)}</b></div>`).join("")}</div>`:""}<div class="muted small" style="margin-top:4px">Estimation : la taille des paquets achetés change le montant réel.</div></div>`;
+  if(Object.keys(NU.shop).length) h+=`<button class="ghost" data-act="nu-shopclr">Tout décocher</button>`;
+  return h; };
+// écouté sur window (avant le module 91) : l'enregistrement du prix tient compte du magasin et du cru / cuit
+window.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act^="px104-"],[data-act="px91-save"],[data-act="px91-ed"],[data-act="px91-del"]'); if(!b) return; const a=b.dataset.act, v=b.dataset.v||"";
+  const X=JSON.parse(JSON.stringify(PX91())); X.st=X.st||{}; X.by=X.by||{};
+  if(a==="px91-ed"){ B91.st=null; B91.raw=null; return; } // le module 91 ouvre / ferme
+  e.stopImmediatePropagation();
+  if(a==="px104-st"){ B91.st=v; return render(); }
+  if(a==="px104-raw"){ B91.raw=v==="1"; return render(); }
+  if(a==="px104-newst"){ const n=(prompt("Nom du magasin (ex. Leclerc, Lidl, Intermarché, marché)")||"").trim().slice(0,40); if(!n) return; X.st[n]=X.st[n]||{}; B91.st=n; return pxSave91(X); }
+  const n=B91.px; if(!n) return;
+  if(a==="px91-save"){ const p=n104((document.getElementById("px91p")||{}).value), g=n104((document.getElementById("px91g")||{}).value); if(!(p>0)||!(g>0)) return toast("Entre le prix payé et le poids du paquet");
+    const cur=priceOf91(n), st=B91.st!=null?B91.st:(cur.store!=null?cur.store:(X.store||"")), raw=B91.raw!=null?B91.raw:true;
+    Object.keys(X.st).forEach(s=>{ if(s!==st&&X.st[s][n]&&X.by[n]===s) delete X.st[s][n]; }); X.st[st]=X.st[st]||{}; X.st[st][n]={p,g,at:todayISO(),...(cur.y>1?{raw}:{})}; X.by[n]=st;
+    B91.px=null; B91.st=null; B91.raw=null; await pxSave91(X); return toast(`Prix enregistré${st?` chez ${st}`:""} : ${fmtE(p/g*1000)} le kg${cur.y>1&&raw?" (cru)":""}`); }
+  if(a==="px91-del"){ Object.keys(X.st).forEach(s=>{ delete X.st[s][n]; }); delete X.by[n]; B91.px=null; return pxSave91(X); } },true);
+// carte budget : « magasin par défaut » + explication
+const _budgetCard104=budgetCard91;
+budgetCard91=function(){ return _budgetCard104().replace("<b>Où tu fais tes courses</b>","<b>Magasin par défaut</b> <span class=\"muted\">(chaque aliment peut avoir son propre magasin : ✏️ dans la liste)</span>")
+  .replace("Estimation à partir de prix moyens indicatifs en grande surface.","Estimation à partir de prix moyens indicatifs en grande surface. Pâtes, riz, légumineuses notés cuits : le prix est celui du produit acheté cru, converti avec le rendement de cuisson."); };
+
+// 3. Aliments favoris (⭐) et souvent mangés, en tête de chaque recherche d'aliment
+const FAV104=()=>(((ST.carnet||{}).nu_fav)||{}).f||[];
+const isFav104=n=>FAV104().includes(n);
+async function favToggle104(n){ const L=FAV104().slice(), i=L.indexOf(n); if(i>=0) L.splice(i,1); else L.unshift(n); const v={f:L.slice(0,60),at:new Date().toISOString()}; ST.carnet.nu_fav=v; try{ cacheClient(); }catch(e){}
+  await safeWrite("carnet",{client_id:CUR,k:"nu_fav",data:v,updated_at:v.at},{client_id:CUR,k:"nu_fav"},"upsert"); }
+function freq104(){ const c={}; Object.keys(NU.logs||{}).filter(d=>d>=addDays(todayISO(),-60)).forEach(d=>{ const L=NU.logs[d]||{}; Object.values(L.m||{}).forEach(st=>(st&&st.it||[]).forEach(i=>{ if(!i.est) c[i.n]=(c[i.n]||0)+1; })); (L.x||[]).forEach(i=>{ if(!i.est) c[i.n]=(c[i.n]||0)+1; }); });
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(x=>x[0]); }
+const foodN104=n=>(NU.foods||[]).find(f=>f.name===n)||foodByName91(n);
+const star104=f=>`<button class="fav105 ${isFav104(f.name)?"on":""}" data-act="fav104" data-v="${esc(f.name)}" aria-label="${isFav104(f.name)?"Retirer des favoris":"Ajouter aux favoris"}">${isFav104(f.name)?"★":"☆"}</button>`;
+Object.keys(NFACT85).forEach(k=>{ const o=RES[k], act=NFACT85[k]; RES[k]=function(){ let h=o?o():""; if(!CUR||!NU.foods) return h;
+  h=h.replace(new RegExp(`<button data-act="${act}" data-v="([^"]+)">([\\s\\S]*?)</button>`,"g"),(m,id)=>{ const f=NU.fmap[id]; return f?`<div class="fr105">${m}${star104(f)}</div>`:m; });
+  if(String(NU[k]||"").trim().length>=2||NF85.k===k) return h;
+  const row=f=>`<div class="fr105"><button data-act="${act}" data-v="${f.id}">${esc(f.name)} <span class="muted small">${f.unit?"1 "+esc(f.unit)+" = "+r0(f.unit_g*f.kcal/100)+" kcal":r0(f.kcal)+" kcal/100 g"}</span></button>${star104(f)}</div>`;
+  const fav=FAV104().map(foodN104).filter(Boolean), fq=freq104().filter(n=>!isFav104(n)).map(foodN104).filter(Boolean).slice(0,6);
+  let q=""; if(fav.length) q+=`<div class="q105h">⭐ Mes favoris</div>${fav.map(row).join("")}`; if(fq.length) q+=`<div class="q105h">🕘 Souvent mangés</div>${fq.map(row).join("")}`;
+  if(!fav.length&&!fq.length) q=`<div class="muted small" style="margin:4px 0">Astuce : touche ☆ à côté d'un aliment pour le garder en favori.</div>`;
+  return q+h; }; });
+document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act="fav104"]'); if(!b) return; e.preventDefault(); e.stopImmediatePropagation(); const n=b.dataset.v; await favToggle104(n);
+  const on=isFav104(n); document.querySelectorAll('[data-act="fav104"]').forEach(x=>{ if(x.dataset.v===n){ x.classList.toggle("on",on); x.textContent=on?"★":"☆"; } }); toast(on?"Ajouté aux favoris ⭐":"Retiré des favoris"); },true);
+(function(){ const st=document.createElement("style"); st.textContent=`
+#fe104{position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.45);overflow-y:auto;padding:max(12px,env(safe-area-inset-top)) 10px 24px}#fe104[hidden]{display:none}
+.fe104in{max-width:560px;margin:0 auto;background:var(--paper);color:var(--ink);border-radius:16px;padding:14px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.fe104n{font:inherit;text-align:left;padding:0;min-height:0;color:var(--blue);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--blue) 35%,transparent)}
+.fr105{display:flex;align-items:stretch;gap:4px}.fr105>button:first-child{flex:1;min-width:0}.fav105{flex:none;width:44px;padding:0;font-size:1.2rem;background:transparent;border:1px solid var(--line);color:var(--soft)}.fav105.on{color:#f5a524}
+.q105h{font-size:.8rem;font-weight:700;color:var(--soft);margin:8px 0 2px}`; document.head.appendChild(st); })();
 
 boot();
 

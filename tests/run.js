@@ -737,6 +737,38 @@ const T = {
     ok((await p.evaluate(d => NU.logs[d].t, r.ds)) === undefined && /Jour d'entraînement/.test(await txt(p, '.dt103')), 'retour à l\'automatique');
   }, clientPre(sc => (m, path, b, a, t) => { if (t === 'nutri_log' && m === 'POST') return []; })),
 
+  'coach : fiche aliment modifiable (aliment client compris), logo sans menu': () => run('coach', async (p, sc) => {
+    await p.waitForTimeout(1000); await p.evaluate(() => { CUR = null; ST.view = 'base'; B92.tab = 'aliments'; NU.fq = 'riz'; render(); }); await p.waitForTimeout(1200);
+    const b = p.locator('#app [data-act="fe104-open"][data-v="fr"]'); ok(await b.count() > 0, 'nom de l\'aliment cliquable');
+    await b.click(); await p.waitForTimeout(300);
+    ok(await p.evaluate(() => !document.getElementById('fe104').hidden), 'fiche de l\'aliment ouverte');
+    await p.fill('[data-fe104="fib"]', '0,6'); await p.fill('[data-fe104="unit"]', '1 bol'); await p.fill('[data-fe104="unit_g"]', '180');
+    await p.click('[data-act="fe104-save"]'); await p.waitForTimeout(500);
+    const w = sc.patched || sc.lastBody; ok(w && +w.fib === 0.6 && w.unit === 'bol' && +w.unit_g === 180, 'enregistré : fibres, portion sans nombre devant (' + JSON.stringify(w && { fib: w.fib, unit: w.unit, unit_g: w.unit_g }) + ')');
+    await p.evaluate(() => openClient('11111111-1111-1111-1111-111111111111')); await p.waitForTimeout(800);
+    const r = await p.evaluate(() => document.getElementById('appTitle').getBoundingClientRect()); await p.touchscreen.tap(r.left + 20, r.top + r.height / 2); await p.waitForTimeout(500);
+    ok(await p.evaluate(() => CUR === null && !CS85.open), 'logo : retour à l\'accueil sans ouvrir le menu des clients');
+  }, coachPre(sc => (m, path, b, a, t) => { if (t === 'nutri_foods' && m === 'PATCH') { sc.patched = b; return []; } })),
+
+  'budget : magasin par aliment, riz noté cuit acheté cru, favoris, bouton Modifier': () => run('client', async (p) => {
+    await p.click('nav.tabs [data-v="nutrition"]'); await p.waitForTimeout(1200);
+    ok(/✏️ Modifier/.test(await txt(p, '.card.meal')), 'repas : « Mangé » et « Modifier »');
+    const R = await p.evaluate(() => { NU.foods.push({ id: 'rc', name: 'Riz basmati (cru)', cat: 'Féculents & céréales', kcal: 350, p: 8, g: 77, l: 1, price_kg: 3.5 }); NU.fn91 = null;
+      const y = yield91('Riz basmati (cuit)'); const e = priceOf91('Riz basmati (cuit)');
+      ST.carnet.nu_px = { st: { Leclerc: { 'Riz basmati (cuit)': { p: 2, g: 1000, raw: true } }, Lidl: { 'Blanc de poulet (cru)': { p: 10, g: 1000 } } }, by: { 'Riz basmati (cuit)': 'Leclerc', 'Blanc de poulet (cru)': 'Lidl' }, store: '' };
+      const a = priceOf91('Riz basmati (cuit)'), b = priceOf91('Blanc de poulet (cru)'); return { y, e: e.pk, a, b }; });
+    ok(Math.abs(R.y - 350 / 130) < 0.01, 'rendement de cuisson du riz calculé : ' + R.y.toFixed(2));
+    ok(Math.abs(R.e - 3.5 / R.y) < 0.01, 'prix estimé du riz cuit = prix du riz cru ÷ rendement (' + R.e.toFixed(2) + ' €/kg)');
+    ok(R.a.store === 'Leclerc' && Math.abs(R.a.pk - 2 / R.y) < 0.01 && R.b.store === 'Lidl' && R.b.pk === 10, 'chaque aliment au prix de son magasin (riz Leclerc, poulet Lidl)');
+    await p.evaluate(() => { NU.nv = 'courses'; render(); }); await p.waitForTimeout(400);
+    const c = await txt(p, '#app'); ok(/à acheter ≈ \d+ g cru/.test(c) && /🛒 Leclerc/.test(c) && /🛒 Lidl/.test(c), 'liste de courses : quantité crue à acheter et total par magasin');
+    await p.evaluate(() => { NU.nv = 'jour'; NU.xOpen = true; render(); }); await p.waitForTimeout(300);
+    await p.fill('[data-nuq="xq"]', 'riz'); await p.waitForTimeout(300); await p.click('#nu-xres .fav105 >> nth=0'); await p.waitForTimeout(300);
+    ok((await p.evaluate(() => (ST.carnet.nu_fav || {}).f || [])).length === 1, 'aliment ajouté aux favoris');
+    await p.fill('[data-nuq="xq"]', ''); await p.waitForTimeout(300);
+    ok(/Mes favoris/.test(await txt(p, '#nu-xres')), 'favoris en tête de la recherche');
+  }, clientPre(sc => (m, path, b, a, t) => { if ((t === 'nutri_log' || t === 'carnet') && m === 'POST') return []; })),
+
 };
 
 (async () => {
