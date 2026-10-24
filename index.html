@@ -8528,7 +8528,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.
 // sans les cartes propres au coach (revue de semaine, tâches, notes privées, liste des clients…). Gratuit : l'onglet propose Premium.
 // Bouton « 🚀 Coaching » en haut : ce que le coaching débloque par rapport à sa formule actuelle, et candidature.
 const PG106={on:false};
-const SUB106=[["programme","Programme"],["athlete","Profil & 1RM"],["nutrition","Plan alimentaire"],["controles","Analyse"],["reglages","Réglages"]];
+const SUB106=[["programme","Programme"],["athlete","Profil & 1RM"],["nutrition","Plan alimentaire"]];
 const sub106=v=>SUB106.some(x=>x[0]===v);
 function tools106(on,view){ PG106.on=on; ST.soloCoach=on; MODE=on?"coach":"client"; ST.isCoach=on; ST.clientView=false;
   if(on){ ST.todayOn=false; ST.view=view||"programme"; } }
@@ -8621,14 +8621,14 @@ const lock107=()=>!!(ST.solo&&CUR&&MODE==="client"&&!prem88());
 const PL107={open:false};
 function pl107(){ let el=document.getElementById("pl107"); if(!PL107.open){ if(el) el.remove(); return; }
   if(!el){ el=document.createElement("div"); el.id="pl107"; document.body.appendChild(el); }
-  const P=price88(), T=[["📋 Programme","Modifier ou régénérer ton programme, piocher dans la banque de programmes, surcharge progressive automatique"],["🏋️ Profil & 1RM","Tes 1RM, tes jours, ton objectif : les charges se calculent toutes seules"],["🍽️ Plan alimentaire","Plan calculé selon ton objectif, macros, fibres et liste de courses"],["📊 Analyse","Volume par muscle et vue par exercice, semaine par semaine"],["⚙️ Réglages","Durée des cycles, deload, règles de progression"]];
+  const P=price88(), T=[["📋 Programme","Créer ou modifier ton programme, piocher dans la banque de programmes, régler ta surcharge progressive"],["🏋️ Profil & 1RM","Tes 1RM, tes jours, ton objectif : les charges se calculent toutes seules"],["🍽️ Plan alimentaire","Plan calculé selon ton objectif, macros, batch cooking et liste de courses"],["📏 Mesures","Poids, tour de taille et mensurations, avec les courbes"],["⚡ Dépense détaillée","Pas, séances et cardio comptés dans ta dépense du jour"]];
   el.innerHTML=`<div class="cs85bg" data-act="pl107x"></div><div class="cs85p" role="dialog" aria-label="Onglet Programme"><div class="row" style="flex-wrap:nowrap;align-items:center"><b class="grow" style="font-size:1.1rem">🔒 Tes outils de l'App complète</b><button class="ghost sm" data-act="pl107x" aria-label="Fermer">✕</button></div>
     ${T.map(([a,b])=>`<div class="pl107r"><b>${a}</b> <span class="lk107i">🔒</span><div class="muted small">${b}</div></div>`).join("")}
     <button style="width:100%;margin-top:12px" data-act="pl107o">${sub88()&&sub88().trial_used?"Passer à l'App complète":`Essayer ${P.trial_days} jours gratuitement`}</button>
     <p class="muted small" style="text-align:center;margin:6px 0 0">${fmtE(P.premium_month)} / mois ou ${fmtE(P.premium_year)} / an · résiliable à tout moment</p></div>`; }
 function lockNu107(){ if(!lock107()||ST.view!=="nutrition"||ST.todayOn) return; const app=$("#app"); if(!app) return;
-  app.querySelectorAll(".mb3,.fb102,#src98").forEach(el=>{ if(el.closest(".lk107w")) return; const w=document.createElement("div"); w.className="lk107w"; el.parentNode.insertBefore(w,el); w.appendChild(el);
-    w.insertAdjacentHTML("beforeend",`<button class="lk107b" data-act="lk107">🔒 ${el.id==="src98"?"D'où viennent tes macros":el.classList.contains("fb102")?"Fibres":"Protéines, glucides, lipides"} · App complète</button>`); });
+  app.querySelectorAll(".mb3,#src98,.macro-en").forEach(el=>{ if(el.closest(".lk107w")) return; const w=document.createElement("div"); w.className="lk107w"; el.parentNode.insertBefore(w,el); w.appendChild(el);
+    w.insertAdjacentHTML("beforeend",`<button class="lk107b" data-act="lk107">🔒 ${el.id==="src98"?"D'où viennent tes macros":"Protéines, glucides, lipides"} · App complète</button>`); });
   app.querySelectorAll('[data-act="nu-nv"][data-v="courses"]').forEach(b=>{ if(!/🔒/.test(b.textContent)) b.textContent+=" 🔒"; }); }
 // Accueil de l'inscrit libre (Gratuit ou App complète) : messages et bilan avec Thomas réservés au coaching
 function lockToday107(){ if(!(ST.solo&&CUR&&MODE==="client"&&ST.todayOn)) return; const app=$("#app"); if(!app) return;
@@ -8651,6 +8651,117 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&PL107.open){ PL107
 #pl107{position:fixed;inset:0;z-index:1000}#pl107 .cs85bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}#pl107 .cs85p{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);max-width:520px;max-height:88vh;margin:0 auto;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .pl107r{border-top:1px solid var(--line);padding:10px 2px}.lk107i{float:right}
 body.free107 .mmac,body.free107 .im98{display:none}`; document.head.appendChild(st); })();
+
+// ================= MODULE 108 · PALIERS : journal des repas en Gratuit, dépense simple, mesures, batch cooking, projection, méthode, banque =================
+// Gratuit : calories et fibres, repas notés à la main (aliments + quantités ou « mes repas »), dépense estimée simplement (MB × coefficient).
+// App complète : macros, plan alimentaire, batch cooking, mesures, dépense détaillée (pas, cardio), une partie de la banque de programmes.
+// Coaching suivi et plus : projection de poids, toute la méthode (dont le dos), toute la banque (le client choisit, Thomas suit).
+const free108=()=>!!(ST.solo&&CUR&&!prem88());
+const plus108=()=>!ST.solo;
+const COEF108=1.4;
+// ---------- journal libre : un plan sans plat prévu (non enregistré) pour noter ses repas
+const JMEALS108=["Petit-déjeuner","Déjeuner","Dîner"];
+function journalPlan108(){ const k=Math.round(spendEN(todayISO()).total||2000);
+  return {v:1,active:true,journal108:true,prof:{},tgt:{k,p:Math.round(k*0.25/4),g:Math.round(k*0.45/4),l:Math.round(k*0.30/9),fib:30},week:["E","E","E","E","E","E","E"],
+    types:[{id:"E",name:"Jour",meals:JMEALS108.map(n=>({name:n,opts:[{n,m:1,it:[]}]}))}],cardio:[]}; }
+const _nuSave108=nuSave; nuSave=function(){ if(NU.plan&&NU.plan.journal108) return; return _nuSave108.apply(this,arguments); };
+function journal108(){ return !!(NU.plan&&NU.plan.journal108); }
+function journalSync108(){ if(!ST.solo||!CUR) return; if(coach()){ if(journal108()) NU.plan=null; return; }
+  if(NU.loaded&&NU.cid===CUR&&!NU.plan&&!NU.err){ try{ NU.plan=journalPlan108(); }catch(e){} } }
+function journalDeco108(){ if(!journal108()||ST.view!=="nutrition"||ST.todayOn||coach()) return; const app=$("#app"); if(!app) return; const {L}=nDayCtx();
+  app.querySelectorAll(".card.meal").forEach((card,mi)=>{ if((L.m||{})[mi]||card.dataset.j108) return; card.dataset.j108="1";
+    const open=NU.adj&&NU.adj.mi===mi&&NU.adj.d===NU.day, adj=open?card.querySelector(".adj"):null;
+    card.innerHTML=`<div class="row"><h3 class="grow" style="margin:0">${esc(JMEALS108[mi]||"Repas")}</h3></div><div class="muted small" style="margin-top:4px">Rien de noté pour l'instant.</div>
+      <div class="acts" style="margin-top:8px"><button class="ok" data-act="j108-add" data-v="${mi}">＋ Ajouter des aliments</button><button class="ghost" data-act="j108-my">📒 Un de mes repas</button><button class="ghost" data-act="nu-skip" data-v="${mi}">Sauté</button></div>`;
+    if(adj) card.appendChild(adj); });
+  app.querySelectorAll('[data-act="nu-allok"],[data-act="na-all"]').forEach(b=>{ const r=b.closest(".row"); (r||b).remove(); });
+  app.querySelectorAll('[data-act="nu-dtype"]').forEach(b=>{ const r=b.closest(".row"); if(r) r.remove(); });
+  // pas d'objectif « prévu » sans plan : le bilan mangées / brûlées est en tête (k108)
+  const kc=app.querySelector(".card .kc"), c0=kc&&kc.closest(".card"); if(c0){ const r=kc.closest(".row"); if(r) r.remove(); const cal=c0.querySelector(".mb"); if(cal&&!cal.closest(".mb3")) cal.remove(); } }
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="j108-add"],[data-act="j108-my"],[data-act="na-save"]'); if(!b||!journal108()) return;
+  const a=b.dataset.act;
+  if(a==="j108-add"){ e.stopImmediatePropagation(); NU.adj={mi:+b.dataset.v,d:NU.day,it:[],n:""}; NU.aq=""; NU.alt=null; if(!NU.foods) nuFoods().then(()=>render()); return render(); }
+  if(a==="j108-my"){ e.stopImmediatePropagation(); const el=document.getElementById("my78"); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); return; }
+  if(a==="na-save"&&NU.adj){ e.stopImmediatePropagation(); const mi=+b.dataset.v, it=NU.adj.it.filter(i=>+i.q>0); if(!it.length) return toast("Ajoute au moins un aliment");
+    const d=NU.day; NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); NU.logs[d].m=Object.assign({},NU.logs[d].m);
+    const nm=String(NU.adj.n||"").trim()||JMEALS108[mi]||"Repas"; NU.logs[d].m[mi]={s:"alt",n:nm,mac:mac(it),it}; NU.adj=null; nuSaveLog(d); toast("Repas noté ✅"); render(); } },true);
+// ---------- en tête du Suivi : mangées, brûlées, bilan (comme Yazio)
+function kpi108(){ if(!ST.solo||coach()||ST.view!=="nutrition"||ST.todayOn||(NU.nv&&NU.nv!=="jour")) return; const app=$("#app"); if(!app||document.getElementById("k108")) return;
+  const d=NU.day||todayISO(), I=intakeEN(d), S=spendEN(d), eat=Math.round(I.got.k||0), burn=Math.round(S.total||0), bal=eat-burn;
+  const html=`<div class="card k108" id="k108"><div class="k108r"><div><b>${fmtN(eat)}</b><span>🍽️ mangées</span></div><div><b>${fmtN(burn)}</b><span>🔥 brûlées</span></div><div><b>${bal>0?"+":bal<0?"−":""}${fmtN(Math.abs(bal))}</b><span>${bal<0?"déficit":bal>0?"surplus":"bilan"}</span></div></div>
+    <div class="muted small" style="margin-top:4px">${I.complete?"Journée complète":"Bilan provisoire tant que tous les repas ne sont pas notés"} · kcal</div></div>`;
+  const nav=app.querySelector('[data-act="nu-day"]'), row=nav&&nav.closest(".row"); if(row) row.insertAdjacentHTML("afterend",html); }
+// ---------- dépense du jour : calcul simple en Gratuit, détail sous cadenas
+const _spendEN108=spendEN;
+spendEN=function(d){ const o=_spendEN108(d); if(free108()&&!coach()){ o.full=o.total; o.total=Math.round(o.bmr*COEF108); o.simple108=true; } return o; };
+const _vSpendDay108=vSpendDayEN;
+vSpendDayEN=function(d){ const h=_vSpendDay108(d); if(!(free108()&&!coach())) return h; const S=spendEN(d);
+  return h.replace(/<table class="en-t">/,`<p class="small" style="margin:6px 0">Calcul simple : métabolisme de base <b>${fmtN(S.bmr)} kcal</b> × ${String(COEF108).replace(".",",")} (activité moyenne).</p><div class="lk108" data-l="Dépense détaillée : pas, séances, cardio"><table class="en-t">`)
+    .replace(/(<\/table>\s*<label class="f" style="margin-top:8px">Pas aujourd'hui[\s\S]*?<\/label>)/,"$1</div>")
+    .replace(/<button class="ghost sm" style="margin-top:8px" data-act="en-open">＋ Ajouter une activité \(cardio, sport…\)<\/button>/,`<button class="ghost sm" style="margin-top:8px" data-act="lk107">🔒 Ajouter des pas ou une activité · App complète</button>`); };
+// ---------- Énergie : projection de poids réservée au coaching
+const _vProj108=vProjEN;
+vProjEN=function(){ if(!ST.solo||coach()) return _vProj108(); return `<div class="card"><h3 style="margin-top:0">📈 Projection de ton poids 🔒</h3><p class="muted small">Où t'emmène ton bilan actuel dans 1, 3 et 6 mois, avec la courbe. Inclus dans le Coaching suivi et le Coaching complet.</p><button class="ghost sm" data-act="cf106">Découvrir le coaching</button></div>`; };
+// ---------- cadenas posés après le rendu
+function wrap108(el,label,act){ if(!el||el.closest(".lk107w")) return; const w=document.createElement("div"); w.className="lk107w"; el.parentNode.insertBefore(w,el); w.appendChild(el);
+  w.insertAdjacentHTML("beforeend",`<button class="lk107b" data-act="${act||"lk107"}">🔒 ${label}</button>`); }
+function locks108(){ const app=$("#app"); if(!app||coach()||!ST.solo||!CUR) return;
+  if(free108()){
+    app.querySelectorAll(".lk108").forEach(el=>{ el.classList.remove("lk108"); wrap108(el,(el.dataset.l||"")+" · App complète"); });
+    const bt=document.getElementById("bt91"); if(bt) wrap108(bt,"Batch cooking · App complète");
+    app.querySelectorAll('[data-act="nu-nv"][data-v="mesures"],[data-act="nu-nv"][data-v="plan"]').forEach(b=>{ if(!/🔒/.test(b.textContent)) b.textContent+=" 🔒"; });
+    if(ST.todayOn) app.querySelectorAll('[data-act="tdy-go"][data-v="nut:mesures"]').forEach(b=>{ b.textContent="🔒 Mesures · App complète"; b.dataset.act="lk107"; }); }
+  if(ST.view==="methode") kbLock108(app);
+  if(free108()&&ST.view==="nutrition"&&NU.nv==="energie") app.querySelectorAll(".tbl table").forEach(tb=>{ const hd=[...tb.querySelectorAll("tr:first-child th")], i=hd.findIndex(th=>/P \/ G \/ L/.test(th.textContent)); if(i<0) return;
+    tb.querySelectorAll("tr").forEach((tr,k)=>{ const c=tr.children[i]; if(c&&k) c.textContent="🔒"; }); });
+  if(ST.todayOn) app.querySelectorAll(".card .muted.small").forEach(x=>{ if(/aident ton coach à ajuster ton plan/.test(x.textContent)) x.textContent="Ton quotidien et tes préférences alimentaires affinent ton programme et tes repères."; });
+  app.querySelectorAll(".muted.small").forEach(x=>{ if(/ton coach s'occupe du reste/.test(x.textContent)) x.innerHTML=x.innerHTML.replace("ton coach s'occupe du reste","l'app estime le reste"); }); }
+document.addEventListener("click",e=>{ const t=e.target; if(!t.closest||!free108()||coach()) return;
+  if(t.closest('[data-act="nu-nv"][data-v="mesures"],[data-act="nu-nv"][data-v="plan"]')){ e.preventDefault(); e.stopImmediatePropagation(); P88.offers=true; offersPanel88(); } },true);
+// App complète sans plan : « Mon plan » ouvre l'outil Plan alimentaire pour le créer
+document.addEventListener("click",e=>{ const t=e.target; if(!t.closest||!journal108()||free108()||coach()||!ST.solo) return;
+  if(t.closest('[data-act="nu-nv"][data-v="plan"]')){ e.preventDefault(); e.stopImmediatePropagation(); tools106(true,"nutrition"); window.scrollTo(0,0); render(); } },true);
+// ---------- Méthode : chapitres par palier
+const KBT108={priorites:0,ventre:0,surcharge:0,nutrition:0,rpe:1,reps:1,volume:1,cardio:1,recup:1,suivi:1,periodisation:2,techniques:2,profils:2};
+const kbTier108=id=>KBT108[id]!=null?KBT108[id]:(/^dos-/.test(id)?2:1);
+function kbLock108(app){ const lvl=free108()?0:1;
+  app.querySelectorAll('details[id^="kb66-"]').forEach(dt=>{ const id=dt.id.slice(5), t=kbTier108(id); if(t<=lvl||dt.dataset.l108) return; dt.dataset.l108="1"; dt.open=false;
+    const sm=dt.querySelector("summary"); const lab=t===2?"Coaching suivi":"App complète";
+    dt.outerHTML=`<div class="card kb108"><div class="row" style="flex-wrap:nowrap;align-items:center"><div class="grow">${sm?sm.innerHTML:""}</div><button class="ghost sm" data-act="${t===2?"cf106":"lk107"}">🔒 ${lab}</button></div></div>`; });
+  app.querySelectorAll(".note").forEach(n=>{ if(/Écris à ton coach dans la messagerie/.test(n.textContent)) n.textContent="Chaque chapitre te donne les repères pour avancer seul. Les chapitres sous 🔒 se débloquent avec une formule supérieure."; }); }
+// ---------- banque de programmes : une partie en App complète
+const bankOk108=b=>b&&(b.lvl==="Débutant"||b.lvl==="Tous niveaux");
+const _vBank108=vBank;
+vBank=function(){ const h=_vBank108.apply(this,arguments); if(!ST.solo) return h;
+  return h.replace(/<button class="ghost sm" data-act="bank-prev" data-v="([^"]+)">[^<]*<\/button><button class="ghost sm" data-act="bank-apply" data-v="\1">Appliquer<\/button>/g,(m,id)=>bankOk108(BANK.find(x=>x.id===id))?m:`<button class="ghost sm" data-act="cf106">🔒 Coaching suivi</button>`)
+    .replace(/Appliquer remplace les séances, jours et phases de ce client \(son profil et ses 1RM sont gardés\)\./,"Appliquer remplace tes séances, jours et phases (ton profil et tes 1RM sont gardés). Les programmes sous 🔒 sont inclus dans le Coaching suivi.")
+    .replace(/Les exercices non réalisables avec son matériel/,"Les exercices non réalisables avec ton matériel"); };
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="bank-apply"]'); if(!b||!ST.solo) return; if(!bankOk108(BANK.find(x=>x.id===b.dataset.v))){ e.preventDefault(); e.stopImmediatePropagation(); CF106.open=true; cf106(); } },true);
+// ---------- Coaching suivi : le client choisit son programme dans toute la banque, Thomas le met en place
+const CP108={open:false,lvl:""};
+function light108(){ const s=sub88(); return !ST.solo&&!coach()&&MODE==="client"&&!!CUR&&!!(s&&s.plan==="light"&&["active","trialing","past_due"].includes(s.status)); }
+function cp108(){ let el=document.getElementById("cp108"); if(!CP108.open){ if(el) el.remove(); return; }
+  if(!el){ el=document.createElement("div"); el.id="cp108"; document.body.appendChild(el); }
+  const L=BANK.filter(b=>!CP108.lvl||b.lvl===CP108.lvl||b.lvl==="Tous niveaux");
+  el.innerHTML=`<div class="cs85bg" data-act="cp108x"></div><div class="cs85p" role="dialog" aria-label="Choisir mon programme"><div class="row" style="flex-wrap:nowrap;align-items:center"><b class="grow" style="font-size:1.1rem">📚 Choisir mon programme</b><button class="ghost sm" data-act="cp108x" aria-label="Fermer">✕</button></div>
+    <p class="muted small">Choisis le programme qui te tente : Thomas le met en place pour toi et l'ajuste ensuite selon tes séances.</p>
+    <div class="row" style="gap:4px;margin:4px 0">${[["","Tous"],["Débutant","Débutant"],["Intermédiaire","Intermédiaire"],["Avancé","Avancé"]].map(([v,l])=>`<button class="chip ${CP108.lvl===v?"on":""}" data-act="cp108l" data-v="${v}">${l}</button>`).join("")}</div>
+    ${L.map(b=>`<div class="pl107r"><b>${esc(b.name)}</b><div class="small"><span class="chip">${esc(b.lvl||"")}</span><span class="chip">${b.nd} j/sem.</span></div><div class="muted small">${esc(b.desc||"")}</div><button class="ghost sm" style="margin-top:6px" data-act="cp108s" data-v="${esc(b.id)}">Je veux ce programme</button></div>`).join("")}</div>`; }
+document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act^="cp108"]'); if(!b) return; e.preventDefault(); e.stopImmediatePropagation(); const a=b.dataset.act;
+  if(a==="cp108o"){ CP108.open=true; return cp108(); } if(a==="cp108x"){ CP108.open=false; return cp108(); } if(a==="cp108l"){ CP108.lvl=b.dataset.v; return cp108(); }
+  if(a==="cp108s"){ const p=BANK.find(x=>x.id===b.dataset.v); if(!p) return; if(!confirm(`Demander à Thomas de mettre en place « ${p.name} » ?`)) return; b.disabled=true;
+    const {error}=await SB.from("messages").insert({client_id:CUR,sender:UID,from_coach:false,body:`📚 Je souhaite suivre le programme « ${p.name} » (${p.lvl}, ${p.nd} j/sem.). Tu peux le mettre en place pour moi ?`,media:[]});
+    if(error){ b.disabled=false; return toast("Demande non envoyée : "+error.message); } CP108.open=false; cp108(); toast("Demande envoyée à Thomas ✅"); } },true);
+function lightCard108(){ if(!light108()||!ST.todayOn) return; const app=$("#app"); if(!app||document.getElementById("cp108c")) return;
+  app.insertAdjacentHTML("beforeend",`<div class="card" id="cp108c"><div class="muted small">Coaching suivi</div><h3 style="margin:2px 0">📚 Choisir mon programme</h3><div class="muted small">Toute la banque de programmes : choisis, Thomas le met en place et te suit dessus.</div><div class="row" style="margin-top:8px"><button class="ghost sm" data-act="cp108o">Voir les programmes</button></div></div>`); }
+// ---------- rendu
+const _render108=render;
+render=function(){ try{ journalSync108(); }catch(e){ console.error(e); } const r=_render108.apply(this,arguments);
+  try{ journalDeco108(); kpi108(); locks108(); lightCard108(); }catch(e){ console.error(e); } return r; };
+(function(){ const st=document.createElement("style"); st.textContent=`
+.k108r{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}.k108r b{display:block;font-size:1.4rem}.k108r span{font-size:.78rem;color:var(--soft)}
+#cp108{position:fixed;inset:0;z-index:1000}#cp108 .cs85bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}#cp108 .cs85p{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);max-width:520px;max-height:88vh;margin:0 auto;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.kb108 summary,.kb108 .grow{list-style:none}.kb108{opacity:.85}`; document.head.appendChild(st); })();
 
 boot();
 

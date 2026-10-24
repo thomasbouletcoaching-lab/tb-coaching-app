@@ -374,6 +374,12 @@ const T = {
     await p.evaluate(() => { ST.todayOn = false; ST.view = 'nutrition'; NU.nv = 'jour'; NU.day = todayISO(); render(); }); await p.waitForTimeout(400);
     ok((await p.$$('.lk107w .mb3')).length === 1, 'Suivi : macros floutées sous cadenas');
     ok((await txt(p, '[data-act="nu-nv"][data-v="courses"]')).includes('🔒'), 'Suivi : liste de courses sous cadenas');
+    ok((await txt(p, '[data-act="nu-nv"][data-v="mesures"]')).includes('🔒'), 'Suivi : mesures sous cadenas');
+    ok(!!(await p.$('#k108')), 'Suivi : calories mangées, brûlées et bilan');
+    await p.evaluate(() => { NU.nv = 'energie'; render(); }); await p.waitForTimeout(300);
+    ok((await txt(p, '#app')).includes('Projection de ton poids 🔒'), 'Énergie : projection réservée au coaching');
+    await p.evaluate(() => { ST.view = 'methode'; render(); }); await p.waitForTimeout(300);
+    ok((await p.$$('details[id^="kb66-"]')).length === 4 && (await p.$$('.kb108')).length > 0, 'Méthode : 4 chapitres en Gratuit, les autres sous cadenas');
     await p.evaluate(() => { ST.todayOn = false; ST.view = 'compte'; render(); }); await p.waitForTimeout(300);
     ok((await txt(p, '#app')).includes('Ma formule : Gratuit'), 'compte : Ma formule');
     ok(!(await txt(p, '#app')).includes('Réserver un rendez-vous'), 'pas de prise de rendez-vous avec le coach');
