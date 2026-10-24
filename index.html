@@ -8250,16 +8250,34 @@ document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closes
 const _offLookup99b=offLookup;
 offLookup=async function(code){ const mi=SCAN.mi; SCAN.mi=null; const d=NU.day, n0=((NU.logs[d]||{}).x||[]).length; await _offLookup99b(code);
   const L=NU.logs[d]; if(mi==null||!L||!L.x||L.x.length<=n0) return; const i=L.x.length-1; if(L.x[i].mi!=null) return;
-  L.x=[...L.x]; L.x[i]=Object.assign({},L.x[i],{mi}); await nuSaveLog(d); render(); };
+  // le produit devient un aliment du repas (pas un extra)
+  const it=Object.assign({},L.x[i]); delete it.mi; L.x=L.x.filter((_,j)=>j!==i); const A=NU.adj;
+  if(A&&A.mi===mi&&A.d===d&&A.it){ A.it.push(it); await nuSaveLog(d); render(); return toast(`« ${it.n} » ajouté au repas : vérifie la quantité puis valide`); }
+  const {t}=nDayCtx(), m=t&&t.meals&&t.meals[mi]; L.m=Object.assign({},L.m); const st=L.m[mi];
+  let base=[]; if(st&&st.s!=="skip"){ if(st.it&&st.it.length) base=JSON.parse(JSON.stringify(st.it)); else if(m){ const o=(st.s==="ok"?m.opts[0]:m.opts.find(o=>o.n===st.n))||null; if(o) base=planItems62(o); } }
+  const its=base.concat([it]); L.m[mi]={s:"alt",n:st&&st.s!=="skip"&&st.n?st.n:(m?m.name:"Repas"),mac:mac(its),it:its};
+  await nuSaveLog(d); render(); toast(`« ${it.n} » ajouté au repas`); };
+// éditeur d'un repas : bouton « Scanner » à côté de la recherche d'aliment
+const _adjHTML101=adjHTML;
+adjHTML=function(mi,o0){ const h=_adjHTML101(mi,o0); return h.replace(/(<div class="res" id="nu-ares">)/,`<button class="ghost sm" style="margin-top:6px" data-act="nu99-scan" data-v="${mi}">🔎 Scanner un code-barres</button>$1`); };
 render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ if(!coach()&&ST.view==="nutrition") document.querySelectorAll("#app .card.meal").forEach(card=>{ const m=card.querySelector(".more90"), ok=card.querySelector('[data-act="nu-ok"]');
     if(!m||!ok||m.querySelector('[data-act="nu99-scan"]')) return; const b=document.createElement("button"); b.type="button"; b.className="ghost"; b.dataset.act="nu99-scan"; b.dataset.v=ok.dataset.v; b.textContent="🔎 Scanner un code-barres";
     const ph=m.querySelector('[data-act="nph-take"]'); if(ph) ph.after(b); else m.appendChild(b); }); }catch(e){ console.error(e); } return r; }; })(render);
+
+// 3 bis. Lignes d'aliments de l'éditeur de repas, plus lisibles : nom sur une ligne, quantité · calories · macros, puis les réglages
+render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ document.querySelectorAll("#app .adj .it:not(.it101)").forEach(row=>{ const rm=row.querySelector('[data-act="na-rm"]'), g=row.querySelector(":scope > .grow");
+    const A=NU.adj, i=rm&&A&&A.it?A.it[+rm.dataset.v]:null; if(!i||!g) return; const m=mac([i]);
+    const head=document.createElement("div"); head.className="it101t";
+    head.innerHTML=`<div class="it101h"><span class="it101n">${esc(i.n)}</span><span class="it101k">${r0(m.k)} kcal</span></div><div class="it101m">${esc(qtyTxt(i))} · P ${fmtN(round(m.p,1))} g · G ${fmtN(round(m.g,1))} g · L ${fmtN(round(m.l,1))} g</div>`;
+    const ctl=document.createElement("div"); ctl.className="it101c"; [...row.children].forEach(c=>{ if(c!==g) ctl.appendChild(c); });
+    g.replaceWith(head); row.appendChild(ctl); row.classList.add("it101"); }); }catch(e){ console.error(e); } return r; }; })(render);
 
 // 4. Ajouter un aliment à la base : bouton toujours visible dans les recherches d'aliments (pas seulement après une recherche sans résultat)
 Object.keys(NFACT85).forEach(k=>{ const o=RES[k]; RES[k]=function(){ const h=o?o():""; if(NF85.k===k||String(NU[k]||"").trim().length>=2) return h;
   return h+`<button class="ghost nf85b" data-act="nf85-new" data-k="${k}">＋ Aliment introuvable ? Crée-le avec son étiquette</button>`; }; });
 
 (function(){ const st=document.createElement("style"); st.textContent=`
+.adj .it.it101{display:block;padding:10px 0}.it101h{display:flex;align-items:baseline;gap:8px}.it101n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}.it101k{flex:none;font-weight:700}.it101m{font-size:.82rem;color:var(--soft);margin-top:2px}.it101c{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}.it101c .qc{flex:1 1 auto}.it101c .qc input{flex:1;min-width:56px;max-width:110px}
 #scan99{position:fixed;inset:0;z-index:1100;background:#000;color:#fff;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px calc(env(safe-area-inset-bottom,0px) + 12px)}
 #scan99[hidden]{display:none}body.sc99on{overflow:hidden}
 .sc99top{display:flex;justify-content:space-between;align-items:center;gap:8px}.sc99top .ghost{color:#fff;border-color:rgba(255,255,255,.7);background:transparent}

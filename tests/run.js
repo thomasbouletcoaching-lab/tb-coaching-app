@@ -664,7 +664,7 @@ const T = {
     ok(await p.evaluate(() => getComputedStyle(document.getElementById('sw89u')).display === 'none'), 'bandeau masqué au bout de 6 s');
   }, clientPre()),
 
-  'suivi : scanner un code-barres depuis un repas (rattaché à ce repas)': () => run('client', async (p) => {
+  'suivi : scanner un code-barres depuis un repas (aliment du repas, pas un extra)': () => run('client', async (p) => {
     await p.route('https://world.openfoodfacts.org/**', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ product: { product_name: 'Skyr nature', brands: 'Marque Test', serving_quantity: 150, nutriments: { 'energy-kcal_100g': 63, proteins_100g: 11, carbohydrates_100g: 4, fat_100g: 0.2 } } }) }));
     await p.click('nav.tabs [data-v="nutrition"]'); await p.waitForTimeout(1200);
     await p.click('#app [data-act="nu90-more"][data-v="1"]'); await p.waitForTimeout(200);
@@ -673,9 +673,19 @@ const T = {
     await sb.click(); await p.waitForTimeout(400);
     ok(await p.evaluate(() => !document.getElementById('scan99').hidden), 'scanner plein écran ouvert depuis le repas');
     await p.fill('#scan-code', '3017620422003'); await p.click('#scan99 [data-act="scan-go"]'); await p.waitForTimeout(1200);
-    const it = await p.evaluate(() => { const x = NU.logs[NU.day].x; return x[x.length - 1]; });
-    ok(it && /Skyr nature/.test(it.n) && it.mi === 1, 'produit scanné ajouté et rattaché au 2e repas (' + JSON.stringify(it && { n: it.n, mi: it.mi }) + ')');
+    let R = await p.evaluate(() => { const L = NU.logs[NU.day], st = L.m[1]; return { x: (L.x || []).length, it: st && st.it.map(i => i.n), k: st && Math.round(st.mac.k) }; });
+    ok(R.x === 0, 'pas ajouté comme extra');
+    ok(R.it && R.it.length === 1 && /Skyr nature/.test(R.it[0]) && R.k > 90 && R.k < 96, 'repas noté avec le produit comme aliment (' + JSON.stringify(R) + ')');
     ok(/Skyr nature/.test(await p.evaluate(() => [...document.querySelectorAll('.card.meal')][1].innerText)), 'le produit apparaît dans la carte du repas');
+    await p.evaluate(() => fireAct85('nu-mclear', '1')); await p.waitForTimeout(400);
+    const row = await p.evaluate(() => { const r = document.querySelector('#app .adj .it.it101'); if (!r) return null; const n = r.querySelector('.it101n'); return { h: n.getBoundingClientRect().height, m: r.querySelector('.it101m').textContent, c: !!r.querySelector('.it101c [data-qc]') && !!r.querySelector('.it101c [data-act="na-sw"]') && !!r.querySelector('.it101c [data-act="na-rm"]') }; });
+    ok(row && row.h < 30 && /P .* g · G .* g · L .* g/.test(row.m) && row.c, 'éditeur : nom sur une ligne, quantité + macros, puis − / quantité / + / ⇄ / ✕ (' + JSON.stringify(row) + ')');
+    await p.click('#app .adj [data-act="nu99-scan"]'); await p.waitForTimeout(300);
+    await p.fill('#scan-code', '3017620422003'); await p.click('#scan99 [data-act="scan-go"]'); await p.waitForTimeout(1200);
+    ok((await p.evaluate(() => NU.adj && NU.adj.it.length)) === 2, 'éditeur ouvert : le produit scanné s\'ajoute à la liste du repas');
+    await p.click('#app [data-act="na-save"]'); await p.waitForTimeout(400);
+    R = await p.evaluate(() => { const L = NU.logs[NU.day]; return { x: (L.x || []).length, n: L.m[1].it.length }; });
+    ok(R.x === 0 && R.n === 2, 'repas validé avec 2 aliments, aucun extra');
   }, clientPre(sc => (m, path, b, a, t) => { if (t === 'nutri_log' && m === 'POST') return []; })),
 
   'suivi : dépense = MB + NEAT (vie quotidienne + pas, sans double comptage) + EAT + effet thermique des aliments': () => run('client', async (p) => {
