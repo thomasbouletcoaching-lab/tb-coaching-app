@@ -359,6 +359,7 @@ const T = {
     ok(!(await txt(p, '#app')).includes('Outils du coach'), 'plus de bouton « Outils du coach »');
     ok((await txt(p, '#tabs')).includes('Programme 🔒'), 'onglet Programme verrouillé en Gratuit');
     ok(!(await p.isVisible('#msgfab')), 'messagerie avec le coach masquée');
+    ok(!(await p.$('[data-act="tdy-go"][data-v="msg"]')) && (await txt(p, '#app')).includes('🔒 Écrire à Thomas'), 'Accueil : messages avec Thomas sous cadenas');
     await p.click('#solo88c button'); await p.waitForTimeout(300);
     ok((await txt(p, '#cf106')).includes('Ce que tu débloques par rapport à ta formule Gratuit'), 'vitrine du coaching : ce que débloque le coaching');
     ok(!!(await p.$('#cf106 a[href="coaching.html"]')), 'vitrine : bouton Candidater');

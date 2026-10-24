@@ -6469,7 +6469,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act
   if(a==="gx-open"){ ST.cm80=1; GX.tab=v||(coach()?"classement":"quetes"); GX.board=null; GX.feed=null; if(!coach()) gxLoad80(true); window.scrollTo(0,0); return render(); }
   if(a==="gx-close"){ ST.cm80=null; window.scrollTo(0,0); return render(); }
   if(a==="gx-tab"){ GX.tab=v; if(v==="fil") GX.feed=null; if(v==="classement") GX.board=null; return render(); }
-  if(a==="gx-cli"){ if(!v) return; ST.cm80=null; await openClient(v); return; }
+  if(a==="gx-cli"){ if(!v||v==="null") return; ST.cm80=null; await openClient(v); return; }
   if(a==="gx-join"){ const al=((document.getElementById("gx-alias")||{}).value||"").trim(); if(!al) return toast("Choisis un pseudo"); if(/@|\d{6,}/.test(al)) return toast("Pas d'e-mail ni de numéro dans le pseudo");
     const {error}=await SB.rpc("gx_join",{p_alias:al,p_on:true}); if(error) return toast("Impossible de rejoindre : "+error.message); toast(`Bienvenue dans la communauté, ${al} !`); GX.board=null; GX.feed=null; await gxLoad80(true); return render(); }
   if(a==="gx-leave"){ if(!confirm("Quitter la communauté ? Tes accomplissements publiés seront retirés. Tu gardes tes points.")) return; const {error}=await SB.rpc("gx_join",{p_alias:GX.me.member.alias,p_on:false}); if(error) return toast(error.message); GX.board=null; GX.feed=null; await gxLoad80(true); return render(); }
@@ -8630,8 +8630,14 @@ function lockNu107(){ if(!lock107()||ST.view!=="nutrition"||ST.todayOn) return; 
   app.querySelectorAll(".mb3,.fb102,#src98").forEach(el=>{ if(el.closest(".lk107w")) return; const w=document.createElement("div"); w.className="lk107w"; el.parentNode.insertBefore(w,el); w.appendChild(el);
     w.insertAdjacentHTML("beforeend",`<button class="lk107b" data-act="lk107">🔒 ${el.id==="src98"?"D'où viennent tes macros":el.classList.contains("fb102")?"Fibres":"Protéines, glucides, lipides"} · App complète</button>`); });
   app.querySelectorAll('[data-act="nu-nv"][data-v="courses"]').forEach(b=>{ if(!/🔒/.test(b.textContent)) b.textContent+=" 🔒"; }); }
+// Accueil de l'inscrit libre (Gratuit ou App complète) : messages et bilan avec Thomas réservés au coaching
+function lockToday107(){ if(!(ST.solo&&CUR&&MODE==="client"&&ST.todayOn)) return; const app=$("#app"); if(!app) return;
+  const mb=app.querySelector('[data-act="tdy-go"][data-v="msg"]'), card=mb&&mb.closest(".card");
+  if(card) card.innerHTML=`<div class="muted small">Messages</div><h3 style="margin:2px 0">🔒 Écrire à Thomas</h3><div class="muted small">Une question, une vidéo de ta série : Thomas te répond. Inclus dans le Coaching suivi et le Coaching complet.</div><div class="row" style="margin-top:8px"><button class="ghost sm" data-act="cf106">Découvrir le coaching</button></div>`;
+  const qb=app.querySelector("#qb-card"); if(qb&&!qb.closest(".lk107w")){ const w=document.createElement("div"); w.className="lk107w"; qb.parentNode.insertBefore(w,qb); w.appendChild(qb);
+    w.insertAdjacentHTML("beforeend",`<button class="lk107b" data-act="cf106">🔒 Bilan avec le retour de Thomas · Coaching</button>`); } }
 const _render107=render;
-render=function(){ const r=_render107.apply(this,arguments); try{ document.body.classList.toggle("free107",lock107()); lockNu107(); }catch(e){ console.error(e); } return r; };
+render=function(){ const r=_render107.apply(this,arguments); try{ document.body.classList.toggle("free107",lock107()); lockNu107(); lockToday107(); }catch(e){ console.error(e); } return r; };
 document.addEventListener("click",e=>{ const t=e.target; if(!t.closest) return;
   const b=t.closest('[data-act="lk107"],[data-act="pl107x"],[data-act="pl107o"]');
   if(b){ e.preventDefault(); e.stopImmediatePropagation(); const a=b.dataset.act; if(a!=="lk107"){ PL107.open=false; pl107(); } if(a!=="pl107x"){ P88.offers=true; offersPanel88(); } return; }
