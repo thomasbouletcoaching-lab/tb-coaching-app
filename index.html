@@ -8296,6 +8296,9 @@ Object.keys(NFACT85).forEach(k=>{ const o=RES[k]; RES[k]=function(){ const h=o?o
 //  · ETA (effet thermique des aliments) = 10 % des calories mangées (journée complète), sinon estimé à l'équilibre.
 // La dépense n'est pas enregistrée : elle est recalculée à l'affichage, donc tous les jours déjà notés suivent ce calcul.
 const VQ_EN=0.10, PAS_EN=0.0005, ETA_EN=0.10;
+// effet thermique par macronutriment (milieu des fourchettes de Westerterp, 2004 : protéines 20–30 %, glucides 5–10 %, lipides 0–3 % de leur énergie)
+const TEF_EN={p:0.25,g:0.075,l:0.015};
+const tefMac=m=>((+m.p||0)*4*TEF_EN.p+(+m.g||0)*4*TEF_EN.g+(+m.l||0)*9*TEF_EN.l);
 spendEN=function(d){ const p=profEN(), L=NU.logs[d]||{}, wa=weightAtEN(d,-1)||weightAtEN(d,1), w=(wa&&wa.w)||p.w;
   const bmr=10*w+6.25*p.h-5*p.a+(p.sex==="F"?-161:5), vie=bmr*(num(p.vq)!=null?+p.vq:VQ_EN);
   const stepsNoted=num(L.steps)!=null&&+L.steps>0, steps=stepsNoted?+L.steps:p.steps, stepK=steps*PAS_EN*w;
@@ -8303,25 +8306,31 @@ spendEN=function(d){ const p=profEN(), L=NU.logs[d]||{}, wa=weightAtEN(d,-1)||we
   const acts=(L.act||[]).map(x=>{ const A=ACTM_EN[x.a]; return {x,A,k:A?Math.round((A[3]-1)*w*(+x.min||0)/60):0}; }); const actK=acts.reduce((s,o)=>s+o.k,0);
   const P=planOn&&planOn(); let cardK0=0; Object.entries(L.c||{}).forEach(([i,lg])=>{ const c=P&&(P.cardio||[])[+i]; cardK0+=num(lg&&lg.k)!=null?+lg.k:(c?cardK(c,w):0); });
   const lact=p.lactK||0, sans=bmr+vie+stepK+muscK+actK+cardK0+lact, I=intakeEN(d);
-  const tefEst=!I.complete, tef=tefEst?sans*ETA_EN/(1-ETA_EN):I.got.k*ETA_EN, total=Math.round(sans+tef);
+  // journée complète : selon ce qui a été mangé ; sinon estimé à l'équilibre avec la répartition des macros du plan du jour
+  const tefEst=!I.complete; let tef, tp=null, rate=ETA_EN;
+  if(!tefEst){ tp={p:I.got.p*4*TEF_EN.p,g:I.got.g*4*TEF_EN.g,l:I.got.l*9*TEF_EN.l}; tef=tp.p+tp.g+tp.l; }
+  else { const t=P&&P.types&&P.types.length?typeOf(dayTypeId(d,P)):null, pl=t?dayPlan(t):null; if(pl&&pl.k>0) rate=Math.min(0.2,tefMac(pl)/pl.k); tef=sans*rate/(1-rate); }
+  const total=Math.round(sans+tef);
   return {p,w:Math.round(w*10)/10,bmr:Math.round(bmr),vie:Math.round(vie),base:Math.round(bmr+vie),steps,stepsNoted,stepK:Math.round(stepK),neat:Math.round(vie+stepK),
-    mm:Math.round(mm),muscK:Math.round(muscK),acts,actK,cardK:Math.round(cardK0),eat:Math.round(muscK+actK+cardK0),tef:Math.round(tef),tefEst,total}; }
+    mm:Math.round(mm),muscK:Math.round(muscK),acts,actK,cardK:Math.round(cardK0),eat:Math.round(muscK+actK+cardK0),tef:Math.round(tef),tefEst,tp,rate,total}; }
 const _profEN100=profEN; profEN=function(){ const o=_profEN100(), f=(NU.plan&&NU.plan.prof)||{}; o.vq=num(f.vq)!=null?+f.vq/100:null; return o; };
 vSpendDayEN=function(d){ const S=spendEN(d), I=intakeEN(d), L=NU.logs[d]||{}, bal=Math.round(I.got.k-S.total), f=n=>fmtN(n);
   const sec=(t,v)=>`<tr class="en100s"><td><b>${t}</b></td><td class="n"><b>${f(v)}</b></td></tr>`;
   let h=`<div class="card" id="en-day"><h3 style="margin-top:0">🔥 Dépense du jour (estimée)</h3>
-   <div class="row" style="align-items:baseline"><span class="kc">${f(S.total)}</span><span class="muted">kcal dépensées</span></div>
-   <table class="en-t">${sec("Métabolisme de base",S.bmr)}
-    ${sec("NEAT · activité quotidienne",S.neat)}
+   <div class="row" style="align-items:baseline"><span class="kc">${f(S.total)}</span><span class="muted">kcal dépensées (dépense totale, TDEE)</span></div>
+   <table class="en-t">${sec("Métabolisme de base (MB)",S.bmr)}
+    ${sec("Activité quotidienne (NEAT)",S.neat)}
     <tr><td>Vie quotidienne hors marche</td><td class="n">${f(S.vie)}</td></tr>
     <tr><td>Pas : ${f(S.steps)}${S.stepsNoted?"":` <span class="muted small">(ta moyenne)</span>`}</td><td class="n">${f(S.stepK)}</td></tr>
-    ${sec("EAT · entraînement et sport",S.eat)}
+    ${sec("Entraînement et sport (EAT)",S.eat)}
     <tr><td>Musculation${S.mm?` : ${S.mm} min`:""}</td><td class="n">${S.muscK?f(S.muscK):"—"}</td></tr>
     ${S.cardK?`<tr><td>Cardio du plan</td><td class="n">${f(S.cardK)}</td></tr>`:""}
     ${S.acts.map((o,i)=>`<tr><td>${o.A?o.A[1]+" "+esc(o.A[2]):"Activité"} : ${o.x.min} min <button class="linkbtn en-x" data-act="en-del" data-v="${i}" aria-label="Retirer">✕</button></td><td class="n">${f(o.k)}</td></tr>`).join("")}
     ${S.p.lactK?sec(PREG90[S.p.lact]?"Grossesse":"Allaitement",S.p.lactK):""}
-    ${sec("Effet thermique des aliments",S.tef)}
-    <tr><td colspan="2" class="muted small">${S.tefEst?"Estimé (journée pas encore complète) : 10 % d'une alimentation à l'équilibre":`10 % des ${f(r0(I.got.k))} kcal mangées`}</td></tr></table>
+    ${sec("Effet thermique des aliments (TEF)",S.tef)}
+    ${S.tp?`<tr><td>Protéines : ${f(r0(I.got.p))} g</td><td class="n">${f(r0(S.tp.p))}</td></tr><tr><td>Glucides : ${f(r0(I.got.g))} g</td><td class="n">${f(r0(S.tp.g))}</td></tr><tr><td>Lipides : ${f(r0(I.got.l))} g</td><td class="n">${f(r0(S.tp.l))}</td></tr>`
+      :`<tr><td colspan="2" class="muted small">Estimé (journée pas encore complète) : ${fmtN(round(S.rate*100,1))} % de la dépense, selon la répartition des macros prévue</td></tr>`}
+    ${sec("Dépense totale du jour (TDEE)",S.total)}</table>
    <label class="f" style="margin-top:8px">Pas aujourd'hui<input data-lf="steps" inputmode="numeric" value="${esc(L.steps??"")}" placeholder="${f(S.p.steps)} (moyenne)"></label>`;
   if(EN.pick){ const A=ACTM_EN[EN.pick]; h+=`<div class="edit"><b>${A[1]} ${esc(A[2])}</b><div class="row" style="margin-top:6px">${[15,20,30,45,60,90].map(m=>`<button class="chip ${EN.min===m?"on":""}" data-act="en-min" data-v="${m}">${m} min</button>`).join("")}</div>
      <div class="row" style="margin-top:6px;flex-wrap:nowrap"><label class="f" style="flex:1 1 0">Autre durée (min)<input id="en-min" inputmode="numeric" value="${EN.min}"></label><button data-act="en-add">Ajouter · ≈ ${f(Math.round((A[3]-1)*S.w*EN.min/60))} kcal</button></div>
@@ -8330,7 +8339,7 @@ vSpendDayEN=function(d){ const S=spendEN(d), I=intakeEN(d), L=NU.logs[d]||{}, ba
   else h+=`<div class="muted small" style="margin-top:8px">Choisis l'activité :</div><div class="row en-acts">${ACT_EN.map(a=>`<button class="chip" data-act="en-pick" data-v="${a[0]}">${a[1]} ${esc(a[2])}</button>`).join("")}</div>`;
   if(I.any&&!I.complete) h+=`<div class="alert" style="margin-top:10px;background:var(--btn2)"><b>Bilan provisoire : ${f(r0(I.got.k))} kcal mangées sur ${f(S.total)} dépensées</b><br><span class="small">Le déficit ou surplus s'affiche quand tous les repas de la journée sont notés.</span></div>`;
   else if(I.any) h+=`<div class="alert ${bal<0?"ok":"ko"}" style="margin-top:10px"><b>${bal<0?"Déficit":"Surplus"} du jour : ${bal>0?"+":"−"}${f(Math.abs(bal))} kcal</b><br><span class="small">Apport ${f(r0(I.got.k))} kcal − dépense ${f(S.total)} kcal</span></div>`;
-  return h+`<p class="note">Estimation, chaque bloc compté une seule fois : métabolisme de base (Mifflin-St Jeor, poids ${fmtN(S.w)} kg) ; activité quotidienne = vie quotidienne hors marche (${fmtN(Math.round((S.p.vq!=null?S.p.vq:VQ_EN)*100))} % du métabolisme de base) + pas ; entraînement = durée réelle des séances et activités (valeurs MET du Compendium of Physical Activities) ; effet thermique des aliments = 10 % des calories mangées (5 à 15 % selon Westerterp, 2004). C'est un ordre de grandeur, pas une mesure.</p></div>`; };
+  return h+`<p class="note">Estimation, chaque bloc compté une seule fois : métabolisme de base (Mifflin-St Jeor, poids ${fmtN(S.w)} kg) ; activité quotidienne = vie quotidienne hors marche (${fmtN(Math.round((S.p.vq!=null?S.p.vq:VQ_EN)*100))} % du métabolisme de base) + pas ; entraînement = durée réelle des séances et activités (valeurs MET du Compendium of Physical Activities) ; effet thermique des aliments = énergie dépensée pour digérer : 25 % des calories des protéines, 7,5 % des glucides, 1,5 % des lipides (milieu des fourchettes de Westerterp, 2004) — plus il y a de protéines, plus il est élevé. C'est un ordre de grandeur, pas une mesure.</p></div>`; };
 (function(){ const st=document.createElement("style"); st.textContent=`.en-t tr.en100s td{padding-top:8px;border-top:1px solid var(--line)}.en-t tr.en100s:first-child td{border-top:0;padding-top:2px}.en-t tr:not(.en100s) td:first-child{padding-left:12px}`; document.head.appendChild(st); })();
 
 // ================= MODULE 102 · FIBRES =================

@@ -693,12 +693,15 @@ const T = {
     const S = await p.evaluate(() => { NU.plan.prof = Object.assign({}, NU.plan.prof, { w: 80, h: 180, age: 40, sex: 'H', steps: 8000 }); NU.mes = {}; const d = '2026-09-01'; NU.logs[d] = { m: {}, x: [], steps: 10000 }; return spendEN(d); });
     // MB = 10×80 + 6,25×180 − 5×40 + 5 = 1 730 ; vie quotidienne 10 % = 173 ; 10 000 pas × 0,0005 × 80 = 400
     ok(S.bmr === 1730 && S.vie === 173 && S.stepK === 400 && S.neat === 573, `MB 1 730, NEAT 573 = 173 + 400 pas (${S.bmr} / ${S.vie} / ${S.stepK})`);
-    ok(S.tefEst && S.tef === Math.round((1730 + 173 + 400) / 9), 'effet thermique estimé à l\'équilibre quand la journée n\'est pas notée (' + S.tef + ')');
-    ok(S.total === Math.round(1730 + 173 + 400 + (1730 + 173 + 400) / 9), 'total = MB + NEAT + EAT + ETA (' + S.total + ')');
+    ok(S.tefEst && S.rate > 0.05 && S.rate < 0.2 && Math.abs(S.tef - 2303 * S.rate / (1 - S.rate)) < 1, 'effet thermique estimé à l\'équilibre avec les macros du plan (' + S.tef + ', ' + (S.rate * 100).toFixed(1) + ' %)');
+    ok(Math.abs(S.total - (2303 + S.tef)) <= 1, 'total = MB + NEAT + EAT + TEF (' + S.total + ')');
+    const T = await p.evaluate(() => { const d = '2026-09-03'; const t = typeOf(dayTypeId(d, NU.plan)); NU.logs[d] = { m: {}, x: [] }; t.meals.forEach((m, i) => { NU.logs[d].m[i] = { s: 'alt', n: 'x', mac: { k: 2000, p: 200, g: 200, l: 44, f: 0 } }; }); const n = t.meals.length; const S = spendEN(d); return { n, tp: S.tp, tef: S.tef }; });
+    const P = 200 * T.n, G = 200 * T.n, Lp = 44 * T.n;
+    ok(T.tp && Math.round(T.tp.p) === Math.round(P * 4 * 0.25) && Math.round(T.tp.g) === Math.round(G * 4 * 0.075) && Math.round(T.tp.l) === Math.round(Lp * 9 * 0.015), 'journée complète : TEF selon les macros mangées (protéines 25 %, glucides 7,5 %, lipides 1,5 %)');
     const old = Math.round(1730 * 1.2 + 400);
     ok(S.base === 1903 && old !== S.base + S.stepK, 'plus de « MB × 1,2 + tous les pas »');
     const h = await p.evaluate(() => { NU.day = todayISO(); render(); return document.getElementById('en-day').textContent; });
-    ok(/Métabolisme de base/.test(h) && /NEAT/.test(h) && /EAT/.test(h) && /Effet thermique des aliments/.test(h), 'carte « Dépense du jour » détaillée en 4 blocs');
+    ok(/Métabolisme de base \(MB\)/.test(h) && /Activité quotidienne \(NEAT\)/.test(h) && /Entraînement et sport \(EAT\)/.test(h) && /Effet thermique des aliments \(TEF\)/.test(h) && /Dépense totale du jour \(TDEE\)/.test(h), 'carte « Dépense du jour » en français, sigles entre parenthèses');
   }, clientPre()),
 
   'suivi : fibres de chaque aliment, total du jour et repère, comptées dans les calories': () => run('client', async (p) => {
