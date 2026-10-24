@@ -7220,7 +7220,7 @@ function offers88(ctx){ const P=price88(), t=ctx==="start"?null:tier88(), s=sub8
   const lightBtn=!can?"":!rdy?soon:`<button class="ghost" style="margin-top:8px" data-act="p88-buy" data-v="light">Choisir le coaching léger</button>`;
   let h=terms;
   h+=card("free","Gratuit","0 €",["Ton programme de départ, généré à partir de ton questionnaire","Carnet d'entraînement, chronos de récupération, records","Suivi du poids et des mensurations","Journal alimentaire simple"],ctx==="start"?"":"");
-  h+=card("premium","Premium",`${fmtE(P.premium_month)} / mois`,[`Tout le gratuit, et les outils du coach sur ton propre dossier`,"Modifier ou régénérer ton programme, banque de programmes, surcharge progressive automatique","Vue par exercice : tout le travail prévu semaine par semaine","Plan alimentaire calculé, estimateur de repas (texte ou voix)",`ou ${fmtE(P.premium_year)} / an · ${P.trial_days} jours d'essai`],premBtn,true);
+  h+=card("premium","Premium",`${fmtE(P.premium_month)} / mois`,[`Tout le gratuit, et l'onglet « Programme » pour gérer toi-même ton entraînement`,"Modifier ou régénérer ton programme, banque de programmes, surcharge progressive automatique","Vue par exercice : tout le travail prévu semaine par semaine","Plan alimentaire calculé, estimateur de repas (texte ou voix)",`ou ${fmtE(P.premium_year)} / an · ${P.trial_days} jours d'essai`],premBtn,true);
   h+=card("light","Coaching léger",`${fmtE(P.light_month)} / mois`,["Thomas construit et ajuste ton programme et ton plan","Messagerie avec ton coach dans l'app","Un bilan régulier de ta progression","Sans engagement : résiliable chaque mois"],lightBtn);
   h+=card("coaching","Coaching",`${fmtE(P.coaching_month||540).replace(",00","")} / mois`,["Suivi complet et personnalisé sur 12 semaines",`3 mensualités, soit ${fmtE(P.coaching||1620).replace(",00","")} au total`,"Ajustements réguliers, cadre méthodologique clair","Sur candidature : places limitées"],`<a class="chip" style="display:inline-block;margin-top:6px;padding:8px 14px" href="coaching.html" target="_blank" rel="noopener">Candidater</a>`);
   if(can&&paid) h+=`<div class="card"><h3 style="margin-top:0">Mon abonnement</h3><p class="small">${esc(PLAN88[s.plan]||s.plan)} · ${esc(STAT88[s.status]||s.status)}${s.period_end?` · ${s.cancel_at_period_end?"se termine le":"prochain renouvellement le"} ${frD88(s.period_end)}`:""}</p><button class="ghost" data-act="p88-portal">Gérer mon abonnement (carte, factures, résiliation)</button></div>`;
@@ -7299,9 +7299,9 @@ render=function(){
 function solo88Ui(){ const h=document.querySelector("header.top"); let b=document.getElementById("solo88b");
   const show=!!(ST.solo&&CUR&&ST.ready&&UID);
   if(show&&h&&!b){ b=document.createElement("button"); b.id="solo88b"; b.type="button"; b.className="role solo88b"; b.dataset.act="solo88"; const rb=document.getElementById("roleBtn"); h.insertBefore(b,rb||h.firstChild); }
-  if(b){ b.hidden=!show; b.textContent=ST.soloCoach?"🏋️ Athlète":"🛠️ Coach"+(prem88()?"":" 🔒"); b.setAttribute("aria-label",ST.soloCoach?"Revenir à mon espace d'entraînement":"Outils du coach (Premium)"); }
+  if(b){ b.hidden=!show; b.dataset.act="cf106"; b.textContent="🚀 Coaching"; b.setAttribute("aria-label","Découvrir le coaching avec Thomas"); }
   // Accueil : l'en-tête est masqué, le bouton est repris en haut de la page
-  if(show&&document.body.classList.contains("tdy45")&&!document.getElementById("solo88c")){ const app=$("#app"); if(app) app.insertAdjacentHTML("afterbegin",`<div id="solo88c" class="row" style="justify-content:flex-end;margin:4px 0 -4px"><button class="ghost sm" data-act="solo88">${prem88()?"🛠️ Outils du coach":"🛠️ Outils du coach 🔒"}</button></div>`); }
+  if(show&&document.body.classList.contains("tdy45")&&!document.getElementById("solo88c")){ const app=$("#app"); if(app) app.insertAdjacentHTML("afterbegin",`<div id="solo88c" class="row" style="justify-content:flex-end;margin:4px 0 -4px"><button class="ghost sm" data-act="cf106">🚀 Passer au coaching</button></div>`); }
   if(ST.solo){ const f=document.getElementById("msgfab"); if(f) f.hidden=true; const n=document.getElementById("nc87b"); if(n) n.hidden=true; }
   offersPanel88(); }
 const _fabRender88=fabRender;
@@ -7368,7 +7368,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&P88.offers){ P88.o
   let n=0; (function wait(){ if(!(ST.ready&&UID)){ if(++n<80) setTimeout(wait,250); return; }
     if(r==="cancel") return toast("Paiement annulé : rien n'a été prélevé");
     toast(r==="ok"?"Merci ! Activation de ton abonnement…":"Abonnement mis à jour"); let k=0;
-    (async function poll(){ const before=tier88(); await me88(); if((tier88()!==before||k>=5)||r!=="ok"){ await loadClients(false); if(r==="ok") toast(prem88()?"Premium activé ✅ Touche « 🛠️ Coach » pour les outils":"Abonnement enregistré ✅"); return; } k++; setTimeout(poll,3000); })(); })(); }catch(e){} })();
+    (async function poll(){ const before=tier88(); await me88(); if((tier88()!==before||k>=5)||r!=="ok"){ await loadClients(false); if(r==="ok") toast(prem88()?"Premium activé ✅ Ouvre l'onglet « Programme » pour modifier ton programme":"Abonnement enregistré ✅"); return; } k++; setTimeout(poll,3000); })(); })(); }catch(e){} })();
 // écran de connexion : invitation à créer un compte
 const _vAuth88=vAuth;
 vAuth=function(){ const h=_vAuth88(); return AUTH.mode==="login"?h.replace(/<p class="note">Client : /,`<p class="note">Nouveau ? « Créer un compte » pour démarrer gratuitement avec ton programme de départ.<br>Client : `):h; };
@@ -8520,6 +8520,95 @@ document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.
 .fe104n{font:inherit;text-align:left;padding:0;min-height:0;color:var(--blue);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--blue) 35%,transparent)}
 .fr105{display:flex;align-items:stretch;gap:4px}.fr105>button:first-child{flex:1 1 auto;min-width:0;width:auto}.fr105>button.fav105{flex:0 0 44px;width:44px;min-width:44px;padding:0;font-size:1.2rem;text-align:center;background:transparent;border:1px solid var(--line);color:var(--soft)}.fr105>button.fav105.on{color:#f5a524}
 .q105h{font-size:.8rem;font-weight:700;color:var(--soft);margin:8px 0 2px}`; document.head.appendChild(st); })();
+
+// ================= MODULE 106 · PREMIUM DANS L'ESPACE CLIENT + VITRINE DU COACHING =================
+// L'inscrit libre reste dans son interface client : plus de bascule « 🛠️ Coach / 🏋️ Athlète ».
+// Premium : onglet « Programme » qui ouvre, sur son propre dossier, les outils utiles (programme, profil & 1RM, plan alimentaire, analyse, réglages),
+// sans les cartes propres au coach (revue de semaine, tâches, notes privées, liste des clients…). Gratuit : l'onglet propose Premium.
+// Bouton « 🚀 Coaching » en haut : ce que le coaching débloque par rapport à sa formule actuelle, et candidature.
+const PG106={on:false};
+const SUB106=[["programme","Programme"],["athlete","Profil & 1RM"],["nutrition","Plan alimentaire"],["controles","Analyse"],["reglages","Réglages"]];
+const sub106=v=>SUB106.some(x=>x[0]===v);
+function tools106(on,view){ PG106.on=on; ST.soloCoach=on; MODE=on?"coach":"client"; ST.isCoach=on; ST.clientView=false;
+  if(on){ ST.todayOn=false; ST.view=view||"programme"; } }
+function pgOpen106(){ if(!prem88()){ P88.offers=true; return offersPanel88(); } tools106(true,"programme"); window.scrollTo(0,0); render(); }
+const _render106=render;
+render=function(){
+  if(PG106.on&&!(ST.solo&&CUR&&prem88())) tools106(false);
+  if(PG106.on){ MODE="coach"; ST.isCoach=true; ST.soloCoach=true; ST.clientView=false; if(!sub106(ST.view)) ST.view="programme"; }
+  const r=_render106.apply(this,arguments);
+  try{ if(PG106.on) deco106(); else tab106(); }catch(e){ console.error(e); }
+  return r; };
+// barre du bas de l'inscrit libre : onglet « Programme » (cadenas en Gratuit)
+function tab106(){ if(!(ST.solo&&CUR&&ST.ready&&MODE==="client")) return; const t=$("#tabs"); if(!t||t.querySelector('[data-act="pg106"]')||!t.querySelector('[data-act="view"]')) return;
+  const ref=t.querySelector('[data-v="compte"]'); const b=`<button data-act="pg106" data-v="programme">Programme${prem88()?"":" 🔒"}</button>`;
+  if(ref) ref.insertAdjacentHTML("beforebegin",b); else t.insertAdjacentHTML("beforeend",b); if(typeof icons45==="function") icons45(); }
+function deco106(){ document.body.classList.remove("cs85on"); const h=$("#appTitle"); if(h){ h.removeAttribute("role"); h.removeAttribute("tabindex"); h.removeAttribute("aria-label"); }
+  $("#appSub").textContent=`S${M.cw}/${M.NSEM} · ${M.phases[M.cw-1]||""} · ${M.split}`;
+  $("#tabs").innerHTML=[["today","Accueil"],["semaine","Semaine"],["carnet","Carnet"],["nutrition","Suivi"]].map(([v,l])=>`<button data-act="view" data-v="${v}" data-x106="1">${l}</button>`).join("")
+    +`<button class="on" data-act="pg106" data-v="programme">Programme</button><button data-act="view" data-v="compte" data-x106="1">Compte</button>`;
+  if(typeof icons45==="function") icons45();
+  const app=$("#app"); if(!app) return;
+  const h2=app.querySelector("h2"), T={athlete:"Mon profil & 1RM",nutrition:"Plan alimentaire"}; if(h2&&T[ST.view]) h2.textContent=T[ST.view];
+  app.querySelectorAll("#rv-card,#cn-card,#act-card,#cg-coach,#pn-coach,#onb-card").forEach(x=>x.remove());
+  app.insertAdjacentHTML("afterbegin",`<div class="pg106h"><div class="muted small">Premium · tes outils</div>${subnav(SUB106,ST.view,"pg106s")}</div>`);
+  const f=document.getElementById("msgfab"); if(f) f.hidden=true; }
+document.addEventListener("click",e=>{ const t=e.target; if(!t.closest) return;
+  const b=t.closest('[data-act="pg106"],[data-act="pg106s"],[data-act="cf106"]');
+  if(b){ e.preventDefault(); e.stopImmediatePropagation(); const a=b.dataset.act;
+    if(a==="pg106") return pgOpen106();
+    if(a==="pg106s"){ ST.view=b.dataset.v; window.scrollTo(0,0); return render(); }
+    if(a==="cf106"){ CF106.open=true; return cf106(); } }
+  if(!PG106.on) return;
+  if(t.closest("#appTitle")){ e.preventDefault(); e.stopImmediatePropagation(); return; }
+  // quitter les outils : onglet client, ou lien vers une vue réservée au coach
+  const v=t.closest('[data-act="view"]'), h=t.closest('[data-act="home"],[data-act="clients"],[data-act="role"]');
+  if(h){ e.preventDefault(); e.stopImmediatePropagation(); return; }
+  if(v&&(v.dataset.x106||!sub106(v.dataset.v))){ const to=v.dataset.v; tools106(false);
+    if(to==="today"){ e.preventDefault(); e.stopImmediatePropagation(); ST.todayOn=true; window.scrollTo(0,0); render(); } } },true);
+// ---------- vitrine du coaching
+const CF106={open:false};
+function cf106(){ let el=document.getElementById("cf106"); if(!CF106.open){ if(el) el.remove(); return; }
+  if(!el){ el=document.createElement("div"); el.id="cf106"; document.body.appendChild(el); }
+  const P=price88(), t=ST.solo?tier88():"coaching", col=["free","premium","coaching"], cur=col.indexOf(t);
+  const R=[["Programme de départ généré à partir de ton questionnaire",1,1,1],
+    ["Carnet, chronos de récupération, records, suivi du poids",1,1,1],
+    ["Modifier ou régénérer ton programme, surcharge progressive automatique",0,1,1],
+    ["Plan alimentaire calculé",0,1,1],
+    ["Programme construit sur mesure par Thomas, ajusté selon tes séances",0,0,1],
+    ["Plan alimentaire construit par Thomas, adapté à tes goûts et à ton quotidien",0,0,1],
+    ["Bilan chaque semaine, avec le retour écrit de Thomas",0,0,1],
+    ["Messagerie directe avec Thomas dans l'app",0,0,1],
+    ["Retours sur ta technique à partir des vidéos de tes séries",0,0,1],
+    ["Rendez-vous avec Thomas",0,0,1]];
+  const ck=v=>v?`<span class="cf106y" aria-label="inclus">✓</span>`:`<span class="cf106n" aria-label="non inclus">—</span>`;
+  const gain=R.filter(r=>r[3]&&!r[1+Math.max(cur,0)]);
+  el.innerHTML=`<div class="cs85bg" data-act="cf106x"></div><div class="cs85p cf106p" role="dialog" aria-label="Le coaching avec Thomas">
+    <div class="row" style="flex-wrap:nowrap;align-items:center"><b class="grow" style="font-size:1.1rem">🚀 Le coaching avec Thomas</b><button class="ghost sm" data-act="cf106x" aria-label="Fermer">✕</button></div>
+    <div class="cf106hero"><div class="cf106pr">${fmtE(P.coaching_month||540).replace(",00","")}<span> / mois</span></div><div class="small">Suivi complet sur 12 semaines · 3 mensualités, soit ${fmtE(P.coaching||1620).replace(",00","")} au total · sur candidature, places limitées</div></div>
+    ${gain.length&&cur<2?`<h3 style="margin:14px 0 6px">Ce que tu débloques${cur>=0?` par rapport à ta formule ${esc(PLAN88[t]||"")}`:""}</h3><ul class="cf106g">${gain.map(r=>`<li>${esc(r[0])}</li>`).join("")}</ul>`:""}
+    <h3 style="margin:14px 0 6px">Comparer</h3>
+    <div class="cf106t" role="table"><div class="cf106r cf106hd" role="row"><span role="columnheader"></span>${["Gratuit","Premium","Coaching"].map((l,i)=>`<span role="columnheader" class="${i===cur?"cur":""}${i===2?" hl":""}">${l}${i===cur?"<br><i>ta formule</i>":""}</span>`).join("")}</div>
+    ${R.map(r=>`<div class="cf106r" role="row"><span role="cell">${esc(r[0])}</span>${[1,2,3].map(i=>`<span role="cell" class="${i===3?"hl":""}">${ck(r[i])}</span>`).join("")}</div>`).join("")}</div>
+    <a class="btn cf106cta" href="coaching.html" target="_blank" rel="noopener">Candidater au coaching</a>
+    <p class="muted small" style="text-align:center;margin:6px 0 0">Tu décris ton objectif, Thomas te répond pour voir si le coaching te convient.</p>
+    ${ST.solo?`<button class="ghost" style="width:100%;margin-top:12px" data-act="cf106f">Voir toutes les formules (dont Coaching léger à ${fmtE(P.light_month)} / mois)</button>`:""}
+    <p class="note">Aucune formule ne garantit un résultat chiffré : la progression dépend de facteurs individuels (régularité, récupération, historique…).</p></div>`; }
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="cf106x"],[data-act="cf106f"]'); if(!b) return; e.stopImmediatePropagation();
+  CF106.open=false; cf106(); if(b.dataset.act==="cf106f"){ P88.offers=true; offersPanel88(); } },true);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&CF106.open){ CF106.open=false; cf106(); } });
+(function(){ const st=document.createElement("style"); st.textContent=`
+.pg106h{margin:2px 0 6px}.pg106h .row{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.pg106h .chip{white-space:nowrap;flex:none}
+#cf106{position:fixed;inset:0;z-index:1000}#cf106 .cs85bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}#cf106 .cs85p{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);max-width:520px;max-height:88vh;margin:0 auto;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.cf106hero{margin-top:10px;padding:14px;border-radius:14px;background:color-mix(in srgb,var(--blue) 14%,var(--paper));border:1px solid color-mix(in srgb,var(--blue) 40%,var(--line))}
+.cf106pr{font-size:1.7rem;font-weight:800}.cf106pr span{font-size:.95rem;font-weight:600;color:var(--soft)}
+.cf106g{margin:0;padding-left:0;list-style:none}.cf106g li{margin:6px 0;padding-left:26px;position:relative}.cf106g li::before{content:"✓";position:absolute;left:4px;font-weight:800;color:var(--green,#2e9d5b)}
+.cf106t{border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:.86rem}
+.cf106r{display:grid;grid-template-columns:minmax(0,1fr) 52px 58px 64px;align-items:center;border-top:1px solid var(--line)}.cf106r:first-child{border-top:0}
+.cf106r>span{padding:7px 6px;text-align:center}.cf106r>span:first-child{text-align:left}.cf106r .hl{background:color-mix(in srgb,var(--blue) 12%,transparent)}
+.cf106hd{font-weight:700;font-size:.78rem}.cf106hd .cur{color:var(--blue)}.cf106hd i{font-weight:500;font-style:normal;font-size:.68rem}
+.cf106y{color:var(--green,#2e9d5b);font-weight:800}.cf106n{color:var(--soft)}
+a.cf106cta{display:block;text-align:center;margin-top:14px;padding:12px;border-radius:12px;background:var(--blue);color:#fff;font-weight:700;text-decoration:none}`; document.head.appendChild(st); })();
 
 boot();
 

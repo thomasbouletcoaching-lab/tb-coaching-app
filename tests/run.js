@@ -346,7 +346,7 @@ const T = {
     sc.noClients = false; sc.client.coach_id = sc.uid; sc.client.program = {}; sc.me.sub = { plan: 'free', status: 'active', source: 'self' };
     await p.click('[data-act="p88-start"]'); await p.waitForTimeout(1500);
     ok(sc.db.log.some(l => /rpc\/self_start/.test(l)), 'dossier créé (self_start)');
-    ok(!!(await p.$('#solo88b')), 'bouton outils du coach présent');
+    ok((await txt(p, '#solo88b')).includes('Coaching'), 'bouton « 🚀 Coaching » présent (plus de bascule vers les outils du coach)');
     ok((await txt(p, '#app')).includes('Générer mon programme'), 'questionnaire adapté à l\'autonomie');
     const gen = await p.evaluate(async () => { Object.assign(X10.obDraft, { obj: 'Gagner en force', years: '1 à 3 ans', n_ses: '3', dur: '60 min', lieu: 'Salle de sport', q1: 'Non', q2: 'Non', q3: 'Non', q4: 'Non', q5: 'Non', q6: 'Non', q7: 'Non' });
       await obSave(true); await new Promise(r => setTimeout(r, 900)); return { gen: !!ST.prog.gen88, name: ST.prog.profile.name, days: (ST.prog.profile.days || []).filter(Boolean).length }; });
@@ -356,9 +356,15 @@ const T = {
 
   'public : abonné Gratuit (autonomie)': () => run('client', async (p, sc) => {
     await p.waitForTimeout(600);
-    ok((await txt(p, '#app')).includes('Outils du coach 🔒'), 'bouton Outils du coach verrouillé (Accueil)');
+    ok(!(await txt(p, '#app')).includes('Outils du coach'), 'plus de bouton « Outils du coach »');
+    ok((await txt(p, '#tabs')).includes('Programme 🔒'), 'onglet Programme verrouillé en Gratuit');
     ok(!(await p.isVisible('#msgfab')), 'messagerie avec le coach masquée');
     await p.click('#solo88c button'); await p.waitForTimeout(300);
+    ok((await txt(p, '#cf106')).includes('Ce que tu débloques par rapport à ta formule Gratuit'), 'vitrine du coaching : ce que débloque le coaching');
+    ok(!!(await p.$('#cf106 a[href="coaching.html"]')), 'vitrine : bouton Candidater');
+    await p.click('#cf106 .cs85p [data-act="cf106x"]'); await p.waitForTimeout(200);
+    await p.click('#tabs [data-act="pg106"]'); await p.waitForTimeout(300);
+    ok(await p.evaluate(() => !coach()), 'Gratuit : pas d\'accès aux outils');
     ok((await p.$$('#p88 .of88')).length === 4, 'formules proposées');
     await p.click('#p88 .cs85p [data-act="p88-close"]'); await p.waitForTimeout(200);
     await p.evaluate(() => { ST.todayOn = false; ST.view = 'compte'; render(); }); await p.waitForTimeout(300);
@@ -366,12 +372,20 @@ const T = {
     ok(!(await txt(p, '#app')).includes('Réserver un rendez-vous'), 'pas de prise de rendez-vous avec le coach');
   }, clientPre(sc => { sc.client.coach_id = sc.uid; sc.me.sub = { plan: 'free', status: 'active', source: 'self' }; })),
 
-  'public : abonné Premium → outils du coach sur son dossier': () => run('client', async (p, sc) => {
-    await p.waitForTimeout(600); await p.click('#solo88c button'); await p.waitForTimeout(500);
-    ok((await txt(p, '#tabs')).includes('Programme'), 'onglet Programme (outils du coach)');
-    ok(await p.evaluate(() => coach() && ST.solo), 'mode coach sur son propre dossier');
-    await p.click('#solo88b'); await p.waitForTimeout(400);
-    ok(await p.evaluate(() => !coach()), 'retour à l\'espace athlète');
+  'public : abonné Premium → onglet Programme dans l\'espace client': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(600); await p.click('#tabs [data-act="pg106"]'); await p.waitForTimeout(500);
+    ok(await p.evaluate(() => coach() && ST.solo && ST.view === 'programme'), 'outils Premium sur son propre dossier');
+    ok((await txt(p, '#tabs')).replace(/ /g, '') === 'AccueilSemaineCarnetSuiviProgrammeCompte', 'barre du bas de l\'espace client (pas celle du coach)');
+    ok(!(await txt(p, '#app')).includes('Revue de la semaine') && !(await p.$('#cn-card')), 'pas de cartes réservées au coach');
+    await p.click('[data-act="pg106s"][data-v="athlete"]'); await p.waitForTimeout(400);
+    ok((await txt(p, '#app h2')) === 'Mon profil & 1RM', 'sous-onglet Profil & 1RM');
+    await p.click('#solo88b'); await p.waitForTimeout(300);
+    ok((await txt(p, '#cf106')).includes('par rapport à ta formule Premium'), 'bouton Coaching : vitrine adaptée à Premium');
+    await p.click('#cf106 .cs85p [data-act="cf106x"]'); await p.waitForTimeout(200);
+    await p.click('#tabs [data-v="carnet"]'); await p.waitForTimeout(400);
+    ok(await p.evaluate(() => !coach() && MODE === 'client' && ST.view === 'carnet'), 'retour à l\'espace client par la barre du bas');
+    await p.click('#tabs [data-act="pg106"]'); await p.waitForTimeout(300); await p.click('#tabs [data-v="today"]'); await p.waitForTimeout(400);
+    ok((await txt(p, '#app h2')).startsWith('Bonjour'), 'retour à l\'Accueil');
   }, clientPre(sc => { sc.client.coach_id = sc.uid; sc.me.sub = { plan: 'premium', status: 'trialing', source: 'stripe', period_end: new Date(Date.now() + 5 * 864e5).toISOString() }; })),
 
   'coach : abonnés, ouverture des inscriptions, activation manuelle': () => run('coach', async (p, sc) => {
