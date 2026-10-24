@@ -701,6 +701,19 @@ const T = {
     ok(/Métabolisme de base/.test(h) && /NEAT/.test(h) && /EAT/.test(h) && /Effet thermique des aliments/.test(h), 'carte « Dépense du jour » détaillée en 4 blocs');
   }, clientPre()),
 
+  'suivi : fibres de chaque aliment et total du jour': () => run('client', async (p) => {
+    await p.click('nav.tabs [data-v="nutrition"]'); await p.waitForTimeout(1200);
+    await p.click('#app [data-act="nu-ok"][data-v="1"]'); await p.waitForTimeout(400);
+    const R = await p.evaluate(() => { const t = document.querySelector('.fb102'); const meal = [...document.querySelectorAll('.card.meal')][1].innerText; return { t: t && t.textContent, meal }; });
+    // déjeuner prévu : poulet 150 g (0 g de fibres) + riz 200 g (0,5 g/100 g) = 1 g
+    ok(R.t && /Fibres : 1 g/.test(R.t), 'total des fibres du jour (' + (R.t || 'absent') + ')');
+    ok(/F 1 g/.test(R.meal), 'fibres affichées sous l\'aliment (riz : F 1 g)');
+    await p.evaluate(() => { document.getElementById('src98').open = true; }); await p.click('[data-act="src98"][data-v="f"]'); await p.waitForTimeout(200);
+    ok(/Fibres mangées : 1 g/.test(await txt(p, '#src98')), 'répartition par aliment : onglet Fibres');
+    const k0 = await p.evaluate(() => mac([{ n: 'Riz basmati (cuit)', q: 200, k: 130, p: 3, g: 28, l: 0.3 }]).k);
+    ok(Math.round(k0) === Math.round(2 * (4 * 3 + 4 * 28 + 9 * 0.3)), 'les fibres ne changent pas les calories');
+  }, sc => { clientPre(s2 => (m, path, b, a, t) => { if (t === 'nutri_log' && m === 'POST') return []; if (t === 'nutri_foods' && m === 'GET') return [{ id: 'fp', name: 'Blanc de poulet (cru)', cat: 'Volailles & viandes', kcal: 110, p: 23, g: 0, l: 1.5, fib: 0 }, { id: 'fr', name: 'Riz basmati (cuit)', cat: 'Féculents & céréales', kcal: 130, p: 3, g: 28, l: 0.3, fib: 0.5 }]; })(sc); }),
+
 };
 
 (async () => {

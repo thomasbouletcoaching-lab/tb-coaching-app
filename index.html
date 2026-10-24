@@ -884,7 +884,7 @@ const tShort=n=>{ let s=String(n||"").replace(/^jour\s+(d'|de\s+|du\s+|des\s+)?/
 const DCATS=["Petit-déjeuner","Repas","Collation","Autre"];
 
 // ---------- calculs nutrition
-function fSnap(f,q){ return {n:f.name,q:+q,k:+f.kcal,p:+f.p,g:+f.g,l:+f.l,u:f.unit||null,ug:f.unit_g?+f.unit_g:null,c:f.cat||""}; }
+function fSnap(f,q){ return {n:f.name,q:+q,k:+f.kcal,p:+f.p,g:+f.g,l:+f.l,fb:f.fib==null||f.fib===""?null:+f.fib,u:f.unit||null,ug:f.unit_g?+f.unit_g:null,c:f.cat||""}; }
 function dishSnap(d){ return {n:d.name,m:1,it:(d.items||[]).map(i=>{const f=NU.fmap[i.f]; return f?fSnap(f,i.q):null;}).filter(Boolean)}; }
 function mac(its,m=1){ const t=Z(); (its||[]).forEach(i=>{ const x=(+i.q||0)*m/100; t.k+=x*(+i.k||0); t.p+=x*(+i.p||0); t.g+=x*(+i.g||0); t.l+=x*(+i.l||0); }); return t; }
 const optMac=o=>o?mac(o.it,o.m||1):Z();
@@ -1175,7 +1175,7 @@ function vLib(){ if(!NU.foods||!NU.dishes){ Promise.all([nuFoods(),nuDishes()]).
     else h+=`<div class="row"><button data-act="lib-dnew">＋ Nouveau plat</button></div><label class="f" style="margin-top:8px">Rechercher<input data-nuq="lq" data-res="lib-lres" value="${esc(NU.lq)}" autocomplete="off"></label><div id="lib-lres">${RES.lq()}</div>`; }
   else { const F=NU.fNew;
     h+=F?`<div class="card"><h3 style="margin-top:0">Nouvel aliment (pour 100 g)</h3><div class="row"><label class="f" style="flex-basis:200px">Nom<input data-fn="name" value="${esc(F.name||"")}"></label><label class="f">Catégorie${sel(FCATS,F.cat||NU.fcat||"",`data-fn="cat"`)}</label></div>
-      <div class="row" style="margin-top:8px">${["kcal","p","g","l"].map(k=>`<label class="f">${{kcal:"kcal",p:"Protéines",g:"Glucides",l:"Lipides"}[k]}<input data-fn="${k}" inputmode="decimal" value="${esc(F[k]??"")}"></label>`).join("")}</div>
+      <div class="row" style="margin-top:8px">${["kcal","p","g","l","fib"].map(k=>`<label class="f">${{kcal:"kcal",p:"Protéines",g:"Glucides",l:"Lipides",fib:"Fibres"}[k]}<input data-fn="${k}" inputmode="decimal" value="${esc(F[k]??"")}"></label>`).join("")}</div>
       <div class="row" style="margin-top:8px"><label class="f">Unité (facultatif)<input data-fn="unit" value="${esc(F.unit||"")}" placeholder="tranche, pot…"></label><label class="f">Poids de l'unité (g)<input data-fn="unit_g" inputmode="decimal" value="${esc(F.unit_g??"")}"></label><label class="f">Prix au kg (€, facultatif)<input data-fn="price_kg" inputmode="decimal" value="${esc(F.price_kg??"")}"></label></div>
       <div class="row" style="margin-top:10px"><button data-act="lib-fsave">Ajouter l'aliment</button><button class="ghost" data-act="lib-fnew">Annuler</button></div></div>`
      :`<div class="row"><button data-act="lib-fnew">＋ Nouvel aliment</button></div>`;
@@ -1364,7 +1364,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   else if(a==="lib-ddel"){ if(!confirm("Supprimer ce plat de ta bibliothèque ?")) return; const {error}=await SB.from("nutri_dishes").delete().eq("id",NU.dDraft.id); if(error) return toast(error.message); NU.dDraft=null; await nuDishes(true); toast("Plat supprimé"); }
   else if(a==="lib-fnew"){ NU.fNew=NU.fNew?null:{}; }
   else if(a==="lib-fsave"){ const F=NU.fNew, n=k=>+String(F[k]??"").replace(",",".")||0; if(!(F.name||"").trim()) return toast("Donne un nom à l'aliment");
-    const {error}=await SB.from("nutri_foods").insert({name:F.name.trim(),cat:(F.cat||"Divers").trim(),kcal:n("kcal"),p:n("p"),g:n("g"),l:n("l"),unit:(F.unit||"").trim()||null,unit_g:n("unit_g")||null,price_kg:n("price_kg")||null}); if(error) return toast(error.message); NU.fNew=null; NU.foods=null; await nuFoods(); toast("Aliment ajouté"); }
+    const {error}=await SB.from("nutri_foods").insert({name:F.name.trim(),cat:(F.cat||"Divers").trim(),kcal:n("kcal"),p:n("p"),g:n("g"),l:n("l"),fib:F.fib==null||F.fib===""?null:n("fib"),unit:(F.unit||"").trim()||null,unit_g:n("unit_g")||null,price_kg:n("price_kg")||null}); if(error) return toast(error.message); NU.fNew=null; NU.foods=null; await nuFoods(); toast("Aliment ajouté"); }
   else if(a==="lib-fdel"){ if(!confirm("Supprimer cet aliment ?")) return; const {error}=await SB.from("nutri_foods").delete().eq("id",v); if(error) return toast(error.message); NU.foods=null; await nuFoods(); }
   // business
   else if(a==="bz-tab"){ BZ.tab=v; BZ.payId=null; BZ.editId=null; }
@@ -1629,7 +1629,7 @@ async function offLookup(code){ code=String(code||"").replace(/\D/g,""); if(code
   try{ const r=await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,brands,nutriments,serving_quantity`); const j=await r.json(); const p=j.product;
     if(!p||!p.nutriments){ SCAN.busy=false; return toast("Produit introuvable dans Open Food Facts"); }
     const n=p.nutriments, k=+n["energy-kcal_100g"]||(+n["energy_100g"]||0)/4.184; const sq=+p.serving_quantity||null;
-    const it={n:(p.product_name||"Produit")+(p.brands?` (${p.brands.split(",")[0]})`:""),q:sq||100,k:Math.round(k),p:+n.proteins_100g||0,g:+n.carbohydrates_100g||0,l:+n.fat_100g||0,u:sq?"portion":null,ug:sq,c:"Scanné"};
+    const it={n:(p.product_name||"Produit")+(p.brands?` (${p.brands.split(",")[0]})`:""),q:sq||100,k:Math.round(k),p:+n.proteins_100g||0,g:+n.carbohydrates_100g||0,l:+n.fat_100g||0,u:sq?"portion":null,ug:sq,c:"Scanné",fb:n.fiber_100g!=null?+n.fiber_100g:null};
     const L=(()=>{ const d=NU.day; NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); NU.logs[d].x=[...(NU.logs[d].x||[])]; return NU.logs[d]; })(); L.x.push(it); NU.xOpen=false; nuSaveLog(NU.day); toast(`Ajouté : ${it.n}`); }
   catch(e){ toast("Recherche impossible (réseau ?)"); } SCAN.busy=false; render(); }
 
@@ -6769,7 +6769,7 @@ const NFACT85={iq:"nu-iadd",dq:"lib-iadd",xq:"nu-xadd",aq:"na-add",myq:"my78-add
 function nfForm85(){ const f=NF85.f, fld=(k,lab,ph,w)=>`<label class="f" style="flex:${w||"1 1 70px"}">${lab}<input data-nf85="${k}" inputmode="${k==="name"||k==="unit"?"text":"decimal"}" value="${esc(f[k]==null?"":String(f[k]))}" placeholder="${ph||""}" autocomplete="off"></label>`;
   return `<div class="edit" id="nf85"><b>➕ Nouvel aliment</b><p class="muted small" style="margin:4px 0">Recopie l'étiquette (valeurs <b>pour 100 g</b>). Il sera ajouté à la base pour tout le monde.</p>
     <div class="row">${fld("name","Nom","ex. Galette bretonne","2 1 200px")}</div>
-    <div class="row">${fld("kcal","kcal","auto")}${fld("p","Protéines","g")}${fld("g","Glucides","g")}${fld("l","Lipides","g")}</div>
+    <div class="row">${fld("kcal","kcal","auto")}${fld("p","Protéines","g")}${fld("g","Glucides","g")}${fld("l","Lipides","g")}${fld("fib","Fibres","g (facult.)")}</div>
     <div class="row">${fld("unit","Portion (facultatif)","pot, barre…","1 1 120px")}${fld("ug","Poids de la portion (g)","","1 1 120px")}
       <label class="f" style="flex:1 1 140px">Catégorie<select data-nf85="cat">${FCATS.map(c=>`<option ${c===f.cat?"selected":""}>${esc(c)}</option>`).join("")}</select></label></div>
     <div class="row" style="margin-top:6px"><button class="ok sm" data-act="nf85-save" ${NF85.busy?"disabled":""}>Ajouter à la base</button><button class="ghost sm" data-act="nf85-cancel">Annuler</button></div></div>`; }
@@ -6906,7 +6906,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act
   if(a==="nf85-save"){ const f=NF85.f, k=NF85.k; const p=n85(f.p),g=n85(f.g),l=n85(f.l),kc=n85(f.kcal);
     if(!f.name||f.name.trim().length<2) return toast("Indique le nom de l'aliment"); if(p==null&&g==null&&l==null&&kc==null) return toast("Indique au moins les calories ou les macros (pour 100 g)");
     if((p||0)+(g||0)+(l||0)>100.5) return toast("Protéines + glucides + lipides ne peuvent pas dépasser 100 g pour 100 g");
-    NF85.busy=true; render(); const {data,error}=await SB.rpc("nutri_food_add",{f:{name:String(f.name).replace(/œ/g,"oe").replace(/Œ/g,"Oe"),kcal:kc,p,g,l,unit:f.unit?String(f.unit).replace(/œ/g,"oe"):null,unit_g:n85(f.ug),cat:f.cat}}); NF85.busy=false;
+    NF85.busy=true; render(); const {data,error}=await SB.rpc("nutri_food_add",{f:{name:String(f.name).replace(/œ/g,"oe").replace(/Œ/g,"Oe"),kcal:kc,p,g,l,unit:f.unit?String(f.unit).replace(/œ/g,"oe"):null,unit_g:n85(f.ug),fib:n85(f.fib),cat:f.cat}}); NF85.busy=false;
     if(error){ render(); return toast("Non ajouté : "+error.message); }
     const row=data; if(NU.foods&&!NU.fmap[row.id]){ NU.foods.push(row); NU.foods.sort((x,y)=>x.name.localeCompare(y.name,"fr")); NU.fmap[row.id]=row; }
     const cb=NF85.cb; NF85.k=null; NF85.cb=null; if(k) NU[k]="";
@@ -8172,7 +8172,7 @@ document.addEventListener("click",e=>{ const h=e.target.closest&&e.target.closes
 // ================= MODULE 98 · MACROS DE CHAQUE ALIMENT (quantité réelle) ET RÉPARTITION DES MACROS DU JOUR PAR ALIMENT =================
 const NU98={k:"p"};
 const g98=x=>{ const v=Math.round(x*10)/10; return fmtN(v>=10?Math.round(v):v); };
-const im98=t=>`<span class="im98"><b>P ${g98(t.p)}</b> · G ${g98(t.g)} · L ${g98(t.l)} g · ${r0(t.k)} kcal</span>`;
+const im98=t=>`<span class="im98"><b>P ${g98(t.p)}</b> · G ${g98(t.g)} · L ${g98(t.l)} g${t.f>=0.05?` · F ${g98(t.f)} g`:""} · ${r0(t.k)} kcal</span>`;
 itemsList=function(o){ const m=o.m||1; return `<ul class="its">${(o.it||[]).map(i=>`<li><span>${esc(i.n)}${i.est?"":im98(mac([i],m))}</span><span>${qtyTxt(i,m)}</span></li>`).join("")||'<li class="muted">Aucun aliment</li>'}</ul>`; };
 // aliments réellement mangés dans un repas noté (mêmes règles que le total du repas)
 function mealIts98(st,mi,t){ if(!st||st.s==="skip") return []; if(st.it&&st.it.length) return st.it.map(i=>({i,m:1}));
@@ -8181,11 +8181,11 @@ function dayIts98(d){ const L=NU.logs[d]||{}, P=planOn(), t=P&&P.types&&P.types.
   Object.entries(L.m||{}).forEach(([mi,st])=>{ mealIts98(st,+mi,t).forEach(x=>out.push(Object.assign({meal:t&&t.meals[+mi]?t.meals[+mi].name:""},x))); });
   (L.x||[]).forEach(e=>out.push({i:e,m:1,meal:"Extra"})); return out; }
 function vSrc98(d){ const its=dayIts98(d); if(!its.length) return ""; const agg={};
-  its.forEach(({i,m})=>{ const t=mac([i],m), k=i.n||"Aliment"; const a=agg[k]=agg[k]||{n:k,p:0,g:0,l:0,k:0,q:0,est:!!i.est}; a.p+=t.p; a.g+=t.g; a.l+=t.l; a.k+=t.k; a.q+=i.est?0:(+i.q||0)*m; });
-  const K=NU98.k, lab={p:"Protéines",g:"Glucides",l:"Lipides",k:"Calories"}[K], unit=K==="k"?"kcal":"g", L=Object.values(agg).filter(a=>a[K]>0.05).sort((a,b)=>b[K]-a[K]), tot=L.reduce((s,a)=>s+a[K],0);
+  its.forEach(({i,m})=>{ const t=mac([i],m), k=i.n||"Aliment"; const a=agg[k]=agg[k]||{n:k,p:0,g:0,l:0,k:0,q:0,est:!!i.est}; a.p+=t.p; a.g+=t.g; a.l+=t.l; a.k+=t.k; a.f=(a.f||0)+(t.f||0); a.q+=i.est?0:(+i.q||0)*m; });
+  const K=NU98.k, lab={p:"Protéines",g:"Glucides",l:"Lipides",k:"Calories",f:"Fibres"}[K], unit=K==="k"?"kcal":"g", L=Object.values(agg).filter(a=>a[K]>0.05).sort((a,b)=>b[K]-a[K]), tot=L.reduce((s,a)=>s+a[K],0);
   return `<details class="card src98" id="src98"${NU98.open?" open":""}><summary><b>🔎 D'où viennent tes macros</b> <span class="muted small">aliment par aliment</span></summary>
-   <div class="row" style="gap:6px;margin:8px 0">${[["p","Protéines"],["g","Glucides"],["l","Lipides"],["k","Calories"]].map(([k,l])=>`<button class="chip ${K===k?"on":""}" data-act="src98" data-v="${k}" aria-pressed="${K===k}">${l}</button>`).join("")}</div>
-   <div class="muted small" style="margin-bottom:4px">${lab} mangés : <b>${K==="k"?r0(tot):g98(tot)} ${unit}</b></div>
+   <div class="row" style="gap:6px;margin:8px 0">${[["p","Protéines"],["g","Glucides"],["l","Lipides"],["f","Fibres"],["k","Calories"]].map(([k,l])=>`<button class="chip ${K===k?"on":""}" data-act="src98" data-v="${k}" aria-pressed="${K===k}">${l}</button>`).join("")}</div>
+   <div class="muted small" style="margin-bottom:4px">${lab} ${K==="f"?"mangées":"mangés"} : <b>${K==="k"?r0(tot):g98(tot)} ${unit}</b></div>
    ${L.map(a=>{ const pc=tot?a[K]/tot*100:0; return `<div class="sr98"><div class="row" style="flex-wrap:nowrap;gap:6px"><span class="grow">${esc(a.n)}${a.q?` <span class="muted small">${fmtN(Math.round(a.q))} g</span>`:a.est?` <span class="muted small">estimation</span>`:""}</span><b>${K==="k"?r0(a[K]):g98(a[K])} ${unit}</b><span class="muted small" style="width:42px;text-align:right">${Math.round(pc)} %</span></div><div class="mb-t"><i style="width:${pc.toFixed(1)}%"></i></div></div>`; }).join("")||`<p class="muted small">Rien pour l'instant.</p>`}
    <p class="note">Calculé avec les quantités notées. Les repas validés « comme prévu » comptent les quantités du plan.</p></details>`; }
 const _nJour98=nJour;
@@ -8194,7 +8194,7 @@ nJour=function(){ const h=_nJour98(); const {d}=nDayCtx(), c=vSrc98(d); if(!c) r
 function nuMac98(){ if(ST.view!=="nutrition"||NU.nv!=="jour") return; const app=$("#app"); if(!app) return; const {d,L,t}=nDayCtx();
   app.querySelectorAll(".card.meal").forEach(card=>{ const b=card.querySelector('[data-act="nu-mclear"]'); if(!b) return; const mi=+b.dataset.v, its=mealIts98((L.m||{})[mi],mi,t), lis=card.querySelectorAll("ul.its > li");
     if(lis.length!==its.length) return; lis.forEach((li,k)=>{ if(li.querySelector(".im98")||its[k].i.est) return; const sp=li.querySelector("span"); if(sp) sp.insertAdjacentHTML("beforeend",im98(mac([its[k].i],its[k].m))); }); });
-  app.querySelectorAll('[data-act="nu-xdel"]').forEach(b=>{ const e=(L.x||[])[+b.dataset.v], row=b.closest(".row"), sm=row&&row.querySelector(".muted.small"); if(!e||!sm||sm.dataset.m98||e.est) return; sm.dataset.m98="1"; const t=mac([e]); sm.insertAdjacentHTML("beforeend",` · P ${g98(t.p)} · G ${g98(t.g)} · L ${g98(t.l)} g`); }); }
+  app.querySelectorAll('[data-act="nu-xdel"]').forEach(b=>{ const e=(L.x||[])[+b.dataset.v], row=b.closest(".row"), sm=row&&row.querySelector(".muted.small"); if(!e||!sm||sm.dataset.m98||e.est) return; sm.dataset.m98="1"; const t=mac([e]); sm.insertAdjacentHTML("beforeend",` · P ${g98(t.p)} · G ${g98(t.g)} · L ${g98(t.l)} g${t.f>=0.05?` · F ${g98(t.f)} g`:""}`); }); }
 render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ nuMac98(); }catch(e){ console.error(e); } return r; }; })(render);
 document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="src98"]'); if(!b) return; e.stopImmediatePropagation(); NU98.k=b.dataset.v; NU98.open=true; render(); },true);
 document.addEventListener("toggle",e=>{ if(e.target&&e.target.id==="src98") NU98.open=e.target.open; },true);
@@ -8239,7 +8239,7 @@ document.addEventListener("click",e=>{ if(!(e.target.closest&&e.target.closest("
 const _offLookup99=offLookup;
 offLookup=async function(code){ const L=NU.logs[NU.day], n0=L&&L.x?L.x.length:0; await _offLookup99(code); const L2=NU.logs[NU.day], it=L2&&L2.x&&L2.x.length>n0?L2.x[L2.x.length-1]:null;
   if(!it||it.c!=="Scanné"||!(it.k>0)) return; const nm=String(it.n||"").trim(); if(nm.length<2||(NU.foods||[]).some(f=>nrm(f.name)===nrm(nm))) return;
-  try{ const {data,error}=await SB.rpc("nutri_food_add",{f:{name:nm.replace(/œ/g,"oe").replace(/Œ/g,"Oe"),kcal:Math.round(it.k),p:it.p||0,g:it.g||0,l:it.l||0,unit:it.ug?"portion":null,unit_g:it.ug||null,cat:nfGuessCat85(nm)}});
+  try{ const {data,error}=await SB.rpc("nutri_food_add",{f:{name:nm.replace(/œ/g,"oe").replace(/Œ/g,"Oe"),kcal:Math.round(it.k),p:it.p||0,g:it.g||0,l:it.l||0,unit:it.ug?"portion":null,unit_g:it.ug||null,fib:it.fb,cat:nfGuessCat85(nm)}});
     if(!error&&data&&NU.foods&&!NU.fmap[data.id]){ NU.foods.push(data); NU.foods.sort((x,y)=>x.name.localeCompare(y.name,"fr")); NU.fmap[data.id]=data; } }catch(e){} };
 
 // 3. Scanner un code-barres depuis chaque repas : le produit scanné est rattaché à ce repas (ajustable ensuite en grammes)
@@ -8268,7 +8268,7 @@ render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ if
 render=(function(o){ return function(){ const r=o.apply(this,arguments); try{ document.querySelectorAll("#app .adj .it:not(.it101)").forEach(row=>{ const rm=row.querySelector('[data-act="na-rm"]'), g=row.querySelector(":scope > .grow");
     const A=NU.adj, i=rm&&A&&A.it?A.it[+rm.dataset.v]:null; if(!i||!g) return; const m=mac([i]);
     const head=document.createElement("div"); head.className="it101t";
-    head.innerHTML=`<div class="it101h"><span class="it101n">${esc(i.n)}</span><span class="it101k">${r0(m.k)} kcal</span></div><div class="it101m">${esc(qtyTxt(i))} · P ${fmtN(round(m.p,1))} g · G ${fmtN(round(m.g,1))} g · L ${fmtN(round(m.l,1))} g</div>`;
+    head.innerHTML=`<div class="it101h"><span class="it101n">${esc(i.n)}</span><span class="it101k">${r0(m.k)} kcal</span></div><div class="it101m">${esc(qtyTxt(i))} · P ${fmtN(round(m.p,1))} g · G ${fmtN(round(m.g,1))} g · L ${fmtN(round(m.l,1))} g${m.f>=0.05?` · F ${fmtN(round(m.f,1))} g`:""}</div>`;
     const ctl=document.createElement("div"); ctl.className="it101c"; [...row.children].forEach(c=>{ if(c!==g) ctl.appendChild(c); });
     g.replaceWith(head); row.appendChild(ctl); row.classList.add("it101"); }); }catch(e){ console.error(e); } return r; }; })(render);
 
@@ -8332,6 +8332,22 @@ vSpendDayEN=function(d){ const S=spendEN(d), I=intakeEN(d), L=NU.logs[d]||{}, ba
   else if(I.any) h+=`<div class="alert ${bal<0?"ok":"ko"}" style="margin-top:10px"><b>${bal<0?"Déficit":"Surplus"} du jour : ${bal>0?"+":"−"}${f(Math.abs(bal))} kcal</b><br><span class="small">Apport ${f(r0(I.got.k))} kcal − dépense ${f(S.total)} kcal</span></div>`;
   return h+`<p class="note">Estimation, chaque bloc compté une seule fois : métabolisme de base (Mifflin-St Jeor, poids ${fmtN(S.w)} kg) ; activité quotidienne = vie quotidienne hors marche (${fmtN(Math.round((S.p.vq!=null?S.p.vq:VQ_EN)*100))} % du métabolisme de base) + pas ; entraînement = durée réelle des séances et activités (valeurs MET du Compendium of Physical Activities) ; effet thermique des aliments = 10 % des calories mangées (5 à 15 % selon Westerterp, 2004). C'est un ordre de grandeur, pas une mesure.</p></div>`; };
 (function(){ const st=document.createElement("style"); st.textContent=`.en-t tr.en100s td{padding-top:8px;border-top:1px solid var(--line)}.en-t tr.en100s:first-child td{border-top:0;padding-top:2px}.en-t tr:not(.en100s) td:first-child{padding-left:12px}`; document.head.appendChild(st); })();
+
+// ================= MODULE 102 · FIBRES =================
+// Fibres de chaque aliment (base d'aliments : table Ciqual 2020 de l'ANSES, estimations pour les produits de marque et plats),
+// affichées sous chaque aliment, dans la répartition par aliment, et en total du jour. Elles ne changent pas les calories :
+// l'app compte 4 kcal/g (protéines, glucides) et 9 kcal/g (lipides), comme les objectifs.
+const FB102={n:-1,map:null};
+function fibOf(i){ if(i&&i.fb!=null&&i.fb!==""&&!isNaN(+i.fb)) return +i.fb; const F=NU.foods; if(!F||!i) return null;
+  if(FB102.n!==F.length){ FB102.map=new Map(); F.forEach(f=>{ if(f.fib!=null&&f.fib!==""&&!isNaN(+f.fib)){ const k=nrm(f.name); if(!FB102.map.has(k)) FB102.map.set(k,+f.fib); } }); FB102.n=F.length; }
+  const v=FB102.map.get(nrm(i.n||"")); return v==null?null:v; }
+mac=(function(o){ return function(its,m=1){ const t=o(its,m); t.f=(its||[]).reduce((s,i)=>{ const f=i&&!i.est?fibOf(i):null; return s+(f?(+i.q||0)*m/100*f:0); },0); return t; }; })(mac);
+function fibDay102(d){ let f=0,n=0,miss=0; dayIts98(d).forEach(({i,m})=>{ if(i.est) return; const v=fibOf(i); n++; if(v==null){ miss++; return; } f+=(+i.q||0)*m/100*v; }); return {f,n,miss}; }
+const _nJour102=nJour;
+nJour=function(){ let h=_nJour102(); const {d}=nDayCtx(), F=fibDay102(d); if(!F.n) return h;
+  const line=`<div class="fb102">🌾 Fibres : <b>${fmtN(round(F.f,1))} g</b>${F.miss?` <span class="muted small">(${F.miss} aliment${F.miss>1?"s":""} sans valeur)</span>`:""}</div>`;
+  return h.replace(/(<div class="muted small">\d+ repas sur \d+ notés)/,line+"$1"); };
+(function(){ const st=document.createElement("style"); st.textContent=`.fb102{margin:8px 0 4px;font-size:.92rem}`; document.head.appendChild(st); })();
 
 boot();
 
