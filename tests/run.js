@@ -716,6 +716,24 @@ const T = {
     ok(old.f === 1 && old.k === 102, 'repas notés avant : calories complétées avec leurs fibres (' + JSON.stringify(old) + ')');
   }, sc => { clientPre(s2 => (m, path, b, a, t) => { if (t === 'nutri_log' && m === 'POST') return []; if (t === 'nutri_foods' && m === 'GET') return [{ id: 'fp', name: 'Blanc de poulet (cru)', cat: 'Volailles & viandes', kcal: 110, p: 23, g: 0, l: 1.5, fib: 0 }, { id: 'fr', name: 'Riz basmati (cuit)', cat: 'Féculents & céréales', kcal: 130, p: 3, g: 28, l: 0.3, fib: 0.5 }]; })(sc); }),
 
+  'suivi : type de jour automatique selon les séances, à valider ou changer': () => run('client', async (p) => {
+    await p.click('nav.tabs [data-v="nutrition"]'); await p.waitForTimeout(1200);
+    const r = await p.evaluate(() => { const P = NU.plan, T0 = P.types[0]; P.types = [Object.assign({}, T0, { id: 'T', name: "Jour d'entraînement" }), Object.assign(JSON.parse(JSON.stringify(T0)), { id: 'R', name: 'Jour de repos' })];
+      P.week = ['R', 'R', 'R', 'R', 'R', 'R', 'R']; let ds = null, dn = null; for (let i = 0; i < 14; i++) { const d = addDays(todayISO(), i); const n = sesOnDate(d).length; if (n && !ds) ds = d; if (!n && !dn) dn = d; }
+      return { ds, dn, ts: ds && dayTypeId(ds, P), tn: dn && dayTypeId(dn, P) }; });
+    ok(r.ds && r.ts === 'T', 'jour avec séance programmée → entraînement (' + r.ds + ')');
+    ok(r.dn && r.tn === 'R', 'jour sans séance → repos (' + r.dn + ')');
+    await p.evaluate(d => { NU.day = d; render(); }, r.ds); await p.waitForTimeout(300);
+    let box = await txt(p, '.dt103');
+    ok(/Jour d'entraînement/.test(box) && /séance prévue/.test(box) && !(await p.$('[data-act="nu-dtype"]')), 'type affiché avec la raison, plus de bascule en un toucher');
+    await p.click('[data-act="dt103-ok"]'); await p.waitForTimeout(300);
+    ok((await p.evaluate(d => NU.logs[d].t, r.ds)) === 'T' && /validé/.test(await txt(p, '.dt103')), 'type de jour validé');
+    await p.click('[data-act="dt103-open"]'); await p.click('[data-act="dt103-set"][data-v="R"]'); await p.waitForTimeout(300);
+    ok((await p.evaluate(d => NU.logs[d].t, r.ds)) === 'R' && /Jour de repos/.test(await txt(p, '.dt103')), 'changé volontairement en repos');
+    await p.click('[data-act="dt103-open"]'); await p.click('[data-act="dt103-auto"]'); await p.waitForTimeout(300);
+    ok((await p.evaluate(d => NU.logs[d].t, r.ds)) === undefined && /Jour d'entraînement/.test(await txt(p, '.dt103')), 'retour à l\'automatique');
+  }, clientPre(sc => (m, path, b, a, t) => { if (t === 'nutri_log' && m === 'POST') return []; })),
+
 };
 
 (async () => {

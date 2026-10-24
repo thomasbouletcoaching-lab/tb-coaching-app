@@ -918,7 +918,7 @@ async function nuEnsure(){
   }catch(e){ console.error(e); NU.err=true; NU.loaded=true; toast("Nutrition indisponible"); }
   finally{ NU.busy=false; } scheduleRender(); }
 function nuSave(){ const cid=CUR, plan=NU.plan; clearTimeout(NU.saveT); NU.saveT=setTimeout(async()=>{ const {error}=await SB.from("clients").update({nutrition:plan||{},updated_at:new Date().toISOString()}).eq("id",cid); if(error) toast("Plan non enregistré : "+error.message); },500); }
-async function nuSaveLog(d){ const v=NU.logs[d]||{}; const P=planOn(); if(P&&P.types.length){ const t=typeOf(v.t||P.week[DOW(d)]); v.pk=r0(dayPlan(t).k); }
+async function nuSaveLog(d){ const v=NU.logs[d]||{}; const P=planOn(); if(P&&P.types.length){ const t=typeOf(dayTypeId(d,P)); v.pk=r0(dayPlan(t).k); }
   const {error}=await SB.from("nutri_log").upsert({client_id:CUR,d,data:v,updated_at:new Date().toISOString()}); if(error) toast("Journal non enregistré : "+error.message); }
 const _openClientBase=openClient;
 openClient=async function(id,silent){ NU.cid=null; NU.loaded=false; await _openClientBase(id,silent); nuEnsure(); };
@@ -1013,7 +1013,7 @@ const RES={
 };
 
 // ---------- vues client
-function nDayCtx(){ const d=NU.day||todayISO(), L=NU.logs[d]||{}, P=planOn(), t=P&&P.types.length?typeOf(L.t||P.week[DOW(d)]):null; return {d,L,t,P}; }
+function nDayCtx(){ const d=NU.day||todayISO(), L=NU.logs[d]||{}, P=planOn(), t=P&&P.types.length?typeOf(dayTypeId(d,P)):null; return {d,L,t,P}; }
 function consumed(L){ let s=Z(); Object.values(L.m||{}).forEach(x=>{ if(x&&x.mac) s=addM(s,x.mac); }); (L.x||[]).forEach(e=>s=addM(s,mac([e]))); return s; }
 function nPlanClient(){ const P=planOn(); let h=""; if(!P) return `<div class="card muted">Pas encore de plan.</div>`;
   h+=`<div class="row noprint" style="justify-content:flex-end"><button class="ghost sm" data-act="pr-nut">Plan en PDF</button></div>`;
@@ -1152,7 +1152,7 @@ function weekStats(){ const P=planOn(); const days=[...Array(7)].map((_,i)=>addD
 function nJournal(){ const s=weekStats(), P=NU.plan; let rows="";
   for(let i=0;i<14;i++){ const d=addDays(todayISO(),-i), L=NU.logs[d]||{}, v=Object.values(L.m||{}), r=L.r||{};
     const n={ok:v.filter(x=>x.s==="ok").length,alt:v.filter(x=>x.s==="alt").length,skip:v.filter(x=>x.s==="skip").length};
-    const t=P&&P.types?typeOf(L.t||P.week[DOW(d)]):null, cp=P?(P.cardio||[]).filter(c=>c.days&&c.days[DOW(d)]).length:0, cd=Object.values(L.c||{});
+    const t=P&&P.types?typeOf(dayTypeId(d,P)):null, cp=P?(P.cardio||[]).filter(c=>c.days&&c.days[DOW(d)]).length:0, cd=Object.values(L.c||{});
     rows+=`<tr><td>${DLONG[DOW(d)]} ${d.slice(8)}/${d.slice(5,7)}</td><td>${v.length?`✅${n.ok} 🔄${n.alt} ✕${n.skip}`:'<span class="muted">—</span>'}</td><td class="n">${v.length||(L.x||[]).length?r0(consumed(L).k)+" / "+r0(L.pk||(t?dayPlan(t).k:0)):""}</td>
       <td>${cp||cd.length?`${cd.length}/${cp}${cd.length?" · "+r0(cd.reduce((a,c)=>a+(+c.k||0),0))+" kcal":""}`:""}</td><td class="n">${L.steps?fmtN(+L.steps):""}</td><td class="n">${r.sh?fmtN(+r.sh)+" h":""}${r.sq?" · "+r.sq:""}</td><td class="n">${r.hu||""}</td><td class="n">${r.st||""}</td><td class="n">${r.en||""}</td><td class="n">${r.di||""}</td><td>${L.cy&&L.cy.ph?esc(L.cy.ph):""}${L.cy&&(L.cy.sy||[]).length?`<div class="muted small">${esc(L.cy.sy.join(", "))}</div>`:""}</td>
       <td>${(L.x||[]).length?esc((L.x||[]).map(e=>e.n).join(", ")):""}${L.note?`<div class="muted small">« ${esc(L.note)} »</div>`:""}</td></tr>`; }
@@ -1545,7 +1545,7 @@ setInterval(()=>{ if(obxGet().length) flushOutbox(); },30000); setTimeout(()=>{ 
 saveCarnet=async function(key){ const v=ST.carnet[key]||{}; const empty=["g","h","r","j","ex"].every(f=>v[f]===undefined||v[f]===""||v[f]===null)&&!(v.sets&&v.sets.some(x=>x.g!=null||x.h!=null||x.r!=null||x.d))&&!(v.o&&v.o.length); recompute(); cacheClient();
   await safeWrite("carnet",{client_id:CUR,k:key,data:v,updated_at:new Date().toISOString()},{client_id:CUR,k:key},empty?"delete":"upsert"); };
 saveSuivi=async function(w){ const v=ST.suivi[w]||{}; recompute(); cacheClient(); await safeWrite("suivi",{client_id:CUR,w:+w,data:v,updated_at:new Date().toISOString()},{client_id:CUR,w:+w},"upsert"); };
-nuSaveLog=async function(d){ const v=NU.logs[d]||{}; const P=planOn(); if(P&&P.types.length){ const t=typeOf(v.t||P.week[DOW(d)]); v.pk=r0(dayPlan(t).k); }
+nuSaveLog=async function(d){ const v=NU.logs[d]||{}; const P=planOn(); if(P&&P.types.length){ const t=typeOf(dayTypeId(d,P)); v.pk=r0(dayPlan(t).k); }
   await safeWrite("nutri_log",{client_id:CUR,d,data:v,updated_at:new Date().toISOString()},{client_id:CUR,d},"upsert"); };
 // cache du dernier dossier ouvert pour démarrer sans réseau
 function cacheClient(){ if(!CUR||!ST.prog) return; try{ localStorage.setItem("tb-cache-"+CUR,JSON.stringify({prog:ST.prog,carnet:ST.carnet,suivi:ST.suivi,at:Date.now()})); localStorage.setItem("tb-last",CUR); }catch(e){} }
@@ -2961,7 +2961,7 @@ function vToday(){ const name=((ST.prog&&ST.prog.profile&&ST.prog.profile.name)|
       <button class="big45${t.end||t.missed?" ghost":""}" data-act="tdy-go" data-v="carnet:${T.w}">${t.end?"Voir la séance":t.start?"Reprendre la séance":"Commencer la séance"}</button></div>`; }
   else h+=`<div class="card ses45"><div class="lb45"><span>Entraînement</span></div><div class="t45">Jour de repos</div>${T?`<div class="muted small">Prochaine séance : <b>${esc(T.S.name)}</b> ${T.inDays===1?"demain":"dans "+T.inDays+" jours"}</div>`:""}<div class="row" style="margin-top:8px"><button class="ghost sm" data-act="tdy-go" data-v="semaine">Voir ma semaine</button></div></div>`;
   // nutrition
-  if(typeof planOn==="function"&&NU.loaded&&NU.cid===CUR&&planOn()){ const P=planOn(), L=NU.logs[todayISO()]||{}, ty=P.types.find(x=>x.id===(L.t||P.week[dowIdx()]))||P.types[0], meals=(ty&&ty.meals)||[];
+  if(typeof planOn==="function"&&NU.loaded&&NU.cid===CUR&&planOn()){ const P=planOn(), L=NU.logs[todayISO()]||{}, ty=P.types.find(x=>x.id===dayTypeId(todayISO(),P))||P.types[0], meals=(ty&&ty.meals)||[];
     const done=meals.filter((m,i)=>L.m&&L.m[i]).length, got=consumed(L), plan=dayPlan(ty);
     const pc=plan.k?Math.min(100,Math.round(got.k/plan.k*100)):0;
     h+=`<div class="card nu45"><div class="lb45"><span>Alimentation</span><span><b class="kv45">${fmtN45(got.k)}</b> / ${fmtN45(plan.k)} kcal</span></div><div class="bar45"><i style="width:${pc}%"></i></div>
@@ -4602,7 +4602,7 @@ function spendEN(d){ const p=profEN(), L=NU.logs[d]||{}, w=p.w; const base=p.bmr
   const P=planOn&&planOn(); let cardK0=0; Object.entries(L.c||{}).forEach(([i,lg])=>{ const c=P&&(P.cardio||[])[+i]; cardK0+=num(lg&&lg.k)!=null?+lg.k:(c?cardK(c,w):0); });
   const total=Math.round(base+stepK+muscK+actK+cardK0+(p.lactK||0));
   return {p,base:Math.round(base),steps,stepsNoted,stepK:Math.round(stepK),mm:Math.round(mm),muscK:Math.round(muscK),acts,actK,cardK:Math.round(cardK0),total}; }
-function intakeEN(d){ const L=NU.logs[d]||{}; const P=planOn&&planOn(); const t=P&&P.types&&P.types.length?typeOf(L.t||P.week[DOW(d)]):null;
+function intakeEN(d){ const L=NU.logs[d]||{}; const P=planOn&&planOn(); const t=P&&P.types&&P.types.length?typeOf(dayTypeId(d,P)):null;
   const got=consumed(L), nm=Object.keys(L.m||{}).length, nx=(L.x||[]).length; const any=nm||nx;
   const complete=t&&t.meals&&t.meals.length?t.meals.every((m,i)=>!m.opts[0]||(L.m&&L.m[i])):!!any;
   return {got,any:!!any,complete:!!(any&&complete)}; }
@@ -4799,7 +4799,7 @@ const pendList62=()=>{ const out=[]; Object.keys(NU.logs||{}).sort().reverse().f
 const _nJournal62=nJournal;
 nJournal=function(){ let h=_nJournal62(); const P=pendList62().filter(x=>x.d>=addDays(todayISO(),-14)); if(!P.length) return h;
   const {P:plan}=nDayCtx();
-  return `<div class="card"><h3 style="margin-top:0">📷 Repas en photo à compléter <span class="chip on">${P.length}</span></h3>${P.map(x=>{ const t=plan&&plan.types?typeOf(x.L.t||plan.week[DOW(x.d)]):null, m=t&&t.meals[x.mi];
+  return `<div class="card"><h3 style="margin-top:0">📷 Repas en photo à compléter <span class="chip on">${P.length}</span></h3>${P.map(x=>{ const t=plan&&plan.types?typeOf(dayTypeId(x.d,plan)):null, m=t&&t.meals[x.mi];
      return `<div class="row" style="padding:8px 0;border-top:1px solid var(--line);align-items:flex-start"><div class="grow"><b>${DLONG[DOW(x.d)]} ${x.d.slice(8)}/${x.d.slice(5,7)}</b> · ${esc(m?m.name:"Repas")}${phStrip62(x.L,x.mi)}</div><button class="sm" data-act="nph-day" data-v="${x.d}">Compléter</button></div>`; }).join("")}</div>`+h; };
 async function loadPh62(){ if(NPH.phBusy||Date.now()-NPH.phAt<60000) return; NPH.phBusy=true;
   try{ const ids=CLIENTS.filter(c=>c.coach_id===UID&&!c.archived).map(c=>c.id); const P={};
@@ -6345,7 +6345,7 @@ document.addEventListener("change",e=>{ const el=e.target; if(!MY78.edit||!el.da
 
 // ================= MODULE 79 · ROUTINE DU JOUR (poids, pas, sommeil, nutrition) + « JOURNÉE COMME PRÉVUE » EN UN GESTE =================
 const RT79={busy:false};
-function dayType79(P,d){ const L=NU.logs[d]||{}; return P.types.find(x=>x.id===(L.t||P.week[DOW(d)]))||P.types[0]; }
+function dayType79(P,d){ const L=NU.logs[d]||{}; return P.types.find(x=>x.id===(dayTypeId(d,P)))||P.types[0]; }
 function nutDone79(d){ const L=NU.logs[d]||{}; return Object.keys(L.m||{}).length>0||(L.x||[]).length>0; }
 function routineOf79(d){ const L=NU.logs[d]||{}, m=NU.mes[d]||{};
   return {poids:m.poids!=null&&m.poids!=="", pas:L.steps!=null&&L.steps!=="", sommeil:L.r&&L.r.sh!=null&&L.r.sh!=="", nut:nutDone79(d)}; }
@@ -6921,7 +6921,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest('[data-act
     if(a==="jt85-rmmeal"){ const m=D.meals[+v]; if(!m) return; if(m.it.length&&!confirm(`Supprimer « ${m.name} » de ta journée type ?`)) return; D.meals.splice(+v,1); JT85.open=null; jtSave85(D); return render(); }
     if(a==="jt85-addmeal"){ const order=JTQUICK85; let at=D.meals.length; const oi=order.indexOf(v); if(oi>=0){ const k=D.meals.findIndex(m=>order.indexOf(m.name)>oi); if(k>=0) at=k; }
       D.meals.splice(at,0,{name:v,it:[]}); JT85.open=at; JT85.fold=true; NU.jtq=""; jtSave85(D); if(!NU.foods) nuFoods().then(()=>render()); return render(); }
-    if(a==="jt85-today"){ const td=NU.logs[todayISO()]||{}, P=planOn(), t=P&&P.types&&P.types.length?typeOf(td.t||P.week[DOW(todayISO())]):null; const meals=[];
+    if(a==="jt85-today"){ const td=NU.logs[todayISO()]||{}, P=planOn(), t=P&&P.types&&P.types.length?typeOf(dayTypeId(todayISO(),P)):null; const meals=[];
       Object.entries(td.m||{}).forEach(([mi,st])=>{ if(!st||st.s==="skip") return; const pm=t&&t.meals[+mi]; const it=st.it?st.it:(pm&&pm.opts[0]?pm.opts[0].it.map(i=>Object.assign({},i,{q:(+i.q||0)*(pm.opts[0].m||1)})):[]);
         const xs=(td.x||[]).filter(x=>x.mi===+mi&&!x.est).map(x=>Object.assign({},x)); xs.forEach(x=>delete x.mi); meals.push({name:pm?pm.name:("Repas "+(+mi+1)),it:[...it,...xs]}); });
       const free=(td.x||[]).filter(x=>x.mi==null&&!x.est).map(x=>Object.assign({},x)); if(free.length) meals.push({name:"Collation",it:free});
@@ -7609,7 +7609,7 @@ function costIt91(items,m){ let c=0; const miss=new Set(); (items||[]).forEach(i
 function planCost91(P){ if(!P||!P.types||!P.week) return null; let w=0; const miss=new Set();
   P.week.forEach(id=>{ const t=typeOf(id); (t.meals||[]).forEach(m=>{ const o=m.opts&&m.opts[0]; if(!o) return; const r=costIt91(o.it,o.m||1); w+=r.c; r.miss.forEach(x=>miss.add(x)); }); });
   return {day:w/7,week:w,month:w/7*30.4,miss}; }
-function logCost91(d){ const L=NU.logs[d]; if(!L) return null; const P=planOn(), t=P&&P.types&&P.types.length?typeOf(L.t||P.week[DOW(d)]):null; let c=0,any=false; const miss=new Set();
+function logCost91(d){ const L=NU.logs[d]; if(!L) return null; const P=planOn(), t=P&&P.types&&P.types.length?typeOf(dayTypeId(d,P)):null; let c=0,any=false; const miss=new Set();
   Object.entries(L.m||{}).forEach(([mi,st])=>{ if(!st||st.s==="skip") return; let it=st.it, m=1; if(!it||!it.length){ const ml=t&&t.meals[+mi]; const o=ml&&(st.s==="ok"?ml.opts[0]:ml.opts.find(o=>o.n===st.n)); if(o){ it=o.it; m=o.m||1; } }
     if(it&&it.length){ any=true; const r=costIt91(it,m); c+=r.c; r.miss.forEach(x=>miss.add(x)); } });
   (L.x||[]).forEach(e=>{ if(e.est) return; any=true; const r=costIt91([e]); c+=r.c; r.miss.forEach(x=>miss.add(x)); });
@@ -8177,7 +8177,7 @@ itemsList=function(o){ const m=o.m||1; return `<ul class="its">${(o.it||[]).map(
 // aliments réellement mangés dans un repas noté (mêmes règles que le total du repas)
 function mealIts98(st,mi,t){ if(!st||st.s==="skip") return []; if(st.it&&st.it.length) return st.it.map(i=>({i,m:1}));
   const ml=t&&t.meals[mi]; if(!ml) return []; const o=(st.s==="ok"?ml.opts[0]:ml.opts.find(o=>o.n===st.n))||null; return o?(o.it||[]).map(i=>({i,m:o.m||1})):[]; }
-function dayIts98(d){ const L=NU.logs[d]||{}, P=planOn(), t=P&&P.types&&P.types.length?typeOf(L.t||P.week[DOW(d)]):null, out=[];
+function dayIts98(d){ const L=NU.logs[d]||{}, P=planOn(), t=P&&P.types&&P.types.length?typeOf(dayTypeId(d,P)):null, out=[];
   Object.entries(L.m||{}).forEach(([mi,st])=>{ mealIts98(st,+mi,t).forEach(x=>out.push(Object.assign({meal:t&&t.meals[+mi]?t.meals[+mi].name:""},x))); });
   (L.x||[]).forEach(e=>out.push({i:e,m:1,meal:"Extra"})); return out; }
 function vSrc98(d){ const its=dayIts98(d); if(!its.length) return ""; const agg={};
@@ -8345,7 +8345,7 @@ function fibOf(i){ if(i&&i.fb!=null&&i.fb!==""&&!isNaN(+i.fb)) return +i.fb; con
 mac=(function(o){ return function(its,m=1){ const t=o(its,m); t.f=(its||[]).reduce((s,i)=>{ const f=i&&!i.est?fibOf(i):null; return s+(f?(+i.q||0)*m/100*f:0); },0); t.k+=FIB_KCAL*t.f; return t; }; })(mac);
 // repas notés avant ce changement : leurs calories enregistrées n'avaient pas les fibres, on les complète (une seule fois, marqué par mac.f)
 function fibNorm102(){ if(!NU.foods||!NU.logs) return; const P=planOn&&planOn();
-  Object.entries(NU.logs).forEach(([d,L])=>{ if(!L||!L.m) return; const t=P&&P.types&&P.types.length?typeOf(L.t||P.week[DOW(d)]):null;
+  Object.entries(NU.logs).forEach(([d,L])=>{ if(!L||!L.m) return; const t=P&&P.types&&P.types.length?typeOf(dayTypeId(d,P)):null;
     Object.entries(L.m).forEach(([mi,st])=>{ if(!st||!st.mac||st.mac.f!==undefined||st.s==="skip") return; let f=0;
       mealIts98(st,+mi,t).forEach(({i,m})=>{ const v=i.est?null:fibOf(i); if(v) f+=(+i.q||0)*m/100*v; }); st.mac=Object.assign({},st.mac,{f,k:(+st.mac.k||0)+FIB_KCAL*f}); }); }); }
 render=(function(o){ return function(){ try{ fibNorm102(); }catch(e){ console.error(e); } return o.apply(this,arguments); }; })(render);
@@ -8356,6 +8356,35 @@ nJour=function(){ let h=_nJour102(); const {d}=nDayCtx(), F=fibDay102(d); if(!F.
   const line=`<div class="fb102"><div class="row" style="justify-content:space-between;gap:6px"><span>🌾 Fibres</span><span><b>${fmtN(round(F.f,1))}</b> / ${fmtN(ref)} g</span></div><div class="mb-t"><i style="width:${pc.toFixed(1)}%"></i></div>${F.miss?`<div class="muted small">${F.miss} aliment${F.miss>1?"s":""} sans valeur de fibres</div>`:""}</div>`;
   return h.replace(/(<div class="muted small">\d+ repas sur \d+ notés)/,line+"$1"); };
 (function(){ const st=document.createElement("style"); st.textContent=`.fb102{margin:10px 0 6px;font-size:.92rem}.fb102 .mb-t{margin-top:4px}`; document.head.appendChild(st); })();
+
+// ================= MODULE 103 · TYPE DE JOUR (entraînement / repos…) : automatique selon les séances, validé par le client =================
+// Par défaut, le type de jour suit le calendrier d'entraînement : séance programmée ce jour-là → type « entraînement »,
+// sinon type « repos » (ou le type prévu pour ce jour de la semaine, ex. « Dimanche »). Le client (ou le coach) peut
+// valider ce type, ou en choisir un autre : il est alors enregistré pour ce jour (L.t) et ne bouge plus.
+const DT103={open:null};
+const isTrain103=x=>/entra[iî]n|training|s[ée]ance|muscu|sport/i.test(x&&x.name||""), isRest103=x=>/repos|off|rest|r[ée]cup/i.test(x&&x.name||"");
+function sesCount103(d){ try{ return (M&&M.dateOf)?sesOnDate(d).length:null; }catch(e){ return null; } }
+function autoType103(d,P){ const base=P.types.find(x=>x.id===P.week[DOW(d)])||P.types[0], n=sesCount103(d); if(n==null) return base;
+  if(n>0) return isTrain103(base)?base:(P.types.find(isTrain103)||base);
+  return isTrain103(base)?(P.types.find(isRest103)||P.types.find(x=>!isTrain103(x))||base):base; }
+function dayTypeId(d,P){ const L=(NU.logs||{})[d]||{}; if(L.t&&P.types.some(x=>x.id===L.t)) return L.t; return autoType103(d,P).id; }
+function dtBox103(d,P,t){ const L=NU.logs[d]||{}, val=!!(L.t&&P.types.some(x=>x.id===L.t)), n=sesCount103(d), open=DT103.open===d;
+  const why=val?"✓ validé":n>0?"auto · séance prévue":n===0?"auto · pas de séance prévue":"auto";
+  let h=`<div class="dt103"><div class="row" style="gap:6px;align-items:center"><span class="grow">Type de jour : <b>${esc(t.name)}</b> <span class="muted small">${why}</span></span>
+    ${val?"":`<button class="sm" data-act="dt103-ok" data-v="${t.id}">✓ Valider</button>`}<button class="ghost sm" data-act="dt103-open">${open?"Fermer":"Changer"}</button></div>`;
+  if(open) h+=`<div class="row" style="gap:6px;margin-top:6px">${P.types.map(x=>`<button class="chip ${x.id===t.id?"on":""}" data-act="dt103-set" data-v="${x.id}">${esc(x.name)}</button>`).join("")}${val?`<button class="linkbtn small" data-act="dt103-auto">↺ Automatique (selon les séances)</button>`:""}</div>
+    <div class="muted small" style="margin-top:4px">Changer le type de jour change l'objectif de calories et de macros de ce jour.</div>`;
+  return h+`</div>`; }
+const _nJour103=nJour;
+nJour=function(){ const h=_nJour103(); const {d,t,P}=nDayCtx(); if(!t||!P||!P.types||P.types.length<2) return h;
+  return h.replace(/<div class="row" style="margin-top:6px">(?:<button class="chip[^"]*" data-act="nu-dtype"[^>]*>[^<]*<\/button>)+<\/div>/,dtBox103(d,P,t)); };
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act^="dt103-"]'); if(!b) return; e.stopImmediatePropagation(); const a=b.dataset.act, d=NU.day||todayISO(), P=planOn();
+  const log=()=>{ NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); return NU.logs[d]; };
+  if(a==="dt103-open"){ DT103.open=DT103.open===d?null:d; return render(); }
+  if(a==="dt103-ok"){ log().t=b.dataset.v; nuSaveLog(d); render(); return toast("Type de jour validé"); }
+  if(a==="dt103-set"){ const x=P&&P.types.find(y=>y.id===b.dataset.v); log().t=b.dataset.v; DT103.open=null; nuSaveLog(d); render(); return toast(`Objectif du jour : ${x?x.name:""}`); }
+  if(a==="dt103-auto"){ const L=log(); delete L.t; DT103.open=null; nuSaveLog(d); render(); return toast("Type de jour automatique"); } },true);
+(function(){ const st=document.createElement("style"); st.textContent=`.dt103{margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}`; document.head.appendChild(st); })();
 
 boot();
 
