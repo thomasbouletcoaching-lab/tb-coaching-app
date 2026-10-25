@@ -8571,17 +8571,16 @@ document.addEventListener("click",e=>{ const t=e.target; if(!t.closest) return;
   if(v&&(v.dataset.x106||!sub106(v.dataset.v))){ const to=v.dataset.v; tools106(false);
     if(to==="today"){ e.preventDefault(); e.stopImmediatePropagation(); ST.todayOn=true; window.scrollTo(0,0); render(); } } },true);
 // ---------- vitrine du coaching
-const CF106={open:false};
-function cf106(){ let el=document.getElementById("cf106"); if(!CF106.open){ if(el) el.remove(); return; }
-  if(!el){ el=document.createElement("div"); el.id="cf106"; document.body.appendChild(el); }
-  const P=price88(), E0=v=>fmtE(v).replace(",00",""), t=ST.solo?tier88():"coaching", col=["free","premium","light","custom","coaching"], cur=col.indexOf(t);
-  const R=[["Programme de départ généré à partir de ton questionnaire",1,1,1,1,1],
+const CMPR110=[["Programme de départ généré à partir de ton questionnaire",1,1,1,1,1],
     ["Carnet, chronos de récupération, records, suivi du poids",1,1,1,1,1],
-    ["Journal des repas : calories et fibres",1,1,1,1,1],
-    ["Macros, plan alimentaire calculé, batch cooking, courses",0,1,1,1,1],
-    ["Mesures et dépense détaillée (pas, cardio)",0,1,1,1,1],
-    ["Créer ton programme, surcharge progressive",0,1,1,1,1],
+    ["Journal des repas : calories, protéines, glucides, lipides",1,1,1,1,1],
+    ["Fibres, scan de code-barres, repas décrit au texte ou à la voix",0,1,1,1,1],
+    ["Plan alimentaire calculé, liste de courses",0,1,1,1,1],
+    ["Mesures (poids, tour de taille, mensurations)",0,1,1,1,1],
+    ["Choisir et modifier ton programme, surcharge progressive",0,1,1,1,1],
     ["Toute la banque de programmes",0,0,1,1,1],
+    ["Détail des macros par aliment, mes repas et équivalents, batch cooking",0,0,1,1,1],
+    ["Dépense détaillée (pas précis, cardio, digestion), photo des repas",0,0,1,1,1],
     ["Programme et plan ajustés par Thomas selon tes séances",0,0,1,1,1],
     ["Bilan chaque semaine, avec le retour écrit de Thomas",0,0,1,1,1],
     ["Messages avec Thomas (illimités en Complet)",0,0,1,1,1],
@@ -8590,6 +8589,12 @@ function cf106(){ let el=document.getElementById("cf106"); if(!CF106.open){ if(e
     ["Rendez-vous téléphoniques (1 par mois en Sur mesure)",0,0,0,1,1],
     ["Ajustements chaque semaine, priorité de réponse",0,0,0,0,1],
     ["Retours sur ta technique à partir des vidéos que tu envoies",0,0,0,0,1]];
+
+const CF106={open:false};
+function cf106(){ let el=document.getElementById("cf106"); if(!CF106.open){ if(el) el.remove(); return; }
+  if(!el){ el=document.createElement("div"); el.id="cf106"; document.body.appendChild(el); }
+  const P=price88(), E0=v=>fmtE(v).replace(",00",""), t=ST.solo?tier88():"coaching", col=["free","premium","light","custom","coaching"], cur=col.indexOf(t);
+  const R=CMPR110;
   const ck=v=>v?`<span class="cf106y" aria-label="inclus">✓</span>`:`<span class="cf106n" aria-label="non inclus">🔒</span>`;
   const gain=R.filter(r=>r[5]&&!r[1+Math.max(cur,0)]);
   el.innerHTML=`<div class="cs85bg" data-act="cf106x"></div><div class="cs85p cf106p" role="dialog" aria-label="Le coaching avec Thomas">
@@ -8632,8 +8637,8 @@ function pl107(){ let el=document.getElementById("pl107"); if(!PL107.open){ if(e
     <button style="width:100%;margin-top:12px" data-act="pl107o">${sub88()&&sub88().trial_used?"Passer à l'App complète":`Essayer ${P.trial_days} jours gratuitement`}</button>
     <p class="muted small" style="text-align:center;margin:6px 0 0">${fmtE(P.premium_month)} / mois ou ${fmtE(P.premium_year)} / an · résiliable à tout moment</p></div>`; }
 function lockNu107(){ if(!lock107()||ST.view!=="nutrition"||ST.todayOn) return; const app=$("#app"); if(!app) return;
-  app.querySelectorAll(".mb3,#src98,.macro-en").forEach(el=>{ if(el.closest(".lk107w")) return; const w=document.createElement("div"); w.className="lk107w"; el.parentNode.insertBefore(w,el); w.appendChild(el);
-    w.insertAdjacentHTML("beforeend",`<button class="lk107b" data-act="lk107">🔒 ${el.id==="src98"?"D'où viennent tes macros":"Protéines, glucides, lipides"} · App complète</button>`); });
+  app.querySelectorAll(".fb102").forEach(el=>{ if(el.closest(".lk107w")) return; const w=document.createElement("div"); w.className="lk107w"; el.parentNode.insertBefore(w,el); w.appendChild(el);
+    w.insertAdjacentHTML("beforeend",`<button class="lk107b" data-act="lk107">🔒 Fibres · App complète</button>`); });
   app.querySelectorAll('[data-act="nu-nv"][data-v="courses"]').forEach(b=>{ if(!/🔒/.test(b.textContent)) b.textContent+=" 🔒"; }); }
 // Accueil de l'inscrit libre (Gratuit ou App complète) : messages et bilan avec Thomas réservés au coaching
 function lockToday107(){ if(!(ST.solo&&CUR&&MODE==="client"&&ST.todayOn)) return; const app=$("#app"); if(!app) return;
@@ -8655,7 +8660,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&PL107.open){ PL107
 .lk107b{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);white-space:nowrap;font-size:.85rem;padding:8px 12px;border-radius:999px;background:var(--paper);color:var(--ink);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18)}
 #pl107{position:fixed;inset:0;z-index:1000}#pl107 .cs85bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}#pl107 .cs85p{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);max-width:520px;max-height:88vh;margin:0 auto;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .pl107r{border-top:1px solid var(--line);padding:10px 2px}.lk107i{float:right}
-body.free107 .mmac,body.free107 .im98{display:none}`; document.head.appendChild(st); })();
+body.solo110 .mmac,body.solo110 .im98{display:none}`; document.head.appendChild(st); })();
 
 // ================= MODULE 108 · PALIERS : journal des repas en Gratuit, dépense simple, mesures, batch cooking, projection, méthode, banque =================
 // Gratuit : calories et fibres, repas notés à la main (aliments + quantités ou « mes repas »), dépense estimée simplement (MB × coefficient).
@@ -8732,15 +8737,12 @@ function locks108(){ const app=$("#app"); if(!app||coach()||!ST.solo||!CUR) retu
   app.querySelectorAll(".lk108").forEach(el=>{ el.classList.remove("lk108"); wrap108(el,(el.dataset.l||"")+" · Coaching","cf106"); });
   const bt=document.getElementById("bt91"); if(bt) wrap108(bt,"Batch cooking · Coaching suivi","cf106");
   if(ST.view==="methode") kbLock108(app);
-  if(free108()&&ST.view==="nutrition"&&NU.nv==="energie") app.querySelectorAll(".tbl table").forEach(tb=>{ const hd=[...tb.querySelectorAll("tr:first-child th")], i=hd.findIndex(th=>/P \/ G \/ L/.test(th.textContent)); if(i<0) return;
+  if(false) app.querySelectorAll(".tbl table").forEach(tb=>{ const hd=[...tb.querySelectorAll("tr:first-child th")], i=hd.findIndex(th=>/P \/ G \/ L/.test(th.textContent)); if(i<0) return;
     tb.querySelectorAll("tr").forEach((tr,k)=>{ const c=tr.children[i]; if(c&&k) c.textContent="🔒"; }); });
   if(ST.todayOn) app.querySelectorAll(".card .muted.small").forEach(x=>{ if(/aident ton coach à ajuster ton plan/.test(x.textContent)) x.textContent="Ton quotidien et tes préférences alimentaires affinent ton programme et tes repères."; });
   app.querySelectorAll(".muted.small").forEach(x=>{ if(/ton coach s'occupe du reste/.test(x.textContent)) x.innerHTML=x.innerHTML.replace("ton coach s'occupe du reste","l'app estime le reste"); }); }
 document.addEventListener("click",e=>{ const t=e.target; if(!t.closest||!free108()||coach()) return;
   if(t.closest('[data-act="nu-nv"][data-v="mesures"],[data-act="nu-nv"][data-v="plan"]')){ e.preventDefault(); e.stopImmediatePropagation(); P88.offers=true; offersPanel88(); } },true);
-// App complète sans plan : « Mon plan » ouvre l'outil Plan alimentaire pour le créer
-document.addEventListener("click",e=>{ const t=e.target; if(!t.closest||!journal108()||free108()||coach()||!ST.solo) return;
-  if(t.closest('[data-act="nu-nv"][data-v="plan"]')){ e.preventDefault(); e.stopImmediatePropagation(); tools106(true,"nutrition"); window.scrollTo(0,0); render(); } },true);
 // ---------- Méthode : chapitres par palier
 const KBT108={priorites:0,ventre:0,surcharge:0,nutrition:0,rpe:1,reps:1,volume:1,cardio:1,recup:1,suivi:1,periodisation:2,techniques:2,profils:2};
 const kbTier108=id=>KBT108[id]!=null?KBT108[id]:(/^dos-/.test(id)?2:1);
@@ -8837,6 +8839,164 @@ render=function(){ const r=_render109.apply(this,arguments); try{ if(PG106.on){ 
 #toast,.toast{z-index:2000!important}
 #ca109{position:fixed;inset:0;z-index:1100}#ca109 .cs85bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}#ca109 .cs85p{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);max-width:520px;max-height:88vh;margin:0 auto;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 @keyframes fl109{0%,100%{background:transparent}30%,70%{background:color-mix(in srgb,#f5a524 35%,transparent)}}.fl109{animation:fl109 1.4s ease 2;border-radius:10px}`; document.head.appendChild(st); })();
+
+// ================= MODULE 110 · INSCRIT LIBRE : onglets Entraînement / Nutrition, programme simple, plan alimentaire en un choix ;
+// cadenas nutrition par formule ; affichage allégé pour les anciens téléphones ; « Intensification » ; page d'accueil avec les formules =================
+// ---------- affichage allégé : flous et fonds animés coupés (bandes jaunes sur certains anciens Android)
+const LITE110=(()=>{ try{ const v=localStorage.getItem("tb-lite"); if(v==="1"||v==="0") return v==="1"; }catch(e){}
+  const ua=navigator.userAgent||"", m=/Chrome\/(\d+)/.exec(ua), and=/Android/i.test(ua);
+  return !!(and&&((m&&+m[1]<110)||(navigator.deviceMemory&&navigator.deviceMemory<=3)||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4))); })();
+document.body.classList.toggle("lite110",LITE110);
+// ---------- « Transmutation » s'affiche « Intensification » partout (les données gardent leur nom)
+const RX110=/Transmutation|transmutation/g, tr110=v=>v.replace(RX110,m=>m[0]==="T"?"Intensification":"intensification");
+function trNode110(n){ if(n.nodeType===3){ if(RX110.test(n.nodeValue)){ RX110.lastIndex=0; n.nodeValue=tr110(n.nodeValue); } RX110.lastIndex=0; return; }
+  if(n.nodeType!==1||/^(SCRIPT|STYLE|TEXTAREA)$/.test(n.nodeName)) return; const w=document.createTreeWalker(n,NodeFilter.SHOW_TEXT); let x; while((x=w.nextNode())){ if(RX110.test(x.nodeValue)){ RX110.lastIndex=0; x.nodeValue=tr110(x.nodeValue); } RX110.lastIndex=0; } }
+try{ new MutationObserver(L=>L.forEach(r=>{ if(r.type==="characterData") trNode110(r.target); else r.addedNodes.forEach(trNode110); })).observe(document.body,{childList:true,subtree:true,characterData:true}); trNode110(document.body); }catch(e){}
+// ---------- onglet Entraînement : choisir, modifier simplement, surcharge progressive
+const TR110={edit:null,add:null,bank:false,lvl:"",nd:0,ov:false};
+const REPS110=[["3-5","Force"],["6-8","Force + muscle"],["8-12","Muscle"],["12-15","Endurance"]];
+const s1of110=e=>{ const w=e.weeks&&e.weeks[1]; return String((w&&typeof w==="object"?w.eff:w)||e.s1||""); };
+function rx110(e){ const m=/^(\d+)\s*x\s*(\d+(?:-\d+)?)/i.exec(s1of110(e)); return m?{sets:+m[1],reps:m[2]}:{sets:3,reps:"8-12"}; }
+const presc110=e=>{ const t=s1of110(e); return t?esc(t.replace(/(\d)x/g,"$1 × ").replace(/RPE(\d+(?:[.,]\d)?)/,"· effort $1/10").replace(/RIR(\d)/,"· $1 rép. en réserve")):"—"; };
+// programme calculé par les règles (pas de séances enregistrées) : affiché depuis le calcul, converti en séances modifiables à la première modification
+const rowS110=r=>{ const w=r.weeks&&r.weeks[1]; return (w&&typeof w==="object"?w.eff:w)||r.s1def||"3x8-12 RPE8"; };
+function sess110(){ const P=ST.prog||{}; if((P.sessions||[]).some(x=>x&&x.ex&&x.ex.length)) return P.sessions.filter(x=>x&&x.ex);
+  return ((M&&M.sessions)||[]).map(S=>({name:S.name,day:S.day,ex:(S.rows||[]).filter(r=>r.ex).map(r=>({name:r.ex,mode:"Auto",weeks:[null,rowS110(r)]}))})).filter(x=>x.ex.length); }
+function mat110(){ const P=ST.prog; if((P.sessions||[]).some(x=>x&&x.ex&&x.ex.length)) return; P.sessions=JSON.parse(JSON.stringify(sess110())); P.profile.source="Manuel"; }
+function vTrain110(){ const P=ST.prog||{}, prem=prem88(), S=sess110(), lock=t=>`<button class="ghost sm" data-act="lk107">🔒 ${t}</button>`;
+  let h=`<h2>🏋️ Mon entraînement</h2><div class="card"><div class="muted small">Mon programme</div><h3 style="margin:2px 0">${esc(P.bank110||(P.profile&&P.profile.source==="Manuel"?"Mon programme":"Programme de départ"))}</h3>
+    <div class="muted small">${S.length} séance${S.length>1?"s":""} par semaine · semaine ${M?M.cw:1}/${M?M.NSEM:12}${M&&M.phases[M.cw-1]?" · "+esc(M.phases[M.cw-1]):""}</div>
+    <div class="row" style="margin-top:8px;gap:6px">${prem?`<button class="ghost sm" data-act="tr110b">📚 Changer de programme</button><button class="ghost sm" data-act="tr110z">＋ Partir de zéro</button>`:lock("Changer de programme · App complète")}</div></div>`;
+  if(TR110.bank&&prem) h+=bank110();
+  S.forEach((ses,i)=>{ h+=`<div class="card"><div class="row" style="flex-wrap:nowrap;align-items:baseline"><h3 class="grow" style="margin:0">${esc(ses.name||"Séance")}</h3><span class="muted small">${esc(ses.day||"")}</span></div>`;
+    ses.ex.forEach((e,j)=>{ const k=i+"."+j, on=TR110.edit===k;
+      h+=`<div class="tr110r"><button class="tr110e" data-act="${prem?"tr110e":"lk107"}" data-v="${k}"><span class="grow"><b>${esc(e.name||"Exercice")}</b><br><span class="muted small">${presc110(e)}</span></span><span class="muted">${prem?(on?"▴":"✎"):"🔒"}</span></button>${on?edit110(i,j,e):""}</div>`; });
+    if(prem) h+=TR110.add===i?add110(i):`<button class="ghost sm" style="margin-top:6px" data-act="tr110a" data-v="${i}">＋ Ajouter un exercice</button>`;
+    h+=`</div>`; });
+  if(prem&&!S.length) h+=`<div class="card"><p class="small">Ton programme est vide. Ajoute ta première séance ou choisis un programme.</p></div>`;
+  if(prem) h+=`<button class="ghost" style="width:100%" data-act="tr110s">＋ Ajouter une séance</button>`;
+  h+=ov110(prem);
+  if(!prem) h+=`<p class="note">Avec l'App complète : choisir un programme dans la banque, remplacer un exercice, régler séries et répétitions, et ta surcharge progressive semaine après semaine.</p>`;
+  return h; }
+function edit110(i,j,e){ const b=BASEMAP[e.name]||{}, mus=TR110.mus||b.mP||"", L=Object.keys(BASEMAP).filter(n=>BASEMAP[n].mP===mus).sort((a,c)=>a.localeCompare(c,"fr")), R=rx110(e);
+  if(e.name&&!L.includes(e.name)) L.unshift(e.name);
+  return `<div class="edit tr110x"><label class="f">Muscle<select data-tr110m="${i}.${j}">${MUSCLES().map(m=>`<option ${m===mus?"selected":""}>${esc(m)}</option>`).join("")}</select></label>
+    <label class="f" style="margin-top:6px">Exercice<select id="tr110n">${L.map(n=>`<option ${n===e.name?"selected":""}>${esc(n)}</option>`).join("")}</select></label>
+    <div class="muted small" style="margin-top:8px">Séries</div><div class="row" style="gap:6px">${[2,3,4,5].map(n=>`<button class="chip ${R.sets===n?"on":""}" data-act="tr110set" data-v="${n}">${n}</button>`).join("")}</div>
+    <div class="muted small" style="margin-top:8px">Répétitions</div><div class="row" style="gap:6px">${REPS110.map(([r,l])=>`<button class="chip ${R.reps===r?"on":""}" data-act="tr110rep" data-v="${r}">${r} <span class="muted small">${l}</span></button>`).join("")}</div>
+    <div class="row" style="margin-top:10px;gap:6px"><button class="ok sm" data-act="tr110ok" data-v="${i}.${j}">Enregistrer</button><button class="ghost sm" data-act="tr110x">Annuler</button><button class="ghost sm" data-act="tr110d" data-v="${i}.${j}">🗑 Retirer</button></div></div>`; }
+function add110(i){ const mus=TR110.mus||MUSCLES()[0], L=Object.keys(BASEMAP).filter(n=>BASEMAP[n].mP===mus).sort((a,c)=>a.localeCompare(c,"fr"));
+  return `<div class="edit tr110x"><label class="f">Muscle<select data-tr110m="add">${MUSCLES().map(m=>`<option ${m===mus?"selected":""}>${esc(m)}</option>`).join("")}</select></label>
+    <label class="f" style="margin-top:6px">Exercice<select id="tr110n">${L.map(n=>`<option>${esc(n)}</option>`).join("")}</select></label>
+    <div class="row" style="margin-top:10px;gap:6px"><button class="ok sm" data-act="tr110ad" data-v="${i}">Ajouter (3 × 8-12)</button><button class="ghost sm" data-act="tr110x">Annuler</button></div></div>`; }
+function bank110(){ const L=BANK.filter(b=>(!TR110.lvl||b.lvl===TR110.lvl||b.lvl==="Tous niveaux")&&(!TR110.nd||b.nd===TR110.nd));
+  return `<div class="card"><div class="row" style="flex-wrap:nowrap;align-items:center"><h3 class="grow" style="margin:0">📚 Choisir un programme</h3><button class="ghost sm" data-act="tr110b">✕</button></div>
+    <div class="row" style="gap:4px;margin-top:6px">${[["","Tous"],["Débutant","Débutant"],["Intermédiaire","Intermédiaire"],["Avancé","Avancé"]].map(([v,l])=>`<button class="chip ${TR110.lvl===v?"on":""}" data-act="tr110l" data-v="${v}">${l}</button>`).join("")}</div>
+    <div class="row" style="gap:4px;margin-top:4px">${[[0,"Tous"],[2,"2 j"],[3,"3 j"],[4,"4 j"],[5,"5 j"]].map(([v,l])=>`<button class="chip ${TR110.nd===v?"on":""}" data-act="tr110j" data-v="${v}">${l}</button>`).join("")}</div>
+    ${L.map(b=>`<div class="pl107r"><div class="row" style="flex-wrap:nowrap;gap:8px"><div class="grow"><b>${esc(b.name)}</b><div class="muted small">${esc(b.lvl||"")} · ${b.nd} j/sem. · ${esc(b.desc||"")}</div></div>${bankOk108(b)?`<button class="ok sm" data-act="tr110p" data-v="${esc(b.id)}">Choisir</button>`:`<button class="ghost sm" data-act="cf106">🔒 Suivi</button>`}</div></div>`).join("")||`<p class="muted small">Aucun programme avec ces filtres.</p>`}</div>`; }
+const OVT110=[["","Ajouter de la charge chaque semaine"],["intensite","Monter la charge et l'effort"],["volume","Ajouter des séries, charge stable"],["mixte","Séries et charge"]];
+function ov110(prem){ const P=ST.prog||{}, phs=[...new Set(((M&&M.phases)||[]).filter(p=>p&&!["Deload","Test","Transition"].includes(p)))];
+  let h=`<div class="card"><h3 style="margin-top:0">📈 Surcharge progressive ${prem?"":"🔒"}</h3><p class="muted small">Comment tes charges progressent semaine après semaine, phase par phase. L'app calcule les charges à partir de ton carnet.</p>`;
+  if(!prem) return h+`<button class="ghost sm" data-act="lk107">Débloquer avec l'App complète</button></div>`;
+  h+=phs.map(ph=>{ const o=(P.overload||{})[ph]||{}; return `<label class="f" style="margin-top:6px">${esc(ph)}<select data-tr110o="${esc(ph)}">${OVT110.map(([v,l])=>`<option value="${v}" ${(o.t||"")===v?"selected":""}>${l}</option>`).join("")}</select></label>`; }).join("")||`<p class="muted small">Pas encore de phases dans ton programme.</p>`;
+  return h+`</div>`; }
+function trSave110(msg){ saveProg(); if(msg) toast(msg); render(); }
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act^="tr110"]'); if(!b||!ST.solo||coach()) return; e.preventDefault(); e.stopImmediatePropagation();
+  if(!prem88()){ P88.offers=true; return offersPanel88(); }
+  const a=b.dataset.act, v=b.dataset.v||""; if(/^tr110(ok|d|ad|s)$/.test(a)) mat110(); const P=ST.prog, at=k=>{ const [i,j]=k.split(".").map(Number); return {i,j,ses:P.sessions[i],ex:P.sessions[i]&&P.sessions[i].ex[j]}; };
+  if(a==="tr110e"){ TR110.edit=TR110.edit===v?null:v; TR110.add=null; TR110.mus=null; const [i,j]=v.split(".").map(Number), E=(sess110()[i]||{ex:[]}).ex[j]; TR110.r=E?rx110(E):null; return render(); }
+  if(a==="tr110x"){ TR110.edit=null; TR110.add=null; TR110.mus=null; return render(); }
+  if(a==="tr110set"){ TR110.r=Object.assign({},TR110.r||{sets:3,reps:"8-12"},{sets:+v}); b.parentNode.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on",c===b)); return; }
+  if(a==="tr110rep"){ TR110.r=Object.assign({},TR110.r||{sets:3,reps:"8-12"},{reps:v}); b.parentNode.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on",c===b)); return; }
+  if(a==="tr110ok"){ const x=at(v); if(!x.ex) return; const n=(document.getElementById("tr110n")||{}).value||x.ex.name, R=TR110.r||rx110(x.ex);
+    x.ex.name=n; x.ex.mode="Auto"; x.ex.weeks=[null,`${R.sets}x${R.reps} RPE8`]; TR110.edit=null; TR110.mus=null; return trSave110("Exercice enregistré"); }
+  if(a==="tr110d"){ const x=at(v); if(!x.ex||!confirm(`Retirer « ${x.ex.name} » de cette séance ?`)) return; x.ses.ex.splice(x.j,1); TR110.edit=null; return trSave110("Exercice retiré"); }
+  if(a==="tr110a"){ TR110.add=+v; TR110.edit=null; TR110.mus=null; return render(); }
+  if(a==="tr110ad"){ const ses=P.sessions[+v], n=(document.getElementById("tr110n")||{}).value; if(!ses||!n) return; ses.ex.push({name:n,mode:"Auto",weeks:[null,"3x8-12 RPE8"]}); TR110.add=null; return trSave110("Exercice ajouté"); }
+  if(a==="tr110s"){ const DAYS=["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"], used=(P.sessions||[]).map(x=>x.day), day=DAYS.find(d=>!used.includes(d))||"Lundi";
+    const nm=prompt("Nom de la séance",`Séance ${String.fromCharCode(65+(P.sessions||[]).length)}`); if(nm===null) return; P.sessions=P.sessions||[]; P.sessions.push({name:nm.trim()||"Séance",day,ex:[]});
+    const di=DAYS.indexOf(day); if(P.profile&&Array.isArray(P.profile.days)) P.profile.days[di]=true; P.profile.source="Manuel"; TR110.add=P.sessions.length-1; return trSave110(`Séance ajoutée le ${day.toLowerCase()}`); }
+  if(a==="tr110z"){ if(!confirm("Vider ton programme pour le construire toi-même ? Ton profil et tes 1RM sont gardés.")) return; P.sessions=[]; P.profile.source="Manuel"; P.overload={}; P.bank110="Mon programme"; return trSave110("Programme vidé : ajoute ta première séance"); }
+  if(a==="tr110b"){ TR110.bank=!TR110.bank; return render(); }
+  if(a==="tr110l"){ TR110.lvl=v; return render(); } if(a==="tr110j"){ TR110.nd=+v; return render(); }
+  if(a==="tr110p"){ const bk=BANK.find(x=>x.id===v); if(!bk||!bankOk108(bk)) return; if(!confirm(`Suivre « ${bk.name} » ? Tes séances actuelles sont remplacées (ton profil et tes 1RM sont gardés).`)) return;
+    applyBank(v); P.bank110=bk.name; TR110.bank=false; saveProg(); return render(); } },true);
+document.addEventListener("change",e=>{ const el=e.target; if(!el||!el.dataset||!ST.solo||coach()) return;
+  if(el.dataset.tr110m!==undefined){ TR110.mus=el.value; return render(); }
+  if(el.dataset.tr110o!==undefined&&prem88()){ const P=ST.prog; P.overload=P.overload||{}; P.overload[el.dataset.tr110o]=Object.assign({},P.overload[el.dataset.tr110o],{t:el.value}); trSave110("Surcharge enregistrée"); } });
+// ---------- Nutrition : créer son plan alimentaire en un choix (App complète)
+async function nmClient110(id){ if(journal108()) NU.plan=null; const ic=ST.isCoach, md=MODE; ST.isCoach=true; MODE="coach";
+  try{ await nmApply66(id); }catch(e){ console.error(e); } finally{ ST.isCoach=ic; MODE=md; } NU.nv="plan"; NM110.open=false; render(); }
+const NM110={open:false};
+function nmCard110(){ return `<div class="card" id="nm110"><h3 style="margin-top:0">🍽️ ${journal108()?"Créer mon plan alimentaire":"Changer de plan alimentaire"}</h3><p class="muted small">Choisis le profil qui te ressemble : calories, protéines et repas sont calculés pour toi à partir de ton questionnaire.</p>
+    ${NM66.map(m=>`<div class="pl107r"><b>${m.ic||""} ${esc(m.name)}</b><div class="muted small">${esc(String(m.prof||"").replace(/^Client /,""))}</div><button class="ok sm" style="margin-top:6px" data-act="nm110" data-v="${esc(m.id)}">Choisir ce plan</button></div>`).join("")}</div>`; }
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="nm110"],[data-act="nm110o"]'); if(!b) return; e.preventDefault(); e.stopImmediatePropagation();
+  if(b.dataset.act==="nm110o"){ NM110.open=!NM110.open; return render(); } nmClient110(b.dataset.v); },true);
+// ---------- cadenas nutrition de l'inscrit libre
+const lockBtn110=(el,label,act)=>{ el.textContent=label; el.dataset.act=act; delete el.dataset.v; };
+function nu110(app){ const free=free108();
+  app.querySelectorAll('[data-act="nph-take"]').forEach(b=>lockBtn110(b,"📷 🔒","cf106"));
+  app.querySelectorAll('[data-act="eq-open"]').forEach(b=>lockBtn110(b,"🔁 Équivalents 🔒","cf106"));
+  app.querySelectorAll('[data-act="j108-my"]').forEach(b=>lockBtn110(b,"📒 Mes repas 🔒","cf106"));
+  if(free) app.querySelectorAll('[data-act="nu-xscan"],[data-act="nu99-scan"]').forEach(b=>lockBtn110(b,"📷 Code-barres 🔒 App complète","lk107"));
+  const my=document.getElementById("my78"); if(my) wrap108(my,"Mes repas · Coaching suivi","cf106");
+  const src=document.getElementById("src98"); if(src) wrap108(src,"D'où viennent tes macros · Coaching suivi","cf106");
+  app.querySelectorAll(".card,details").forEach(c=>{ const t=c.querySelector("h3,summary"); if(t&&/Ma journée type/.test(t.textContent)&&!c.closest(".lk107w")) c.remove(); });
+  if(NU.nv==="plan"&&prem88()){ const chips=app.querySelector('[data-act="nu-nv"]'), row=chips&&chips.closest(".row");
+    if(journal108()){ if(row){ let n=row.nextElementSibling; while(n){ const x=n.nextElementSibling; n.remove(); n=x; } row.insertAdjacentHTML("afterend",nmCard110()); } }
+    else if(!document.getElementById("nm110")) app.insertAdjacentHTML("beforeend",NM110.open?nmCard110():`<div class="row" style="margin:8px 0 24px"><button class="ghost" data-act="nm110o">🔁 Changer de plan alimentaire</button></div>`); } }
+// ---------- barre du bas de l'inscrit libre : Accueil · Semaine · Entraînement · Carnet · Nutrition · Compte
+function tabs110(){ const t=$("#tabs"); if(!t) return; t.querySelectorAll('[data-act="pg106"]').forEach(b=>b.remove());
+  if(!t.querySelector('[data-v="tr110"]')){ const ref=t.querySelector('[data-v="carnet"]'), b=`<button data-act="view" data-v="tr110">Entraînement</button>`; if(ref) ref.insertAdjacentHTML("beforebegin",b); else t.insertAdjacentHTML("beforeend",b); }
+  t.querySelectorAll('[data-v="nutrition"]').forEach(b=>{ const w=document.createTreeWalker(b,NodeFilter.SHOW_TEXT); let x; while((x=w.nextNode())) if(/Suivi/.test(x.nodeValue)) x.nodeValue=x.nodeValue.replace("Suivi","Nutrition"); });
+  if(ST.view==="tr110"&&!ST.todayOn) t.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.v==="tr110"));
+  if(typeof icons45==="function") icons45(); }
+ICV45.tr110="list";
+const _render110=render;
+render=function(){ const solo=!!(ST.solo&&CUR&&ST.ready&&UID), tr=solo&&ST.view==="tr110"&&!ST.todayOn;
+  if(solo&&PG106.on) tools106(false);
+  if(tr) ST.view="semaine"; let r; try{ r=_render110.apply(this,arguments); } finally{ if(tr) ST.view="tr110"; }
+  try{ document.body.classList.toggle("solo110",solo&&MODE==="client");
+    if(solo&&MODE==="client"&&!coach()){ tabs110(); const app=$("#app");
+      if(tr&&app){ app.innerHTML=vTrain110(); const h2=app.querySelector("h2"); if(h2) h2.insertAdjacentHTML("afterbegin",""); }
+      if(app&&ST.view==="nutrition"&&!ST.todayOn){ nu110(app); const h2=app.querySelector("h2"); if(h2) [...h2.childNodes].forEach(n=>{ if(n.nodeType===3&&/Suivi/.test(n.nodeValue)) n.nodeValue=n.nodeValue.replace("Suivi","Nutrition"); });
+        app.querySelectorAll(".muted.small").forEach(x=>{ if(/Prends ton repas en photo/.test(x.textContent)) x.remove(); }); }
+      const sub=$("#appSub"); if(sub) trNode110(sub); } }catch(e){ console.error(e); }
+  return r; };
+// ---------- avant la connexion : présentation de l'app et des formules
+const LAND110={skip:false};
+const _vAuth110=vAuth;
+vAuth=function(){ if(UID||AUTH.mode!=="login"||LAND110.skip) return _vAuth110.apply(this,arguments);
+  const P=price88(), E0=v=>fmtE(v).replace(",00",""), ck=v=>v?`<span class="cf106y">✓</span>`:`<span class="cf106n">🔒</span>`;
+  const shot=(t,b)=>`<div class="la110s"><div class="muted small">${t}</div>${b}</div>`;
+  return `<div class="la110"><div class="la110h"><h2 style="margin:0">Ton coach d'entraînement et de nutrition, dans ta poche</h2><p class="small">Un programme construit pour toi, un carnet qui calcule tes charges, et le suivi de tes repas. Créé par Thomas Boulet, coach sportif diplômé.</p>
+    <button style="width:100%" data-act="la110" data-v="signup">Commencer gratuitement</button><button class="ghost" style="width:100%;margin-top:8px" data-act="la110" data-v="login">J'ai déjà un compte</button></div>
+    <h3>Comment ça marche</h3>
+    <div class="la110g">${[["📝","Réponds au questionnaire","2 minutes : objectif, niveau, jours disponibles, matériel."],["🏋️","Reçois ton programme","Tes séances de la semaine, avec les charges calculées pour toi."],["📒","Note tes séances","Le carnet retient tout et fait progresser tes charges."],["🍽️","Note tes repas","Calories, protéines, glucides, lipides en quelques gestes."],["📈","Suis tes progrès","Records, poids, régularité : tu vois ce qui avance."]].map(([i,t,d],k)=>`<div class="la110c"><b>${k+1}. ${i} ${t}</b><div class="muted small">${d}</div></div>`).join("")}</div>
+    <h3>Aperçu</h3>
+    <div class="la110p">${shot("Séance du jour",`<b>Upper A · Lundi</b><div class="small">Développé couché · 4 × 6-8 · <b>72,5 kg</b></div><div class="small">Rowing barre · 4 × 8 · <b>60 kg</b></div><div class="small">Élévations latérales · 3 × 12-15</div>`)}
+      ${shot("Nutrition du jour",`<div><b style="font-size:1.5rem">1 840</b> <span class="muted small">/ 2 300 kcal</span></div><div class="small">Protéines 128 / 160 g · Glucides 190 / 240 g · Lipides 62 / 75 g</div><div class="small">🔥 Brûlées à cette heure : 1 520 kcal</div>`)}
+      ${shot("Progrès",`<div class="small">🏆 Nouveau record : squat 100 kg × 5</div><div class="small">⚖️ −3,2 kg en 6 semaines</div><div class="small">🔥 12 jours d'affilée</div>`)}</div>
+    <h3>Les formules</h3>
+    <div class="cf106t la110t" role="table"><div class="cf106r cf106hd" role="row"><span role="columnheader"></span>${[["Gratuit","0 €"],["App",fmtE(P.premium_month)],["Suivi",E0(P.light_month)],["Mesure",E0(P.custom_month||249)],["Complet",E0(P.coaching_month||540)]].map(([l,pr],i)=>`<span role="columnheader" class="${i===4?"hl":""}">${l}<br><i>${pr}</i></span>`).join("")}</div>
+      ${CMPR110.map(r=>`<div class="cf106r" role="row"><span role="cell">${esc(r[0])}</span>${[1,2,3,4,5].map(i=>`<span role="cell" class="${i===5?"hl":""}">${ck(r[i])}</span>`).join("")}</div>`).join("")}</div>
+    <p class="muted small">App complète : ${fmtE(P.premium_month)} / mois ou ${fmtE(P.premium_year)} / an, ${P.trial_days} jours d'essai. Coachings sur candidature, depuis l'app.</p>
+    <button style="width:100%;margin:8px 0" data-act="la110" data-v="signup">Créer mon compte gratuit</button><button class="ghost" style="width:100%;margin-bottom:24px" data-act="la110" data-v="login">Se connecter</button>
+    <p class="note">Aucune formule ne garantit un résultat chiffré : la progression dépend de facteurs individuels (régularité, récupération, historique…).</p></div>`; };
+document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="la110"]'); if(!b) return; e.preventDefault(); e.stopImmediatePropagation(); LAND110.skip=true; AUTH.mode=b.dataset.v; AUTH.msg=""; window.scrollTo(0,0); render(); },true);
+// ---------- Compte : affichage allégé réglable
+const _vClientAccount110=vClientAccount;
+vClientAccount=function(){ const h=_vClientAccount110.apply(this,arguments);
+  return h+`<div class="card"><h3 style="margin-top:0">Affichage allégé</h3><p class="muted small">Pour les téléphones plus anciens : coupe les effets de flou et le fond animé (évite les bandes de couleur à l'écran).</p><label class="row small" style="gap:8px"><input type="checkbox" id="lite110" style="width:auto" ${document.body.classList.contains("lite110")?"checked":""}><span>Activer l'affichage allégé</span></label></div>`; };
+document.addEventListener("change",e=>{ if(!e.target||e.target.id!=="lite110") return; const on=e.target.checked; document.body.classList.toggle("lite110",on); try{ localStorage.setItem("tb-lite",on?"1":"0"); }catch(x){} });
+(function(){ const st=document.createElement("style"); st.textContent=`
+body.lite110 *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation:none!important;transition:none!important}
+body.lite110 #bg45,body.lite110 .dood48{display:none!important}body.lite110 .card,body.lite110 header.top,body.lite110 nav.tabs,body.lite110 .seg45{background:var(--paper)!important}
+body.lite110 .lk107w>:not(.lk107b){filter:none!important;opacity:.2}
+.tr110r{border-top:1px solid var(--line)}.tr110e{display:flex;width:100%;gap:8px;align-items:center;text-align:left;background:transparent;border:0;color:var(--ink);padding:8px 0;font:inherit;min-height:48px}.tr110x{margin:4px 0 8px}
+.la110h{margin:6px 0 10px;padding:16px;border-radius:16px;background:color-mix(in srgb,var(--blue) 12%,var(--paper));border:1px solid var(--line)}.la110g{display:grid;gap:6px}.la110c{padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.la110p{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory}.la110s{flex:0 0 78%;scroll-snap-align:start;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--paper);display:grid;gap:4px}
+.la110t{margin-bottom:8px}`; document.head.appendChild(st); })();
 
 boot();
 

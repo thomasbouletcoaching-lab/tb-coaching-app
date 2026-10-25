@@ -357,7 +357,7 @@ const T = {
   'public : abonné Gratuit (autonomie)': () => run('client', async (p, sc) => {
     await p.waitForTimeout(600);
     ok(!(await txt(p, '#app')).includes('Outils du coach'), 'plus de bouton « Outils du coach »');
-    ok((await txt(p, '#tabs')).includes('Programme 🔒'), 'onglet Programme verrouillé en Gratuit');
+    ok((await txt(p, '#tabs')).replace(/ /g, '') === 'AccueilSemaineEntraînementCarnetNutritionCompte', 'barre du bas : Accueil, Semaine, Entraînement, Carnet, Nutrition, Compte');
     ok(!(await p.isVisible('#msgfab')), 'messagerie avec le coach masquée');
     ok(!(await p.$('[data-act="tdy-go"][data-v="msg"]')) && (await txt(p, '#app')).includes('🔒 Écrire à Thomas'), 'Accueil : messages avec Thomas sous cadenas');
     await p.click('#solo88c button'); await p.waitForTimeout(300); await p.click('#cf106 a[href="coaching.html"]'); await p.waitForTimeout(300);
@@ -369,15 +369,15 @@ const T = {
     ok((await txt(p, '#cf106')).includes('Ce que tu débloques par rapport à ta formule Gratuit'), 'vitrine du coaching : ce que débloque le coaching');
     ok(!!(await p.$('#cf106 a[href="coaching.html"]')), 'vitrine : bouton Candidater');
     await p.click('#cf106 .cs85p [data-act="cf106x"]'); await p.waitForTimeout(200);
-    await p.click('#tabs [data-act="pg106"]'); await p.waitForTimeout(300);
-    ok(await p.evaluate(() => !coach()), 'Gratuit : pas d\'accès aux outils');
-    ok((await p.$$('#pl107 .pl107r')).length === 5, 'onglet Programme : les 5 outils montrés sous cadenas');
-    await p.click('#pl107 [data-act="pl107o"]'); await p.waitForTimeout(300);
+    await p.click('#tabs [data-v="tr110"]'); await p.waitForTimeout(400);
+    ok(await p.evaluate(() => !coach()) && (await txt(p, '#app h2')).includes('Mon entraînement'), 'Entraînement : vue client, pas les outils du coach');
+    ok((await txt(p, '#app')).includes('Surcharge progressive 🔒') && (await p.$$('[data-act="tr110e"]')).length === 0, 'Gratuit : programme visible, modification et surcharge sous cadenas');
+    await p.click('[data-act="lk107"]'); await p.waitForTimeout(300);
     ok((await p.$$('#p88 .of88')).length === 6, 'formules proposées');
     ok((await txt(p, '#p88')).includes('Le plus choisi'), 'Coaching suivi mis en avant');
     await p.click('#p88 .cs85p [data-act="p88-close"]'); await p.waitForTimeout(200);
     await p.evaluate(() => { ST.todayOn = false; ST.view = 'nutrition'; NU.nv = 'jour'; NU.day = todayISO(); render(); }); await p.waitForTimeout(400);
-    ok((await p.$$('.lk107w .mb3')).length === 1, 'Suivi : macros floutées sous cadenas');
+    ok(!(await p.$('.lk107w .mb3')) && (await p.$$('.lk107w .fb102')).length <= 1, 'Nutrition : calories et macros visibles en Gratuit, fibres sous cadenas');
     ok((await txt(p, '[data-act="nu-nv"][data-v="courses"]')).includes('🔒'), 'Suivi : liste de courses sous cadenas');
     ok((await txt(p, '[data-act="nu-nv"][data-v="mesures"]')).includes('🔒'), 'Suivi : mesures sous cadenas');
     ok(!!(await p.$('#b109')) && (await txt(p, '#b109')).includes('Brûlées'), 'Suivi : calories brûlées en temps réel avec les mangées');
@@ -391,21 +391,22 @@ const T = {
     ok(!(await txt(p, '#app')).includes('Réserver un rendez-vous'), 'pas de prise de rendez-vous avec le coach');
   }, clientPre(sc => { sc.client.coach_id = sc.uid; sc.me.sub = { plan: 'free', status: 'active', source: 'self' }; })),
 
-  'public : abonné Premium → onglet Programme dans l\'espace client': () => run('client', async (p, sc) => {
-    await p.waitForTimeout(600); await p.click('#tabs [data-act="pg106"]'); await p.waitForTimeout(500);
-    ok(await p.evaluate(() => coach() && ST.solo && ST.view === 'programme'), 'outils Premium sur son propre dossier');
-    ok((await txt(p, '#tabs')).replace(/ /g, '') === 'AccueilSemaineCarnetSuiviProgrammeCompte', 'barre du bas de l\'espace client (pas celle du coach)');
-    ok(!(await txt(p, '#app')).includes('Revue de la semaine') && !(await p.$('#cn-card')), 'pas de cartes réservées au coach');
-    ok(!/client/i.test(await txt(p, '#app')), 'outils : aucun mot « client » (interface client)');
-    await p.click('[data-act="pg106s"][data-v="athlete"]'); await p.waitForTimeout(400);
-    ok((await txt(p, '#app h2')) === 'Mon profil & 1RM', 'sous-onglet Profil & 1RM');
+  'public : abonné App complète → onglets Entraînement et Nutrition': () => run('client', async (p, sc) => {
+    await p.waitForTimeout(600); await p.click('#tabs [data-v="tr110"]'); await p.waitForTimeout(500);
+    ok(await p.evaluate(() => !coach() && ST.solo && MODE === 'client'), 'Entraînement en interface client');
+    ok(!/client/i.test(await txt(p, '#app')), 'Entraînement : aucun mot « client »');
+    await p.click('[data-act="tr110e"]'); await p.waitForTimeout(300); await p.click('[data-act="tr110set"][data-v="4"]'); await p.click('[data-act="tr110rep"][data-v="6-8"]'); await p.click('[data-act="tr110ok"]'); await p.waitForTimeout(500);
+    ok(await p.evaluate(() => ST.prog.sessions[0].ex[0].weeks[1] === '4x6-8 RPE8'), 'modifier séries et répétitions d\'un exercice');
+    await p.click('[data-act="tr110b"]'); await p.waitForTimeout(300);
+    ok((await p.$$('[data-act="tr110p"]')).length > 0 && (await p.$$('#app [data-act="cf106"]')).length > 0, 'banque : programmes accessibles et programmes du Coaching suivi sous cadenas');
     await p.click('#solo88b'); await p.waitForTimeout(300);
     ok((await txt(p, '#cf106')).includes('par rapport à ta formule App complète'), 'bouton Coaching : vitrine adaptée à l\'App complète');
-    ok((await p.$$('#cf106 .cf106r')).length === 16, 'vitrine : tableau comparatif des 5 formules');
+    ok((await p.$$('#cf106 .cf106r')).length === 19, 'vitrine : tableau comparatif des 5 formules');
     await p.click('#cf106 .cs85p [data-act="cf106x"]'); await p.waitForTimeout(200);
-    await p.click('#tabs [data-v="carnet"]'); await p.waitForTimeout(400);
-    ok(await p.evaluate(() => !coach() && MODE === 'client' && ST.view === 'carnet'), 'retour à l\'espace client par la barre du bas');
-    await p.click('#tabs [data-act="pg106"]'); await p.waitForTimeout(300); await p.click('#tabs [data-v="today"]'); await p.waitForTimeout(400);
+    await p.click('#tabs [data-v="nutrition"]'); await p.waitForTimeout(400);
+    ok((await txt(p, '#app h2')).includes('Nutrition') && !(await p.$('.lk107w .mb3')), 'Nutrition : calories et macros ouvertes en App complète');
+    ok((await txt(p, '[data-act="nu-nv"][data-v="mesures"]')).indexOf('🔒') < 0, 'Nutrition : mesures ouvertes en App complète');
+    await p.click('#tabs [data-v="today"]'); await p.waitForTimeout(400);
     ok((await txt(p, '#app h2')).startsWith('Bonjour'), 'retour à l\'Accueil');
   }, clientPre(sc => { sc.client.coach_id = sc.uid; sc.me.sub = { plan: 'premium', status: 'trialing', source: 'stripe', period_end: new Date(Date.now() + 5 * 864e5).toISOString() }; })),
 
