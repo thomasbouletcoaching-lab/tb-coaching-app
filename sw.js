@@ -1,4 +1,4 @@
-const C="tb-v98", MC="tb-media-v1"; // MC : photos, vidéos et vocaux déjà vus (gardé d'une version de l'app à l'autre)
+const C="tb-v111", MC="tb-media-v1"; // MC : photos, vidéos et vocaux déjà vus (gardé d'une version de l'app à l'autre)
 self.addEventListener("install",e=>{ e.waitUntil(caches.open(C).then(c=>c.addAll(["./","./index.html","./manifest.webmanifest","./icon-192.png"]).catch(()=>{}))); self.skipWaiting(); });
 self.addEventListener("activate",e=>{ e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C&&x!==MC).map(x=>caches.delete(x))))); self.clients.claim(); });
 self.addEventListener("fetch",e=>{ const r=e.request; if(r.method!=="GET") return; const u=new URL(r.url);
@@ -6,17 +6,16 @@ self.addEventListener("fetch",e=>{ const r=e.request; if(r.method!=="GET") retur
   if(MEDIA.test(u.pathname)&&/\.supabase\.co$/.test(u.host)&&u.searchParams.has("token")&&!u.searchParams.has("download")){ e.respondWith(media(r)); return; }
   if(r.mode==="navigate"){ e.respondWith(fetch(r).then(res=>{ const cp=res.clone(); caches.open(C).then(c=>c.put("./index.html",cp)); return res; }).catch(()=>caches.match("./index.html"))); return; }
   if(/cdn\.jsdelivr\.net|fonts\.(googleapis|gstatic)\.com/.test(u.host)||u.origin===location.origin){ e.respondWith(caches.match(r).then(m=>{ const f=fetch(r).then(res=>{ if(res.ok){ const cp=res.clone(); caches.open(C).then(c=>c.put(r,cp)); } return res; }).catch(()=>m); return m||f; })); } });
-// ---------- médias du Storage (URL signées) : téléchargés une seule fois, puis servis depuis le téléphone
+// ---------- médias du Storage (URL signées) : téléchargés une seule fois, puis servis depuis le téléphone (clé : le fichier, sans le jeton)
 // Les vidéos sont lues par morceaux (en-tête Range) : on garde le fichier entier et on renvoie le morceau demandé.
 const MEDIA=/^\/storage\/v1\/object\/sign\/media\//, MAX_N=150, MAX_B=300*1048576, INF=new Map();
-function mediaGet(url){ return caches.open(MC).then(c=>c.match(url).then(m=>{ if(m) return m.blob().then(b=>({b,t:m.headers.get("content-type")||b.type}));
-  if(INF.has(url)) return INF.get(url);
+function mediaGet(url){ const key=new URL(url); key.search=""; return caches.open(MC).then(c=>c.match(key.href).then(m=>{ if(m) return m.blob().then(b=>({b,t:m.headers.get("content-type")||b.type}));
+  if(INF.has(key.href)) return INF.get(key.href);
   const p=fetch(url,{mode:"cors",credentials:"omit"}).then(res=>{ if(res.status!==200) return null; return res.blob().then(b=>{ const t=res.headers.get("content-type")||b.type;
-      return c.put(url,new Response(b,{headers:{"Content-Type":t,"Content-Length":String(b.size)}})).then(()=>mediaTrim(c,url)).catch(()=>{}).then(()=>({b,t})); }); })
-    .finally(()=>INF.delete(url));
-  INF.set(url,p); return p; })); }
-function mediaTrim(c,url){ const path=new URL(url).pathname; return c.keys().then(ks=>{ const del=[], rest=[];
-  ks.forEach(k=>{ if(k.url!==url&&new URL(k.url).pathname===path) del.push(k); else rest.push(k); }); // même fichier, ancienne URL signée
+      return c.put(key.href,new Response(b,{headers:{"Content-Type":t,"Content-Length":String(b.size)}})).then(()=>mediaTrim(c,key.href)).catch(()=>{}).then(()=>({b,t})); }); })
+    .finally(()=>INF.delete(key.href));
+  INF.set(key.href,p); return p; })); }
+function mediaTrim(c,url){ return c.keys().then(ks=>{ const del=[], rest=ks.filter(k=>{ if(new URL(k.url).search){ del.push(k); return false; } return true; }); // anciennes entrées avec jeton
   return Promise.all(rest.map(k=>c.match(k).then(m=>+(m&&m.headers.get("content-length"))||0))).then(sz=>{ let n=rest.length, tot=sz.reduce((a,x)=>a+x,0);
     for(let i=0;i<rest.length&&(n>MAX_N||tot>MAX_B);i++){ if(rest[i].url===url) continue; del.push(rest[i]); n--; tot-=sz[i]; } // les plus anciens d'abord
     return Promise.all(del.map(k=>c.delete(k))); }); }); }
@@ -39,3 +38,4 @@ self.addEventListener("push",e=>{ let d={}; try{ d=e.data?e.data.json():{}; }cat
 self.addEventListener("notificationclick",e=>{ e.notification.close(); const url=new URL((e.notification.data&&e.notification.data.url)||"./",self.registration.scope).href;
   e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(ws=>{ for(const w of ws){ if(w.url.startsWith(self.registration.scope)&&"focus" in w){ try{ w.postMessage({type:"open",url}); }catch(err){} return w.focus(); } } return self.clients.openWindow(url); })); });
 self.addEventListener("message",e=>{ if(e.data==="clear-badge"){ e.waitUntil(self.registration.getNotifications().then(ns=>ns.forEach(n=>n.close())).then(()=>self.navigator&&self.navigator.clearAppBadge?self.navigator.clearAppBadge().catch(()=>{}):null)); } });
+
