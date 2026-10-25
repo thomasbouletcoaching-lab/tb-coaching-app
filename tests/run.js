@@ -370,7 +370,7 @@ const T = {
     ok(!!(await p.$('#cf106 a[href="coaching.html"]')), 'vitrine : bouton Candidater');
     await p.click('#cf106 .cs85p [data-act="cf106x"]'); await p.waitForTimeout(200);
     await p.click('#tabs [data-v="tr110"]'); await p.waitForTimeout(400);
-    ok(await p.evaluate(() => !coach()) && (await txt(p, '#app h2')).includes('Mon entraînement'), 'Entraînement : vue client, pas les outils du coach');
+    ok(await p.evaluate(() => !coach()) && (await txt(p, '#app h2')).includes('Entraînement'), 'Entraînement : vue client, pas les outils du coach');
     ok((await txt(p, '#app')).includes('Surcharge progressive 🔒') && (await p.$$('[data-act="tr110e"]')).length === 0, 'Gratuit : programme visible, modification et surcharge sous cadenas');
     await p.click('[data-act="lk107"]'); await p.waitForTimeout(300);
     ok((await p.$$('#p88 .of88')).length === 6, 'formules proposées');
@@ -396,10 +396,17 @@ const T = {
     await p.waitForTimeout(600); await p.click('#tabs [data-v="tr110"]'); await p.waitForTimeout(500);
     ok(await p.evaluate(() => !coach() && ST.solo && MODE === 'client'), 'Entraînement en interface client');
     ok(!/client/i.test(await txt(p, '#app')), 'Entraînement : aucun mot « client »');
+    ok((await txt(p, '.s112')).replace(/ /g, '') === 'MesentraînementsMyCoachStatistiques', 'Entraînement : Mes entraînements, My Coach, Statistiques');
+    await p.click('[data-act="tv112o"][data-v="0"]'); await p.waitForTimeout(300);
     await p.click('[data-act="tr110e"]'); await p.waitForTimeout(300); await p.click('[data-act="tr110set"][data-v="4"]'); await p.click('[data-act="tr110rep"][data-v="6-8"]'); await p.click('[data-act="tr110ok"]'); await p.waitForTimeout(500);
     ok(await p.evaluate(() => ST.prog.sessions[0].ex[0].weeks[1] === '4x6-8 RPE8'), 'modifier séries et répétitions d\'un exercice');
-    await p.click('[data-act="tr110b"]'); await p.waitForTimeout(300);
-    ok((await p.$$('[data-act="tr110p"]')).length > 0 && (await p.$$('#app [data-act="cf106"]')).length > 0, 'banque : programmes accessibles et programmes du Coaching suivi sous cadenas');
+    await p.click('[data-act="tv112"][data-v="coach"]'); await p.waitForTimeout(300);
+    ok((await p.$$('.t112')).length === 6 && (await txt(p, '#app')).includes('Coaching suivi'), 'My Coach : grille de programmes, avancés sous cadenas');
+    await p.click('[data-act="tv112"][data-v="stats"]'); await p.waitForTimeout(300);
+    ok(!!(await p.$('svg.b112')) && (await p.$$('.m112')).length === 17, 'Statistiques : carte du corps et séries par muscle');
+    await p.click('[data-act="tv112"][data-v="mine"]'); await p.waitForTimeout(300); await p.click('[data-act="tv112g"]'); await p.waitForTimeout(500);
+    const rp = await p.$('input[data-cs$="|r"]'); if (rp) { await rp.click(); await p.waitForTimeout(200); await p.click('[data-act="rp112"][data-v="8.5"]'); await p.click('[data-act="rp112ok"]'); await p.waitForTimeout(300); }
+    ok(!!rp && (await rp.inputValue()) === '8,5', 'carnet : RPE choisi dans un menu, sans clavier');
     await p.click('#solo88b'); await p.waitForTimeout(300);
     ok((await txt(p, '#cf106')).includes('par rapport à ta formule App complète'), 'bouton Coaching : vitrine adaptée à l\'App complète');
     ok((await p.$$('#cf106 .cf106r')).length === 19, 'vitrine : tableau comparatif des 5 formules');
