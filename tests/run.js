@@ -46,6 +46,7 @@ const T = {
 
   'client : plat équivalent': () => run('client', async (p) => {
     await p.waitForTimeout(800); await p.evaluate(() => { ST.todayOn = false; ST.view = 'nutrition'; NU.nv = 'jour'; NU.day = todayISO(); render(); }); await p.waitForTimeout(400);
+    ok(!!(await p.$('#r111c .r111s')) && (await txt(p, '#r111c')).includes('kcal restantes'), 'client coaché : roue des calories et macros en tête de la nutrition');
     ok(!(await p.locator('[data-act="eq-open"][data-v="1"]').isVisible()), 'options secondaires repliées par défaut');
     await p.locator('[data-act="nu90-more"][data-v="1"]').click(); await p.waitForTimeout(300);
     await p.locator('[data-act="eq-open"][data-v="1"]').click(); await p.waitForTimeout(600);

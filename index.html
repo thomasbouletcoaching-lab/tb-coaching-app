@@ -9000,30 +9000,40 @@ body.lite110 .lk107w>:not(.lk107b){filter:none!important;opacity:.2}
 .la110p{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory}.la110s{flex:0 0 78%;scroll-snap-align:start;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--paper);display:grid;gap:4px}
 .la110t{margin-bottom:8px}`; document.head.appendChild(st); })();
 
-// ================= MODULE 111 · NUTRITION DE L'INSCRIT LIBRE : la roue (mangées, brûlées, reste) et les macros en anneaux =================
+// ================= MODULE 111 · NUTRITION DU CLIENT (inscrit libre ou coaché) : la roue (mangées, brûlées, reste) et les macros en anneaux =================
 const num111=t=>{ const m=String(t||"").replace(/\s/g,"").replace(",",".").match(/-?\d+(?:\.\d+)?/g); return m?m.map(Number):[]; };
 function donut111(r,w,pc,col,track){ const C=2*Math.PI*r, d=Math.max(0,Math.min(1,pc))*C; return `<circle r="${r}" cx="0" cy="0" fill="none" stroke="${track||"var(--line)"}" stroke-width="${w}"/><circle r="${r}" cx="0" cy="0" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${d.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90)"/>`; }
-function ring111(app){ if(document.getElementById("r111c")) return; const nav=app.querySelector('[data-act="nu-day"]'), row=nav&&nav.closest(".row"); if(!row) return;
+function goal111(){ const o=String(((X10.ob&&X10.ob.data)||{}).obj||((ST.prog&&ST.prog.profile)||{}).goal||"").toLowerCase();
+  if(/douceur/.test(o)) return {adj:-0.10,lab:"perte de gras en douceur"}; if(/recompo/.test(o)) return {adj:-0.10,lab:"recomposition"};
+  if(/perdre|gras|ventre|sèche|seche|maigrir/.test(o)) return {adj:-0.20,lab:"perte de gras"}; if(/muscle|masse|prise/.test(o)) return {adj:0.10,lab:"prise de muscle"}; return {adj:0,lab:""}; }
+function ringHTML111(){
   const d=NU.day||todayISO(), today=d===todayISO(), I=intakeEN(d), got=I.got||{}, eat=Math.round(got.k||0), B=burnNow109(d);
   let T=null; try{ const P=planOn(); if(P&&!journal108()&&hasMeals(P)){ const pl=dayPlan(typeOf(dayTypeId(d,P))); T={k:Math.round(pl.k),p:Math.round(pl.p),g:Math.round(pl.g),l:Math.round(pl.l)}; } }catch(e){}
-  if(!T){ const k=B.tot||2000; T={k,p:Math.round(k*0.25/4),g:Math.round(k*0.45/4),l:Math.round(k*0.30/9)}; }
-  const left=T.k-eat, bal=eat-B.now;
+  if(!T){ const G=goal111(), k=Math.round((B.tot||2000)*(1+G.adj)); T={k,p:Math.round(k*0.25/4),g:Math.round(k*0.45/4),l:Math.round(k*0.30/9),why:G.lab}; }
+  const left=T.k-eat, bal=eat-B.now, tgtBal=T.k-B.tot, endBal=eat-B.tot, sg=x=>(x>0?"+":x<0?"−":"")+fmtN(Math.abs(Math.round(x)));
+  const goalTxt=Math.abs(tgtBal)<60?"Objectif : maintien (manger autant que tu dépenses)":`Objectif : ${tgtBal<0?"déficit":"surplus"} de ${fmtN(Math.abs(Math.round(tgtBal)))} kcal${T.why?` (${T.why})`:""}`;
   const big=`<svg viewBox="-70 -70 140 140" class="r111s" role="img" aria-label="${eat} kcal mangées sur ${T.k}, ${B.now} kcal brûlées">${donut111(60,10,T.k?eat/T.k:0,"url(#g111a)")}${donut111(46,7,B.tot?B.now/B.tot:0,"url(#g111b)","color-mix(in srgb,var(--line) 70%,transparent)")}
     <defs><linearGradient id="g111a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6F8CFF"/><stop offset="1" stop-color="#E06CC0"/></linearGradient><linearGradient id="g111b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5a524"/><stop offset="1" stop-color="#e5484d"/></linearGradient></defs>
     <text x="0" y="-6" text-anchor="middle" class="r111n">${fmtN(Math.abs(left))}</text><text x="0" y="14" text-anchor="middle" class="r111l">${left>=0?"kcal restantes":"kcal en trop"}</text></svg>`;
   const side=(ic,v,t,sub)=>`<div class="r111k"><b>${ic} ${fmtN(v)}</b><span>${t}</span>${sub?`<i>${sub}</i>`:""}</div>`;
   const M3=[["Protéines",got.p,T.p,"#5b8def"],["Glucides",got.g,T.g,"#2fbf9b"],["Lipides",got.l,T.l,"#f5a524"]];
   const mac=`<div class="r111m">${M3.map(([l,g,t,c])=>`<div><svg viewBox="-24 -24 48 48">${donut111(19,6,t?(g||0)/t:0,c)}<text x="0" y="5" text-anchor="middle" class="r111p">${t?Math.round((g||0)/t*100):0}%</text></svg><b>${fmtN(Math.round(g||0))} / ${fmtN(t)} g</b><span>${l}</span></div>`).join("")}</div>`;
-  row.insertAdjacentHTML("afterend",`<div class="card r111" id="r111c"><div class="r111t">${side("🍽️",eat,"mangées",`objectif ${fmtN(T.k)}`)}${big}${side("🔥",B.now,today?"brûlées à cette heure":"brûlées",`sur ${fmtN(B.tot)} prévues`)}</div>
-    <div class="muted small" style="text-align:center;margin-top:2px">Bilan ${today?"à cette heure":"du jour"} : <b>${bal>0?"+":bal<0?"−":""}${fmtN(Math.abs(bal))} kcal</b></div>${mac}</div>`);
-  const kc=app.querySelector(".card:not(#r111c) .kc"), c0=kc&&kc.closest(".card");
-  if(c0){ [kc.closest(".row"),[...c0.querySelectorAll(".mb")].find(m=>!m.closest(".mb3")&&m.id!=="b109"),c0.querySelector("#b109"),c0.querySelector(".mb3")].forEach(x=>{ if(x) x.style.display="none"; }); } }
+  return `<div class="card r111" id="r111c"><div class="r111t">${side("🍽️",eat,"mangées",`objectif ${fmtN(T.k)}`)}${big}${side("🔥",B.now,today?"brûlées à cette heure":"brûlées",`sur ${fmtN(B.tot)} prévues`)}</div>
+    <div class="r111g"><b>${goalTxt}</b><span>${today?`À cette heure : ${sg(bal)} kcal · si tu t'arrêtes là : ${sg(endBal)} kcal`:`Bilan du jour : ${sg(endBal)} kcal`}</span></div>${mac}</div>`; }
+// la roue est construite dans le rendu (pas ajoutée après) : l'écran ne saute pas ; l'ancienne carte des calories est masquée
+const ringOn111=()=>!!(CUR&&MODE==="client"&&!coach()&&ST.view==="nutrition"&&!ST.todayOn&&(!NU.nv||NU.nv==="jour"));
+const _vNut111=vNutrition;
+vNutrition=function(){ let h=_vNut111.apply(this,arguments); if(!ringOn111()||h.includes('id="r111c"')) return h; let ring=""; try{ ring=ringHTML111(); }catch(e){ console.error(e); return h; }
+  h=h.replace('<div class="card"><div class="row" style="align-items:baseline"><span class="kc">','<div class="card r111old"><div class="row" style="align-items:baseline"><span class="kc">');
+  const m=/<button class="ghost sm" data-act="nu-day" data-v="1"[^>]*>›<\/button><\/div>/.exec(h); if(!m) return h; const k=m.index+m[0].length; return h.slice(0,k)+ring+h.slice(k); };
 const _render111=render;
-render=function(){ const r=_render111.apply(this,arguments); try{ if(ST.solo&&CUR&&MODE==="client"&&!coach()&&ST.view==="nutrition"&&!ST.todayOn&&(!NU.nv||NU.nv==="jour")){ const app=$("#app"); if(app) ring111(app); } }catch(e){ console.error(e); } return r; };
-setInterval(()=>{ const r=document.getElementById("r111c"); if(r&&document.visibilityState==="visible"&&!document.activeElement.matches("input,textarea,select")){ r.remove(); try{ ring111($("#app")); }catch(e){} } },60000);
+render=function(){ return _render111.apply(this,arguments); };
+setInterval(()=>{ const r=document.getElementById("r111c"); if(r&&ringOn111()&&document.visibilityState==="visible"&&!document.activeElement.matches("input,textarea,select")){ try{ r.outerHTML=ringHTML111(); }catch(e){} } },60000);
 (function(){ const st=document.createElement("style"); st.textContent=`
 .r111t{display:grid;grid-template-columns:1fr 150px 1fr;align-items:center;gap:4px}.r111s{width:150px;height:150px}.r111n{font:800 22px system-ui,sans-serif;fill:var(--ink)}.r111l{font:500 9px system-ui,sans-serif;fill:var(--soft)}
 .r111k{display:grid;text-align:center;gap:2px}.r111k b{font-size:1.15rem}.r111k span{font-size:.75rem;color:var(--soft)}.r111k i{font-style:normal;font-size:.68rem;color:var(--soft)}
+.r111g{display:grid;gap:2px;text-align:center;margin-top:4px;font-size:.85rem}.r111g span{color:var(--soft);font-size:.78rem}
+.r111old>.row:first-child,.r111old>.mb:not(#b109),.r111old>.mb3,.r111old>#b109{display:none!important}
 .r111m{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;text-align:center}.r111m svg{width:56px;height:56px;display:block;margin:0 auto}.r111m b{display:block;font-size:.85rem}.r111m span{font-size:.72rem;color:var(--soft)}.r111p{font:700 10px system-ui,sans-serif;fill:var(--ink)}`; document.head.appendChild(st); })();
 
 // ================= MODULE 112 · RPE EN UN TOUCHER, CARDIO REPLIABLE, ENTRAÎNEMENT FAÇON HEVY (Mes entraînements · My Coach · Statistiques), RECETTES =================
