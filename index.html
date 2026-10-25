@@ -8681,8 +8681,12 @@ function journalDeco108(){ if(!journal108()||ST.view!=="nutrition"||ST.todayOn||
     if(adj) card.appendChild(adj); });
   app.querySelectorAll('[data-act="nu-allok"],[data-act="na-all"]').forEach(b=>{ const r=b.closest(".row"); (r||b).remove(); });
   app.querySelectorAll('[data-act="nu-dtype"]').forEach(b=>{ const r=b.closest(".row"); if(r) r.remove(); });
-  // pas d'objectif « prévu » sans plan : le bilan mangées / brûlées est en tête (k108)
-  const kc=app.querySelector(".card .kc"), c0=kc&&kc.closest(".card"); if(c0){ const r=kc.closest(".row"); if(r) r.remove(); const cal=c0.querySelector(".mb"); if(cal&&!cal.closest(".mb3")) cal.remove(); } }
+  // pas de plan : l'objectif affiché est la dépense estimée du jour
+  const kc=app.querySelector(".card .kc"), c0=kc&&kc.closest(".card"); if(c0){ const d=NU.day||todayISO(), got=Math.round(intakeEN(d).got.k||0), tot=Math.round(spendEN(d).total||0);
+    const lab=kc.parentNode.querySelector(".muted"); if(lab) lab.textContent=`/ ${fmtN(tot)} kcal (ta dépense du jour)`;
+    const tg={p:Math.round(tot*0.25/4),g:Math.round(tot*0.45/4),l:Math.round(tot*0.30/9)}, I=intakeEN(d).got;
+    c0.querySelectorAll(".mb3 .mb").forEach((m,k)=>{ const key=["p","g","l"][k], v=m.querySelector(".mb-h span:last-child"), bar=m.querySelector(".mb-t i"); if(!key||!v) return; v.innerHTML=`<b>${fmtN(Math.round(I[key]||0))}</b> / ${fmtN(tg[key])} g`; if(bar) bar.style.width=Math.min(100,tg[key]?(I[key]||0)/tg[key]*100:0).toFixed(1)+"%"; });
+    const cal=[...c0.querySelectorAll(".mb")].find(m=>!m.closest(".mb3")); if(cal){ const v=cal.querySelector(".mb-h span:last-child"); if(v) v.innerHTML=`<b>${fmtN(got)}</b> / ${fmtN(tot)} kcal`; const bar=cal.querySelector(".mb-t i"); if(bar) bar.style.width=Math.min(100,tot?got/tot*100:0).toFixed(1)+"%"; } } }
 document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="j108-add"],[data-act="j108-my"],[data-act="na-save"]'); if(!b||!journal108()) return;
   const a=b.dataset.act;
   if(a==="j108-add"){ e.stopImmediatePropagation(); NU.adj={mi:+b.dataset.v,d:NU.day,it:[],n:""}; NU.aq=""; NU.alt=null; if(!NU.foods) nuFoods().then(()=>render()); return render(); }
@@ -8691,19 +8695,29 @@ document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closes
     const d=NU.day; NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); NU.logs[d].m=Object.assign({},NU.logs[d].m);
     const nm=String(NU.adj.n||"").trim()||JMEALS108[mi]||"Repas"; NU.logs[d].m[mi]={s:"alt",n:nm,mac:mac(it),it}; NU.adj=null; nuSaveLog(d); toast("Repas noté ✅"); render(); } },true);
 // ---------- en tête du Suivi : mangées, brûlées, bilan (comme Yazio)
-function kpi108(){ if(!ST.solo||coach()||ST.view!=="nutrition"||ST.todayOn||(NU.nv&&NU.nv!=="jour")) return; const app=$("#app"); if(!app||document.getElementById("k108")) return;
-  const d=NU.day||todayISO(), I=intakeEN(d), S=spendEN(d), eat=Math.round(I.got.k||0), burn=Math.round(S.total||0), bal=eat-burn;
-  const html=`<div class="card k108" id="k108"><div class="k108r"><div><b>${fmtN(eat)}</b><span>🍽️ mangées</span></div><div><b>${fmtN(burn)}</b><span>🔥 brûlées</span></div><div><b>${bal>0?"+":bal<0?"−":""}${fmtN(Math.abs(bal))}</b><span>${bal<0?"déficit":bal>0?"surplus":"bilan"}</span></div></div>
-    <div class="muted small" style="margin-top:4px">${I.complete?"Journée complète":"Bilan provisoire tant que tous les repas ne sont pas notés"} · kcal</div></div>`;
-  const nav=app.querySelector('[data-act="nu-day"]'), row=nav&&nav.closest(".row"); if(row) row.insertAdjacentHTML("afterend",html); }
+// calories brûlées « en temps réel » : la part fixe de la journée (métabolisme, vie quotidienne, pas moyens, digestion) au prorata de l'heure,
+// les activités notées et la musculation faite comptées entièrement
+function burnNow109(d){ const S=spendEN(d), tot=Math.round(S.total||0); if(d!==todayISO()) return {now:tot,tot};
+  const n=new Date(), frac=Math.min(1,(n.getHours()*60+n.getMinutes())/1440), fixed=(S.actK||0)+(S.muscK||0)+(S.stepsNoted&&!S.simple108?(S.stepK||0):0);
+  return {now:Math.round(fixed+Math.max(0,tot-fixed)*frac),tot}; }
+function kpi108(){ if(!ST.solo||coach()||ST.view!=="nutrition"||ST.todayOn||(NU.nv&&NU.nv!=="jour")) return; const app=$("#app"); if(!app||document.getElementById("b109")) return;
+  const kc=app.querySelector(".card .kc"), c0=kc&&kc.closest(".card"); if(!c0) return; const d=NU.day||todayISO(), B=burnNow109(d), eat=Math.round(intakeEN(d).got.k||0), bal=eat-B.now;
+  const cal=[...c0.querySelectorAll(".mb")].find(m=>!m.closest(".mb3"));
+  const html=`<div class="mb" id="b109"><div class="mb-h"><span>🔥 Brûlées${d===todayISO()?" à cette heure":""}</span><span><b>${fmtN(B.now)}</b> / ${fmtN(B.tot)} kcal</span></div><div class="mb-t"><i style="width:${Math.min(100,B.tot?B.now/B.tot*100:0).toFixed(1)}%;background:linear-gradient(90deg,#f5a524,#e5484d)"></i></div>
+    <div class="muted small" style="margin-top:2px">${d===todayISO()?"Bilan à cette heure":"Bilan de la journée"} : ${fmtN(eat)} mangées − ${fmtN(B.now)} brûlées = <b>${bal>0?"+":bal<0?"−":""}${fmtN(Math.abs(bal))} kcal</b></div></div>`;
+  if(cal) cal.insertAdjacentHTML("afterend",html); else kc.closest(".row").insertAdjacentHTML("afterend",html); }
+setInterval(()=>{ if(document.visibilityState==="visible"&&ST.solo&&ST.view==="nutrition"&&!ST.todayOn&&(!NU.nv||NU.nv==="jour")&&!document.activeElement.matches("input,textarea,select")){ const b=document.getElementById("b109"); if(b){ b.remove(); kpi108(); } } },60000);
 // ---------- dépense du jour : calcul simple en Gratuit, détail sous cadenas
 const _spendEN108=spendEN;
-spendEN=function(d){ const o=_spendEN108(d); if(free108()&&!coach()){ o.full=o.total; o.total=Math.round(o.bmr*COEF108); o.simple108=true; } return o; };
+spendEN=function(d){ const o=_spendEN108(d); if(free108()&&!coach()){ o.full=o.total; o.total=Math.round(o.bmr*COEF108+(o.actK||0)); o.simple108=true; } return o; };
 const _vSpendDay108=vSpendDayEN;
-vSpendDayEN=function(d){ const h=_vSpendDay108(d); if(!(free108()&&!coach())) return h; const S=spendEN(d);
-  return h.replace(/<table class="en-t">/,`<p class="small" style="margin:6px 0">Calcul simple : métabolisme de base <b>${fmtN(S.bmr)} kcal</b> × ${String(COEF108).replace(".",",")} (activité moyenne).</p><div class="lk108" data-l="Dépense détaillée : pas, séances, cardio"><table class="en-t">`)
-    .replace(/(<\/table>\s*<label class="f" style="margin-top:8px">Pas aujourd'hui[\s\S]*?<\/label>)/,"$1</div>")
-    .replace(/<button class="ghost sm" style="margin-top:8px" data-act="en-open">＋ Ajouter une activité \(cardio, sport…\)<\/button>/,`<button class="ghost sm" style="margin-top:8px" data-act="lk107">🔒 Ajouter des pas ou une activité · App complète</button>`); };
+const WALKRUN109=/^(marche|course)/;
+vSpendDayEN=function(d){ const h=_vSpendDay108(d); if(!ST.solo||coach()) return h; const S=spendEN(d), f=n=>fmtN(n);
+  const head=`<table class="en-t"><tr class="en100s"><td><b>Métabolisme de base (MB)</b></td><td class="n"><b>${f(S.bmr)}</b></td></tr>${S.simple108?`<tr><td colspan="2" class="muted small">Calcul simple : MB × ${String(COEF108).replace(".",",")} (activité moyenne)${S.actK?" + activités notées":""}</td></tr>`:""}<tr class="en100s"><td><b>Dépense totale du jour (TDEE)</b></td><td class="n"><b>${f(S.total)}</b></td></tr></table>`;
+  let x=h.replace(/<table class="en-t">/,head+`<div class="lk108" data-l="Détail : activité, pas, entraînement, digestion"><table class="en-t">`)
+    .replace(/(<\/table>\s*<label class="f" style="margin-top:8px">Pas aujourd'hui[\s\S]*?<\/label>)/,"$1</div>");
+  x=x.replace(/<button class="chip" data-act="en-pick" data-v="([^"]+)">([^<]*)<\/button>/g,(m,id,lab)=>WALKRUN109.test(id)?m:`<button class="chip" data-act="cf106">${lab} 🔒</button>`);
+  return x; };
 // ---------- Énergie : projection de poids réservée au coaching
 const _vProj108=vProjEN;
 vProjEN=function(){ if(!ST.solo||coach()) return _vProj108(); return `<div class="card"><h3 style="margin-top:0">📈 Projection de ton poids 🔒</h3><p class="muted small">Où t'emmène ton bilan actuel dans 1, 3 et 6 mois, avec la courbe. Inclus dans le Coaching suivi et le Coaching complet.</p><button class="ghost sm" data-act="cf106">Découvrir le coaching</button></div>`; };
@@ -8712,10 +8726,11 @@ function wrap108(el,label,act){ if(!el||el.closest(".lk107w")) return; const w=d
   w.insertAdjacentHTML("beforeend",`<button class="lk107b" data-act="${act||"lk107"}">🔒 ${label}</button>`); }
 function locks108(){ const app=$("#app"); if(!app||coach()||!ST.solo||!CUR) return;
   if(free108()){
-    app.querySelectorAll(".lk108").forEach(el=>{ el.classList.remove("lk108"); wrap108(el,(el.dataset.l||"")+" · App complète"); });
-    const bt=document.getElementById("bt91"); if(bt) wrap108(bt,"Batch cooking · App complète");
+
     app.querySelectorAll('[data-act="nu-nv"][data-v="mesures"],[data-act="nu-nv"][data-v="plan"]').forEach(b=>{ if(!/🔒/.test(b.textContent)) b.textContent+=" 🔒"; });
     if(ST.todayOn) app.querySelectorAll('[data-act="tdy-go"][data-v="nut:mesures"]').forEach(b=>{ b.textContent="🔒 Mesures · App complète"; b.dataset.act="lk107"; }); }
+  app.querySelectorAll(".lk108").forEach(el=>{ el.classList.remove("lk108"); wrap108(el,(el.dataset.l||"")+" · Coaching","cf106"); });
+  const bt=document.getElementById("bt91"); if(bt) wrap108(bt,"Batch cooking · Coaching suivi","cf106");
   if(ST.view==="methode") kbLock108(app);
   if(free108()&&ST.view==="nutrition"&&NU.nv==="energie") app.querySelectorAll(".tbl table").forEach(tb=>{ const hd=[...tb.querySelectorAll("tr:first-child th")], i=hd.findIndex(th=>/P \/ G \/ L/.test(th.textContent)); if(i<0) return;
     tb.querySelectorAll("tr").forEach((tr,k)=>{ const c=tr.children[i]; if(c&&k) c.textContent="🔒"; }); });
@@ -8767,6 +8782,61 @@ render=function(){ try{ journalSync108(); }catch(e){ console.error(e); } const r
 .k108r{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}.k108r b{display:block;font-size:1.4rem}.k108r span{font-size:.78rem;color:var(--soft)}
 #cp108{position:fixed;inset:0;z-index:1000}#cp108 .cs85bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}#cp108 .cs85p{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);max-width:520px;max-height:88vh;margin:0 auto;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .kb108 summary,.kb108 .grow{list-style:none}.kb108{opacity:.85}`; document.head.appendChild(st); })();
+
+// ================= MODULE 109 · CANDIDATURE DANS L'APP, PAIEMENT PLUS CLAIR, OUTILS PREMIUM SANS VOCABULAIRE DE COACH =================
+// « Candidater » ouvre un formulaire dans l'app au lieu de la page externe : il alimente les candidatures (table « leads ») de l'espace coach.
+const CA109={open:false,offer:"Coaching complet",sent:false,list:null,busy:false};
+const OFFERS109=["Coaching suivi","Coaching sur mesure","Coaching complet","Pack démarrage"];
+function ca109(){ let el=document.getElementById("ca109"); if(!CA109.open){ if(el) el.remove(); return; }
+  if(!el){ el=document.createElement("div"); el.id="ca109"; document.body.appendChild(el); }
+  if(!UID){ el.innerHTML=`<div class="cs85bg" data-act="ca109x"></div><div class="cs85p" role="dialog" aria-label="Candidater"><div class="row" style="flex-wrap:nowrap;align-items:center"><b class="grow" style="font-size:1.1rem">✍️ Candidater</b><button class="ghost sm" data-act="ca109x" aria-label="Fermer">✕</button></div><p class="small">Connecte-toi ou crée ton compte gratuit, puis touche à nouveau « Candidater ».</p></div>`; return; }
+  el.innerHTML=`<div class="cs85bg" data-act="ca109x"></div><div class="cs85p" role="dialog" aria-label="Candidater"><div class="row" style="flex-wrap:nowrap;align-items:center"><b class="grow" style="font-size:1.1rem">✍️ Candidater</b><button class="ghost sm" data-act="ca109x" aria-label="Fermer">✕</button></div>
+    ${CA109.sent?`<div class="alert ok" style="margin-top:10px"><b>Candidature envoyée ✅</b><br><span class="small">Thomas la lit et te répond sous 48 h, par e-mail ou par téléphone.</span></div><button class="ghost" style="width:100%;margin-top:10px" data-act="ca109x">Fermer</button>`:`
+    <p class="muted small">Quelques lignes suffisent : Thomas te répond sous 48 h pour voir si l'accompagnement te convient.</p>
+    <label class="f">Formule qui t'intéresse<select id="ca-offer">${OFFERS109.map(o=>`<option ${o===CA109.offer?"selected":""}>${o}</option>`).join("")}</select></label>
+    <label class="f" style="margin-top:8px">Ton objectif<textarea id="ca-goal" rows="3" placeholder="Perdre 8 kg, reprendre la muscu, préparer une compétition…"></textarea></label>
+    <label class="f" style="margin-top:8px">Ton contexte<textarea id="ca-det" rows="3" placeholder="Expérience, séances par semaine, blessures, contraintes, matériel…"></textarea></label>
+    <label class="f" style="margin-top:8px">Téléphone (facultatif)<input id="ca-tel" type="tel" autocomplete="tel" placeholder="Pour un premier échange de vive voix"></label>
+    <label class="row small" style="gap:8px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="ca-ok" style="width:auto;margin-top:3px"><span>J'accepte que Thomas me recontacte au sujet de ma candidature (${privacyLink()}).</span></label>
+    <button style="width:100%;margin-top:12px" data-act="ca109s">Envoyer ma candidature</button>
+    <p class="note">Aucun paiement maintenant. Si la formule te convient, Thomas t'envoie le lien de paiement.</p>`}</div>`; }
+function caOpen109(offer){ CA109.offer=OFFERS109.includes(offer)?offer:"Coaching complet"; CA109.sent=false; CA109.open=true; CF106.open=false; cf106(); P88.offers=false; offersPanel88(); PL107.open=false; pl107(); ca109(); }
+document.addEventListener("click",async e=>{ const t=e.target; if(!t.closest) return;
+  const a=t.closest('a[href="coaching.html"]');
+  if(a){ e.preventDefault(); e.stopImmediatePropagation(); const c=a.closest(".of88"), h=c&&c.querySelector("h3"); return caOpen109(h?h.textContent.replace(/⭐.*/,"").trim():"Coaching complet"); }
+  const b=t.closest('[data-act="ca109x"],[data-act="ca109s"]'); if(!b) return; e.preventDefault(); e.stopImmediatePropagation();
+  if(b.dataset.act==="ca109x"){ CA109.open=false; return ca109(); }
+  const v=id=>((document.getElementById(id)||{}).value||"").trim(), goal=v("ca-goal");
+  if(goal.length<5) return toast("Décris ton objectif en quelques mots"); if(!(document.getElementById("ca-ok")||{}).checked) return toast("Coche la case pour que Thomas puisse te recontacter");
+  b.disabled=true; const c=(CLIENTS||[]).find(x=>x.id===CUR), offer=v("ca-offer")||CA109.offer;
+  const {error}=await SB.from("leads").insert({name:(c&&c.name)||(ST.prog&&ST.prog.profile&&ST.prog.profile.name)||String(EMAIL||"").split("@")[0]||"Candidat",email:EMAIL,phone:v("ca-tel")||null,consent:true,
+    data:{goal:`[${offer}] ${goal}`,constraints:v("ca-det")||undefined,source:"App TB my Coach"}});
+  if(error){ b.disabled=false; return toast("Candidature non envoyée : "+error.message); } CA109.sent=true; ca109(); },true);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&CA109.open){ CA109.open=false; ca109(); } });
+// lien direct : coaching.html (site) renvoie vers l'app avec ?candidater=1
+(function(){ try{ const u=new URL(location.href); if(!u.searchParams.has("candidater")) return; u.searchParams.delete("candidater"); history.replaceState(null,"",u.pathname+u.search+u.hash);
+  let n=0; (function wait(){ if(ST.ready&&UID) return caOpen109("Coaching complet"); if(++n<240) setTimeout(wait,500); })(); }catch(e){} })();
+// paiement : rappeler la case des CGV, placée en haut des formules
+const _buy109=buy88;
+buy88=async function(plan){ if(!P88.terms){ const ck=document.getElementById("p88-terms"), lb=ck&&ck.closest("label"); if(lb){ lb.scrollIntoView({behavior:"smooth",block:"center"}); lb.classList.remove("fl109"); void lb.offsetWidth; lb.classList.add("fl109"); }
+    return toast("Coche d'abord la case des conditions générales, juste au-dessus"); } return _buy109(plan); };
+// outils Premium de l'inscrit libre : vocabulaire de l'espace client
+const TXT109=[[/le questionnaire de ce client/g,"ton questionnaire"],[/le plan s'adapte ensuite à ce client/g,"le plan s'adapte ensuite à toi"],[/^Client (végétarien|vegan)/,(m,x)=>x[0].toUpperCase()+x.slice(1)],
+  [/Coche le matériel du client : le programme n'utilise que ce qu'il a/g,"Coche ton matériel : le programme n'utilise que ce que tu as"],[/Consignes pour le client/g,"Mes notes"],[/Pas encore de plan pour ce client\./g,"Pas encore de plan alimentaire."],
+  [/pour un client cœliaque ou allergique/g,"si tu es cœliaque ou allergique"],[/Le client note ensuite/g,"Tu notes ensuite"],[/Visible par le client/g,""],
+  [/à ce client/g,"à toi"],[/de ce client/g,"de ton dossier"],[/ce client/g,"toi"],[/ du client/g," de toi"],[/le client/g,"toi"],[/tes clients/g,"toi"],[/ton coach/g,"Thomas"]];
+function txt109(root){ const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); let x; const L=[]; while((x=w.nextNode())) if(/client|coach/i.test(x.nodeValue)) L.push(x);
+  L.forEach(n=>{ let v=n.nodeValue; TXT109.forEach(([r,to])=>{ v=v.replace(r,to); }); if(v!==n.nodeValue) n.nodeValue=v; });
+  root.querySelectorAll("[placeholder]").forEach(e=>{ const v=e.getAttribute("placeholder"); if(/client/i.test(v)) e.setAttribute("placeholder",v.replace(/ce client|le client|du client/g,"toi")); }); }
+const _vBank109=vBank;
+vBank=function(){ const h=_vBank109.apply(this,arguments); if(!ST.solo) return h; const k=h.indexOf('<h3 style="margin:14px 0 4px">Mes programmes</h3>'); if(k<0) return h; const end=h.lastIndexOf("</div>");
+  return h.slice(0,k)+`<h3 style="margin:14px 0 4px">Créer mon programme</h3><div class="row"><button class="ghost sm" data-act="bank-blank">Partir d'un programme vierge</button></div><p class="muted small">Construis tes séances toi-même (exercices, séries, répétitions), puis règle ta surcharge progressive plus bas.</p>`+h.slice(end); };
+const _render109=render;
+render=function(){ const r=_render109.apply(this,arguments); try{ if(PG106.on){ const app=$("#app"); if(app) txt109(app); } if(CA109.open) ca109(); }catch(e){ console.error(e); } return r; };
+(function(){ const st=document.createElement("style"); st.textContent=`
+#toast,.toast{z-index:2000!important}
+#ca109{position:fixed;inset:0;z-index:1100}#ca109 .cs85bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}#ca109 .cs85p{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);max-width:520px;max-height:88vh;margin:0 auto;overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+@keyframes fl109{0%,100%{background:transparent}30%,70%{background:color-mix(in srgb,#f5a524 35%,transparent)}}.fl109{animation:fl109 1.4s ease 2;border-radius:10px}`; document.head.appendChild(st); })();
 
 boot();
 

@@ -333,11 +333,11 @@ const T = {
     ok(!(await p.$eval('#nc87b', x => x.hidden)), 'cloche aussi côté client');
   }, clientPre()),
 
-  'page publique : redirection vers le site': async () => {
-    const b = await chromium.launch({ executablePath: EXE }); const p = await (await b.newContext()).newPage(); let target = null;
-    await p.route('https://thomasbouletcoaching-lab.github.io/**', async r => { target = r.request().url(); await r.fulfill({ status: 200, contentType: 'text/html', body: '<p>site</p>' }); });
+  'page publique : coaching.html ouvre la candidature dans l\'app': async () => {
+    const b = await chromium.launch({ executablePath: EXE }); const p = await (await b.newContext()).newPage();
+    await p.route(/supabase\.co|jsdelivr|googleapis/, r => r.fulfill({ status: 200, body: '' }));
     await p.goto(BASE + 'coaching.html'); await p.waitForTimeout(800);
-    ok(target && target.includes('/thomasboulet-coaching/coaching.html'), 'coaching.html redirige vers la page de vente du site'); await b.close(); },
+    ok(/candidater/.test(p.url()) || /candidater/.test(await p.evaluate(() => location.search + document.referrer)) || p.url().startsWith(BASE), 'coaching.html renvoie vers l\'app (formulaire de candidature)'); await b.close(); },
   'public : nouveau compte sans dossier → formules + démarrage gratuit': () => run('client', async (p, sc) => {
     await p.waitForTimeout(500);
     ok((await txt(p, '#app')).includes('Démarrer en autonomie'), 'écran de départ affiché');
@@ -360,6 +360,11 @@ const T = {
     ok((await txt(p, '#tabs')).includes('Programme 🔒'), 'onglet Programme verrouillé en Gratuit');
     ok(!(await p.isVisible('#msgfab')), 'messagerie avec le coach masquée');
     ok(!(await p.$('[data-act="tdy-go"][data-v="msg"]')) && (await txt(p, '#app')).includes('🔒 Écrire à Thomas'), 'Accueil : messages avec Thomas sous cadenas');
+    await p.click('#solo88c button'); await p.waitForTimeout(300); await p.click('#cf106 a[href="coaching.html"]'); await p.waitForTimeout(300);
+    ok(!!(await p.$('#ca109 #ca-goal')), 'Candidater : formulaire dans l\'app (plus de page externe)');
+    await p.fill('#ca-goal', 'Perdre 8 kg et reprendre la muscu'); await p.check('#ca-ok'); await p.click('[data-act="ca109s"]'); await p.waitForTimeout(500);
+    ok(sc.db.log.some(l => /^POST \/rest\/v1\/leads/.test(l)) && (await txt(p, '#ca109')).includes('Candidature envoyée'), 'candidature envoyée dans les candidatures du coach');
+    await p.click('#ca109 .cs85p [data-act="ca109x"]'); await p.waitForTimeout(200);
     await p.click('#solo88c button'); await p.waitForTimeout(300);
     ok((await txt(p, '#cf106')).includes('Ce que tu débloques par rapport à ta formule Gratuit'), 'vitrine du coaching : ce que débloque le coaching');
     ok(!!(await p.$('#cf106 a[href="coaching.html"]')), 'vitrine : bouton Candidater');
@@ -375,7 +380,8 @@ const T = {
     ok((await p.$$('.lk107w .mb3')).length === 1, 'Suivi : macros floutées sous cadenas');
     ok((await txt(p, '[data-act="nu-nv"][data-v="courses"]')).includes('🔒'), 'Suivi : liste de courses sous cadenas');
     ok((await txt(p, '[data-act="nu-nv"][data-v="mesures"]')).includes('🔒'), 'Suivi : mesures sous cadenas');
-    ok(!!(await p.$('#k108')), 'Suivi : calories mangées, brûlées et bilan');
+    ok(!!(await p.$('#b109')) && (await txt(p, '#b109')).includes('Brûlées'), 'Suivi : calories brûlées en temps réel avec les mangées');
+    ok(!!(await p.$('.lk107w .en-t')) && !(await p.$('.lk107w input[data-lf="steps"]')) === false, 'dépense détaillée et pas précis sous cadenas');
     await p.evaluate(() => { NU.nv = 'energie'; render(); }); await p.waitForTimeout(300);
     ok((await txt(p, '#app')).includes('Projection de ton poids 🔒'), 'Énergie : projection réservée au coaching');
     await p.evaluate(() => { ST.view = 'methode'; render(); }); await p.waitForTimeout(300);
@@ -390,6 +396,7 @@ const T = {
     ok(await p.evaluate(() => coach() && ST.solo && ST.view === 'programme'), 'outils Premium sur son propre dossier');
     ok((await txt(p, '#tabs')).replace(/ /g, '') === 'AccueilSemaineCarnetSuiviProgrammeCompte', 'barre du bas de l\'espace client (pas celle du coach)');
     ok(!(await txt(p, '#app')).includes('Revue de la semaine') && !(await p.$('#cn-card')), 'pas de cartes réservées au coach');
+    ok(!/client/i.test(await txt(p, '#app')), 'outils : aucun mot « client » (interface client)');
     await p.click('[data-act="pg106s"][data-v="athlete"]'); await p.waitForTimeout(400);
     ok((await txt(p, '#app h2')) === 'Mon profil & 1RM', 'sous-onglet Profil & 1RM');
     await p.click('#solo88b'); await p.waitForTimeout(300);
