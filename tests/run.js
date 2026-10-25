@@ -389,6 +389,13 @@ const T = {
     ok(!(await p.$('.lk107w .mb3')) && (await p.$$('.lk107w .fb102')).length <= 1, 'Nutrition : calories et macros visibles en Gratuit, fibres sous cadenas');
     ok((await txt(p, '[data-act="nu-nv"][data-v="courses"]')).includes('🔒'), 'Suivi : liste de courses sous cadenas');
     ok((await txt(p, '[data-act="nu-nv"][data-v="mesures"]')).includes('🔒'), 'Suivi : mesures sous cadenas');
+    await p.evaluate(() => { NU.plan = null; render(); }); await p.waitForTimeout(300);
+    await p.click('[data-act="j108-add"][data-v="0"]'); await p.waitForTimeout(400); await p.fill('[data-nuq="aq"]', 'riz'); await p.waitForTimeout(400);
+    const fa = await p.$('#nu-ares button[data-act="na-add"]'); if (fa) { await fa.click(); await p.waitForTimeout(200); } await p.click('[data-act="na-save"][data-v="0"]'); await p.waitForTimeout(400);
+    ok(/Ce repas : P/.test(await txt(p, '.card.meal')) && /Riz basmati/.test(await txt(p, '.card.meal')), 'journal : repas noté affiché avec ses aliments, quantités et macros');
+    sc.prompt = 'Collation'; await p.click('#j113a'); await p.waitForTimeout(400);
+    ok((await p.$$('.card.meal')).length === 4, 'journal : ajouter un repas (collation)');
+    ok((await txt(p, '#app')).includes('Décrire 🔒') && (await txt(p, '#app')).includes('Code-barres 🔒'), 'Gratuit : code-barres et « Décrire » sous cadenas');
     ok(!!(await p.$('#b109')) && (await txt(p, '#b109')).includes('Brûlées'), 'Suivi : calories brûlées en temps réel avec les mangées');
     ok(!!(await p.$('.r111 .r111s')) && (await p.$$('.r111m svg')).length === 3, 'Nutrition : roue mangées / brûlées / reste et anneaux des macros');
     ok(!!(await p.$('.lk107w .en-t')) && !(await p.$('.lk107w input[data-lf="steps"]')) === false, 'dépense détaillée et pas précis sous cadenas');

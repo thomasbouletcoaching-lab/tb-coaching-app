@@ -8687,8 +8687,10 @@ function journalDeco108(){ if(!journal108()||ST.view!=="nutrition"||ST.todayOn||
   app.querySelectorAll(".card.meal").forEach((card,mi)=>{ if((L.m||{})[mi]||card.dataset.j108) return; card.dataset.j108="1";
     const open=NU.adj&&NU.adj.mi===mi&&NU.adj.d===NU.day, adj=open?card.querySelector(".adj"):null;
     card.innerHTML=`<div class="row"><h3 class="grow" style="margin:0">${esc(JMEALS108[mi]||"Repas")}</h3></div><div class="muted small" style="margin-top:4px">Rien de noté pour l'instant.</div>
-      <div class="acts" style="margin-top:8px"><button class="ok" data-act="j108-add" data-v="${mi}">＋ Ajouter des aliments</button><button class="ghost" data-act="j108-my">📒 Un de mes repas</button><button class="ghost" data-act="nu-skip" data-v="${mi}">Sauté</button></div>`;
-    if(adj) card.appendChild(adj); });
+      <div class="acts" style="margin-top:8px"><button class="ok" data-act="j108-add" data-v="${mi}">＋ Ajouter des aliments</button><button class="ghost" data-act="j108-my">📒 Un de mes repas</button><button class="ghost" data-act="nu-skip" data-v="${mi}">Sauté</button></div>
+      <div class="row" style="gap:6px;margin-top:6px">${free108()?`<button class="ghost sm" data-act="lk107">📷 Code-barres 🔒</button><button class="ghost sm" data-act="lk107">✍️🎙️ Décrire 🔒</button>`:`<button class="ghost sm" data-act="j108-add" data-v="${mi}" data-scan="1">📷 Code-barres</button><button class="ghost sm" data-act="es85-open" data-v="m:${mi}">✍️🎙️ Décrire ce que j'ai mangé</button>`}</div>`;
+    if(adj) card.appendChild(adj);
+    if(!free108()&&typeof ES85!=="undefined"&&ES85.tgt==="m:"+mi&&typeof esPanel85==="function") card.insertAdjacentHTML("beforeend",esPanel85()); });
   app.querySelectorAll('[data-act="nu-allok"],[data-act="na-all"]').forEach(b=>{ const r=b.closest(".row"); (r||b).remove(); });
   app.querySelectorAll('[data-act="nu-dtype"]').forEach(b=>{ const r=b.closest(".row"); if(r) r.remove(); });
   // pas de plan : l'objectif affiché est la dépense estimée du jour
@@ -8699,7 +8701,8 @@ function journalDeco108(){ if(!journal108()||ST.view!=="nutrition"||ST.todayOn||
     const cal=[...c0.querySelectorAll(".mb")].find(m=>!m.closest(".mb3")); if(cal){ const v=cal.querySelector(".mb-h span:last-child"); if(v) v.innerHTML=`<b>${fmtN(got)}</b> / ${fmtN(tot)} kcal`; const bar=cal.querySelector(".mb-t i"); if(bar) bar.style.width=Math.min(100,tot?got/tot*100:0).toFixed(1)+"%"; } } }
 document.addEventListener("click",e=>{ const b=e.target.closest&&e.target.closest('[data-act="j108-add"],[data-act="j108-my"],[data-act="na-save"]'); if(!b||!journal108()) return;
   const a=b.dataset.act;
-  if(a==="j108-add"){ e.stopImmediatePropagation(); NU.adj={mi:+b.dataset.v,d:NU.day,it:[],n:""}; NU.aq=""; NU.alt=null; if(!NU.foods) nuFoods().then(()=>render()); return render(); }
+  if(a==="j108-add"){ e.stopImmediatePropagation(); NU.adj={mi:+b.dataset.v,d:NU.day,it:[],n:""}; NU.aq=""; NU.alt=null; if(!NU.foods) nuFoods().then(()=>render()); render();
+    if(b.dataset.scan){ const sc=document.querySelector(`[data-act="nu99-scan"][data-v="${b.dataset.v}"]`); if(sc) sc.click(); } return; }
   if(a==="j108-my"){ e.stopImmediatePropagation(); const el=document.getElementById("my78"); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); return; }
   if(a==="na-save"&&NU.adj){ e.stopImmediatePropagation(); const mi=+b.dataset.v, it=NU.adj.it.filter(i=>+i.q>0); if(!it.length) return toast("Ajoute au moins un aliment");
     const d=NU.day; NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); NU.logs[d].m=Object.assign({},NU.logs[d].m);
@@ -9180,6 +9183,35 @@ input.rpe112{caret-color:transparent;cursor:pointer}
 .k112{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;margin-top:8px}.k112 b{display:block;font-size:1.3rem}.k112 span{font-size:.75rem;color:var(--soft)}
 .b112{width:100%;max-width:360px;display:block;margin:0 auto}.b112s{fill:color-mix(in srgb,var(--line) 60%,transparent)}.b112t{font:600 9px system-ui,sans-serif;fill:var(--soft)}.g112{stroke:var(--line);stroke-width:1}
 .m112{display:grid;grid-template-columns:110px 1fr 36px;gap:8px;align-items:center;margin:5px 0;font-size:.85rem}.m112b{position:relative;height:10px;border-radius:5px;background:color-mix(in srgb,var(--line) 60%,transparent);overflow:hidden}.m112b i{position:absolute;left:0;top:0;bottom:0;background:#3d6bff;border-radius:5px;z-index:1}.m112b em{position:absolute;top:0;bottom:0;background:color-mix(in srgb,#2fbf9b 35%,transparent)}.m112 b{text-align:right}`; document.head.appendChild(st); })();
+
+// ================= MODULE 113 · JOURNAL DES REPAS DE L'INSCRIT LIBRE : récap comme un plan (repas, aliments, quantités, macros), repas ajoutables =================
+// Repas de la journée : Petit-déjeuner, Déjeuner, Dîner + ceux que la personne ajoute (gardés dans le carnet, clé « nu_jmeals »).
+function jmealsSync113(){ const L=((ST.carnet||{}).nu_jmeals||{}).list; if(!Array.isArray(L)) return; const base=["Petit-déjeuner","Déjeuner","Dîner"];
+  const want=base.concat(L.filter(n=>n&&!base.includes(n))); if(want.join("|")!==JMEALS108.join("|")){ JMEALS108.length=0; want.forEach(n=>JMEALS108.push(n)); if(journal108()) NU.plan=null; } }
+async function jmealAdd113(){ const n=(prompt("Nom du repas (collation, goûter, pré-entraînement…)","Collation")||"").trim().slice(0,30); if(!n) return;
+  if(JMEALS108.includes(n)) return toast("Ce repas existe déjà"); const L=(((ST.carnet||{}).nu_jmeals||{}).list||[]).concat(n);
+  ST.carnet.nu_jmeals={list:L,at:new Date().toISOString()}; jmealsSync113(); NU.plan=null; render();
+  await safeWrite("carnet",{client_id:CUR,k:"nu_jmeals",data:ST.carnet.nu_jmeals,updated_at:new Date().toISOString()},{client_id:CUR,k:"nu_jmeals"},"upsert"); toast(`« ${n} » ajouté à tes repas de la journée`); }
+// repas noté : nom, total, « Ce repas : P · G · L », puis chaque aliment avec sa quantité et ses calories
+function logged113(app){ if(!journal108()||ST.view!=="nutrition"||ST.todayOn||coach()) return; const {L}=nDayCtx();
+  app.querySelectorAll(".card.meal").forEach((card,mi)=>{ const st=(L.m||{})[mi]; if(!st||card.dataset.l113) return; if(NU.adj&&NU.adj.mi===mi&&NU.adj.d===NU.day) return; card.dataset.l113="1";
+    const nm=JMEALS108[mi]||"Repas";
+    if(st.s==="skip"){ card.innerHTML=`<div class="row"><h3 class="grow" style="margin:0">${esc(nm)}</h3></div><div class="muted small" style="margin-top:4px">Repas sauté</div><div class="acts" style="margin-top:8px"><button class="ghost" data-act="j113-del" data-v="${mi}">Annuler</button></div>`; return; }
+    const it=st.it||[], m=mac(it);
+    card.innerHTML=`<h3 style="margin:0">${esc(nm)}</h3>${st.n&&st.n!==nm?`<div style="font-weight:700;margin-top:4px">${esc(st.n)} <span class="muted small">· ${fmtN(r0(m.k))} kcal</span></div>`:`<div class="muted small" style="margin-top:2px"><b>${fmtN(r0(m.k))} kcal</b></div>`}
+      <div class="muted small" style="margin:2px 0 6px">Ce repas : P ${fmtN(r0(m.p))} g · G ${fmtN(r0(m.g))} g · L ${fmtN(r0(m.l))} g</div>
+      <ul class="its l113">${it.map(i=>`<li><span class="grow">${esc(i.n)}<br><span class="muted small">${fmtN(r0(mac([i]).k))} kcal</span></span><span class="muted">${qtyTxt(i)}</span></li>`).join("")}</ul>
+      <div class="acts" style="margin-top:8px"><button class="ok" data-act="nu-mclear" data-v="${mi}">＋ Ajouter un aliment</button><button class="ghost" data-act="nu-mclear" data-v="${mi}">✏️ Modifier</button><button class="ghost" data-act="j113-del" data-v="${mi}">🗑</button></div>`; });
+  const last=[...app.querySelectorAll(".card.meal")].pop(); if(last&&!document.getElementById("j113a")) last.insertAdjacentHTML("afterend",`<button class="ghost" id="j113a" style="width:100%;margin:0 0 12px" data-act="j113-add">＋ Ajouter un repas</button>`);
+  // ajouts verrouillés pour le Gratuit : code-barres et « Décrire » (texte ou voix)
+  if(free108()) app.querySelectorAll('[data-act="es85-open"]').forEach(b=>{ if(!/🔒/.test(b.textContent)) b.textContent="✍️🎙️ Décrire 🔒 App complète"; b.dataset.act="lk107"; }); }
+document.addEventListener("click",async e=>{ const b=e.target.closest&&e.target.closest('[data-act="j113-add"],[data-act="j113-del"]'); if(!b||!journal108()) return; e.preventDefault(); e.stopImmediatePropagation();
+  if(b.dataset.act==="j113-add") return jmealAdd113();
+  const mi=+b.dataset.v, d=NU.day||todayISO(), nm=JMEALS108[mi]||"ce repas"; if(!confirm(`Effacer ce qui est noté pour ${nm} ?`)) return;
+  NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); NU.logs[d].m=Object.assign({},NU.logs[d].m); delete NU.logs[d].m[mi]; nuSaveLog(d); render(); },true);
+const _render113=render;
+render=function(){ try{ if(ST.solo&&CUR) jmealsSync113(); }catch(e){} const r=_render113.apply(this,arguments); try{ const app=$("#app"); if(app&&ST.solo&&CUR&&MODE==="client") logged113(app); }catch(e){ console.error(e); } return r; };
+(function(){ const st=document.createElement("style"); st.textContent=`.l113{list-style:none;margin:0;padding:0}.l113 li{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--line)}.l113 li:last-child{border-bottom:0}`; document.head.appendChild(st); })();
 
 boot();
 
