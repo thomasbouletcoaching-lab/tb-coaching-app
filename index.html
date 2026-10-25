@@ -8304,13 +8304,18 @@ Object.keys(NFACT85).forEach(k=>{ const o=RES[k]; RES[k]=function(){ const h=o?o
 const VQ_EN=0.10, PAS_EN=0.0005, ETA_EN=0.10;
 // effet thermique par macronutriment (milieu des fourchettes de Westerterp, 2004 : protéines 20–30 %, glucides 5–10 %, lipides 0–3 % de leur énergie)
 const TEF_EN={p:0.25,g:0.075,l:0.015};
+// activités qui font des pas : cadence moyenne (pas par minute). Quand les pas du jour sont notés, ils contiennent déjà ceux de l'activité :
+// on ne compte alors que le supplément de l'activité au-delà de ces pas (jamais négatif). Pas notés : moyenne habituelle + activité entière.
+const CAD_EN={marche:100,marche_r:120,rando:100,course8:155,course10:165,course12:175};
+const CADM_EN={"Tapis (marche inclinée)":100,"Tapis (course)":165,"Stairmaster / escalier":90,"Marche extérieure":100,"Course extérieure":165};
 const tefMac=m=>((+m.p||0)*4*TEF_EN.p+(+m.g||0)*4*TEF_EN.g+(+m.l||0)*9*TEF_EN.l);
 spendEN=function(d){ const p=profEN(), L=NU.logs[d]||{}, wa=weightAtEN(d,-1)||weightAtEN(d,1), w=(wa&&wa.w)||p.w;
   const bmr=10*w+6.25*p.h-5*p.a+(p.sex==="F"?-161:5), vie=bmr*(num(p.vq)!=null?+p.vq:VQ_EN);
   const stepsNoted=num(L.steps)!=null&&+L.steps>0, steps=stepsNoted?+L.steps:p.steps, stepK=steps*PAS_EN*w;
   const mm=muscuMinEN(d), muscK=(p.met-1)*w*mm/60;
-  const acts=(L.act||[]).map(x=>{ const A=ACTM_EN[x.a]; return {x,A,k:A?Math.round((A[3]-1)*w*(+x.min||0)/60):0}; }); const actK=acts.reduce((s,o)=>s+o.k,0);
-  const P=planOn&&planOn(); let cardK0=0; Object.entries(L.c||{}).forEach(([i,lg])=>{ const c=P&&(P.cardio||[])[+i]; cardK0+=num(lg&&lg.k)!=null?+lg.k:(c?cardK(c,w):0); });
+  const inSteps=(cad,min)=>stepsNoted&&cad?cad*(+min||0)*PAS_EN*w:0;
+  const acts=(L.act||[]).map(x=>{ const A=ACTM_EN[x.a], full=A?(A[3]-1)*w*(+x.min||0)/60:0, dup=Math.min(full,inSteps(CAD_EN[x.a],x.min)); return {x,A,k:Math.round(full-dup),dup:Math.round(dup)}; }); const actK=acts.reduce((s,o)=>s+o.k,0);
+  const P=planOn&&planOn(); let cardK0=0, cardDup=0; Object.entries(L.c||{}).forEach(([i,lg])=>{ const c=P&&(P.cardio||[])[+i]; const full=num(lg&&lg.k)!=null?+lg.k:(c?cardK(c,w):0), dup=c?Math.min(full,inSteps(CADM_EN[c.mach],c.dur)):0; cardK0+=full-dup; cardDup+=dup; });
   const lact=p.lactK||0, sans=bmr+vie+stepK+muscK+actK+cardK0+lact, I=intakeEN(d);
   // journée complète : selon ce qui a été mangé ; sinon estimé à l'équilibre avec la répartition des macros du plan du jour
   const tefEst=!I.complete; let tef, tp=null, rate=ETA_EN;
@@ -8318,7 +8323,7 @@ spendEN=function(d){ const p=profEN(), L=NU.logs[d]||{}, wa=weightAtEN(d,-1)||we
   else { const t=P&&P.types&&P.types.length?typeOf(dayTypeId(d,P)):null, pl=t?dayPlan(t):null; if(pl&&pl.k>0) rate=Math.min(0.2,tefMac(pl)/pl.k); tef=sans*rate/(1-rate); }
   const total=Math.round(sans+tef);
   return {p,w:Math.round(w*10)/10,bmr:Math.round(bmr),vie:Math.round(vie),base:Math.round(bmr+vie),steps,stepsNoted,stepK:Math.round(stepK),neat:Math.round(vie+stepK),
-    mm:Math.round(mm),muscK:Math.round(muscK),acts,actK,cardK:Math.round(cardK0),eat:Math.round(muscK+actK+cardK0),tef:Math.round(tef),tefEst,tp,rate,total}; }
+    mm:Math.round(mm),muscK:Math.round(muscK),acts,actK,cardK:Math.round(cardK0),cardDup:Math.round(cardDup),eat:Math.round(muscK+actK+cardK0),tef:Math.round(tef),tefEst,tp,rate,total}; }
 const _profEN100=profEN; profEN=function(){ const o=_profEN100(), f=(NU.plan&&NU.plan.prof)||{}; o.vq=num(f.vq)!=null?+f.vq/100:null; return o; };
 vSpendDayEN=function(d){ const S=spendEN(d), I=intakeEN(d), L=NU.logs[d]||{}, bal=Math.round(I.got.k-S.total), f=n=>fmtN(n);
   const sec=(t,v)=>`<tr class="en100s"><td><b>${t}</b></td><td class="n"><b>${f(v)}</b></td></tr>`;
@@ -8330,8 +8335,8 @@ vSpendDayEN=function(d){ const S=spendEN(d), I=intakeEN(d), L=NU.logs[d]||{}, ba
     <tr><td>Pas : ${f(S.steps)}${S.stepsNoted?"":` <span class="muted small">(ta moyenne)</span>`}</td><td class="n">${f(S.stepK)}</td></tr>
     ${sec("Entraînement et sport (EAT)",S.eat)}
     <tr><td>Musculation${S.mm?` : ${S.mm} min`:""}</td><td class="n">${S.muscK?f(S.muscK):"—"}</td></tr>
-    ${S.cardK?`<tr><td>Cardio du plan</td><td class="n">${f(S.cardK)}</td></tr>`:""}
-    ${S.acts.map((o,i)=>`<tr><td>${o.A?o.A[1]+" "+esc(o.A[2]):"Activité"} : ${o.x.min} min <button class="linkbtn en-x" data-act="en-del" data-v="${i}" aria-label="Retirer">✕</button></td><td class="n">${f(o.k)}</td></tr>`).join("")}
+    ${S.cardK||S.cardDup?`<tr><td>Cardio du plan${S.cardDup?` <span class="muted small">(${f(S.cardDup)} kcal déjà dans tes pas)</span>`:""}</td><td class="n">${f(S.cardK)}</td></tr>`:""}
+    ${S.acts.map((o,i)=>`<tr><td>${o.A?o.A[1]+" "+esc(o.A[2]):"Activité"} : ${o.x.min} min${o.dup?` <span class="muted small">(${fmtN(o.dup)} kcal déjà dans tes pas)</span>`:""} <button class="linkbtn en-x" data-act="en-del" data-v="${i}" aria-label="Retirer">✕</button></td><td class="n">${f(o.k)}</td></tr>`).join("")}
     ${S.p.lactK?sec(PREG90[S.p.lact]?"Grossesse":"Allaitement",S.p.lactK):""}
     ${sec("Effet thermique des aliments (TEF)",S.tef)}
     ${S.tp?`<tr><td>Protéines : ${f(r0(I.got.p))} g</td><td class="n">${f(r0(S.tp.p))}</td></tr><tr><td>Glucides : ${f(r0(I.got.g))} g</td><td class="n">${f(r0(S.tp.g))}</td></tr><tr><td>Lipides : ${f(r0(I.got.l))} g</td><td class="n">${f(r0(S.tp.l))}</td></tr>`

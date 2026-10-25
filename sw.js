@@ -1,4 +1,4 @@
-const C="tb-v108";
+const C="tb-v109";
 const MC="tb-media-v1"; // photos et vidéos du coach : gardées sur le téléphone (clé sans le jeton du lien signé)
 self.addEventListener("install",e=>{ e.waitUntil(caches.open(C).then(c=>c.addAll(["./","./index.html","./manifest.webmanifest","./icon-192.png"]).catch(()=>{}))); self.skipWaiting(); });
 self.addEventListener("activate",e=>{ e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C&&x!==MC).map(x=>caches.delete(x))))); self.clients.claim(); });

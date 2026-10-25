@@ -44,6 +44,14 @@ const T = {
     ok(sc.pp.data && sc.pp.data.meals.on && sc.pp.data.meals.h === '20:45', 'préférences enregistrées (arrondi au quart d\'heure)');
   }, clientPre(sc => (m, path, body, acc, t, one) => { if (t === 'push_prefs') { if (m === 'POST') { sc.pp = Object.assign(sc.pp || {}, body); return []; } return one ? null : []; } })),
 
+  'client : pas notés et activité de marche ou de course pas comptés deux fois': () => run('client', async (p) => {
+    await p.waitForTimeout(800);
+    const r = await p.evaluate(() => { const d = todayISO(); NU.logs[d] = { m: {}, x: [], act: [{ a: 'course10', min: 30 }] }; const a = spendEN(d); NU.logs[d].steps = 10000; const b = spendEN(d);
+      NU.logs[d].act = [{ a: 'velo', min: 30 }]; const c = spendEN(d); return { a: a.acts[0].k, b: b.acts[0].k, dup: b.acts[0].dup, velo: c.acts[0].k }; });
+    ok(r.dup > 0 && r.b === r.a - r.dup, `course avec pas notés : seul le supplément est compté (${r.a} → ${r.b} kcal)`);
+    ok(r.velo > 0 && r.velo === Math.round(r.velo), 'vélo (sans pas) compté en entier');
+  }, clientPre()),
+
   'client : plat équivalent': () => run('client', async (p) => {
     await p.waitForTimeout(800); await p.evaluate(() => { ST.todayOn = false; ST.view = 'nutrition'; NU.nv = 'jour'; NU.day = todayISO(); render(); }); await p.waitForTimeout(400);
     ok(!!(await p.$('#r111c .r111s')) && (await txt(p, '#r111c')).includes('kcal restantes'), 'client coaché : roue des calories et macros en tête de la nutrition');
