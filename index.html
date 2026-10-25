@@ -1694,7 +1694,7 @@ async function compressImg(file,max=1600,q=0.8){ if(!/^image\/(jpeg|png|webp)/.t
   return await new Promise(ok=>c.toBlob(b=>ok(b||file),"image/jpeg",q)); }
 async function uploadMedia(file){ if(!CUR) return null; const isV=/^video\//.test(file.type)||/\.(mov|mp4|m4v|webm)$/i.test(file.name||""); if(isV&&file.size>30*1024*1024){ MSG.err="Vidéo trop lourde (30 Mo max) : filme une seule série, en 720p si possible."; toast(MSG.err); return null; }
   const blob=isV?file:await compressImg(file); const ext=isV?((file.name.split(".").pop()||"mp4").toLowerCase()):"jpg"; const path=`${CUR}/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
-  const {error}=await SB.storage.from("media").upload(path,blob,{contentType:isV?(file.type||"video/mp4"):"image/jpeg",upsert:false});
+  const {error}=await SB.storage.from("media").upload(path,blob,{contentType:isV?(file.type||"video/mp4"):"image/jpeg",upsert:false,cacheControl:"31536000"});
   if(error){ MSG.err="Envoi impossible : "+error.message; toast(MSG.err); return null; } return {path,type:isV?"video":"image"}; }
 async function compressVideo(file,onp,o={}){ const SHORT=o.short||720, BPS=o.bps||2500000; if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream) throw new Error("no recorder");
   const mime=["video/mp4;codecs=avc1","video/mp4","video/webm;codecs=vp9","video/webm"].find(m=>{ try{ return MediaRecorder.isTypeSupported(m); }catch(e){ return false; } }); if(!mime) throw new Error("no mime");
@@ -1708,7 +1708,7 @@ async function compressVideo(file,onp,o={}){ const SHORT=o.short||720, BPS=o.bps
     rec.stop(); await stopped; const type=mime.split(";")[0]; const out=new File([new Blob(chunks,{type})],"video."+(type.includes("mp4")?"mp4":"webm"),{type});
     if(!out.size) throw new Error("vide"); return out; }
   finally{ URL.revokeObjectURL(url); v.remove(); } }
-async function videoDuration(file){ const url=URL.createObjectURL(file); const v=document.createElement("video"); v.preload="metadata"; v.muted=true; v.src=url;
+async function videoDuration(file){ const url=URL.createObjectURL(file); const v=document.createElement("video"); v.preload="none"; v.muted=true; v.src=url;
   try{ return await new Promise(ok=>{ v.onloadedmetadata=()=>ok(isFinite(v.duration)?v.duration:0); v.onerror=()=>ok(0); setTimeout(()=>ok(0),8000); }); } finally{ URL.revokeObjectURL(url); } }
 const VID_MAX_S=90, VID_KEEP_DAYS=30;
 async function signUrls(paths){ const need=paths.filter(p=>p&&!MSG.urls[p]); if(need.length){ const {data}=await SB.storage.from("media").createSignedUrls(need,3600*6); (data||[]).forEach(d=>{ if(d.signedUrl) MSG.urls[d.path]=d.signedUrl; else if(d.path) MSG.gone[d.path]=1; }); } }
@@ -1717,7 +1717,7 @@ const mediaHTML=(m,msg)=>{ const u=MSG.urls[m.path];
   if(m.type!=="video") return `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" class="mmedia" alt="Photo"></a>`;
   const fin=msg&&msg.created_at?new Date(new Date(msg.created_at).getTime()+VID_KEEP_DAYS*864e5):null;
   const dl=u+(u.includes("?")?"&":"?")+"download="+encodeURIComponent("video_"+(msg&&msg.created_at?msg.created_at.slice(0,10):"tb")+".mp4");
-  return `<video src="${esc(u)}" controls playsinline preload="metadata" class="mmedia"></video><div class="muted small" style="margin-top:2px"><a href="${esc(dl)}" download>⬇ Enregistrer</a>${fin?` · supprimée le ${fin.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}`:""}</div>`; };
+  return `<video src="${esc(u)}" controls playsinline preload="none" class="mmedia"></video><div class="muted small" style="margin-top:2px"><a href="${esc(dl)}" download>⬇ Enregistrer</a>${fin?` · supprimée le ${fin.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}`:""}</div>`; };
 // ---------- messagerie
 const iAmCoach=()=>!!ST.isCoach;
 async function msgLoad(){ if(!CUR) return; const cid=CUR; const {data,error}=await SB.from("messages").select("*").eq("client_id",cid).order("created_at").range(0,999);
@@ -2242,7 +2242,7 @@ const _msgRender11=msgRender;
 msgRender=function(){ _msgRender11(); const el=document.getElementById("msgpanel"); if(!el||!MSG.open) return;
   // lecteurs audio à la place des vignettes
   MSG.list.forEach(m=>(m.media||[]).forEach(x=>{ if(x.type!=="audio") return; const u=MSG.urls[x.path]; const img=u&&[...el.querySelectorAll("img.mmedia")].find(i=>i.getAttribute("src")===u);
-    if(img){ const a=document.createElement("audio"); a.className="maudio"; a.controls=true; a.preload="metadata"; a.src=u; img.closest("a").replaceWith(a); } }));
+    if(img){ const a=document.createElement("audio"); a.className="maudio"; a.controls=true; a.preload="none"; a.src=u; img.closest("a").replaceWith(a); } }));
   // bouton micro
   const send=el.querySelector('[data-act="msg-send"]'); if(!send||!recOK()) return;
   const b=document.createElement("button"); b.dataset.act="msg-rec"; b.setAttribute("aria-label",REC.on?"Arrêter et envoyer le vocal":"Enregistrer un message vocal");
@@ -2263,7 +2263,7 @@ async function recStop(){ if(!REC.on) return; clearInterval(REC.iv); REC.on=fals
   const type=(REC.rec.mimeType||REC.mime||"audio/mp4").split(";")[0], ext=type.includes("mp4")||type.includes("aac")?"m4a":type.includes("ogg")?"ogg":"webm";
   const blob=new Blob(REC.chunks,{type}), path=`${cid}/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
   MSG.up="Envoi du vocal…"; msgRender();
-  const {error}=await SB.storage.from("media").upload(path,blob,{contentType:type,upsert:false}); MSG.up=0;
+  const {error}=await SB.storage.from("media").upload(path,blob,{contentType:type,upsert:false,cacheControl:"31536000"}); MSG.up=0;
   if(error){ MSG.err="Vocal non envoyé : "+error.message; msgRender(); return; }
   if(cid!==CUR) return; await signUrls([path]); await msgSend([{path,type:"audio",dur:Math.round(dur)}]); }
 document.addEventListener("click",e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act; if(a!=="msg-rec"&&a!=="msg-reccancel") return;
@@ -2389,7 +2389,7 @@ document.addEventListener("change",async e=>{ const el=e.target; if(!el.dataset)
     if(f.size>50*1024*1024) throw new Error("vidéo trop lourde (50 Mo max) : filme un clip plus court");
     const type=f.type||"video/mp4", ext=(type.split("/")[1]||"mp4").replace("quicktime","mov"), slug=nrm(ex).replace(/[^a-z0-9]+/g,"-").slice(0,40);
     const path=`lib/${UID}/${slug}_${Date.now()}.${ext}`;
-    const {error}=await SB.storage.from("media").upload(path,f,{contentType:type,upsert:false}); if(error) throw error;
+    const {error}=await SB.storage.from("media").upload(path,f,{contentType:type,upsert:false,cacheControl:"31536000"}); if(error) throw error;
     const old=VL.map[ex]; const {data,error:e2}=await SB.from("video_lib").upsert({coach_id:UID,ex,kind:"file",path,url:null,updated_at:new Date().toISOString()}).select().single(); if(e2) throw e2;
     VL.map[ex]=data; if(old&&old.kind==="file"&&old.path) SB.storage.from("media").remove([old.path]).then(()=>{});
     toast("Vidéo ajoutée"); }
@@ -2764,7 +2764,7 @@ async function vlUpload(ex,f){ VL.busy=ex; vlRefresh();
   try{ if(f.size>20*1024*1024){ try{ f=await compressVideo(f); }catch(err){} }
     if(f.size>50*1024*1024) throw new Error("vidéo trop lourde (50 Mo max) : garde un extrait plus court");
     const type=f.type||"video/mp4", ext=(type.split("/")[1]||"mp4").replace("quicktime","mov"), slug=nrm(ex).replace(/[^a-z0-9]+/g,"-").slice(0,40), path=`lib/${UID}/${slug}_${Date.now()}.${ext}`;
-    const {error}=await SB.storage.from("media").upload(path,f,{contentType:type,upsert:false}); if(error) throw error;
+    const {error}=await SB.storage.from("media").upload(path,f,{contentType:type,upsert:false,cacheControl:"31536000"}); if(error) throw error;
     const old=VL.map[ex]; const {data,error:e2}=await SB.from("video_lib").upsert({coach_id:UID,ex,kind:"file",path,url:null,updated_at:new Date().toISOString()}).select().single(); if(e2) throw e2;
     VL.map[ex]=data; if(old&&old.kind==="file"&&old.path) SB.storage.from("media").remove([old.path]).then(()=>{}); toast("Vidéo ajoutée"); }
   catch(err){ toast("Envoi impossible : "+err.message); }
@@ -4775,7 +4775,7 @@ nJour=function(){ let h=_nJour62(); const {L,t,P}=nDayCtx(); if(!t||!hasMeals(P)
 function phInput62(){ let f=document.getElementById("nph-file"); if(!f){ f=document.createElement("input"); f.type="file"; f.accept="image/*"; f.id="nph-file"; f.hidden=true; document.body.appendChild(f);
     f.addEventListener("change",async()=>{ const file=f.files&&f.files[0]; f.value=""; const T=NPH.target; if(!file||!T||!CUR) return; NPH.busy=true; toast("Envoi de la photo…");
       try{ const blob=await compressImg(file,1280,0.75); const path=`${CUR}/repas/${T.d}_${T.mi}_${Date.now()}.jpg`;
-        const {error}=await SB.storage.from("media").upload(path,blob,{contentType:"image/jpeg",upsert:false}); if(error) throw error;
+        const {error}=await SB.storage.from("media").upload(path,blob,{contentType:"image/jpeg",upsert:false,cacheControl:"31536000"}); if(error) throw error;
         const d=T.d; NU.logs[d]=Object.assign({m:{},x:[]},NU.logs[d]); const L=NU.logs[d]; L.m=Object.assign({},L.m); L.ph=(L.ph||[]).concat([{mi:T.mi,p:path,at:new Date().toISOString(),by:coach()?"coach":"client"}]);
         const {t}=nDayCtx(), o=t&&t.meals[T.mi]&&t.meals[T.mi].opts[0];
         if(!L.m[T.mi]&&o&&!coach()) L.m[T.mi]={s:"alt",n:"📷 "+(o.n||"Repas")+" (en photo)",mac:optMac(o),it:planItems62(o),pend:1};
@@ -4895,7 +4895,7 @@ saveCarnet=async function(key){ const v=ST.carnet[key]||{};
 const _setEditor64=setEditor50;
 setEditor50=function(key,i){ let h=_setEditor64(key,i); const v=ST.carnet[key]||{}, x=(v.sets&&v.sets[i])||{}, V=x.v||[];
   const need=V.map(m=>m.path).filter(p=>!MSG.urls[p]&&!MSG.gone[p]); if(need.length) signUrls(need).then(scheduleRender);
-  const vids=V.map((m,k)=>{ const u=MSG.urls[m.path]; return `<div class="sv64">${u?`<video src="${esc(u)}" controls playsinline preload="metadata"></video>`:`<div class="mph">${MSG.gone[m.path]?"Vidéo supprimée automatiquement après "+VID_KEEP_DAYS+" jours":"Chargement…"}</div>`}<button class="ghost sm" data-act="sv-del" data-v="${key}|${i}|${k}">Supprimer la vidéo</button></div>`; }).join("");
+  const vids=V.map((m,k)=>{ const u=MSG.urls[m.path]; return `<div class="sv64">${u?`<video src="${esc(u)}" controls playsinline preload="none"></video>`:`<div class="mph">${MSG.gone[m.path]?"Vidéo supprimée automatiquement après "+VID_KEEP_DAYS+" jours":"Chargement…"}</div>`}<button class="ghost sm" data-act="sv-del" data-v="${key}|${i}|${k}">Supprimer la vidéo</button></div>`; }).join("");
   const extra=`<label class="f" style="margin-top:8px">📝 Note sur cette série<textarea class="big64" rows="3" data-sn="${key}|${i}" placeholder="Ex. dernière rep lente, genou qui rentre, très bonne vitesse…">${esc(x.n||"")}</textarea></label>
    ${vids}<div class="row" style="margin-top:6px">${SV64.up===key+"|"+i?`<span class="muted small">${esc(SV64.msg||"Envoi de la vidéo…")}</span>`:`<button class="ghost sm" data-act="sv-take" data-v="${key}|${i}">🎥 ${V.length?"Ajouter une autre vidéo":"Ajouter la vidéo de cette série"}</button>`}</div>
    <div class="muted small">Une seule série par vidéo, ${VID_MAX_S} s maximum. Les vidéos sont supprimées après ${VID_KEEP_DAYS} jours.</div>`;
@@ -5787,7 +5787,7 @@ function hxSetEditor70(key,li,i){ const x=((ST.carnet[key]||{}).list||[])[li]; c
   return `<div class="edit st50"><div class="row" style="justify-content:space-between"><b>Série ${i+1} : type, note, vidéo</b><button class="ghost sm" data-act="hx-set" data-v="">Fermer</button></div>
     <div class="row" style="gap:6px;margin:6px 0">${Object.entries(TAG50).map(([k,o])=>`<button class="chip ${t.includes(k)?"on":""}" data-act="hx-tag" data-v="${key}|${li}|${i}|${k}">${o.e} ${o.l}</button>`).join("")}</div>
     <label class="f">📝 Note sur cette série<textarea class="big64" rows="3" data-hxn="${key}|${li}|${i}">${esc(s.n||"")}</textarea></label>
-    ${V.map((m,k)=>{ const u=MSG.urls[m.path]; return `<div class="sv64">${u?`<video src="${esc(u)}" controls playsinline preload="metadata"></video>`:`<div class="mph">Chargement…</div>`}<button class="ghost sm" data-act="hx-vdel" data-v="${key}|${li}|${i}|${k}">Supprimer la vidéo</button></div>`; }).join("")}
+    ${V.map((m,k)=>{ const u=MSG.urls[m.path]; return `<div class="sv64">${u?`<video src="${esc(u)}" controls playsinline preload="none"></video>`:`<div class="mph">Chargement…</div>`}<button class="ghost sm" data-act="hx-vdel" data-v="${key}|${li}|${i}|${k}">Supprimer la vidéo</button></div>`; }).join("")}
     <div class="row" style="margin-top:6px;gap:6px"><button class="ghost sm" data-act="hx-vid" data-v="${key}|${li}|${i}">🎥 Ajouter la vidéo de cette série</button><button class="ghost sm" data-act="hx-sdel" data-v="${key}|${li}|${i}">🗑 Supprimer cette série</button></div></div>`; }
 const hxGet70=key=>ST.carnet[key]=Object.assign({list:[]},ST.carnet[key]);
 document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, v=b.dataset.v||""; if(!/^hx-(set|tag|sdel|vid|vdel|sadd|done)$/.test(a)) return; e.stopImmediatePropagation();
@@ -8937,14 +8937,16 @@ const lockBtn110=(el,label,act)=>{ el.textContent=label; el.dataset.act=act; del
 function nu110(app){ const free=free108();
   app.querySelectorAll('[data-act="nph-take"]').forEach(b=>lockBtn110(b,"📷 🔒","cf106"));
   app.querySelectorAll('[data-act="eq-open"]').forEach(b=>lockBtn110(b,"🔁 Équivalents 🔒","cf106"));
-  app.querySelectorAll('[data-act="j108-my"]').forEach(b=>lockBtn110(b,"📒 Mes repas 🔒","cf106"));
+  if(free) app.querySelectorAll('[data-act="j108-my"]').forEach(b=>lockBtn110(b,"📒 Mes repas 🔒","lk107"));
   if(free) app.querySelectorAll('[data-act="nu-xscan"],[data-act="nu99-scan"]').forEach(b=>lockBtn110(b,"📷 Code-barres 🔒 App complète","lk107"));
-  const my=document.getElementById("my78"); if(my) wrap108(my,"Mes repas · Coaching suivi","cf106");
+  const my=document.getElementById("my78"); if(my&&free) wrap108(my,"Mes repas · App complète","lk107");
   const src=document.getElementById("src98"); if(src) wrap108(src,"D'où viennent tes macros · Coaching suivi","cf106");
   app.querySelectorAll(".card,details").forEach(c=>{ const t=c.querySelector("h3,summary"); if(t&&/Ma journée type/.test(t.textContent)&&!c.closest(".lk107w")) c.remove(); });
   if(NU.nv==="plan"&&prem88()){ const chips=app.querySelector('[data-act="nu-nv"]'), row=chips&&chips.closest(".row");
-    if(journal108()){ if(row){ let n=row.nextElementSibling; while(n){ const x=n.nextElementSibling; n.remove(); n=x; } row.insertAdjacentHTML("afterend",nmCard110()); } }
-    else if(!document.getElementById("nm110")) app.insertAdjacentHTML("beforeend",NM110.open?nmCard110():`<div class="row" style="margin:8px 0 24px"><button class="ghost" data-act="nm110o">🔁 Changer de plan alimentaire</button></div>`); } }
+    const bankLock=`<div class="card" id="nm110"><h3 style="margin-top:0">📚 Banque de plans alimentaires 🔒</h3><p class="muted small">Des plans complets prêts à suivre (perte de ventre, prise de muscle, végétarien…), calculés pour toi. Inclus dans le Coaching suivi et au-delà.</p><button class="ghost sm" data-act="cf106">Découvrir le coaching</button></div>`;
+    if(journal108()){ if(row){ let n=row.nextElementSibling; while(n){ const x=n.nextElementSibling; n.remove(); n=x; }
+        row.insertAdjacentHTML("afterend",`<div class="card"><h3 style="margin-top:0">🍽️ Mon plan alimentaire</h3><p class="small">Ton plan, ce sont tes repas habituels : crée-les une fois ci-dessous (aliments et quantités), puis note-les en un geste chaque jour avec « 📒 Un de mes repas ».</p></div>`+(typeof myCard78==="function"?myCard78():"")+bankLock); } }
+    else if(!document.getElementById("nm110")) app.insertAdjacentHTML("beforeend",bankLock); } }
 // ---------- barre du bas de l'inscrit libre : Accueil · Semaine · Entraînement · Carnet · Nutrition · Compte
 function tabs110(){ const t=$("#tabs"); if(!t) return; t.querySelectorAll('[data-act="pg106"]').forEach(b=>b.remove());
   if(!t.querySelector('[data-v="tr110"]')){ const ref=t.querySelector('[data-v="carnet"]'), b=`<button data-act="view" data-v="tr110">Entraînement</button>`; if(ref) ref.insertAdjacentHTML("beforebegin",b); else t.insertAdjacentHTML("beforeend",b); }
@@ -8997,6 +8999,29 @@ body.lite110 .lk107w>:not(.lk107b){filter:none!important;opacity:.2}
 .la110h{margin:6px 0 10px;padding:16px;border-radius:16px;background:color-mix(in srgb,var(--blue) 12%,var(--paper));border:1px solid var(--line)}.la110g{display:grid;gap:6px}.la110c{padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
 .la110p{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory}.la110s{flex:0 0 78%;scroll-snap-align:start;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--paper);display:grid;gap:4px}
 .la110t{margin-bottom:8px}`; document.head.appendChild(st); })();
+
+// ================= MODULE 111 · NUTRITION DE L'INSCRIT LIBRE : la roue (mangées, brûlées, reste) et les macros en anneaux =================
+const num111=t=>{ const m=String(t||"").replace(/\s/g,"").replace(",",".").match(/-?\d+(?:\.\d+)?/g); return m?m.map(Number):[]; };
+function donut111(r,w,pc,col,track){ const C=2*Math.PI*r, d=Math.max(0,Math.min(1,pc))*C; return `<circle r="${r}" cx="0" cy="0" fill="none" stroke="${track||"var(--line)"}" stroke-width="${w}"/><circle r="${r}" cx="0" cy="0" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${d.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90)"/>`; }
+function ring111(app){ const kc=app.querySelector(".card .kc"), c0=kc&&kc.closest(".card"); if(!c0||c0.querySelector(".r111")) return;
+  const d=NU.day||todayISO(), today=d===todayISO(), eat=Math.round(intakeEN(d).got.k||0), lab=kc.parentNode.querySelector(".muted"), tgt=num111(lab&&lab.textContent)[0]||Math.round(spendEN(d).total||0);
+  const B=burnNow109(d), left=tgt-eat, cal=[...c0.querySelectorAll(".mb")].find(m=>!m.closest(".mb3")&&m.id!=="b109");
+  const M3=[...c0.querySelectorAll(".mb3 .mb")].map((m,k)=>{ const v=num111((m.querySelector(".mb-h span:last-child")||{}).textContent); return {l:["Protéines","Glucides","Lipides"][k],g:v[0]||0,t:v[1]||0,c:["#5b8def","#2fbf9b","#f5a524"][k]}; });
+  const big=`<svg viewBox="-70 -70 140 140" class="r111s" role="img" aria-label="${eat} kcal mangées sur ${tgt}, ${B.now} kcal brûlées">${donut111(60,10,tgt?eat/tgt:0,"url(#g111a)")}${donut111(46,7,B.tot?B.now/B.tot:0,"url(#g111b)","color-mix(in srgb,var(--line) 70%,transparent)")}
+    <defs><linearGradient id="g111a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6F8CFF"/><stop offset="1" stop-color="#E06CC0"/></linearGradient><linearGradient id="g111b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5a524"/><stop offset="1" stop-color="#e5484d"/></linearGradient></defs>
+    <text x="0" y="-6" text-anchor="middle" class="r111n">${fmtN(Math.abs(left))}</text><text x="0" y="14" text-anchor="middle" class="r111l">${left>=0?"kcal restantes":"kcal en trop"}</text></svg>`;
+  const side=(ic,v,t,sub)=>`<div class="r111k"><b>${ic} ${fmtN(v)}</b><span>${t}</span>${sub?`<i>${sub}</i>`:""}</div>`;
+  const mac=M3.length?`<div class="r111m">${M3.map(m=>`<div><svg viewBox="-24 -24 48 48">${donut111(19,6,m.t?m.g/m.t:0,m.c)}<text x="0" y="5" text-anchor="middle" class="r111p">${m.t?Math.round(m.g/m.t*100):0}%</text></svg><b>${fmtN(Math.round(m.g))}${m.t?` / ${fmtN(m.t)}`:""} g</b><span>${m.l}</span></div>`).join("")}</div>`:"";
+  c0.insertAdjacentHTML("afterbegin",`<div class="r111"><div class="r111t">${side("🍽️",eat,"mangées",`objectif ${fmtN(tgt)}`)}${big}${side("🔥",B.now,today?"brûlées à cette heure":"brûlées",`sur ${fmtN(B.tot)} prévues`)}</div>
+    <div class="muted small" style="text-align:center;margin-top:2px">Bilan ${today?"à cette heure":"du jour"} : <b>${eat-B.now>0?"+":eat-B.now<0?"−":""}${fmtN(Math.abs(eat-B.now))} kcal</b></div>${mac}</div>`);
+  [kc.closest(".row"),cal,c0.querySelector("#b109"),c0.querySelector(".mb3")].forEach(x=>{ if(x) x.style.display="none"; }); }
+const _render111=render;
+render=function(){ const r=_render111.apply(this,arguments); try{ if(ST.solo&&CUR&&MODE==="client"&&!coach()&&ST.view==="nutrition"&&!ST.todayOn&&(!NU.nv||NU.nv==="jour")){ const app=$("#app"); if(app) ring111(app); } }catch(e){ console.error(e); } return r; };
+setInterval(()=>{ const r=document.querySelector(".r111"); if(r&&document.visibilityState==="visible"&&!document.activeElement.matches("input,textarea,select")){ const c=r.closest(".card"); r.remove(); const b=document.getElementById("b109"); if(b) b.remove(); try{ kpi108(); ring111($("#app")); }catch(e){} } },60000);
+(function(){ const st=document.createElement("style"); st.textContent=`
+.r111t{display:grid;grid-template-columns:1fr 150px 1fr;align-items:center;gap:4px}.r111s{width:150px;height:150px}.r111n{font:800 22px system-ui,sans-serif;fill:var(--ink)}.r111l{font:500 9px system-ui,sans-serif;fill:var(--soft)}
+.r111k{display:grid;text-align:center;gap:2px}.r111k b{font-size:1.15rem}.r111k span{font-size:.75rem;color:var(--soft)}.r111k i{font-style:normal;font-size:.68rem;color:var(--soft)}
+.r111m{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;text-align:center}.r111m svg{width:56px;height:56px;display:block;margin:0 auto}.r111m b{display:block;font-size:.85rem}.r111m span{font-size:.72rem;color:var(--soft)}.r111p{font:700 10px system-ui,sans-serif;fill:var(--ink)}`; document.head.appendChild(st); })();
 
 boot();
 

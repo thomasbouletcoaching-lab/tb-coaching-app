@@ -381,6 +381,7 @@ const T = {
     ok((await txt(p, '[data-act="nu-nv"][data-v="courses"]')).includes('🔒'), 'Suivi : liste de courses sous cadenas');
     ok((await txt(p, '[data-act="nu-nv"][data-v="mesures"]')).includes('🔒'), 'Suivi : mesures sous cadenas');
     ok(!!(await p.$('#b109')) && (await txt(p, '#b109')).includes('Brûlées'), 'Suivi : calories brûlées en temps réel avec les mangées');
+    ok(!!(await p.$('.r111 .r111s')) && (await p.$$('.r111m svg')).length === 3, 'Nutrition : roue mangées / brûlées / reste et anneaux des macros');
     ok(!!(await p.$('.lk107w .en-t')) && !(await p.$('.lk107w input[data-lf="steps"]')) === false, 'dépense détaillée et pas précis sous cadenas');
     await p.evaluate(() => { NU.nv = 'energie'; render(); }); await p.waitForTimeout(300);
     ok((await txt(p, '#app')).includes('Projection de ton poids 🔒'), 'Énergie : projection réservée au coaching');
