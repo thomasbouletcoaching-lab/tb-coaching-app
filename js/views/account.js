@@ -35,7 +35,7 @@ routes.account = async () => {
 actions["account-mode"] = (b, d) => { mode = d.v; rerender(); };
 
 actions["account-restore"] = async () => {
-  try { const r = await restoreMigrated(); toast(r.w + r.f + r.m ? `Restauré : ${r.w} séances, ${r.f} repas, ${r.m} mesures` : "Rien de nouveau à restaurer"); }
+  try { const r = await restoreMigrated(); toast(r.w + r.f + r.m + r.p ? `Restauré : ${r.w} séances, ${r.f} repas, ${r.m} mesures${r.p ? ", programme et position TB" : ""}` : "Rien de nouveau à restaurer"); }
   catch (e) { toast("Restauration impossible : " + e.message); }
   rerender();
 };
@@ -49,7 +49,7 @@ actions["account-out"] = async () => {
 // Rien n'est effacé : on ajoute ce qui manque (même identifiant ou même jour = déjà présent, on ne double pas).
 export async function restoreMigrated() {
   const m = await C.fetchMigrated();
-  if (!m) return { w: 0, f: 0, m: 0 };
+  if (!m) return { w: 0, f: 0, m: 0, p: 0 };
   let w = 0, f = 0, ms = 0;
   update(st => {
     const ids = new Set((st.workouts || []).map(x => String(x.id)));
@@ -66,13 +66,22 @@ export async function restoreMigrated() {
     const addM = (m.measures || []).filter(x => !days.has(x.d));
     if (addM.length) { st.measures = [...(st.measures || []), ...addM].sort((a, b) => String(a.d).localeCompare(String(b.d))); ms = addM.length; }
   });
-  return { w, f, m: ms };
+  // Programme en cours (converti depuis TB my Coach) et position : remplacent le plan créé à l'onboarding
+  let p = 0;
+  if (m.tbProgram?.id) {
+    update(st => {
+      st.customPrograms = [...(st.customPrograms || []).filter(x => x.id !== m.tbProgram.id), m.tbProgram];
+      if (m.tbPosition) { st.plan = { ...m.tbPosition }; st.current = null; }
+    });
+    p = 1;
+  }
+  return { w, f, m: ms, p };
 }
 
 forms["account-signin"] = async (v) => {
   try {
     await C.signInEmail(v.email.trim(), v.password);
-    let r = { w: 0, f: 0, m: 0 }; try { r = await restoreMigrated(); } catch (err) { console.warn("Données non restaurées :", err.message); }
+    let r = { w: 0, f: 0, m: 0, p: 0 }; try { r = await restoreMigrated(); } catch (err) { console.warn("Données non restaurées :", err.message); }
     toast(r.w + r.f + r.m ? `Connecté · ${r.w} séances, ${r.f} repas, ${r.m} mesures restaurés` : "Connecté"); go("profile");
   }
   catch (e) { toast(e.message === "Invalid login credentials" ? "E-mail ou mot de passe incorrect" : "Connexion impossible : " + e.message); }
