@@ -38,15 +38,22 @@ actions["account-out"] = async () => {
   rerender();
 };
 
-// Restaure l'historique migré, seulement si le téléphone n'a encore aucune séance
+// Restaure les données migrées (séances, repas, mesures), seulement là où le téléphone est encore vide
 export async function restoreHistoryOnce() {
-  if (S().workouts?.length) return 0;
+  const s = S();
+  const needW = !s.workouts?.length, needF = !Object.keys(s.food || {}).length, needM = !(s.measures || []).length;
+  if (!needW && !needF && !needM) return 0;
   try {
-    const h = await C.fetchHistory();
-    if (!Array.isArray(h) || !h.length) return 0;
-    update(st => { st.workouts = h; });
-    return h.length;
-  } catch (e) { console.warn("Historique non restauré :", e.message); return 0; }
+    const m = await C.fetchMigrated();
+    if (!m) return 0;
+    let n = 0;
+    update(st => {
+      if (needW && Array.isArray(m.history) && m.history.length) { st.workouts = m.history; n += m.history.length; }
+      if (needF && m.food && Object.keys(m.food).length) { st.food = m.food; n += Object.values(m.food).reduce((a, v) => a + (Array.isArray(v) ? v.length : 0), 0); }
+      if (needM && Array.isArray(m.measures) && m.measures.length) { st.measures = m.measures; n += m.measures.length; }
+    });
+    return n;
+  } catch (e) { console.warn("Données non restaurées :", e.message); return 0; }
 }
 
 forms["account-signin"] = async (v) => {

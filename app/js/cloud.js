@@ -109,7 +109,16 @@ export async function notify(title, body, to = null) {
 // Données du membre pour l'espace coach (séances, journal, agenda, mesures)
 export async function pushData(data, summary) {
   if (!uid) await ensureSession();
-  const { error } = await sb.from("cxs_member_data").upsert({ user_id: uid, data, summary, updated_at: new Date().toISOString() });
+  // Fusion avec l'existant : l'historique migré et les repas/mesures déjà envoyés ne doivent pas être effacés
+  const { data: cur, error: e0 } = await sb.from("cxs_member_data").select("data").eq("user_id", uid).maybeSingle();
+  if (e0) throw e0;
+  const prev = cur?.data || {};
+  const merged = { ...prev, ...data };
+  merged.food = { ...(prev.food || {}), ...(data.food || {}) };
+  const byDay = new Map();
+  [...(prev.measures || []), ...(data.measures || [])].forEach(m => byDay.set(m.d, m));
+  merged.measures = [...byDay.values()].sort((a, b) => String(a.d).localeCompare(String(b.d)));
+  const { error } = await sb.from("cxs_member_data").upsert({ user_id: uid, data: merged, summary, updated_at: new Date().toISOString() });
   if (error) throw error;
 }
 export async function memberData(id) {
@@ -151,12 +160,12 @@ export async function lastMessages() {
   return by;
 }
 
-// Historique d'entraînement migré depuis TB my Coach (restauré une seule fois, si le téléphone est vide)
-export async function fetchHistory() {
+// Données migrées depuis TB my Coach : history (séances), food (repas par jour), measures (mesures)
+export async function fetchMigrated() {
   const uid = await currentUserIdSb();
   if (!uid) return null;
   const { data, error } = await sb.from("cxs_member_data").select("data").eq("user_id", uid).maybeSingle();
   if (error) throw error;
-  return data?.data?.history || null;
+  return data?.data || null;
 }
 async function currentUserIdSb() { const { data } = await sb.auth.getSession(); return data.session?.user?.id || null; }
