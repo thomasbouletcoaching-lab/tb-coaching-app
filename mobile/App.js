@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { light } from "./src/theme";
 import Placeholder from "./screens/Placeholder";
 import Train from "./screens/Train";
+import Nutrition from "./screens/Nutrition";
 import { loadState } from "./src/state";
 
 const Tab = createBottomTabNavigator();
@@ -19,6 +20,9 @@ const TABS = [
   ["Coaching", "Coaching"],
   ["Profil", "Profil"],
 ];
+
+// Écrans déjà portés : les autres onglets restent en attente
+const SCREENS = { "Entraînement": () => <Train />, "Nutrition": () => <Nutrition /> };
 
 const navTheme = {
   ...DefaultTheme,
@@ -35,7 +39,7 @@ export default function App() {
       <Tab.Navigator screenOptions={{ headerStyle: { backgroundColor: light.paper }, headerTintColor: light.ink, tabBarActiveTintColor: light.blue, tabBarInactiveTintColor: light.steel }}>
         {TABS.map(([name, label]) => (
           <Tab.Screen key={name} name={name} options={{ tabBarLabel: label }}>
-            {name === "Entraînement" ? () => <Train /> : () => <Placeholder title={label} note="Écran en cours de portage depuis CalXsthenos." />}
+            {SCREENS[name] || (() => <Placeholder title={label} note="Écran en cours de portage depuis CalXsthenos." />)}
           </Tab.Screen>
         ))}
       </Tab.Navigator>
