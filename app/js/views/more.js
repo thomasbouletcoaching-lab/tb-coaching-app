@@ -1,4 +1,4 @@
-// Profil, réglages, sauvegarde, connaissances, « Pourquoi le X ? », confidentialité.
+// Profil, réglages, sauvegarde, connaissances, mon compte, confidentialité.
 import { S, update, resetAll, exportJSON, importJSON, today } from "../store.js";
 import * as E from "../engine.js";
 import * as N from "../nutrition.js";
@@ -77,7 +77,7 @@ routes.settings = async () => {
       <div class="li"><span class="em">📳</span><span class="grow">Vibrations</span><button class="switch ${S().settings.haptics ? "on" : ""}" data-a="haptics" aria-label="Vibrations"></button></div>
       <div class="li"><span class="em">🌗</span><span class="grow">Thème</span><select data-c="theme" class="inp" style="width:auto;padding:4px 8px;font-size:15px"><option value="">Automatique</option><option value="light" ${localStorage.getItem("cxs.theme") === "light" ? "selected" : ""}>Clair</option><option value="dark" ${localStorage.getItem("cxs.theme") === "dark" ? "selected" : ""}>Sombre</option></select></div>
       <button class="li" data-a="go" data-r="kb"><span class="em">📚</span><span class="grow">Connaissances</span>${I.chev}</button>
-      <button class="li" data-a="go" data-r="x"><span class="em">✖️</span><span class="grow">Pourquoi le X ?</span>${I.chev}</button>
+      <button class="li" data-a="go" data-r="account"><span class="em">👤</span><span class="grow">Mon compte</span>${I.chev}</button>
     </div>
     <h2 class="sec">Mes données</h2>
     <p class="small muted">Tes séances, ton journal et tes notes restent sur ce téléphone. Télécharge une sauvegarde chaque mois.</p>
@@ -160,16 +160,7 @@ function kbChapter(id) {
 }
 actions["kb-mode"] = (b, d) => { kbMode = d.v; kbChapter(R.param); };
 
-// ---------- Pourquoi le X, confidentialité ----------
-routes.x = () => {
-  $app.innerHTML = header("Pourquoi le X ?", "", { back: S().profile ? "profile" : "onboarding" }) + `<main class="page full prose">
-    <img src="assets/logo-grec-complet.jpg" alt="Le logo Cal X Sthenos : un athlète grec en figure noire, vu de dos, fait une traction sur la barre d'une croix, dans un médaillon à frise grecque" style="width:100%;border-radius:18px;margin-top:12px;display:block">
-    <p class="mt24"><i>Kalos</i>, en grec, c'est le beau, le noble. <i>Sthenos</i>, c'est la force. Ensemble, ils ont donné la calisthénie : l'art de bâtir un corps fort.</p>
-    <p>« Cal », ce sont aussi les calories : ce qui te nourrit. « Sthenos », ce qui te rend fort. Le X, c'est le point où les deux se croisent : la nutrition et l'entraînement, menés ensemble.</p>
-    <p>Sur le logo, un athlète peint comme sur un vase grec fait une traction : la force se construit en s'élevant, une répétition après l'autre.</p>
-    <p>Nous croyons que le corps compte et mérite d'être servi avec exigence : des données, de la régularité, et une méthode qui tient dans la vraie vie.</p>
-  </main>`;
-};
+// ---------- Confidentialité ----------
 routes.privacy = () => {
   $app.innerHTML = header("Confidentialité", "", { back: S().profile ? "profile" : "onboarding" }) + `<main class="page full prose">
     <p><b>Responsable :</b> ${esc(CONFIG.coachName)}, micro-entrepreneur, coach sportif.</p>

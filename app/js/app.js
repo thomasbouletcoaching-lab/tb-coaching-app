@@ -16,6 +16,7 @@ import "./views/trophees.js";
 import "./views/coach.js";
 import "./views/season.js";
 import "./views/admin.js";
+import "./views/account.js";
 import { applyTheme } from "./views/more.js";
 
 installEvents();

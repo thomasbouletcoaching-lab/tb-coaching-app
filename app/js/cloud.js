@@ -7,12 +7,38 @@ export const sb = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, { auth: {
 let uid = null;
 export const userId = () => uid;
 
+export class LoginRequired extends Error { constructor() { super("LOGIN_REQUIRED"); this.name = "LoginRequired"; } }
+// Connexion par e-mail (comptes TB my Coach). Sans connexion, le réseau est ignoré : l'app reste utilisable hors ligne.
 export async function ensureSession() {
   const { data } = await sb.auth.getSession();
   if (data.session) { uid = data.session.user.id; return uid; }
-  const r = await sb.auth.signInAnonymously();
-  if (r.error) throw r.error;
-  uid = r.data.user.id; return uid;
+  throw new LoginRequired();
+}
+export async function signUpEmail(email, password, name) {
+  const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name } } });
+  if (error) throw error;
+  if (data.session) { uid = data.user.id; await ensureProfile(data.user, name); }
+  return data;
+}
+export async function signInEmail(email, password) {
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  uid = data.user.id; await ensureProfile(data.user);
+  return data;
+}
+export async function resetPasswordEmail(email) {
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href.split("#")[0] });
+  if (error) throw error;
+}
+export async function signOutSb() { await sb.auth.signOut(); uid = null; }
+export async function accountEmail() { const { data } = await sb.auth.getSession(); return data.session?.user?.email || null; }
+// Crée le profil au premier passage (le serveur refuse de créer un profil sans ce passage)
+export async function ensureProfile(user, name = null) {
+  const { error } = await sb.from("cxs_profiles").upsert(
+    { id: user.id, email: user.email, name: name || user.user_metadata?.name || null },
+    { onConflict: "id", ignoreDuplicates: true }
+  );
+  if (error) throw error;
 }
 export async function currentSession() {
   const { data } = await sb.auth.getSession(); uid = data.session?.user.id || null; return uid;
