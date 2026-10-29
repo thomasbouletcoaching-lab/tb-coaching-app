@@ -7,6 +7,7 @@ import { light } from "./src/theme";
 import Placeholder from "./screens/Placeholder";
 import Train from "./screens/Train";
 import Nutrition from "./screens/Nutrition";
+import Recovery from "./screens/Recovery";
 import { loadState } from "./src/state";
 
 const Tab = createBottomTabNavigator();
@@ -22,7 +23,7 @@ const TABS = [
 ];
 
 // Écrans déjà portés : les autres onglets restent en attente
-const SCREENS = { "Entraînement": () => <Train />, "Nutrition": () => <Nutrition /> };
+const SCREENS = { "Entraînement": () => <Train />, "Nutrition": () => <Nutrition />, "Récupération": () => <Recovery /> };
 
 const navTheme = {
   ...DefaultTheme,
