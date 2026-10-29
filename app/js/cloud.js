@@ -150,3 +150,13 @@ export async function lastMessages() {
   (data || []).forEach(m => { const t = by[m.user_id] = by[m.user_id] || { last: m, unread: 0, bilan: false }; if (m.sender === m.user_id && !m.read_at) { t.unread++; if (/^📝 Bilan/.test(m.body)) t.bilan = true; } });
   return by;
 }
+
+// Historique d'entraînement migré depuis TB my Coach (restauré une seule fois, si le téléphone est vide)
+export async function fetchHistory() {
+  const uid = await currentUserIdSb();
+  if (!uid) return null;
+  const { data, error } = await sb.from("cxs_member_data").select("data").eq("user_id", uid).maybeSingle();
+  if (error) throw error;
+  return data?.data?.history || null;
+}
+async function currentUserIdSb() { const { data } = await sb.auth.getSession(); return data.session?.user?.id || null; }

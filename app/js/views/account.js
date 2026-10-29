@@ -1,5 +1,6 @@
 // Mon compte : connexion par e-mail aux comptes TB my Coach (coaching, messages, synchronisation).
 import * as C from "../cloud.js";
+import { S, update } from "../store.js";
 import { $app, esc, toast, routes, forms, actions, I, header, tabbar, rerender, go } from "../core.js";
 
 let mode = "signin"; // signin | signup | reset
@@ -37,8 +38,23 @@ actions["account-out"] = async () => {
   rerender();
 };
 
+// Restaure l'historique migré, seulement si le téléphone n'a encore aucune séance
+export async function restoreHistoryOnce() {
+  if (S().workouts?.length) return 0;
+  try {
+    const h = await C.fetchHistory();
+    if (!Array.isArray(h) || !h.length) return 0;
+    update(st => { st.workouts = h; });
+    return h.length;
+  } catch (e) { console.warn("Historique non restauré :", e.message); return 0; }
+}
+
 forms["account-signin"] = async (v) => {
-  try { await C.signInEmail(v.email.trim(), v.password); toast("Connecté"); go("profile"); }
+  try {
+    await C.signInEmail(v.email.trim(), v.password);
+    const n = await restoreHistoryOnce();
+    toast(n ? `Connecté · ${n} séances restaurées` : "Connecté"); go("profile");
+  }
   catch (e) { toast(e.message === "Invalid login credentials" ? "E-mail ou mot de passe incorrect" : "Connexion impossible : " + e.message); }
 };
 
