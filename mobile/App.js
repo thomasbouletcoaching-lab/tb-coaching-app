@@ -1,8 +1,12 @@
+import { useEffect, useState } from "react";
+import { ActivityIndicator, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { light } from "./src/theme";
 import Placeholder from "./screens/Placeholder";
+import Train from "./screens/Train";
+import { loadState } from "./src/state";
 
 const Tab = createBottomTabNavigator();
 
@@ -22,13 +26,16 @@ const navTheme = {
 };
 
 export default function App() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => { loadState().then(() => setReady(true)); }, []);
+  if (!ready) return <View style={{ flex: 1, justifyContent: "center", backgroundColor: light.chalk }}><ActivityIndicator color={light.blue} /></View>;
   return (
     <NavigationContainer theme={navTheme}>
       <StatusBar style="dark" />
       <Tab.Navigator screenOptions={{ headerStyle: { backgroundColor: light.paper }, headerTintColor: light.ink, tabBarActiveTintColor: light.blue, tabBarInactiveTintColor: light.steel }}>
         {TABS.map(([name, label]) => (
           <Tab.Screen key={name} name={name} options={{ tabBarLabel: label }}>
-            {() => <Placeholder title={label} note="Écran en cours de portage depuis CalXsthenos." />}
+            {name === "Entraînement" ? () => <Train /> : () => <Placeholder title={label} note="Écran en cours de portage depuis CalXsthenos." />}
           </Tab.Screen>
         ))}
       </Tab.Navigator>
