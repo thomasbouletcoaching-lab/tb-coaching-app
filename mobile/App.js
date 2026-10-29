@@ -10,6 +10,7 @@ import Nutrition from "./screens/Nutrition";
 import Recovery from "./screens/Recovery";
 import Coaching from "./screens/Coaching";
 import Home from "./screens/Home";
+import Profile from "./screens/Profile";
 import { loadState } from "./src/state";
 
 const Tab = createBottomTabNavigator();
@@ -25,7 +26,7 @@ const TABS = [
 ];
 
 // Écrans déjà portés : les autres onglets restent en attente
-const SCREENS = { "Entraînement": () => <Train />, "Nutrition": () => <Nutrition />, "Récupération": () => <Recovery />, "Coaching": () => <Coaching />, "Accueil": () => <Home /> };
+const SCREENS = { "Entraînement": () => <Train />, "Nutrition": () => <Nutrition />, "Récupération": () => <Recovery />, "Coaching": () => <Coaching />, "Accueil": () => <Home />, "Profil": () => <Profile /> };
 
 const navTheme = {
   ...DefaultTheme,
