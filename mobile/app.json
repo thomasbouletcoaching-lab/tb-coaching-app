@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "TB my Coach",
+    "slug": "tb-my-coach",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "tbmycoach",
+    "ios": { "supportsTablet": false, "bundleIdentifier": "fr.tbcoaching.mycoach" },
+    "android": { "package": "fr.tbcoaching.mycoach" },
+    "web": { "bundler": "metro" }
+  }
+}

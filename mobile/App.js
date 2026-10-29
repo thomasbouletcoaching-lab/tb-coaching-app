@@ -1,0 +1,37 @@
+import { StatusBar } from "expo-status-bar";
+import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { light } from "./src/theme";
+import Placeholder from "./screens/Placeholder";
+
+const Tab = createBottomTabNavigator();
+
+// Mêmes six onglets que l'app CalXsthenos, avec les couleurs de TB my Coach
+const TABS = [
+  ["Accueil", "Accueil"],
+  ["Entraînement", "Entraînement"],
+  ["Nutrition", "Nutrition"],
+  ["Récupération", "Récupération"],
+  ["Coaching", "Coaching"],
+  ["Profil", "Profil"],
+];
+
+const navTheme = {
+  ...DefaultTheme,
+  colors: { ...DefaultTheme.colors, background: light.chalk, card: light.paper, text: light.ink, primary: light.blue, border: light.line },
+};
+
+export default function App() {
+  return (
+    <NavigationContainer theme={navTheme}>
+      <StatusBar style="dark" />
+      <Tab.Navigator screenOptions={{ headerStyle: { backgroundColor: light.paper }, headerTintColor: light.ink, tabBarActiveTintColor: light.blue, tabBarInactiveTintColor: light.steel }}>
+        {TABS.map(([name, label]) => (
+          <Tab.Screen key={name} name={name} options={{ tabBarLabel: label }}>
+            {() => <Placeholder title={label} note="Écran en cours de portage depuis CalXsthenos." />}
+          </Tab.Screen>
+        ))}
+      </Tab.Navigator>
+    </NavigationContainer>
+  );
+}
