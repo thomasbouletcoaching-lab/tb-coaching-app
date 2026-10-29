@@ -10,6 +10,7 @@ async function body() {
   if (email) {
     return `<div class="card mt12"><div class="lbl">Connecté</div><p class="mt8" style="margin:0"><b>${esc(email)}</b></p>
       <p class="small muted mt8">Tes séances, ta nutrition et tes mesures restent sur ce téléphone. Le coaching et la messagerie passent par ton compte TB my Coach.</p>
+      <button class="btn btn-red mt12" data-a="account-restore">Restaurer mes données TB my Coach</button>
       <button class="btn btn-line mt12" data-a="account-out">Me déconnecter</button></div>`;
   }
   const tab = (m, l) => `<button class="btn ${mode === m ? "btn-red" : "btn-line"} btn-sm" data-a="account-mode" data-v="${m}">${l}</button>`;
@@ -33,34 +34,46 @@ routes.account = async () => {
 
 actions["account-mode"] = (b, d) => { mode = d.v; rerender(); };
 
+actions["account-restore"] = async () => {
+  try { const r = await restoreMigrated(); toast(r.w + r.f + r.m ? `Restauré : ${r.w} séances, ${r.f} repas, ${r.m} mesures` : "Rien de nouveau à restaurer"); }
+  catch (e) { toast("Restauration impossible : " + e.message); }
+  rerender();
+};
+
 actions["account-out"] = async () => {
   try { await C.signOutSb(); toast("Déconnecté"); } catch (e) { toast("Déconnexion impossible : " + e.message); }
   rerender();
 };
 
-// Restaure les données migrées (séances, repas, mesures), seulement là où le téléphone est encore vide
-export async function restoreHistoryOnce() {
-  const s = S();
-  const needW = !s.workouts?.length, needF = !Object.keys(s.food || {}).length, needM = !(s.measures || []).length;
-  if (!needW && !needF && !needM) return 0;
-  try {
-    const m = await C.fetchMigrated();
-    if (!m) return 0;
-    let n = 0;
-    update(st => {
-      if (needW && Array.isArray(m.history) && m.history.length) { st.workouts = m.history; n += m.history.length; }
-      if (needF && m.food && Object.keys(m.food).length) { st.food = m.food; n += Object.values(m.food).reduce((a, v) => a + (Array.isArray(v) ? v.length : 0), 0); }
-      if (needM && Array.isArray(m.measures) && m.measures.length) { st.measures = m.measures; n += m.measures.length; }
+// Fusionne les données migrées de TB my Coach (séances, repas, mesures) avec ce que le téléphone contient déjà.
+// Rien n'est effacé : on ajoute ce qui manque (même identifiant ou même jour = déjà présent, on ne double pas).
+export async function restoreMigrated() {
+  const m = await C.fetchMigrated();
+  if (!m) return { w: 0, f: 0, m: 0 };
+  let w = 0, f = 0, ms = 0;
+  update(st => {
+    const ids = new Set((st.workouts || []).map(x => String(x.id)));
+    const addW = (m.history || []).filter(x => !ids.has(String(x.id)));
+    if (addW.length) { st.workouts = [...(st.workouts || []), ...addW].sort((a, b) => String(a.start || "").localeCompare(String(b.start || ""))); w = addW.length; }
+    st.food = st.food || {};
+    Object.entries(m.food || {}).forEach(([d, arr]) => {
+      const cur = st.food[d] || [];
+      const have = new Set(cur.map(x => String(x.id)));
+      const add = (arr || []).filter(x => !have.has(String(x.id)));
+      if (add.length) { st.food[d] = [...cur, ...add]; f += add.length; }
     });
-    return n;
-  } catch (e) { console.warn("Données non restaurées :", e.message); return 0; }
+    const days = new Set((st.measures || []).map(x => x.d));
+    const addM = (m.measures || []).filter(x => !days.has(x.d));
+    if (addM.length) { st.measures = [...(st.measures || []), ...addM].sort((a, b) => String(a.d).localeCompare(String(b.d))); ms = addM.length; }
+  });
+  return { w, f, m: ms };
 }
 
 forms["account-signin"] = async (v) => {
   try {
     await C.signInEmail(v.email.trim(), v.password);
-    const n = await restoreHistoryOnce();
-    toast(n ? `Connecté · ${n} séances restaurées` : "Connecté"); go("profile");
+    let r = { w: 0, f: 0, m: 0 }; try { r = await restoreMigrated(); } catch (err) { console.warn("Données non restaurées :", err.message); }
+    toast(r.w + r.f + r.m ? `Connecté · ${r.w} séances, ${r.f} repas, ${r.m} mesures restaurés` : "Connecté"); go("profile");
   }
   catch (e) { toast(e.message === "Invalid login credentials" ? "E-mail ou mot de passe incorrect" : "Connexion impossible : " + e.message); }
 };
