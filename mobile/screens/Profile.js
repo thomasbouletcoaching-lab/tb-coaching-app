@@ -5,6 +5,7 @@ import { View, Text, TextInput, Pressable, ScrollView, Alert, StyleSheet } from 
 import { light as T } from "../src/theme";
 import { useS, update, S } from "../src/state";
 import * as C from "../src/cloud";
+import { MAIN_LIFTS } from "../src/logic/engine";
 
 const SEX = [["m", "Homme"], ["f", "Femme"]];
 const ACTIVITY = [["low", "Sédentaire"], ["light", "Léger"], ["mid", "Modéré"], ["high", "Élevé"], ["vhigh", "Très élevé"]];
@@ -95,6 +96,38 @@ function ProfileForm() {
   );
 }
 
+function RecordsCard() {
+  const rec = S().profile?.records || {};
+  const [vals, setVals] = useState(() => Object.fromEntries(MAIN_LIFTS.map(([k]) => [k, rec[k]?.e1rm != null ? String(rec[k].e1rm).replace(".", ",") : ""])));
+  const [msg, setMsg] = useState("");
+
+  function save() {
+    const records = {};
+    MAIN_LIFTS.forEach(([k]) => {
+      const n = parseFloat(String(vals[k]).replace(",", "."));
+      if (Number.isFinite(n) && n > 0) records[k] = { e1rm: n };
+    });
+    update(st => { st.profile = { ...(st.profile || {}), records }; });
+    setMsg("Records enregistrés. Les charges des séances sont recalculées.");
+  }
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Mes records (1RM estimé)</Text>
+      <Text style={styles.soft}>Le plus lourd que tu peux soulever une fois, en kg. Sans record, les charges des séances restent vides.</Text>
+      {MAIN_LIFTS.map(([k, label]) => (
+        <View key={k} style={styles.recRow}>
+          <Text style={[styles.rowName, { flex: 1 }]}>{label}</Text>
+          <TextInput style={styles.input} keyboardType="decimal-pad" value={vals[k]} placeholder="kg" placeholderTextColor={T.steel}
+            onChangeText={t => setVals(v => ({ ...v, [k]: t }))} />
+        </View>
+      ))}
+      <Pressable onPress={save} style={styles.btn}><Text style={styles.btnText}>Enregistrer mes records</Text></Pressable>
+      {!!msg && <Text style={styles.soft}>{msg}</Text>}
+    </View>
+  );
+}
+
 function AccountCard({ onSignedOut }) {
   const [me, setMe] = useState(null);
   const [loaded, setLoaded] = useState(false);
@@ -138,6 +171,7 @@ export default function Profile() {
       <Text style={styles.title}>Profil</Text>
       <Text style={styles.soft}>{st.workouts.length} séance{st.workouts.length > 1 ? "s" : ""} enregistrée{st.workouts.length > 1 ? "s" : ""} · {Object.keys(st.food || {}).length} jour{Object.keys(st.food || {}).length > 1 ? "s" : ""} de journal</Text>
       <ProfileForm key={JSON.stringify(st.profile || {})} />
+      <RecordsCard />
       <AccountCard onSignedOut={() => setTick(t => t + 1)} />
     </ScrollView>
   );
@@ -160,4 +194,6 @@ const styles = StyleSheet.create({
   btnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   linkBtn: { padding: 12, alignItems: "center", marginTop: 6 },
   linkText: { fontWeight: "600" },
+  rowName: { fontSize: 15, fontWeight: "600", color: T.ink },
+  recRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderColor: T.line },
 });
