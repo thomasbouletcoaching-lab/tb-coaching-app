@@ -1,5 +1,6 @@
 // Mon compte : connexion par e-mail aux comptes TB my Coach (coaching, messages, synchronisation).
 import * as C from "../cloud.js";
+import { convertTb, tbPosition } from "../tbconvert.js";
 import { S, update } from "../store.js";
 import { $app, esc, toast, routes, forms, actions, I, header, tabbar, rerender, go } from "../core.js";
 
@@ -67,11 +68,14 @@ export async function restoreMigrated() {
     if (addM.length) { st.measures = [...(st.measures || []), ...addM].sort((a, b) => String(a.d).localeCompare(String(b.d))); ms = addM.length; }
   });
   // Programme en cours (converti depuis TB my Coach) et position : remplacent le plan créé à l'onboarding
+  // La position n'est posée qu'une fois (tant que le plan n'est pas celui de TB) : elle ne revient pas en arrière ensuite
   let p = 0;
-  if (m.tbProgram?.id) {
+  const prog = m.tbRaw?.sessions?.length ? convertTb(m.tbRaw, "main") : null;
+  if (prog) {
+    const pos = tbPosition(prog, m.tbRaw.last || null);
     update(st => {
-      st.customPrograms = [...(st.customPrograms || []).filter(x => x.id !== m.tbProgram.id), m.tbProgram];
-      if (m.tbPosition) { st.plan = { ...m.tbPosition }; st.current = null; }
+      st.customPrograms = [...(st.customPrograms || []).filter(x => x.id !== prog.id), prog];
+      if (!st.plan || !String(st.plan.programId || "").startsWith("tb-")) { st.plan = pos; st.current = null; }
     });
     p = 1;
   }
