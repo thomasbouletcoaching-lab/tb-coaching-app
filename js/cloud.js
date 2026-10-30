@@ -247,3 +247,14 @@ export async function coachPlanSet(memberId, program) {
   const { error } = await sb.from("cxs_coach_plans").upsert({ user_id: memberId, program, updated_at: new Date().toISOString() });
   if (error) throw error;
 }
+
+// Nutrition : totaux journaliers (table nutri_daily). Le membre écrit les siens, le coach lit ceux de tous.
+export async function pushNutri(rows) {
+  const { error } = await sb.from("nutri_daily").upsert(rows, { onConflict: "user_id,d" });
+  if (error) throw error;
+}
+export async function nutriRecent(days = 7) {
+  const from = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+  const { data, error } = await sb.from("nutri_daily").select("user_id,d,kcal,sucres_g,sodium_mg,potassium_mg").gte("d", from);
+  if (error) throw error; return data || [];
+}

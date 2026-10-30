@@ -2,7 +2,8 @@
 import { S, update, today, onSave } from "./store.js";
 import * as E from "./engine.js";
 import * as N from "./nutrition.js";
-import { cloud, badges, isCoach } from "./core.js";
+import { cloud, badges, isCoach, addDays } from "./core.js";
+import { nutriRow } from "./nutri-totals.js";
 
 export async function syncProfile() {
   const c = await cloud(); if (!c || !S().profile) return;
@@ -62,7 +63,7 @@ export function pushData(now = false) {
   if (!S().profile || !S().synced) return;
   clearTimeout(tmr);
   const wait = now ? 0 : Math.max(4000, 20000 - (Date.now() - last));
-  tmr = setTimeout(async () => { const c = await cloud(); if (!c) return; try { const { data, summary } = snapshot(); await c.pushData(data, summary); last = Date.now(); } catch (e) { console.warn("Envoi au coach impossible :", e.message); } }, wait);
+  tmr = setTimeout(async () => { const c = await cloud(); if (!c) return; try { const { data, summary } = snapshot(); await c.pushData(data, summary); last = Date.now(); await pushNutri(c).catch(() => { }); } catch (e) { console.warn("Envoi au coach impossible :", e.message); } }, wait);
 }
 onSave(() => pushData());
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") pushData(true); });
@@ -97,4 +98,11 @@ export async function pullCoachPlan() {
     const keep = st.plan && st.plan.programId === "coach-plan";
     st.plan = { programId: "coach-plan", startedAt: keep && st.plan.startedAt ? st.plan.startedAt : today(), week: keep ? (st.plan.week || 1) : 1, idx: keep ? Math.min(st.plan.idx || 0, prog.s.length - 1) : 0, cycle: 1 };
   });
+}
+
+// Totaux nutritionnels des 14 derniers jours, écrits dans nutri_daily (le coach les lit pour les alertes)
+async function pushNutri(c) {
+  await c.ensureSession(); const uid = c.userId(); if (!uid) return;
+  const rows = []; for (let i = 0; i < 14; i++) { const r = nutriRow(uid, addDays(today(), -i), false); if (r) rows.push(r); }
+  if (rows.length) await c.pushNutri(rows);
 }

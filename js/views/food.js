@@ -1,6 +1,7 @@
 // Nutrition : journal (heures des repas), favoris, repas enregistrés, plan écrit, recettes, batch cooking,
 // jeûne, dépense calorique (MB, NEAT, EAT, TEF, TDEE), corps (poids, projection, mensurations, photos).
 import { S, update, today, addPhoto, listPhotos, deletePhoto, updatePhoto } from "../store.js";
+import { nutriCard } from "./nutri-detail.js";
 import * as N from "../nutrition.js";
 import * as RC from "../recipes.js";
 import * as EN from "../energy.js";
@@ -163,7 +164,7 @@ function journalBody(t) {
   const fs = EN.fastState();
   return `<div class="row between mt12"><button class="icon-btn" data-a="food-day" data-v="-1" aria-label="Jour précédent">${I.back}</button><b class="h3" style="text-transform:capitalize">${d === today() ? "Aujourd'hui" : fmtDate(d)}</b><button class="icon-btn" data-a="food-day" data-v="1" aria-label="Jour suivant" style="transform:scaleX(-1);${d === today() ? "visibility:hidden" : ""}">${I.back}</button></div>
     <div class="card mt8">${caloriesCard(d)}</div>
-    ${S().settings?.simpleNutri ? "" : sugarSaltCard(d)}
+    ${S().settings?.simpleNutri ? "" : nutriCard(d)}
     <button class="card tap mt12" data-a="go" data-r="crise" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:24px">🆘</span><span class="grow"><b>Je craque</b><br><span class="xs muted">Une envie forte ? 2 minutes pour souffler et décider, sans culpabilité.</span></span>${I.chev}</button>
     <div class="card"><div class="rt" style="border:0;padding:0"><span class="em">💧</span><div class="grow"><b>Eau</b><div class="small muted">${fr(water * .25, 2)} L · 1 verre = 25 cl</div></div><div class="water"><button data-a="water" data-v="-1" data-d="${d}" aria-label="Retirer un verre">−</button><b>${water}</b><button data-a="water" data-v="1" data-d="${d}" aria-label="Ajouter un verre">+</button></div></div></div>
     ${fs ? `<button class="card tap" data-a="food-tab" data-v="jeune" style="display:flex;gap:12px;align-items:center"><span style="font-size:26px">${fs.stage[1]}</span><span class="grow"><b>Jeûne en cours · ${Math.floor(fs.hours)} h</b><br><span class="small muted">${esc(fs.stage[2])}</span></span>${I.chev}</button>` : ""}

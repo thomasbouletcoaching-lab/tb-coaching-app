@@ -19,8 +19,8 @@ async function load(force = false) {
   const c = await cloud(); if (!c) { A.err = "Pas de connexion au serveur."; return; }
   try {
     await (c.currentSession().then(u => u || c.ensureSession()));
-    const [ms, sums, th, st] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled"]).catch(() => ({}))]);
-    A.members = ms.filter(m => m.name || m.email); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.threads = th;
+    const [ms, sums, th, st, nut] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled"]).catch(() => ({})), c.nutriRecent(7).catch(() => [])]);
+    A.members = ms.filter(m => m.name || m.email); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.threads = th; A.nutri = {}; (nut || []).forEach(r => { (A.nutri[r.user_id] = A.nutri[r.user_id] || []).push(r); });
     A.store = { todo: st.todo?.items || [], biz: st.biz || BIZ0(), notes: st.notes || {}, handled: st.handled || {} };
     A.store.biz.payments = A.store.biz.payments || []; A.store.biz.cycles = A.store.biz.cycles || []; A.store.biz.settings = A.store.biz.settings || {};
     window.__members = ms; A.at = Date.now(); A.err = null;
@@ -141,6 +141,12 @@ function todoToday() {
     (s.agenda || []).filter(a => a.st === "missed" && (a.d === t || a.d === y)).forEach(a => out.push(["❌", `${first(m)} a loupé ${a.title} (${a.d === t ? "aujourd'hui" : "hier"})`, `member/${m.id}`]));
     (s.alerts || []).slice(0, 2).forEach(a => out.push(["⚠️", `${first(m)} · ${a}`, `member/${m.id}`]));
     if ((isClient(m) || offer(m.tier).rank >= 1) && n != null && n >= 4) out.push(["🔔", `Relancer ${first(m)} : rien depuis ${n} j`, `relance:${m.id}`]);
+    // Nutrition : alerte seulement si le dépassement revient (3 jours sur les 7 derniers), pour éviter le bruit
+    const nd = (A.nutri || {})[m.id] || [];
+    const sugHigh = nd.filter(r => r.sucres_g != null && r.kcal >= 800 && (r.sucres_g * 4) / r.kcal > 0.10).length;
+    if (sugHigh >= 3) out.push(["🍬", `${first(m)} : sucres au-dessus du repère ${sugHigh} jours sur 7`, `member/${m.id}`]);
+    const naHigh = nd.filter(r => r.sodium_mg && r.potassium_mg != null && (r.potassium_mg / r.sodium_mg < 1 || r.sodium_mg > 2300)).length;
+    if (naHigh >= 3) out.push(["🧂", `${first(m)} : équilibre sodium / potassium à surveiller ${naHigh} jours sur 7`, `member/${m.id}`]);
     if (m.tier_until && m.tier_until >= t && m.tier_until <= addDays(t, 3)) out.push(["⏳", `Formule de ${first(m)} jusqu'au ${fmtDate(m.tier_until, { day: "numeric", month: "short" })}`, `member/${m.id}`]);
   });
   candidates().forEach(m => out.push(["📥", `Candidature de ${first(m)}`, `member/${m.id}`]));
