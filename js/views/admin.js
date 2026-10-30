@@ -6,6 +6,7 @@ import * as N from "../nutrition.js";
 import * as RC from "../recipes.js";
 import { CONFIG, OFFERS, offer } from "../config.js";
 import { $app, esc, num, fr, toast, ago, routes, R, actions, forms, changes, go, I, header, seg, chips, sheet, closeSheet, fmtDate, addDays, rerender, isCoach, cloud, barChart, adminTabbar, adminBadges, hbars } from "../core.js";
+import { readyList, ensureReady } from "./coach.js";
 import { libraryRows, refreshLibrary } from "../library.js";
 import { filterExercises, ficheSheet } from "./train.js";
 import { openRecipeEditor } from "./food.js";
@@ -163,14 +164,23 @@ function bulkBlock() {
   return `<details class="fold" ${UI.open.bulk ? "open" : ""} data-fold="bulk"><summary>📣 Message à plusieurs clients</summary><div class="fb">
     <div class="chips wrap"><button class="chip sm" data-a="adm-bsel" data-v="all">Tous</button><button class="chip sm" data-a="adm-bsel" data-v="clients">Coaching</button><button class="chip sm" data-a="adm-bsel" data-v="late">À relancer</button><button class="chip sm" data-a="adm-bsel" data-v="none">Aucun</button></div>
     <div class="list mt8">${ms.map(m => `<label class="li" style="gap:10px"><input type="checkbox" data-c="adm-bpick" value="${m.id}" ${bulkSel.has(m.id) ? "checked" : ""} style="width:20px;height:20px;accent-color:var(--red)"><span class="grow small">${esc(first(m))} <span class="xs muted">${esc(offer(m.tier).name)}</span></span></label>`).join("")}</div>
-    <form data-f="adm-bulk" class="mt8"><label class="field"><span>Message (envoyé dans le fil de chacun)</span><textarea name="b" required maxlength="2000" placeholder="Bonjour à tous…"></textarea></label><button class="btn btn-red btn-sm mt8" style="width:100%">Envoyer à ${bulkSel.size} membre${bulkSel.size > 1 ? "s" : ""}</button></form>
+    <div class="lbl mt12">Message tout fait</div><div class="chips wrap mt8">${readyList().map(r => `<button class="chip sm" data-a="bulk-tpl" data-v="${esc(r.id)}">${esc(r.label)}</button>`).join("")}</div>
+    <form data-f="adm-bulk" class="mt8"><label class="field"><span>Message (envoyé dans le fil de chacun)</span><textarea id="bulk-txt" name="b" required maxlength="2000" placeholder="Bonjour {prénom}…"></textarea></label>
+      <div class="row" style="gap:6px;margin-top:6px"><button type="button" class="chip sm" data-a="bulk-name">+ Prénom {prénom}</button><span class="xs muted">Remplacé automatiquement par le prénom de chaque client.</span></div>
+      <button class="btn btn-red btn-sm mt8" style="width:100%">Envoyer à ${bulkSel.size} membre${bulkSel.size > 1 ? "s" : ""}</button></form>
     <form data-f="broadcast" class="mt16"><div class="lbl">Ou une notification à tous les membres</div><label class="field mt8"><span>Titre</span><input name="t" required maxlength="80"></label><label class="field mt8"><span>Message</span><textarea name="b" maxlength="300"></textarea></label><button class="btn btn-line btn-sm mt8" style="width:100%">Envoyer la notification</button></form></div></details>`;
 }
 changes["adm-bpick"] = (el) => { if (el.checked) bulkSel.add(el.value); else bulkSel.delete(el.value); const b = document.querySelector('form[data-f="adm-bulk"] button'); if (b) b.textContent = `Envoyer à ${bulkSel.size} membre${bulkSel.size > 1 ? "s" : ""}`; };
 actions["adm-bsel"] = (b, d) => { const ms = A.members || []; bulkSel = new Set(d.v === "none" ? [] : ms.filter(m => d.v === "all" || (d.v === "clients" ? isClient(m) : (daysSince(lastAct(m) || m.last_seen) ?? 0) >= 4)).map(m => m.id)); UI.open.bulk = true; rerender(); };
+// Message tout fait : remplit le champ (modifiable avant envoi)
+actions["bulk-tpl"] = (b, d) => { const r = readyList().find(x => x.id === d.v), t = document.getElementById("bulk-txt"); if (r && t) { t.value = r.body; t.focus(); } };
+actions["bulk-name"] = () => { const t = document.getElementById("bulk-txt"); if (!t) return; const p = t.selectionStart ?? t.value.length; t.value = t.value.slice(0, p) + "{prénom}" + t.value.slice(t.selectionEnd ?? p); t.focus(); };
+// Chaque message part avec le prénom du destinataire à la place de {prénom}
+const prenom = (m) => ((m?.name || "").trim().split(/\s+/)[0]) || first(m || { email: "" });
+const personalize = (body, m) => body.replace(/\{prénom\}/gi, prenom(m));
 forms["adm-bulk"] = async (v, f) => {
   if (!bulkSel.size) return toast("Choisis au moins un membre.");
-  const c = await cloud(); let ok = 0; for (const id of bulkSel) { try { await c.send(v.b.trim(), id); ok++; } catch { } }
+  const c = await cloud(); let ok = 0; for (const id of bulkSel) { const m = A.members.find(x => x.id === id); try { await c.send(personalize(v.b.trim(), m || { name: "" }), id); ok++; } catch { } }
   f.reset(); toast(`Message envoyé à ${ok} membre${ok > 1 ? "s" : ""}`); bulkSel = new Set(); load(true).then(rerender);
 };
 
@@ -225,6 +235,7 @@ routes["admin-today"] = async () => {
 
 routes.admin = async () => {
   if (!(await guard("admin"))) return;
+  await ensureReady().catch(() => { });
   frame("admin", `<div class="adm-links mt8"><button class="adm-link" data-a="adm-rank">🏆 Classement des clients</button><button class="adm-link" data-a="go" data-r="kb">📘 Méthode & théorie</button></div>
     ${candBlock()}${bulkBlock()}${clientsBlock()}`);
   const i = document.getElementById("adm-q"); i?.addEventListener("input", () => { UI.q = i.value; clearTimeout(i._t); i._t = setTimeout(() => { const box = document.getElementById("adm-list"); if (box) { const tmp = document.createElement("div"); tmp.innerHTML = clientsBlock(); box.innerHTML = tmp.querySelector("#adm-list").innerHTML; } }, 150); });
