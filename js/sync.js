@@ -83,3 +83,18 @@ export async function pullCoachSlots() {
     });
   });
 }
+
+// Programme posé par le coach : remplace le programme actif du membre. La position (semaine, séance) est gardée si elle existe déjà.
+export async function pullCoachPlan() {
+  const c = await cloud(); if (!c || !S().profile) return;
+  let row; try { row = await c.coachPlan(); } catch (e) { return; }
+  if (!row || !Array.isArray(row.program?.s) || !row.program.s.length) return;
+  update(st => {
+    if (st.coachPlanSeen === row.updated_at) return;
+    st.coachPlanSeen = row.updated_at;
+    const prog = { ...row.program, id: "coach-plan" };
+    st.customPrograms = [...(st.customPrograms || []).filter(x => x.id !== "coach-plan"), prog];
+    const keep = st.plan && st.plan.programId === "coach-plan";
+    st.plan = { programId: "coach-plan", startedAt: keep && st.plan.startedAt ? st.plan.startedAt : today(), week: keep ? (st.plan.week || 1) : 1, idx: keep ? Math.min(st.plan.idx || 0, prog.s.length - 1) : 0, cycle: 1 };
+  });
+}
