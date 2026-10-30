@@ -66,3 +66,20 @@ export function pushData(now = false) {
 }
 onSave(() => pushData());
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") pushData(true); });
+
+// Applique les décalages posés par le coach : séance déplacée (moves) et nouvelle heure (slots).
+// Chaque décalage n'est appliqué qu'une fois par version (updated_at), pour ne pas écraser un changement fait ensuite par le membre.
+export async function pullCoachSlots() {
+  const c = await cloud(); if (!c || !S().profile) return;
+  let rows; try { rows = await c.coachSlots(); } catch (e) { return; }
+  if (!rows.length) return;
+  update(st => {
+    st.coachSeen = st.coachSeen || {}; st.moves = st.moves || {}; st.slots = st.slots || {};
+    rows.forEach(r => {
+      if (st.coachSeen[r.orig_d] === r.updated_at) return;
+      st.coachSeen[r.orig_d] = r.updated_at;
+      st.moves[r.orig_d] = r.new_d;
+      if (r.new_time) st.slots[r.new_d] = { ...(st.slots[r.new_d] || {}), time: r.new_time };
+    });
+  });
+}

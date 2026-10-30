@@ -71,8 +71,21 @@ function agendaRows(d) {
 const stLbl = (r) => r.ip ? ["⏱️ En cours", "ip"] : r.a.st === "done" ? ["✅ Faite", "dn"] : r.a.st === "missed" ? ["❌ Loupée", "ms"] : ["● Prévue", "pl"];
 function agRow(r, d) {
   const [l, c] = stLbl(r), past = d < today() || (d === today() && r.a.st === "done");
-  return `<button class="ag-row ${past && !r.ip ? "past" : ""}" ${r.me ? `data-a="ag-day" data-v="${d}"` : `data-a="go" data-r="member" data-p="${r.m.id}"`}><span class="t">${esc(r.a.time || "—")}</span><span class="small"><b>${esc(r.name)}</b> · ${esc(r.a.title)}${r.a.moved ? ` <span class="muted">(déplacée)</span>` : ""}${r.a.place ? `<br><span class="xs muted">${esc(r.a.place)}${r.a.dur ? ` · ${r.a.dur} min` : ""}</span>` : ""}</span><span class="ag-st ${c}">${l}</span></button>`;
+  const shift = r.me ? "" : `<button class="ghost sm" data-a="ag-shift" data-m="${r.m.id}" data-d="${d}" data-t="${esc(r.a.time || "")}">↪︎ Décaler</button>`;
+  return `<div class="row" style="gap:6px;align-items:stretch"><div class="grow" style="min-width:0"><button class="ag-row ${past && !r.ip ? "past" : ""}" ${r.me ? `data-a="ag-day" data-v="${d}"` : `data-a="go" data-r="member" data-p="${r.m.id}"`}><span class="t">${esc(r.a.time || "—")}</span><span class="small"><b>${esc(r.name)}</b> · ${esc(r.a.title)}${r.a.moved ? ` <span class="muted">(déplacée)</span>` : ""}${r.a.place ? `<br><span class="xs muted">${esc(r.a.place)}${r.a.dur ? ` · ${r.a.dur} min` : ""}</span>` : ""}</span><span class="ag-st ${c}">${l}</span></button></div>${shift}</div>`;
 }
+actions["ag-shift"] = (b, d) => {
+  const m = A.members.find(x => x.id === d.m);
+  sheet(`<h2 class="h2">Décaler la séance de ${esc(first(m))}</h2><p class="xs muted">Le membre verra la nouvelle date et la nouvelle heure dans son agenda.</p>
+    <form data-f="ag-shift" data-m="${esc(d.m)}" data-d="${esc(d.d)}" class="mt12"><div class="grid2"><label class="field"><span>Nouveau jour</span><input type="date" name="to" value="${esc(d.d)}" required></label><label class="field"><span>Heure</span><input type="time" name="time" value="${esc(d.t || "")}"></label></div>
+    <button class="btn btn-red mt12">Enregistrer le décalage</button></form>`);
+};
+forms["ag-shift"] = async (v, f) => {
+  const c = await cloud();
+  try { await c.coachSlotSet(f.dataset.m, f.dataset.d, v.to, v.time || null); }
+  catch (e) { return toast("Décalage impossible : " + e.message); }
+  closeSheet(); toast("Séance décalée"); rerender();
+};
 function agendaBlock() {
   const t = today(), d = UI.agDay || t, mon = addDays(d, -E.dowOf(d)), days = Array.from({ length: 7 }, (_, i) => addDays(mon, i));
   const counts = Object.fromEntries(days.map(k => [k, agendaRows(k).length]));
