@@ -1,6 +1,6 @@
 // Service worker TB my Coach : l'app fonctionne hors ligne en salle.
 // Après chaque modification de l'app, augmenter ce numéro de version.
-const C = "cxs-v45";
+const C = "cxs-v46";
 const SHELL = ["./", "index.html", "coach.html", "manifest-coach.webmanifest", "css/app.css", "js/app.js", "js/core.js", "js/sync.js", "js/store.js", "js/engine.js", "js/energy.js", "js/nutrition.js", "js/recipes.js", "js/config.js", "js/views/onboarding.js", "js/views/home.js", "js/views/agenda.js", "js/views/train.js", "js/views/food.js", "js/views/meals.js", "js/views/supps.js", "js/shop.js", "js/quests.js", "js/views/trophees.js", "js/views/coach.js", "js/views/more.js", "js/views/crise.js", "js/views/recup.js", "js/library.js", "js/cloud.js", "js/views/season.js", "js/views/admin.js", "data/fiches.json", "data/lib.json", "data/programs.json", "data/nutrition-models.json", "manifest.webmanifest", "assets/logo-grec.jpg", "assets/favicon-96-grec.png", "assets/icon-192-grec.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(C).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C && !k.startsWith("tb-media")).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
