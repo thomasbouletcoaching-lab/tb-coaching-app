@@ -232,3 +232,18 @@ export async function coachSlotSet(memberId, origD, newD, newTime) {
   const { error } = await sb.from("cxs_coach_slots").upsert({ user_id: memberId, orig_d: origD, new_d: newD, new_time: newTime || null, updated_at: new Date().toISOString() });
   if (error) throw error;
 }
+
+// Programme écrit par le coach (table cxs_coach_plans). Le membre le lit, le coach l'écrit.
+export async function coachPlan() {
+  if (!uid) await ensureSession();
+  const { data, error } = await sb.from("cxs_coach_plans").select("program,updated_at").eq("user_id", uid).maybeSingle();
+  if (error) throw error; return data || null;
+}
+export async function coachPlanGet(memberId) {
+  const { data, error } = await sb.from("cxs_coach_plans").select("program,updated_at").eq("user_id", memberId).maybeSingle();
+  if (error) throw error; return data || null;
+}
+export async function coachPlanSet(memberId, program) {
+  const { error } = await sb.from("cxs_coach_plans").upsert({ user_id: memberId, program, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
