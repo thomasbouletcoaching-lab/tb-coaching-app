@@ -2,7 +2,7 @@
 export const CONFIG = {
   coachName: "Thomas Boulet",
   coachTitle: "Coach diplômé STAPS · Paris",
-  calendly: "https://calendly.com/thomboulet/bilan-offert-ta-strategie-adaptee",
+  calendly: "https://calendly.com/thomboulet/appel-de-check-in-avec-ton-coach",
   instagram: "",
   email: "",
   supabaseUrl: "https://xtapitojdvicgcaygeqj.supabase.co",
