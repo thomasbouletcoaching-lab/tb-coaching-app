@@ -32,3 +32,10 @@ export function nutriCard(d) {
       ${note}
     </div></details></div>`;
 }
+
+// Ligne résumée (accueil alimentation) : sucres, sel, équilibre sodium / potassium
+export function nutriLine(d) {
+  const t = dayNutrients(d); if (!t.total) return "";
+  const dt = (s) => s ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${DOT[s]};margin-left:4px"></span>` : "";
+  return `<div class="row between xs mt8" style="gap:8px;flex-wrap:wrap"><span>🍬 Sucres <b style="color:var(--ink)">${dash(t.sugG, "g")}</b>${dt(t.sugStatus)}</span><span>🧂 Sel <b style="color:var(--ink)">${dash(t.salt, "g")}</b></span><span>⚖️ K/Na <b style="color:var(--ink)">${t.ratio == null ? "—" : fr(t.ratio, 1)}</b>${dt(t.naStatus)}</span></div>`;
+}
