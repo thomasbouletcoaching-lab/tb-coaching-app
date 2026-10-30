@@ -283,12 +283,15 @@ export function planFor(date = today()) {
   else if (W.mode === "days") m = byId(W.days?.[dowOf(date)]);
   return m?.length ? m : S().myPlan?.meals?.length ? S().myPlan.meals : null;
 }
-const cheatExtra = (c, t) => Math.max(0, (c.kcal || 1200) - Math.round(t.kcal * .3));
+// Surplus d'un cheat meal : ses calories calculées moins la part d'un repas normal (30 % de la cible). Sans calcul, pas de surplus.
+const cheatExtra = (c, t) => Math.max(0, (c.kcal || 0) - Math.round(t.kcal * .3));
 export const cheats = () => (S().cheats || []).slice().sort((a, b) => a.d.localeCompare(b.d));
 export const nextCheat = () => cheats().find(c => c.d >= today()) || null;
 export const cheatOn = (d) => (S().cheats || []).filter(c => c.d === d);
 // Cible du jour : jours d'entraînement un peu plus hauts, jours de repos un peu plus bas (moyenne de la semaine inchangée),
 // et un cheat meal prévu est compensé sur les autres jours de la semaine pour garder le déficit hebdomadaire.
+const monthStart = (d) => d.slice(0, 8) + "01";
+const monthEnd = (d) => { const [y, m] = d.split("-").map(Number); return `${y}-${String(m).padStart(2, "0")}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`; };
 export function dayTarget(date = today()) {
   const t = targets(); if (!t) return null;
   let kcal = t.kcal; const notes = [];
@@ -298,7 +301,7 @@ export function dayTarget(date = today()) {
     if (dayKind(date) === "train") { kcal += up; notes.push(`+${up} kcal : jour d'entraînement`); }
     else { const dn = Math.round(up * n / (7 - n)); kcal -= dn; notes.push(`−${dn} kcal : jour de repos`); }
   }
-  const mon = mondayOf(date), sun = shiftD(mon, 6);
+  const mon = monthStart(date), sun = monthEnd(date); // compensation sur le mois
   const cs = (S().cheats || []).filter(c => c.d >= mon && c.d <= sun);
   if (cs.length) {
     const mine = cs.filter(c => c.d === date);
@@ -313,7 +316,7 @@ export function dayTarget(date = today()) {
         cut += cheatExtra(c, t) / Math.max(1, others);
       });
       cut = Math.min(Math.round(t.kcal * .15), Math.round(cut));
-      if (cut > 0) { kcal -= cut; notes.push(`−${cut} kcal : cheat meal prévu cette semaine`); }
+      if (cut > 0) { kcal -= cut; notes.push(`−${cut} kcal : cheat meal prévu ce mois`); }
     }
   }
   const diff = kcal - t.kcal;

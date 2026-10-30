@@ -103,17 +103,14 @@ function weekBody(t) {
         ${V.length ? `<div class="list mt4">${V.map(v => `<div class="li"><span class="grow small"><b>${esc(v.name)}</b><br><span class="xs muted">${v.meals.length} repas · ${fr(v.meals.flatMap(m => m.items).reduce((a, x) => a + (x.kcal || 0), 0))} kcal</span></span><button class="btn btn-line btn-xs" data-a="var-edit" data-id="${v.id}">Modifier</button><button class="icon-btn" data-a="var-del" data-id="${v.id}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>` : ""}
         <button class="btn btn-line btn-sm mt8" data-a="var-new" style="width:100%">+ Créer une variante (copie de mon plan)</button>` : ""}</div>
 
-    <h2 class="sec">🍕 Cheat meal programmé</h2>
-    <div class="card"><p class="small muted" style="margin-top:0">Prévois tes plaisirs à une date : c'est noté dans ton agenda, tu le gardes en ligne de mire, et l'app ajuste les autres jours de la semaine pour garder ton objectif.</p>
-      <form data-f="cheat" class="stack"><label class="field"><span>Date</span><input name="d" type="date" min="${today()}" value="${addDays(today(), (12 - new Date().getDay()) % 7 || 7)}" required></label>
-        <label class="field"><span>Mes plaisirs (un par ligne)</span><textarea name="items" class="inp" rows="3" style="height:auto;text-align:left;padding:10px" placeholder="Pizza 4 fromages&#10;Tiramisu&#10;Un verre de vin"></textarea></label>
-        <label class="field"><span>Estimation du repas (kcal)</span><input name="kcal" inputmode="numeric" placeholder="ex. 1500 (par défaut 1 200)"></label>
-        <button class="btn btn-red btn-sm">Programmer mon cheat meal</button></form>
-      ${cs.length ? `<div class="list mt12">${cs.map(c => `<div class="li"><span class="em">🍕</span><span class="grow small"><b>${fmtDate(c.d, { weekday: "long", day: "numeric", month: "long" })}</b><br><span class="xs muted">${esc((c.items || []).join(", ") || "Plaisirs à définir")} · ≈ ${fr(c.kcal || 1200)} kcal</span></span><button class="icon-btn" data-a="cheat-del" data-id="${c.id}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>` : ""}</div>
+    <h2 class="sec">🍕 Plaisirs du mois</h2>
+    <div class="card"><p class="small muted" style="margin-top:0">Programme tes cheat meals à l'avance, à la date de ton choix, avec les aliments de ton journal : chaque plaisir est calculé comme tes repas. L'app répartit la compensation sur le mois, sans toucher à ton plan de la semaine.</p>
+      <button class="btn btn-red btn-sm" data-a="cheat-new" style="width:100%">+ Programmer un cheat meal</button>
+      ${cs.length ? `<div class="list mt12">${cs.map(c => cheatLi(c)).join("")}</div>` : `<p class="xs muted mt8">Aucun plaisir programmé pour l'instant.</p>`}</div>
 
     <h2 class="sec">📊 Cette semaine <small>${fr(total)} kcal · moyenne ${fr(total / 7)}</small></h2>
     <div class="list">${rows}</div>
-    <p class="xs muted mt8">La compensation d'un cheat meal se limite à 15 % de tes calories par jour : au-delà, mieux vaut un repas plaisir plus petit qu'une semaine de restriction.</p>`;
+    <p class="xs muted mt8">La compensation d'un cheat meal est répartie sur le mois, et se limite à 15 % de tes calories par jour : au-delà, mieux vaut un repas plaisir plus petit qu'une semaine de restriction.</p>`;
 }
 const setWT = (fn) => update(st => { st.weekType = { ...N.weekType(), ...(st.weekType || {}) }; fn(st.weekType); });
 actions["wt-mode"] = (b, d) => { setWT(w => { w.mode = d.v; if (d.v !== "same" && !(S().planVariants || []).length && S().myPlan?.meals?.length) { /* rien : l'utilisateur crée ses variantes */ } }); rerender(); };
@@ -131,11 +128,47 @@ actions["var-new"] = () => {
 actions["var-edit"] = (b, d) => { update(st => st.editVar = d.id); tab = "plan"; rerender(); window.scrollTo(0, 0); };
 actions["var-done"] = () => { update(st => st.editVar = null); tab = "semaine"; rerender(); };
 actions["var-del"] = (b, d) => { if (!confirm("Supprimer cette variante ?")) return; update(st => { st.planVariants = (st.planVariants || []).filter(v => v.id !== d.id); const w = st.weekType; if (w) { if (w.train === d.id) w.train = "main"; if (w.rest === d.id) w.rest = "main"; w.days = (w.days || []).map(x => x === d.id ? "main" : x); } if (st.editVar === d.id) st.editVar = null; }); rerender(); };
+// ---------- Cheat meal : aliments calculés comme ceux du journal ----------
+let CH = null; // brouillon : { d, items: [{ label, g, kcal, p, c, f, fib, mic }] }
+const cheatKcal = (items) => items.reduce((a, x) => a + (x.kcal || 0), 0);
+const cheatLabel = (x) => typeof x === "string" ? x : x.label;
+function cheatLi(c) {
+  const names = (c.items || []).map(cheatLabel).join(", ") || "Plaisirs à définir";
+  return `<div class="li"><span class="em">🍕</span><span class="grow small"><b>${fmtDate(c.d, { weekday: "long", day: "numeric", month: "long" })}</b><br><span class="xs muted">${esc(names)}${c.kcal ? ` · ${fr(c.kcal)} kcal` : " · calories non calculées"}</span></span><button class="icon-btn" data-a="cheat-del" data-id="${c.id}" aria-label="Supprimer">${I.close}</button></div>`;
+}
+function openCheatSheet() {
+  const items = CH.items, total = cheatKcal(items);
+  sheet(`<h2 class="h2">Cheat meal</h2>
+    <label class="field mt8"><span>Date</span><input id="ch-d" type="date" min="${today()}" max="${addDays(today(), 120)}" value="${CH.d}"></label>
+    <div class="lbl mt12">Au menu</div>
+    <div class="list mt4">${items.length ? items.map((x, i) => `<div class="li"><span class="grow small"><b>${esc(x.label)}</b><br><span class="xs muted">${fr(x.g)} g · ${fr(x.kcal)} kcal · ${fr(x.p)} g P</span></span><button class="icon-btn" data-a="cheat-rm" data-v="${i}" aria-label="Retirer">${I.close}</button></div>`).join("") : `<p class="xs muted">Ajoute tes plaisirs ci-dessous.</p>`}</div>
+    <p class="mt8"><b>${fr(total)} kcal</b> <span class="xs muted">au total</span></p>
+    <div class="search mt12">${I.search}<input id="ch-q" placeholder="Pizza, tiramisu, vin rouge…" autocomplete="off"></div>
+    <div id="ch-r" class="mt8"></div>
+    <form data-f="cheat" class="mt16"><input type="hidden" name="d" id="ch-hd" value="${CH.d}"><button class="btn btn-red" style="width:100%" ${items.length ? "" : "disabled"}>Programmer ce cheat meal</button></form>`, (w) => {
+    const dInp = w.querySelector("#ch-d"), hd = w.querySelector("#ch-hd");
+    dInp.addEventListener("change", () => { CH.d = dInp.value; hd.value = dInp.value; });
+    const q = w.querySelector("#ch-q"), r = w.querySelector("#ch-r"); let deb;
+    q.addEventListener("input", () => { clearTimeout(deb); deb = setTimeout(() => {
+      const term = q.value.trim(); if (!term) { r.innerHTML = ""; return; }
+      const found = N.searchFoods(term).slice(0, 8);
+      r.innerHTML = found.length ? `<div class="list">${found.map((f, i) => `<button class="li" data-cf="${i}"><span class="grow small">${esc(f.n)}</span><span class="xs muted">${fr(f.kcal)} kcal/100 g</span></button>`).join("")}</div>` : `<p class="xs muted">Rien dans la table pour « ${esc(term)} ».</p>`;
+      r.querySelectorAll("[data-cf]").forEach(b => b.addEventListener("click", () => {
+        const food = found[+b.dataset.cf];
+        gramsSheet(food, (e) => { CH.items = [...CH.items, { label: e.label, g: e.g, kcal: e.kcal, p: e.p, c: e.c, f: e.f, ...(e.fib != null ? { fib: e.fib } : {}), ...(e.mic ? { mic: e.mic } : {}) }]; openCheatSheet(); }, "Plaisir");
+      }));
+    }, 140); });
+  });
+}
+actions["cheat-new"] = () => { CH = { d: addDays(today(), 1), items: [] }; openCheatSheet(); };
+actions["cheat-rm"] = (b, d) => { CH.items = CH.items.filter((_, i) => i !== +d.v); openCheatSheet(); };
 forms.cheat = (v) => {
-  if (!v.d || v.d < today()) return toast("Choisis une date à venir");
-  const items = String(v.items || "").split(/\n|,/).map(x => x.trim()).filter(Boolean), kcal = Math.round(num(v.kcal)) || null;
-  update(st => st.cheats = [...(st.cheats || []), { id: Date.now(), d: v.d, at: today(), items, kcal }]);
-  buzz(); toast("Cheat meal programmé : il est dans ton agenda"); rerender();
+  const d = v.d || (CH && CH.d);
+  if (!d || d < today()) return toast("Choisis une date à venir");
+  const items = CH?.items || [];
+  if (!items.length) return toast("Ajoute au moins un aliment");
+  update(st => st.cheats = [...(st.cheats || []), { id: Date.now(), d, at: today(), items, kcal: Math.round(cheatKcal(items)) }]);
+  CH = null; buzz(); closeSheet(); toast("Cheat meal programmé : il est dans ton agenda"); rerender();
 };
 actions["cheat-del"] = (b, d) => { update(st => st.cheats = (st.cheats || []).filter(c => c.id !== +d.id)); rerender(); };
 
