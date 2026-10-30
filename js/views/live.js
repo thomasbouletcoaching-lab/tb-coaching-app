@@ -2,7 +2,8 @@
 // Mise à jour toutes les 6 secondes quand l'écran est ouvert (pas de temps réel continu). Chaque geste est écrit tout de suite.
 import * as E from "../engine.js";
 import { withState } from "../store.js";
-import { $app, esc, toast, routes, actions, forms, header, R, go, isCoach, cloud, buzz, fr, num, onLeave, render } from "../core.js";
+import { memberProgram } from "./coachprog.js";
+import { $app, esc, toast, routes, actions, forms, header, R, go, isCoach, cloud, buzz, fr, num, onLeave, render, sheet, closeSheet } from "../core.js";
 
 const POLL_MS = 6000;
 let LIVE = null;          // séance ouverte : { id, state, updated_at, timer }
@@ -12,14 +13,12 @@ const nowIso = () => new Date().toISOString();
 const hm = (iso) => new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 const setLabel = (s) => `${s.lo}${s.hi && s.hi !== s.lo ? "-" + s.hi : ""}${s.pct ? " @" + s.pct + "%" : ""}${s.kg ? " · " + fr(s.kg, 1) + " kg" : ""}${s.rpe ? " · RPE " + s.rpe : ""}`;
 
-// Crée la séance à partir du programme du membre : la séance suivante, avec les prescriptions de sa semaine en cours
-export function buildLive(D) {
-  const plan = D?.plan; if (!plan) throw new Error("ce membre n'a pas encore de programme");
-  const prog = withState(D, () => E.program(plan.programId));
-  if (!prog?.s?.length) throw new Error("programme du membre introuvable");
-  const si = Math.min(plan.idx || 0, prog.s.length - 1), [title, , rows] = prog.s[si], week = plan.week || 1;
+// Crée la séance choisie (index si dans le programme) avec les prescriptions de la semaine demandée
+export function buildLive(D, prog, si, week = 1) {
+  if (!prog?.s?.length) throw new Error("ce client n'a pas de programme");
+  const i = Math.min(Math.max(0, si || 0), prog.s.length - 1), [title, , rows] = prog.s[i];
   const exercises = (rows || []).filter(r => r[0]).map(r => {
-    const wp = withState(D, () => E.weekPlan(r[5], week, prog));
+    const wp = withState(D || {}, () => E.weekPlan(r[5], week, prog));
     return { name: r[0], note: r[2] || "", rest: r[5]?.rest || 120, sets: (wp.sets || []).filter(s => s.t !== "W").map(s => ({ t: s.t, lo: s.lo, hi: s.hi, kg: s.kg || null, pct: s.pct || null, rpe: s.rpe || null, done: false, reps: null, load: null, by: null })) };
   });
   return { title: String(title || "Séance").split("·")[0].trim(), startedAt: nowIso(), by: "coach", ended: false, exercises, log: [{ at: nowIso(), by: "coach", text: "Séance lancée" }] };
@@ -116,16 +115,26 @@ actions["live-end"] = async () => {
   catch (e) { toast("Impossible : " + e.message); }
   drawLive();
 };
-// Coach : lance la séance du membre (ou ouvre celle qui tourne déjà)
+// Coach : choisit la séance du programme à lancer (ou ouvre celle qui tourne déjà)
 actions["live-start"] = async (b, d) => {
   const id = d.id;
   try {
     const c = await cloud(); const cur = await c.liveGet(id);
     if (cur?.state && !cur.state.ended && Object.keys(cur.state).length) return go("live", id);
-    const D = (await c.memberData(id))?.data;
-    if (!D) throw new Error("données du membre indisponibles");
-    await c.liveSet(id, buildLive(D));
-    buzz(); toast("Séance lancée : elle apparaît chez le client"); go("live", id);
+    const md = (await c.memberData(id))?.data, cp = await c.coachPlanGet(id).catch(() => null);
+    const prog = cp?.program?.s?.length ? cp.program : memberProgram(md);
+    if (!prog) return toast("Ce client n'a pas encore de programme : envoie-lui un programme d'abord");
+    const week = md?.plan?.week || 1;
+    sheet(`<h2 class="h2">Quelle séance lancer ?</h2><p class="xs muted">Semaine ${week} · touche la séance, elle s'ouvre pour vous deux.</p>
+      <div class="list mt8">${prog.s.map(([n, day], i) => `<button class="li" data-a="live-launch" data-id="${esc(id)}" data-v="${i}"><span class="grow small"><b>${esc(String(n).split("·")[0].trim())}</b><br><span class="xs muted">${esc(day || "")}</span></span></button>`).join("")}</div>`);
+  } catch (e) { toast("Impossible de lancer : " + e.message); }
+};
+actions["live-launch"] = async (b, d) => {
+  try {
+    const c = await cloud(); const md = (await c.memberData(d.id))?.data, cp = await c.coachPlanGet(d.id).catch(() => null);
+    const prog = cp?.program?.s?.length ? cp.program : memberProgram(md);
+    await c.liveSet(d.id, buildLive(md, prog, +d.v, md?.plan?.week || 1));
+    closeSheet(); buzz(); toast("Séance lancée : elle apparaît chez le client"); go("live", d.id);
   } catch (e) { toast("Impossible de lancer : " + e.message); }
 };
 
