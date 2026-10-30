@@ -123,7 +123,8 @@ const stopPoll = () => { clearInterval(pollT); pollT = null; };
 function msgHtml(x) {
   const mine = x.sender === me, rs = Object.values(x.reactions || {});
   const grouped = rs.reduce((o, e) => (o[e] = (o[e] || 0) + 1, o), {});
-  return `<div class="msg ${mine ? "me" : "them"}" data-a="msg" data-id="${x.id}">${esc(x.body)}<time>${ago(x.created_at)}${mine && x.read_at ? " · lu" : ""}</time></div>${rs.length ? `<div class="reacts ${mine ? "me" : "them"}">${Object.entries(grouped).map(([e, n]) => `<span>${e}${n > 1 ? " " + n : ""}</span>`).join("")}</div>` : ""}`;
+  const content = x.audio_path ? `<audio controls preload="none" data-ap="${esc(x.audio_path)}" style="width:220px;max-width:100%;display:block"></audio>` : esc(x.body);
+  return `<div class="msg ${mine ? "me" : "them"}" data-a="msg" data-id="${x.id}">${content}<time>${ago(x.created_at)}${mine && x.read_at ? " · lu" : ""}</time></div>${rs.length ? `<div class="reacts ${mine ? "me" : "them"}">${Object.entries(grouped).map(([e, n]) => `<span>${e}${n > 1 ? " " + n : ""}</span>`).join("")}</div>` : ""}`;
 }
 // Messages prêts (espace coach) : phrases réutilisables, stockées dans l'espace coach (clé « ready »)
 const READY0 = [
@@ -161,13 +162,49 @@ actions["ready-manage"] = () => {
 actions["ready-del"] = async (b, d) => { await readySave(readyList().filter(r => r.id !== d.v)); closeSheet(); toast("Supprimé"); };
 forms["ready-new"] = async (v) => { await readySave([...readyList(), { id: "r" + Date.now(), label: v.label.trim(), body: v.body.trim() }]); closeSheet(); toast("Message prêt ajouté"); };
 
+// Lecteurs audio : l'adresse signée n'est demandée qu'au moment de l'affichage
+async function hydrateAudio() {
+  const c = await cloud(); if (!c) return;
+  document.querySelectorAll("audio[data-ap]:not([src])").forEach(async el => {
+    try { el.src = await c.audioUrl(el.dataset.ap); }
+    catch (e) { el.outerHTML = `<span class="xs muted">Message vocal indisponible</span>`; }
+  });
+}
+// Message vocal : enregistrer (touche 🎙️), puis toucher ⏹️ pour envoyer
+let REC = null;
+actions["rec"] = async () => {
+  if (REC) { REC.stop(); return; }
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return toast("Enregistrement vocal non disponible sur ce téléphone");
+  let stream; try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch (e) { return toast("Micro refusé : autorise-le dans les réglages du téléphone"); }
+  const type = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg"].find(t => MediaRecorder.isTypeSupported?.(t)) || "";
+  const rec = new MediaRecorder(stream, type ? { mimeType: type } : {}), chunks = [];
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.onstop = async () => {
+    stream.getTracks().forEach(t => t.stop()); REC = null; setRecBtn(false);
+    const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+    if (blob.size < 2000) return toast("Message trop court");
+    await sendAudio(blob);
+  };
+  REC = rec; rec.start(); setRecBtn(true); toast("Enregistrement… touche ⏹️ pour envoyer");
+};
+function setRecBtn(on) { const b = document.getElementById("rec-btn"); if (b) b.textContent = on ? "⏹️" : "🎙️"; }
+async function sendAudio(blob) {
+  const c = await cloud(); const memberId = isCoach() ? R.param : null;
+  try {
+    await c.ensureSession(); const to = memberId || c.userId();
+    const path = await c.uploadAudio(blob, to);
+    await c.send("🎙️ Message vocal", to, path);
+    buzz(); window.__reloadThread?.(); toast("Message vocal envoyé");
+  } catch (e) { toast("Envoi impossible : " + (e?.message || e)); }
+}
+
 routes.chat = async () => {
   if (!isCoach() && !canMsg()) { toast("Les messages avec Thomas sont réservés aux coachés"); return go("offers"); }
   const memberId = isCoach() ? R.param : null;
   const m = memberId ? (window.__members || []).find(x => x.id === memberId) : null;
   $app.innerHTML = header(memberId ? esc(m?.name || "Membre") : "Thomas", memberId ? esc(m?.email || "") : "Je réponds moi-même", { back: memberId ? "admin-msg" : "coach" })
     + `<main class="page" style="padding-bottom:calc(100px + var(--safe-b))"><div class="thread" id="thread"><p class="empty small">Chargement…</p></div>${memberId ? readyBar() : ""}${memberId ? "" : `<p class="xs muted center">${msgQuotaText()} · touche un message pour réagir</p>`}</main>
-    <form class="composer" data-f="send"><textarea name="v" rows="1" placeholder="Ton message" maxlength="2000" aria-label="Message">${esc(window.__prefill || "")}</textarea><button class="send" aria-label="Envoyer">${I.send}</button></form>`;
+    <form class="composer" data-f="send"><textarea name="v" rows="1" placeholder="Ton message" maxlength="2000" aria-label="Message">${esc(window.__prefill || "")}</textarea><button type="button" class="send" id="rec-btn" data-a="rec" aria-label="Message vocal">🎙️</button><button class="send" aria-label="Envoyer">${I.send}</button></form>`;
   window.__prefill = "";
   const load = async (first) => {
     const c = await cloud(); const box = document.getElementById("thread"); if (!box) return stopPoll();
@@ -175,12 +212,13 @@ routes.chat = async () => {
       await c.ensureSession(); me = c.userId();
       const list = await c.thread(memberId || me);
       const changed = JSON.stringify(list) !== JSON.stringify(msgs); msgs = list;
-      if (changed || first) box.innerHTML = list.length ? list.map(msgHtml).join("") : `<div class="msg them">Salut ${esc(S().profile?.name || "")} ! Je suis Thomas. Pose-moi ta question sur ton entraînement, ta nutrition ou ce que tu vis : je te réponds moi-même.</div>`;
+      if (changed || first) { box.innerHTML = list.length ? list.map(msgHtml).join("") : `<div class="msg them">Salut ${esc(S().profile?.name || "")} ! Je suis Thomas. Pose-moi ta question sur ton entraînement, ta nutrition ou ce que tu vis : je te réponds moi-même.</div>`; hydrateAudio(); }
       await c.markRead(memberId || me);
       if (!memberId) badges.msgs = 0;
       if (changed || first) window.scrollTo(0, document.body.scrollHeight);
     } catch (e) { box.innerHTML = `<p class="empty small">Messagerie indisponible pour le moment. Vérifie ta connexion et réessaie.</p>`; }
   };
+  window.__reloadThread = () => load(false);
   msgs = []; await load(true); if (memberId) readyLoad(); stopPoll(); pollT = setInterval(() => load(false), 15000);
   onLeave(stopPoll);
 };
