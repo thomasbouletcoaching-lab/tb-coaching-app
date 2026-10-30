@@ -135,6 +135,8 @@ const READY0 = [
 ];
 let READY = null;
 const readyList = () => READY || READY0;
+export { readyList };
+export async function ensureReady() { if (READY === null) await readyLoad(); return readyList(); }
 function readyBar() {
   return `<div id="ready-bar" style="display:flex;gap:6px;overflow-x:auto;padding:8px 0;white-space:nowrap">${readyList().map(r => `<button class="chip sm" data-a="ready-use" data-v="${esc(r.id)}">${esc(r.label)}</button>`).join("")}<button class="chip sm" data-a="ready-manage">⚙️ Gérer</button></div>`;
 }
