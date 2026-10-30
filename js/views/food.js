@@ -289,37 +289,24 @@ export async function scanBarcode(meal = afs.meal, date = afs.date || D(), back 
   const done = async (code) => { const f = await N.lookupBarcode(code); if (f) gramsSheet(f, (e) => { N.addEntry(e, date); toast("Ajouté"); if (back) addFoodSheet(meal); else rerender(); }, meal); else { closeSheet(); toast("Produit introuvable : cherche-le par son nom."); } };
   const manual = () => sheet(`<h2 class="h2">🔎 Code-barres</h2><p class="small muted">Ton navigateur ne lit pas les codes-barres avec la caméra. Tape les chiffres sous le code-barres (13 en général).</p><form data-f="bc-code" class="row mt12" style="gap:8px"><input name="c" class="inp grow" inputmode="numeric" pattern="[0-9]*" placeholder="3017620422003" required><button class="btn btn-red btn-sm" style="width:auto">Chercher</button></form>`);
   forms["bc-code"] = (v) => { const c = String(v.c).replace(/\D/g, ""); if (c.length < 8) return toast("Code incomplet"); done(c); };
-  const stopAll = (stream) => stream.getTracks().forEach(t => t.stop());
-  if ("BarcodeDetector" in window) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      sheet(`<h2 class="h2">Scanner</h2><video id="cam" playsinline autoplay muted style="width:100%;border-radius:14px;margin-top:12px;background:#000"></video><p class="small muted mt8">Place le code-barres dans le cadre.</p>`, async (w) => {
-        const v = w.querySelector("#cam"); v.srcObject = stream;
-        const det = new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] });
-        let alive = true; const stop = () => { alive = false; stopAll(stream); };
-        w.addEventListener("click", e => { if (e.target === w) stop(); });
-        while (alive && document.body.contains(v)) {
-          try { const c = await det.detect(v); if (c[0]) { stop(); return done(c[0].rawValue); } } catch { }
-          await new Promise(r => setTimeout(r, 300));
-        }
-        stop();
-      });
-    } catch { manual(); }
-    return;
-  }
-  // Safari (iPhone) : lecture par la caméra avec ZXing, chargé seulement à la demande
+  // Lecture par ZXing directement depuis la caméra (même méthode que TB my Coach, qui fonctionnait)
   let ZX;
   try { ZX = await loadZxing(); } catch { return manual(); }
-  let stream;
-  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); } catch { return manual(); }
-  sheet(`<h2 class="h2">Scanner</h2><video id="cam" playsinline autoplay muted style="width:100%;border-radius:14px;margin-top:12px;background:#000"></video><p class="small muted mt8">Place le code-barres dans le cadre.</p><button class="btn btn-line btn-sm mt8" data-a="scan-manual" style="width:100%">Taper le code à la place</button>`, async (w) => {
-    const v = w.querySelector("#cam"); v.srcObject = stream;
-    let found = false, ctl = null;
-    const stop = () => { try { ctl?.stop(); } catch { } stopAll(stream); };
-    const timer = setInterval(() => { if (!document.body.contains(v)) { clearInterval(timer); if (!found) stop(); } }, 500);
+  sheet(`<h2 class="h2">Scanner</h2><video id="cam" playsinline autoplay muted style="width:100%;border-radius:14px;margin-top:12px;background:#000"></video><p class="small muted mt8">Place le code-barres dans le cadre, bien à plat et de face.</p><button class="btn btn-line btn-sm mt8" data-a="scan-manual" style="width:100%">Taper le code à la place</button>`, async (w) => {
+    const v = w.querySelector("#cam");
+    let ctl = null, found = false;
+    const stop = () => { try { ctl?.stop(); } catch { } };
+    const timer = setInterval(() => { if (!document.body.contains(v)) { clearInterval(timer); stop(); } }, 500);
     try {
-      const reader = new ZX.BrowserMultiFormatReader();
-      ctl = await reader.decodeFromVideoElement(v, (res) => {
+      let hints;
+      if (ZX.DecodeHintType && ZX.BarcodeFormat) {
+        hints = new Map([
+          [ZX.DecodeHintType.POSSIBLE_FORMATS, [ZX.BarcodeFormat.EAN_13, ZX.BarcodeFormat.EAN_8, ZX.BarcodeFormat.UPC_A, ZX.BarcodeFormat.UPC_E]],
+          [ZX.DecodeHintType.TRY_HARDER, true],
+        ]);
+      }
+      const reader = new ZX.BrowserMultiFormatReader(hints);
+      ctl = await reader.decodeFromConstraints({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } }, v, (res) => {
         if (!res || found) return;
         found = true; clearInterval(timer); stop(); done(res.getText());
       });
