@@ -1,5 +1,6 @@
 // Carte nutrition du journal : vue Essentielle (sucres, équilibre sodium / potassium) et détail en accordéon (qualité, électrolytes, micronutriments).
-import { esc, fr } from "../core.js";
+import { esc, fr, seg } from "../core.js";
+import { S } from "../store.js";
 import { dayNutrients } from "../nutri-totals.js";
 import { MICROS, pctNrv, sugarPct } from "../nutri-rules.js";
 
@@ -8,6 +9,16 @@ const LBL = { vert: "dans la cible", orange: "au-dessus de la cible", rouge: "à
 const dot = (s) => s ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${DOT[s]};margin-right:6px"></span>` : "";
 const dash = (v, u = "") => v == null ? "—" : `${fr(v, v % 1 ? 1 : 0)}${u ? " " + u : ""}`;
 
+// Niveau de suivi (journal) : « simple » = calories et protéines, « macros » = + glucides, lipides, fibres, « complet » = + sucres, sel, sodium / potassium, micronutriments
+export const NUTRI_LEVELS = [["simple", "Calories et protéines"], ["macros", "Calories et macros"], ["complet", "Complet"]];
+export function nutriLevel() {
+  const v = S().settings?.nutriLevel;
+  if (NUTRI_LEVELS.some(([k]) => k === v)) return v;
+  return S().settings?.simpleNutri ? "simple" : "macros";
+}
+export function levelSelector() {
+  return `<div class="mt8">${seg(NUTRI_LEVELS, nutriLevel(), "nutri-level")}</div>`;
+}
 export function nutriCard(d) {
   const t = dayNutrients(d);
   if (!t.total) return "";
@@ -24,7 +35,10 @@ export function nutriCard(d) {
     <p class="xs muted" style="margin:4px 0 10px">${dot(t.sugStatus)}${sp != null ? `${Math.round(sp * 100)} % des calories · ${LBL[t.sugStatus]}` : "Repère sucres dès 800 kcal dans la journée"}</p>
     <div class="row between xs" style="gap:8px"><span style="width:110px">⚖️ Na / K <b style="color:var(--ink)">${dash(t.naMg, "mg")}</b></span>${naBar}</div>
     <p class="xs muted" style="margin:4px 0 0">${dot(t.naStatus)}${t.ratio != null ? `Potassium ${dash(t.kMg, "mg")} · rapport K/Na ${fr(t.ratio, 1)} · ${LBL[t.naStatus]}` : "Équilibre dès qu'un aliment a sa donnée de sodium"}</p>
-    <details class="fold mt12"><summary>Détail : sucres, électrolytes, micronutriments</summary><div class="fb">
+    <details class="fold mt12" open><summary>Ce que disent ces chiffres</summary><div class="fb">
+      <p class="xs" style="margin:0 0 8px"><b>Sucres.</b> Les sucres ajoutés (sodas, jus, sucreries, pâtisseries) apportent des calories sans nutriments. Au-delà de 10 % des calories, la qualité de l'alimentation tend à baisser. Fruits et lait en contiennent naturellement : ce n'est pas un excès. Repère indicatif, pas une interdiction.</p>
+      <p class="xs" style="margin:0 0 8px"><b>Sodium et potassium.</b> Le sodium retient l'eau ; le potassium aide à l'éliminer et soutient la contraction musculaire. Quand le rapport K/Na passe sous 1, le sel prend le dessus : gonflement, tension qui peut monter à long terme, plus de risque de crampes à l'effort. C'est un facteur parmi d'autres (hydratation, magnésium, sommeil). Les jours de forte transpiration, on perd du sodium : le seuil monte.</p>
+      <p class="xs muted" style="margin:0 0 8px"><b>Lecture.</b> « — » signifie une donnée absente, pas un zéro. ${t.coverage != null ? `Couverture des données : ${Math.round(t.coverage * 100)} %.` : ""} Plus la couverture est basse, moins les totaux sont fiables.</p>
       <div class="xs muted">Sucres ajoutés : données non disponibles dans la base actuelle. Le total de sucres sert de repère.</div>
       <div class="xs mt8"><b>Électrolytes</b> · sodium ${dash(t.naMg, "mg")} (repère 2 300 mg, 3 500 mg les jours de forte transpiration) · potassium ${dash(t.kMg, "mg")} · sel ${dash(t.salt, "g")}</div>
       <div class="xs mt8"><b>Micronutriments</b> <span class="muted">(% de l'apport de référence)</span></div>
