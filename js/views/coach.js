@@ -172,7 +172,7 @@ forms.send = async (v, form) => {
     refreshMe();
   } catch (e) {
     const quota = /row-level|policy/i.test(e.message);
-    toast(quota ? "Tu as utilisé tes messages de la semaine. Une formule supérieure t'en donne plus." : "Envoi impossible, réessaie.");
+    toast(quota ? "Tu as utilisé tes messages de la semaine. Une formule supérieure t'en donne plus." : "Envoi impossible : " + (e?.message || e));
     if (quota) setTimeout(() => go("offers"), 1800);
   }
 };
