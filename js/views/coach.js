@@ -125,12 +125,46 @@ function msgHtml(x) {
   const grouped = rs.reduce((o, e) => (o[e] = (o[e] || 0) + 1, o), {});
   return `<div class="msg ${mine ? "me" : "them"}" data-a="msg" data-id="${x.id}">${esc(x.body)}<time>${ago(x.created_at)}${mine && x.read_at ? " · lu" : ""}</time></div>${rs.length ? `<div class="reacts ${mine ? "me" : "them"}">${Object.entries(grouped).map(([e, n]) => `<span>${e}${n > 1 ? " " + n : ""}</span>`).join("")}</div>` : ""}`;
 }
+// Messages prêts (espace coach) : phrases réutilisables, stockées dans l'espace coach (clé « ready »)
+const READY0 = [
+  { id: "r1", label: "Séance validée", body: "Séance bien validée. Continue comme ça, on ajuste la suite à la prochaine." },
+  { id: "r2", label: "Charge trop lourde", body: "Si la série est trop dure, baisse la charge de 5 % et garde la même technique. Mieux vaut une série propre qu'une série forcée." },
+  { id: "r3", label: "Envoie une vidéo", body: "Envoie-moi une vidéo de ta prochaine série, de côté, pour que je vérifie la technique." },
+  { id: "r4", label: "Repas non notés", body: "Tu n'as pas noté tes repas cette semaine. Note au moins les repas principaux, on ajustera à partir de là." },
+  { id: "r5", label: "Bilan reçu", body: "Bilan reçu, merci. Je regarde tes chiffres et je reviens vers toi avant la prochaine séance." },
+];
+let READY = null;
+const readyList = () => READY || READY0;
+function readyBar() {
+  return `<div id="ready-bar" style="display:flex;gap:6px;overflow-x:auto;padding:8px 0;white-space:nowrap">${readyList().map(r => `<button class="chip sm" data-a="ready-use" data-v="${esc(r.id)}">${esc(r.label)}</button>`).join("")}<button class="chip sm" data-a="ready-manage">⚙️ Gérer</button></div>`;
+}
+async function readyLoad() {
+  try { const c = await cloud(); const s = await c.storeGet(["ready"]); READY = Array.isArray(s.ready) ? s.ready : READY0; }
+  catch (e) { READY = READY0; }
+  const bar = document.getElementById("ready-bar"); if (bar) bar.outerHTML = readyBar();
+}
+async function readySave(list) {
+  READY = list; const bar = document.getElementById("ready-bar"); if (bar) bar.outerHTML = readyBar();
+  try { const c = await cloud(); await c.storeSet("ready", list); } catch (e) { toast("Enregistrement impossible : " + e.message); }
+}
+actions["ready-use"] = (b, d) => {
+  const r = readyList().find(x => x.id === d.v), t = document.querySelector("form.composer textarea");
+  if (r && t) { t.value = r.body; t.focus(); t.dispatchEvent(new Event("input", { bubbles: true })); }
+};
+actions["ready-manage"] = () => {
+  sheet(`<h2 class="h2">Messages prêts</h2><p class="xs muted">Un tap remplit ton message.</p>
+    ${readyList().map(r => `<div class="card mt8"><div class="row between"><b>${esc(r.label)}</b><button class="ghost sm" data-a="ready-del" data-v="${esc(r.id)}">Supprimer</button></div><p class="small mt4" style="white-space:pre-wrap">${esc(r.body)}</p></div>`).join("")}
+    <form data-f="ready-new" class="mt12"><label class="field"><span>Titre court</span><input name="label" required maxlength="40"></label><label class="field"><span>Message</span><textarea name="body" rows="3" required maxlength="1000"></textarea></label><button class="btn btn-red mt8">Ajouter</button></form>`);
+};
+actions["ready-del"] = async (b, d) => { await readySave(readyList().filter(r => r.id !== d.v)); closeSheet(); toast("Supprimé"); };
+forms["ready-new"] = async (v) => { await readySave([...readyList(), { id: "r" + Date.now(), label: v.label.trim(), body: v.body.trim() }]); closeSheet(); toast("Message prêt ajouté"); };
+
 routes.chat = async () => {
   if (!isCoach() && !canMsg()) { toast("Les messages avec Thomas sont réservés aux coachés"); return go("offers"); }
   const memberId = isCoach() ? R.param : null;
   const m = memberId ? (window.__members || []).find(x => x.id === memberId) : null;
   $app.innerHTML = header(memberId ? esc(m?.name || "Membre") : "Thomas", memberId ? esc(m?.email || "") : "Je réponds moi-même", { back: memberId ? "admin-msg" : "coach" })
-    + `<main class="page" style="padding-bottom:calc(100px + var(--safe-b))"><div class="thread" id="thread"><p class="empty small">Chargement…</p></div>${memberId ? "" : `<p class="xs muted center">${msgQuotaText()} · touche un message pour réagir</p>`}</main>
+    + `<main class="page" style="padding-bottom:calc(100px + var(--safe-b))"><div class="thread" id="thread"><p class="empty small">Chargement…</p></div>${memberId ? readyBar() : ""}${memberId ? "" : `<p class="xs muted center">${msgQuotaText()} · touche un message pour réagir</p>`}</main>
     <form class="composer" data-f="send"><textarea name="v" rows="1" placeholder="Ton message" maxlength="2000" aria-label="Message">${esc(window.__prefill || "")}</textarea><button class="send" aria-label="Envoyer">${I.send}</button></form>`;
   window.__prefill = "";
   const load = async (first) => {
@@ -145,7 +179,7 @@ routes.chat = async () => {
       if (changed || first) window.scrollTo(0, document.body.scrollHeight);
     } catch (e) { box.innerHTML = `<p class="empty small">Messagerie indisponible pour le moment. Vérifie ta connexion et réessaie.</p>`; }
   };
-  msgs = []; await load(true); stopPoll(); pollT = setInterval(() => load(false), 15000);
+  msgs = []; await load(true); if (memberId) readyLoad(); stopPoll(); pollT = setInterval(() => load(false), 15000);
   onLeave(stopPoll);
 };
 actions.msg = (b, d) => {
