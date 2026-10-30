@@ -47,7 +47,12 @@ routes.account = async () => {
 actions["account-mode"] = (b, d) => { mode = d.v; rerender(); };
 
 actions["account-restore"] = async () => {
-  try { const r = await restoreMigrated(); toast(r.w + r.f + r.m + r.p ? `Restauré : ${r.w} séances, ${r.f} repas, ${r.m} mesures${r.p ? ", programme et position TB" : ""}` : "Rien de nouveau à restaurer"); }
+  try {
+    const full = await restoreFromCloud(await C.fetchMigrated());
+    const r = await restoreMigrated();
+    if (full) { await refreshMe().catch(() => { }); toast("Ton compte est restauré : profil, programme, séances, nutrition et mesures"); go("profile"); return; }
+    toast(r.w + r.f + r.m + r.p ? `Restauré : ${r.w} séances, ${r.f} repas, ${r.m} mesures${r.p ? ", programme et position TB" : ""}` : "Rien de nouveau à restaurer");
+  }
   catch (e) { toast("Restauration impossible : " + e.message); }
   rerender();
 };
