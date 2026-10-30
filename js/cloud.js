@@ -186,3 +186,15 @@ export async function fetchMigrated() {
   return data?.data || null;
 }
 async function currentUserIdSb() { const { data } = await sb.auth.getSession(); return data.session?.user?.id || null; }
+
+// Notifications (même enregistrement que TB my Coach : clé publique puis push_register)
+const b64u8 = (s) => { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+export async function pushEnable() {
+  if (!uid) await ensureSession();
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) throw new Error("Notifications non disponibles sur ce téléphone (sur iPhone : ajoute l'app à l'écran d'accueil)");
+  const perm = await Notification.requestPermission(); if (perm !== "granted") throw new Error("Notifications refusées");
+  const { data: key, error } = await sb.rpc("push_public_key"); if (error || !key) throw new Error(error?.message || "clé indisponible");
+  const reg = await navigator.serviceWorker.ready; let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u8(key) });
+  const { error: e2 } = await sb.rpc("push_register", { p_endpoint: sub.endpoint, p_sub: sub.toJSON() }); if (e2) throw new Error(e2.message);
+}

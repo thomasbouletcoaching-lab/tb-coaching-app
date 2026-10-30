@@ -22,6 +22,7 @@ async function body() {
     return `<div class="card mt12"><div class="lbl">Connecté</div><p class="mt8" style="margin:0"><b>${esc(email)}</b></p>
       <p class="small muted mt8">Tes séances, ta nutrition et tes mesures restent sur ce téléphone. Le coaching et la messagerie passent par ton compte TB my Coach.</p>
       <button class="btn btn-red mt12" data-a="account-restore">Restaurer mes données TB my Coach</button>
+      <button class="btn btn-line mt12" data-a="account-push">Activer les notifications</button>
       <button class="btn btn-line mt12" data-a="account-out">Me déconnecter</button></div>`;
   }
   const tab = (m, l) => `<button class="btn ${mode === m ? "btn-red" : "btn-line"} btn-sm" data-a="account-mode" data-v="${m}">${l}</button>`;
@@ -49,6 +50,10 @@ actions["account-restore"] = async () => {
   try { const r = await restoreMigrated(); toast(r.w + r.f + r.m + r.p ? `Restauré : ${r.w} séances, ${r.f} repas, ${r.m} mesures${r.p ? ", programme et position TB" : ""}` : "Rien de nouveau à restaurer"); }
   catch (e) { toast("Restauration impossible : " + e.message); }
   rerender();
+};
+
+actions["account-push"] = async () => {
+  try { await C.pushEnable(); toast("Notifications activées"); } catch (e) { toast("Activation impossible : " + e.message); }
 };
 
 actions["account-out"] = async () => {
