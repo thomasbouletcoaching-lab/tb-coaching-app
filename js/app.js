@@ -44,6 +44,8 @@ window.addEventListener("hashchange", render);
   const pullFood = async () => { try { const c = await cloudMod(); if (c && S().profile && !S().me?.isCoach) { await pullCoachFood(c); if (R.route === "home") render(); } } catch { } };
   pullFood(); setInterval(pullFood, 5 * 60000);
   pullLive(); setInterval(pullLive, 15000);
+  // Quand l'app revient au premier plan : programme et séance du coach tout de suite (pas d'attente de 5 min)
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { pullCoachPlan(); pullFood(); pullLive(); } });
   // Pas de menu « lien » sur un appui long dans la barre du bas ou sur les liens internes
   document.addEventListener("contextmenu", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });
   document.addEventListener("dragstart", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });

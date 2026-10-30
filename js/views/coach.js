@@ -7,6 +7,7 @@ import { CONFIG, OFFERS, offer, COMPARE } from "../config.js";
 import { coachLogo, trialLeft, $app, esc, num, fr, buzz, toast, ago, routes, R, actions, forms, changes, go, I, header, tabbar, adminTabbar, seg, chips, sheet, closeSheet, badges, fmtDate, addDays, rerender, tier, rank, premium, isCoach, msgQuotaText, cloud, cloudNow, render, onLeave, canMsg } from "../core.js";
 import { refreshMe, syncProfile } from "../sync.js";
 import { fromCoach, libraryRows } from "../library.js";
+import { openProgramEditor } from "./coachprog.js";
 
 routes.coach = async () => {
   if (isCoach()) return go("admin");
@@ -418,18 +419,15 @@ actions["mb-assign"] = () => {
   const draw = () => {
     const q = N.norm(asQ), mine = E.programs().filter(p => p.custom || p.lib), bank = E.programs().filter(p => !p.custom && !p.lib && (!q || N.norm(p.name).includes(q))).slice(0, q ? 40 : 12);
     const li = (p) => `<button class="li" data-a="mb-assign-go" data-id="${esc(p.id)}"><span class="grow small"><b>${esc(p.name)}</b><br><span class="xs muted">${p.s?.length || "?"} séances / sem. · ${esc(p.lvl || "")}</span></span>${I.chev}</button>`;
-    return `<h2 class="h2">📋 Assigner un programme</h2><p class="xs muted">Il arrive dans l'onglet Coaching de ton client, qui le suit en un geste. Une notification lui est envoyée.</p>
+    return `<h2 class="h2">📋 Assigner un programme</h2><p class="xs muted">Touche un programme pour voir chaque séance, chaque exercice et chaque semaine. Tu le modifies, puis tu l'envoies.</p>
       ${mine.length ? `<div class="lbl mt12">Mes programmes</div><div class="list mt4">${mine.map(li).join("")}</div>` : ""}
       <div class="lbl mt12">Banque</div><div class="search mt4">${I.search}<input id="as-q" value="${esc(asQ)}" placeholder="Chercher : force, haut bas, 3 jours…" autocomplete="off"></div><div class="list mt4" id="as-l">${bank.map(li).join("")}</div>`;
   };
   sheet(draw(), (w) => { const i = w.querySelector("#as-q"); i?.addEventListener("input", () => { asQ = i.value; const h = document.createElement("div"); h.innerHTML = draw(); w.querySelector("#as-l").innerHTML = h.querySelector("#as-l").innerHTML; }); });
 };
-actions["mb-assign-go"] = async (b, d) => {
+actions["mb-assign-go"] = (b, d) => {
   const p = E.program(d.id), m = (window.__members || []).find(x => x.id === mbr.id); if (!p || !m) return;
-  const { id, lib, name, ...data } = JSON.parse(JSON.stringify(p));
-  const nm = String(name).split("·")[0].trim() + ` · ${m.name || "client"}`;
-  try { const c = await cloud(); await c.libraryAdd("program", nm, { ...data, custom: true, for: m.id }); await c.notify("📋 Ton nouveau programme", `Thomas t'a préparé « ${String(name).split("·")[0].trim()} ». Ouvre l'onglet Coaching pour le suivre.`, m.id).catch(() => { }); closeSheet(); toast("Programme envoyé"); }
-  catch (e) { toast("Envoi impossible : " + (e.message || "serveur indisponible")); }
+  closeSheet(); openProgramEditor(m.id, JSON.parse(JSON.stringify(p)));
 };
 actions["mb-plan"] = () => {
   const D = mbr.data?.data; if (!D?.profile) return toast("Données du client indisponibles");
