@@ -473,3 +473,11 @@ input,select,textarea{max-width:100%;min-width:0}
 .slider-row input[type=range]{flex:1;accent-color:var(--red)}
 .slider-row b{width:28px;text-align:right}
 .gly{height:12px;border-radius:8px;background:var(--line);overflow:hidden}.gly i{display:block;height:100%;background:var(--gradbtn)}
+
+/* Application installée : pas d'aperçu de lien ni de menu Safari sur un appui long (navigation du bas, liens internes) */
+.tabbar, .tabbar *, a[href^="#"], a[href^="#"] * {
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-user-drag: none;
+}
