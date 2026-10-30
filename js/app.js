@@ -35,5 +35,8 @@ window.addEventListener("hashchange", render);
   pullCoachSlots(); setInterval(pullCoachSlots, 5 * 60000);
   pullCoachPlan(); setInterval(pullCoachPlan, 5 * 60000);
   refreshLibrary(); setInterval(refreshLibrary, 15 * 60000);
+  // Pas de menu « lien » sur un appui long dans la barre du bas ou sur les liens internes
+  document.addEventListener("contextmenu", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });
+  document.addEventListener("dragstart", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });
 })();
