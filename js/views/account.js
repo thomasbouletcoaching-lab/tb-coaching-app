@@ -6,6 +6,16 @@ import { $app, esc, toast, routes, forms, actions, I, header, tabbar, rerender, 
 
 let mode = "signin"; // signin | signup | reset
 
+// Numéro de téléphone accepté à la place de l'e-mail : même identifiant technique que dans TB my Coach
+function loginId(s) {
+  s = String(s || "").trim();
+  if (!s || s.includes("@")) return s;
+  let d = s.replace(/[^\d+]/g, "");
+  if (d.startsWith("+")) d = d.slice(1); else if (d.startsWith("00")) d = d.slice(2); else if (/^0\d{9}$/.test(d)) d = "33" + d.slice(1);
+  d = d.replace(/\D/g, "");
+  return d.length >= 8 && d.length <= 15 ? `tel-${d}@tel.tbcoach.invalid` : s;
+}
+
 async function body() {
   const email = await C.accountEmail();
   if (email) {
@@ -22,7 +32,7 @@ async function body() {
   const signup = mode === "signup";
   return `${head}<div class="card mt12"><form data-f="${signup ? "account-signup" : "account-signin"}">
       ${signup ? `<label class="field"><span>Prénom</span><input name="name" autocomplete="given-name"></label>` : ""}
-      <label class="field"><span>E-mail</span><input name="email" type="email" autocomplete="email" required></label>
+      <label class="field"><span>E-mail ou téléphone</span><input name="email" type="text" inputmode="email" autocomplete="username" required></label>
       <label class="field"><span>Mot de passe (6 caractères min.)</span><input name="password" type="password" minlength="6" autocomplete="${signup ? "new-password" : "current-password"}" required></label>
       <button class="btn btn-red mt12">${signup ? "Créer mon compte" : "Me connecter"}</button></form></div>
       <p class="xs muted mt8">Utilise l'e-mail de ton compte TB my Coach : tes accès coaching sont les mêmes.</p>`;
@@ -84,7 +94,7 @@ export async function restoreMigrated() {
 
 forms["account-signin"] = async (v) => {
   try {
-    await C.signInEmail(v.email.trim(), v.password);
+    await C.signInEmail(loginId(v.email), v.password);
     let r = { w: 0, f: 0, m: 0, p: 0 }; try { r = await restoreMigrated(); } catch (err) { console.warn("Données non restaurées :", err.message); }
     toast(r.w + r.f + r.m ? `Connecté · ${r.w} séances, ${r.f} repas, ${r.m} mesures restaurés` : "Connecté"); go("profile");
   }
