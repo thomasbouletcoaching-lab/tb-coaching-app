@@ -186,3 +186,14 @@ export async function fetchMigrated() {
   return data?.data || null;
 }
 async function currentUserIdSb() { const { data } = await sb.auth.getSession(); return data.session?.user?.id || null; }
+
+// Décalages de séances posés par le coach (table cxs_coach_slots). Le membre les lit, le coach les écrit.
+export async function coachSlots() {
+  if (!uid) await ensureSession();
+  const { data, error } = await sb.from("cxs_coach_slots").select("orig_d,new_d,new_time,updated_at");
+  if (error) throw error; return data || [];
+}
+export async function coachSlotSet(memberId, origD, newD, newTime) {
+  const { error } = await sb.from("cxs_coach_slots").upsert({ user_id: memberId, orig_d: origD, new_d: newD, new_time: newTime || null, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
