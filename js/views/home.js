@@ -26,7 +26,7 @@ export function caloriesCard(d = today(), compact = false) {
   const mini = (l, a, g, col) => `<div><div class="mini"><svg viewBox="0 0 66 66">${ring(a / g, 66, 7, col)}</svg><b>${Math.round(a / g * 100)}%</b></div><div class="v">${Math.round(a)} / ${g} g</div><div class="l">${l}</div></div>`;
   return `<div class="ringwrap"><div class="side">🍽️<b>${fr(tot.kcal)}</b><span>mangées</span><span>objectif ${fr(t.kcal)}</span></div>${big}<div class="side">🔥<b>${fr(b.now)}</b><span>brûlées ${d === today() ? "à cette heure" : "dans la journée"}</span><span>sur ${fr(b.total)} prévues</span></div></div>
     ${compact ? "" : simple ? `<div class="minis" style="grid-template-columns:1fr">${mini("Protéines", tot.p, t.prot, "#B3263A")}</div>${t.notes?.length ? `<p class="xs muted center mt8" style="margin-bottom:0">${esc(t.notes.join(" · "))}</p>` : ""}` : `<div class="minis">${mini("Protéines", tot.p, t.prot, "#B3263A")}${mini("Glucides", tot.c, t.carbs, "#E0A93B")}${mini("Lipides", tot.f, t.fat, "#4F5D2A")}</div>${t.notes?.length ? `<p class="xs muted center mt8" style="margin-bottom:0">${esc(t.notes.join(" · "))}</p>` : ""}
-      <div class="row between xs mt8" style="gap:8px"><span>🌾 Fibres <b style="color:var(--ink)">${fr(tot.fib || 0)} / ${Math.max(25, Math.round(t.kcal / 1000 * 14))} g</b></span><div class="gauge grow" style="max-width:55%"><i style="width:${Math.min(100, Math.round((tot.fib || 0) / Math.max(25, t.kcal / 1000 * 14) * 100))}%;background:#6B8E23"></i></div></div>`}${compact || nutriLevel() !== "complet" ? "" : nutriLine(d)}`;
+`}${compact || nutriLevel() !== "complet" ? "" : nutriLine(d)}`;
 }
 function trainingCard(d) {
   const ag = E.agenda(d, d)[d], ns = E.nextSession();
