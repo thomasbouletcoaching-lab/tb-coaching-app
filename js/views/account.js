@@ -1,7 +1,7 @@
 // Mon compte : connexion par e-mail aux comptes TB my Coach (coaching, messages, synchronisation).
 import * as C from "../cloud.js";
 import { convertTb, tbPosition } from "../tbconvert.js";
-import { S, update, APP_MODE } from "../store.js";
+import { S, update, APP_MODE, today } from "../store.js";
 import { refreshMe } from "../sync.js";
 import { $app, esc, toast, routes, forms, actions, I, header, tabbar, rerender, go, isCoach } from "../core.js";
 
@@ -93,12 +93,32 @@ export async function restoreMigrated() {
   return { w, f, m: ms, p };
 }
 
+// Compte récupéré sur un nouveau téléphone : profil, plan et programme viennent de la copie du serveur
+// (ce que le membre a envoyé au coach). Ne touche pas à un téléphone déjà configuré.
+export async function restoreFromCloud(m) {
+  if (!m || S().profile || !m.profile) return false;
+  update(st => {
+    st.profile = m.profile;
+    st.plan = m.plan || st.plan;
+    st.current = m.current ?? null;
+    st.customPrograms = m.customPrograms || [];
+    st.moves = m.moves || {}; st.skips = m.skips || {}; st.swaps = m.swaps || {};
+    st.season = m.season ?? st.season; st.goals = m.goals ?? st.goals; st.lifts = m.lifts || st.lifts || {};
+    st.workouts = m.workouts || []; st.food = m.food || {}; st.daily = m.daily || {}; st.measures = m.measures || [];
+    st.settings = { ...(st.settings || {}), ...(m.settings || {}) };
+    st.trialStart = st.trialStart || today();
+    st.synced = true;
+  });
+  return true;
+}
+
 forms["account-signin"] = async (v) => {
   try {
     await C.signInEmail(loginId(v.email), v.password);
+    let full = false; try { full = await restoreFromCloud(await C.fetchMigrated()); } catch (err) { console.warn("Compte non restauré :", err.message); }
     let r = { w: 0, f: 0, m: 0, p: 0 }; try { r = await restoreMigrated(); } catch (err) { console.warn("Données non restaurées :", err.message); }
     await refreshMe().catch(() => { });
-    toast(r.w + r.f + r.m ? `Connecté · ${r.w} séances, ${r.f} repas, ${r.m} mesures restaurés` : "Connecté");
+    toast(full ? "Connecté · ton compte est restauré" : r.w + r.f + r.m ? `Connecté · ${r.w} séances, ${r.f} repas, ${r.m} mesures restaurés` : "Connecté");
     go(APP_MODE === "coach" && isCoach() ? "admin-today" : "profile");
   }
   catch (e) { toast(e.message === "Invalid login credentials" ? "E-mail ou mot de passe incorrect" : "Connexion impossible : " + e.message); }

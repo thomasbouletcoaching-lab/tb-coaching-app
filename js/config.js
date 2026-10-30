@@ -31,6 +31,10 @@ export const OFFERS = [
   { id: "avance", rank: 4, name: "Coaching personnalisé", price: "Sur candidature", per: "", msgs: "Messages avec Thomas, réponse sous 24 h",
     tagline: "Ton programme et ta technique, suivis de près par Thomas.", ribbon: "Sur candidature",
     feats: ["Tout le Coaching Essentiel", "Corrections vidéo illimitées", "Ajustements chaque semaine", "Un appel visio de 30 min par mois", "Suivi global de ta progression"] },
+  // Invité : accès offert par Thomas (ami, proche). Pas de facturation, mêmes accès qu'un coaché, jamais affiché à la vente.
+  { id: "invite", rank: 3, name: "Invité", price: "Offert", per: "", msgs: "Messages et vocaux illimités",
+    tagline: "Un accès offert par Thomas.",
+    feats: ["Coaching complet : programme, plan alimentaire, bilans", "Messages et vocaux avec Thomas"] },
   { id: "surmesure", rank: 5, name: "Coaching Élite", price: "339 €", per: "/mois", msgs: "Messages et vocaux illimités, réponse prioritaire",
     tagline: "Le mentorat complet. Je ne prends que 5 hommes à la fois.",
     feats: ["Tout le Coaching Proximité", "Disponibilité quasi directe (vocaux prioritaires)", "Un appel toutes les 2 semaines", "Nutrition revue au détail, adaptée à chaque imprévu", "Une séance en salle offerte (Paris)"] },
@@ -46,7 +50,7 @@ export const COMPARE = [
 // Les autres formules restent dans la base (le coach peut les attribuer) mais ne sont plus affichées.
 export const PUBLIC_OFFERS = OFFERS.filter(o => ["free", "premium", "avance"].includes(o.id));
 export const offer = (id) => OFFERS.find(o => o.id === id) || OFFERS[0];
-export const MSGS_PER_WEEK = { free: 0, premium: 0, essentiel: 10, suivi: 20, avance: 50, surmesure: null };
+export const MSGS_PER_WEEK = { free: 0, premium: 0, essentiel: 10, suivi: 20, avance: 50, invite: null, surmesure: null };
 // Programmes accessibles sans Premium
 export const ALL_FREE = false; // fin de la phase de test : essai de 7 jours, puis Gratuit ou Bâtisseur
 export const FREE_PROGRAMS = ["tb-rep2", "tb-rep3", "bk-home-rien-30", "bk-sa-dos3-30", "bk-sw-deb3", "bk-bb-fbdeb3-45"];

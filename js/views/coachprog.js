@@ -1,9 +1,11 @@
 // Éditeur de programme (espace coach) : le coach compose le programme d'un membre, qui le reçoit à sa prochaine synchronisation.
+// Chaque exercice a une prescription de base, et une prescription écrite pour chaque semaine du cycle (1 à 12) : le coach règle la surcharge à la main.
 import * as E from "../engine.js";
 import { $app, esc, toast, routes, actions, forms, header, R, go, isCoach, cloud, buzz } from "../core.js";
 
 const DAYS = E.DAY_NAMES;
-let D = null; // brouillon : { memberId, name, sessions: [{ name, day, exercises: [{ name, sets, rest, note }] }] }
+const WEEKS = 12;
+let D = null; // brouillon : { memberId, name, sessions: [{ name, day, exercises: [{ name, sets, rest, note, weeks: { 1: "3x8 RPE8", ... } }] }] }
 
 // Sets (objets) -> texte éditable : « 3x8-10 RPE8 + 1x5@85% »
 function setsToText(sets = []) {
@@ -18,12 +20,16 @@ function setsToText(sets = []) {
 function draftFrom(memberId, prog, name) {
   const sessions = (prog?.s || []).map(([n, day, rows]) => ({
     name: n, day: DAYS.includes(day) ? day : "Lundi",
-    exercises: (rows || []).filter(r => r[0]).map(r => ({ name: r[0], sets: setsToText(r[5]?.sets || []), rest: r[5]?.rest || 120, note: r[2] || "" })),
+    exercises: (rows || []).filter(r => r[0]).map(r => {
+      const row = r[5] || {}, weeks = {};
+      Object.entries(row.weeks || {}).forEach(([w, arr]) => { if (Array.isArray(arr) && arr.length) weeks[w] = setsToText(arr); });
+      return { name: r[0], sets: setsToText(row.sets || []), rest: row.rest || 120, note: r[2] || "", weeks };
+    }),
   }));
   return { memberId, name: name || prog?.name || "Programme de coaching", sessions: sessions.length ? sessions : [blankSession()] };
 }
-const blankSession = () => ({ name: "Séance A", day: "Lundi", exercises: [{ name: "", sets: "3x8-10 RPE8", rest: 120, note: "" }] });
-const blankEx = () => ({ name: "", sets: "3x8-10 RPE8", rest: 120, note: "" });
+const blankEx = () => ({ name: "", sets: "3x8-10 RPE8", rest: 120, note: "", weeks: {} });
+const blankSession = () => ({ name: "Séance A", day: "Lundi", exercises: [blankEx()] });
 
 // Lit le formulaire tel qu'il est (pour ne pas perdre ce qui vient d'être tapé)
 function readForm() {
@@ -32,16 +38,26 @@ function readForm() {
   D.name = v("name");
   D.sessions = D.sessions.map((s, i) => ({
     name: v(`s${i}_name`), day: v(`s${i}_day`) || s.day,
-    exercises: s.exercises.map((e, j) => ({ name: v(`s${i}_e${j}_name`), sets: v(`s${i}_e${j}_sets`), rest: v(`s${i}_e${j}_rest`), note: v(`s${i}_e${j}_note`) })),
+    exercises: s.exercises.map((e, j) => {
+      const weeks = {};
+      for (let w = 1; w <= WEEKS; w++) { const t = v(`s${i}_e${j}_w${w}`).trim(); if (t) weeks[w] = t; }
+      return { name: v(`s${i}_e${j}_name`), sets: v(`s${i}_e${j}_sets`), rest: v(`s${i}_e${j}_rest`), note: v(`s${i}_e${j}_note`), weeks };
+    }),
   }));
 }
 function program() {
   const s = D.sessions.filter(x => x.name.trim()).map(x => [x.name.trim(), DAYS.includes(x.day) ? x.day : "Lundi", x.exercises.filter(e => e.name.trim()).map(e => {
-    const sets = E.parseSets(e.sets);
-    return [e.name.trim(), "S", e.note || "", null, null, { weeks: {}, sets, rest: +e.rest || 120 }];
+    const weeks = {};
+    Object.entries(e.weeks || {}).forEach(([w, txt]) => { const arr = E.parseSets(txt); if (arr.length) weeks[w] = arr; });
+    return [e.name.trim(), "S", e.note || "", null, null, { weeks, sets: E.parseSets(e.sets), rest: +e.rest || 120 }];
   })]);
-  return { name: D.name.trim() || "Programme de coaching", lvl: "Tous niveaux", split: "", weeks: 12, deload: { every: 5 }, days: DAYS.map(d => s.some(x => x[1] === d)), s, prof: "", desc: "", publish: false };
+  return { name: D.name.trim() || "Programme de coaching", lvl: "Tous niveaux", split: "", weeks: WEEKS, deload: { every: 5 }, days: DAYS.map(d => s.some(x => x[1] === d)), s, prof: "", desc: "", publish: false };
 }
+// Une ligne par semaine : vide = même prescription que la base
+const weekInputs = (i, j, e) => `<details class="mt4"><summary class="xs muted" style="cursor:pointer">Surcharge : prescription semaine par semaine (${WEEKS} semaines)</summary>
+  <p class="xs muted" style="margin:6px 0">Vide = même chose que la base. Écris « 4x6 RPE7 + 2x8 RPE8 » pour une semaine précise.</p>
+  <div class="wk-grid">${Array.from({ length: WEEKS }, (_, k) => k + 1).map(w => `<label class="field" style="margin:0"><span>S${w}</span><input name="s${i}_e${j}_w${w}" value="${esc(e.weeks?.[w] || "")}" placeholder="${esc(e.sets)}" maxlength="120"></label>`).join("")}</div></details>`;
+
 function render() {
   const sess = D.sessions.map((s, i) => `
     <div class="card mt12"><div class="row between"><b>Séance ${i + 1}</b><button type="button" class="ghost sm" data-a="prog-delS" data-v="${i}">Supprimer</button></div>
@@ -49,9 +65,10 @@ function render() {
       <label class="field"><span>Jour</span><select name="s${i}_day">${DAYS.map(d => `<option ${d === s.day ? "selected" : ""}>${d}</option>`).join("")}</select></label></div>
       ${s.exercises.map((e, j) => `<div class="card mt8" style="padding:10px"><div class="row between"><span class="xs muted">Exercice ${j + 1}</span><button type="button" class="ghost sm" data-a="prog-delE" data-v="${i},${j}">Retirer</button></div>
         <label class="field mt4"><span>Exercice</span><input name="s${i}_e${j}_name" value="${esc(e.name)}" maxlength="80" placeholder="Ex. Squat barre"></label>
-        <div class="grid2 mt4"><label class="field"><span>Séries × reps · RPE</span><input name="s${i}_e${j}_sets" value="${esc(e.sets)}" placeholder="3x8-10 RPE8"></label>
+        <div class="grid2 mt4"><label class="field"><span>Base : séries × reps · RPE</span><input name="s${i}_e${j}_sets" value="${esc(e.sets)}" placeholder="3x8-10 RPE8"></label>
         <label class="field"><span>Repos (s)</span><input name="s${i}_e${j}_rest" inputmode="numeric" value="${esc(e.rest)}"></label></div>
-        <label class="field mt4"><span>Consigne (facultatif)</span><input name="s${i}_e${j}_note" value="${esc(e.note)}" maxlength="200"></label></div>`).join("")}
+        <label class="field mt4"><span>Consigne (facultatif)</span><input name="s${i}_e${j}_note" value="${esc(e.note)}" maxlength="200"></label>
+        ${weekInputs(i, j, e)}</div>`).join("")}
       <button type="button" class="btn btn-line btn-sm mt8" data-a="prog-addE" data-v="${i}">+ Exercice</button></div>`).join("");
   $app.innerHTML = header("Programme", esc(D.memberName || ""), { back: "admin" })
     + `<main class="page"><form data-f="prog-save">
@@ -91,6 +108,8 @@ forms["prog-save"] = async (v, f) => {
   if (!D.sessions.some(s => s.exercises.some(e => e.name.trim()))) return toast("Ajoute au moins un exercice");
   const bad = D.sessions.flatMap(s => s.exercises).find(e => e.name.trim() && !E.parseSets(e.sets).length);
   if (bad) return toast(`Séries illisibles pour « ${bad.name} » : écris par exemple « 3x8-10 RPE8 »`);
+  const badW = D.sessions.flatMap(s => s.exercises.filter(e => e.name.trim()).map(e => ({ e, w: Object.entries(e.weeks || {}).find(([, t]) => !E.parseSets(t).length) }))).find(x => x.w);
+  if (badW) return toast(`Semaine ${badW.w[0]} illisible pour « ${badW.e.name} » : écris par exemple « 3x8-10 RPE8 »`);
   const prog = program();
   try { const c = await cloud(); await c.coachPlanSet(D.memberId, prog); buzz(); toast("Programme envoyé au client"); go("member", D.memberId); }
   catch (e) { toast("Envoi impossible : " + e.message); }
