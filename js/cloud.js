@@ -64,25 +64,42 @@ export async function touch(stats) {
 }
 
 // Messagerie
+// Messagerie avec le coach : même table « messages » que l'espace coach TB (fiche client liée au compte)
+let cidCache = null;
+async function myClientId() {
+  if (cidCache) return cidCache;
+  const { data, error } = await sb.rpc("cxs_my_client_id"); if (error) throw error;
+  cidCache = data || null; return cidCache;
+}
+const asThread = (m) => ({ id: m.id, user_id: uid, sender: m.from_coach ? "coach" : uid, body: m.body, created_at: m.created_at, read_at: m.read_at, reactions: m.reactions || {} });
+const ownThread = (memberId) => !memberId || memberId === uid;
 export async function thread(memberId = uid) {
-  const { data, error } = await sb.from("cxs_messages").select("id,user_id,sender,body,created_at,read_at,reactions").eq("user_id", memberId).order("created_at", { ascending: true }).limit(300);
-  if (error) throw error; return data;
+  if (!ownThread(memberId)) {
+    const { data, error } = await sb.from("cxs_messages").select("id,user_id,sender,body,created_at,read_at,reactions").eq("user_id", memberId).order("created_at", { ascending: true }).limit(300);
+    if (error) throw error; return data;
+  }
+  const cid = await myClientId(); if (!cid) return [];
+  const { data, error } = await sb.from("messages").select("id,from_coach,body,created_at,read_at,reactions").eq("client_id", cid).order("created_at", { ascending: true }).limit(300);
+  if (error) throw error; return (data || []).map(asThread);
 }
 export async function send(body, memberId = uid) {
-  const { error } = await sb.from("cxs_messages").insert({ user_id: memberId, sender: uid, body });
-  if (error) throw error;
+  if (!ownThread(memberId)) { const { error } = await sb.from("cxs_messages").insert({ user_id: memberId, sender: uid, body }); if (error) throw error; return; }
+  const cid = await myClientId(); if (!cid) throw new Error("Aucune fiche client liée à ce compte");
+  const { error } = await sb.from("messages").insert({ client_id: cid, sender: uid, from_coach: false, body }); if (error) throw error;
 }
-// Réaction : { [userId]: emoji } (une réaction par personne, la retoucher l'enlève)
 export async function react(id, emoji, current = {}) {
   const r = { ...(current || {}) }; if (r[uid] === emoji) delete r[uid]; else r[uid] = emoji;
-  const { error } = await sb.from("cxs_messages").update({ reactions: r }).eq("id", id); if (error) throw error; return r;
+  const { error } = await sb.from("messages").update({ reactions: r }).eq("id", id); if (error) throw error; return r;
 }
 export async function markRead(memberId, fromOther) {
-  await sb.from("cxs_messages").update({ read_at: new Date().toISOString() }).eq("user_id", memberId).neq("sender", uid).is("read_at", null);
+  if (!ownThread(memberId)) { await sb.from("cxs_messages").update({ read_at: new Date().toISOString() }).eq("user_id", memberId).neq("sender", uid).is("read_at", null); return; }
+  const cid = await myClientId(); if (!cid) return;
+  await sb.from("messages").update({ read_at: new Date().toISOString() }).eq("client_id", cid).eq("from_coach", true).is("read_at", null);
 }
 export async function unreadFromCoach() {
   if (!uid) return 0;
-  const { count } = await sb.from("cxs_messages").select("id", { count: "exact", head: true }).eq("user_id", uid).neq("sender", uid).is("read_at", null);
+  const cid = await myClientId(); if (!cid) return 0;
+  const { count } = await sb.from("messages").select("id", { count: "exact", head: true }).eq("client_id", cid).eq("from_coach", true).is("read_at", null);
   return count || 0;
 }
 
