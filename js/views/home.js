@@ -164,7 +164,7 @@ routes.home = async () => {
     ${d === today() && rank() < 1 ? offersCard() : ""}
     ${progressCard()}
     ${canMsg() || isCoach() ? `<h2 class="sec">💬 Ton coach</h2>
-    <button class="card tap" data-a="go" data-r="${isCoach() ? "coach" : "chat"}" style="display:flex;align-items:center;gap:12px"><span style="width:46px;height:46px;border-radius:50%;background:var(--paper);display:grid;place-items:center;flex:none;border:1px solid var(--line)">${I.x(26)}</span>
+    <button class="card tap" data-a="go" data-r="${isCoach() ? "coach" : "chat"}" style="display:flex;align-items:center;gap:12px"><span style="width:46px;height:46px;border-radius:50%;background:var(--paper);display:grid;place-items:center;flex:none;border:1px solid var(--line);overflow:hidden"><img src="assets/icon-192-grec.png" alt="TB my Coach" width="46" height="46" style="width:100%;height:100%;object-fit:cover"></span>
       <span class="grow"><b>${isCoach() ? "Espace coach" : "Écrire à Thomas"}</b><br><span class="small muted">${isCoach() ? "Tes membres et leurs messages" : badges.msgs ? `${badges.msgs} nouveau${badges.msgs > 1 ? "x" : ""} message${badges.msgs > 1 ? "s" : ""}` : msgQuotaText()}</span></span>${I.chev}</button>` : ""}`;
   $app.innerHTML = `<main class="page">
     <div class="row between" style="padding-top:var(--safe-t)"><div></div><div class="row">${isCoach() ? "" : `<button class="pill" data-a="go" data-r="offers">🚀 ${rank() >= 2 ? "Mon coaching" : "Passer au coaching"}</button>`}<button class="pill ic" data-a="notifs" aria-label="Notifications">${I.bell}${badges.notifs ? `<span class="badge">${badges.notifs}</span>` : ""}</button></div></div>
