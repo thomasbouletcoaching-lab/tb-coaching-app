@@ -204,10 +204,16 @@ function rankingSheet() {
 }
 actions["adm-rank"] = () => rankingSheet();
 
+// Onglet « Aujourd'hui » : qui s'entraîne aujourd'hui et à quelle heure, ce qui est en cours, à traiter
+routes["admin-today"] = async () => {
+  if (!(await guard("admin-today"))) return;
+  frame("admin-today", `${agendaBlock()}${todayBlock()}${todoBlock()}`, "Aujourd'hui");
+};
+
 routes.admin = async () => {
   if (!(await guard("admin"))) return;
   frame("admin", `<div class="adm-links mt8"><button class="adm-link" data-a="adm-rank">🏆 Classement des clients</button><button class="adm-link" data-a="go" data-r="kb">📘 Méthode & théorie</button></div>
-    ${todoBlock()}${agendaBlock()}${candBlock()}${todayBlock()}${bulkBlock()}${clientsBlock()}`);
+    ${candBlock()}${bulkBlock()}${clientsBlock()}`);
   const i = document.getElementById("adm-q"); i?.addEventListener("input", () => { UI.q = i.value; clearTimeout(i._t); i._t = setTimeout(() => { const box = document.getElementById("adm-list"); if (box) { const tmp = document.createElement("div"); tmp.innerHTML = clientsBlock(); box.innerHTML = tmp.querySelector("#adm-list").innerHTML; } }, 150); });
 };
 

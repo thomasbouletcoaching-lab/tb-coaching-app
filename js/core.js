@@ -154,11 +154,12 @@ export const modeBar = (items, cur, act) => `<div class="modes" role="tablist">$
 // Barre d'onglets de l'espace coach
 export const adminBadges = { msgs: 0, subs: 0 };
 export function adminTabbar(active) {
-  const ic = { clients: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.6c2.6.2 4.4 1.9 5 5"/></svg>`,
+  const ic = { today: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>`,
+    clients: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.6c2.6.2 4.4 1.9 5 5"/></svg>`,
     msgs: I.coach, biz: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17.5 6.5A7 7 0 1 0 17.5 17.5"/><path d="M4 10.5h9M4 13.5h9"/></svg>`,
     subs: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg>`,
     db: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="7.5" ry="2.8"/><path d="M4.5 6v12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V6M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8"/></svg>` };
-  const t = [["admin", "Mes clients", ic.clients], ["admin-msg", `Messages${adminBadges.msgs ? ` (${adminBadges.msgs})` : ""}`, ic.msgs], ["admin-biz", "Business", ic.biz], ["admin-subs", "Abonnés", ic.subs], ["admin-db", "Base de données", ic.db]];
+  const t = [["admin-today", "Aujourd'hui", ic.today], ["admin", "Mes clients", ic.clients], ["admin-msg", `Messages${adminBadges.msgs ? ` (${adminBadges.msgs})` : ""}`, ic.msgs], ["admin-biz", "Business", ic.biz], ["admin-subs", "Abonnés", ic.subs], ["admin-db", "Base de données", ic.db]];
   const ix = Math.max(0, t.findIndex(([r]) => r === active));
   return `<nav class="tabbar" aria-label="Espace coach" style="--n:${t.length};--i:${ix}"><span class="lens" aria-hidden="true"></span>${t.map(([r, l, i]) => `<a href="#/${r}" class="tab" ${r === active ? 'aria-current="page"' : ""}>${i}<span>${l}</span></a>`).join("")}</nav>`;
 }
@@ -209,7 +210,7 @@ export const onLeave = (fn) => stops.add(fn);
 export function render() {
   const h = location.hash.replace(/^#\/?/, "").split("/");
   R.route = h[0] || "home"; R.param = h[1] ? decodeURIComponent(h[1]) : null; R.param2 = h[2] ? decodeURIComponent(h[2]) : null;
-  if (APP_MODE === "coach" && R.route === "home") R.route = "admin"; // l'app coach s'ouvre sur l'espace coach
+  if (APP_MODE === "coach" && R.route === "home") R.route = "admin-today"; // l'app coach s'ouvre sur l'espace coach
   if (!S().profile && !["onboarding", "x", "privacy", "account"].includes(R.route)) R.route = "onboarding";
   if (S().current && !["workout", "x", "fiche", "simu"].includes(R.route) && sessionStorage.getItem("cxs.min") !== "1") R.route = "workout";
   stops.forEach(f => f()); stops.clear(); closeSheet(); document.getElementById("hlb")?.remove();
