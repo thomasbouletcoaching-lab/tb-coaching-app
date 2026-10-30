@@ -1,4 +1,5 @@
 import { S, update, today } from "../store.js";
+import { coachLogo } from "../core.js";
 import * as E from "../engine.js";
 import * as N from "../nutrition.js";
 import { $app, esc, buzz, num, toast, routes, actions, forms, go, I, logo, markImg, wordOn } from "../core.js";
@@ -58,7 +59,7 @@ routes.onboarding = () => {
   else body = `<div class="choices">${s.opts.map(([v, l, sub]) => `<button class="choice" data-a="ob-pick" data-v='${JSON.stringify(v)}'>${l}${sub ? `<small>${sub}</small>` : ""}</button>`).join("")}</div>`;
   $app.innerHTML = `<section class="convo"><div class="convo-top"><button class="icon-btn" data-a="ob-back" aria-label="Retour">${I.back}</button><div class="progress"><i style="width:${pct}%"></i></div></div>
     ${OB.echo ? `<div class="echo">${esc(OB.echo)}</div>` : ""}
-    <div class="coach-mark"><span class="av">${I.x(22)}</span>Thomas · ton coach</div>
+    <div class="coach-mark"><span class="av">${coachLogo(22)}</span>Thomas · ton coach</div>
     <h1 class="q">${s.q(OB.a)}</h1>${s.sub ? `<p class="q-sub">${s.sub}</p>` : ""}${body}</section>`;
 };
 function welcome() {
