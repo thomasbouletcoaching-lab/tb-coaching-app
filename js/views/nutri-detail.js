@@ -14,14 +14,13 @@ export const NUTRI_LEVELS = [["simple", "Calories et protéines"], ["macros", "C
 export function nutriLevel() {
   const v = S().settings?.nutriLevel;
   if (NUTRI_LEVELS.some(([k]) => k === v)) return v;
-  return S().settings?.simpleNutri ? "simple" : "macros";
+  return S().settings?.simpleNutri ? "simple" : "complet";
 }
 export function levelSelector() {
   return `<div class="mt8">${seg(NUTRI_LEVELS, nutriLevel(), "nutri-level")}</div>`;
 }
 export function nutriCard(d) {
   const t = dayNutrients(d);
-  if (!t.total) return "";
   const sp = sugarPct(t.sugG, t.kcal);
   const fibTarget = Math.max(25, Math.round(t.kcal / 1000 * 14));
   const fibPct = Math.min(100, Math.round((t.fib || 0) / fibTarget * 100));

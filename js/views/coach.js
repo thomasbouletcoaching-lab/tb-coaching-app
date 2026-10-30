@@ -4,7 +4,7 @@ import { S, update, today, withState } from "../store.js";
 import * as N from "../nutrition.js";
 import * as E from "../engine.js";
 import { CONFIG, OFFERS, offer, COMPARE } from "../config.js";
-import { trialLeft, $app, esc, num, fr, buzz, toast, ago, routes, R, actions, forms, changes, go, I, header, tabbar, adminTabbar, seg, chips, sheet, closeSheet, badges, fmtDate, addDays, rerender, tier, rank, premium, isCoach, msgQuotaText, cloud, cloudNow, render, onLeave, canMsg } from "../core.js";
+import { coachLogo, trialLeft, $app, esc, num, fr, buzz, toast, ago, routes, R, actions, forms, changes, go, I, header, tabbar, adminTabbar, seg, chips, sheet, closeSheet, badges, fmtDate, addDays, rerender, tier, rank, premium, isCoach, msgQuotaText, cloud, cloudNow, render, onLeave, canMsg } from "../core.js";
 import { refreshMe, syncProfile } from "../sync.js";
 import { fromCoach, libraryRows } from "../library.js";
 
@@ -92,7 +92,7 @@ routes.apply = () => {
   else if (s.type === "phone") body = `<form class="choices" data-f="ap-phone" style="align-items:stretch"><label class="field"><span>Téléphone (facultatif)</span><input name="v" type="tel" autocomplete="tel"></label><button class="btn btn-red">Envoyer ma candidature</button></form>`;
   else body = `<div class="choices">${s.opts.map(([v, l]) => `<button class="choice" data-a="ap-pick" data-v='${JSON.stringify(v)}'>${l}</button>`).join("")}</div>`;
   $app.innerHTML = `<section class="convo"><div class="convo-top"><button class="icon-btn" data-a="ap-back" aria-label="Retour">${I.back}</button><div class="progress"><i style="width:${AP.i / AQ.length * 100}%"></i></div></div>
-    <div class="coach-mark"><span class="av">${I.x(20)}</span>Candidature · ${esc(offer(AP.a.offer).name)}</div><h1 class="q">${esc(s.q)}</h1>${body}</section>`;
+    <div class="coach-mark"><span class="av">${coachLogo(20)}</span>Candidature · ${esc(offer(AP.a.offer).name)}</div><h1 class="q">${esc(s.q)}</h1>${body}</section>`;
 };
 actions["ap-back"] = () => { if (AP.i === 0) go("offers"); else { AP.i--; routes.apply(); } };
 actions["ap-pick"] = (b, d) => { AP.a[AQ[AP.i].id] = JSON.parse(d.v); AP.i++; buzz(); routes.apply(); };
@@ -109,7 +109,7 @@ function applyDone() {
   update(st => { st.application = a; st.synced = false; });
   syncProfile();
   $app.innerHTML = `<section class="convo" style="justify-content:center">
-    <div class="coach-mark"><span class="av">${I.x(20)}</span>Thomas</div>
+    <div class="coach-mark"><span class="av">${coachLogo(20)}</span>Thomas</div>
     <h1 class="q">Merci ${esc(S().profile.name)}. J'ai bien reçu ta candidature pour ${esc(offer(a.offer).name)}.</h1>
     <p class="q-sub">Dernière étape : réserve notre appel de 15 minutes. Tes réponses me seront transmises avec la réservation.</p>
     <div class="stack mt32"><a class="btn btn-red" href="${calendlyUrl(a)}" target="_blank" rel="noopener noreferrer">📞 Réserver mon appel</a><button class="btn btn-line" data-a="go" data-r="home">Plus tard</button></div></section>`;

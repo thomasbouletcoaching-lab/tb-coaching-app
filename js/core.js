@@ -72,6 +72,7 @@ export const I = {
 // Nom de marque : CAL X STHENOS, avec le X du logo
 const MINI_X = `<svg viewBox="54 52 292 320" aria-hidden="true" style="height:.74em;width:.68em;margin:0 .12em"><defs><linearGradient id="mxr" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#8F3510"/><stop offset=".55" stop-color="#C2541F"/><stop offset="1" stop-color="#EE8A45"/></linearGradient><linearGradient id="mxd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B9501E"/><stop offset="1" stop-color="#5C2410"/></linearGradient></defs><path d="M300 52H346L212 212L118 372H70L188 212Z" fill="url(#mxd)"/><path d="M54 52H100L212 212L330 372H282L188 212Z" fill="url(#mxr)"/></svg>`;
 export const logo = (size = 24) => `<span role="img" aria-label="TB my Coach" style="display:inline-flex;align-items:center;font-family:var(--fg);font-weight:800;font-size:${size}px;letter-spacing:.02em;white-space:nowrap">TB my <span style="color:var(--red)">Coach</span></span>`;
+export const coachLogo = (size = 22) => `<img src="assets/icon-192-grec.png" alt="TB my Coach" width="${size}" height="${size}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover">`;
 export const markImg = (size = 96) => `<img src="assets/logo-tb.png" alt="Logo TB my Coach" width="${size}" height="${size}" style="border-radius:${Math.round(size * .22)}px;box-shadow:0 12px 30px rgba(42,11,19,.3)">`;
 
 // ---------- Retours visuels ----------
