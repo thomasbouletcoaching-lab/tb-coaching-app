@@ -481,3 +481,7 @@ input,select,textarea{max-width:100%;min-width:0}
   user-select: none !important;
   -webkit-user-drag: none;
 }
+
+/* Surcharge semaine par semaine (éditeur de programme coach) */
+.wk-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
+@media (max-width:360px){.wk-grid{grid-template-columns:repeat(3,1fr)}}

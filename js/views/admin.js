@@ -289,8 +289,9 @@ routes["admin-biz"] = async () => {
   } else if (bizTab === "cyc") {
     const C = B().cycles.slice().sort((a, b) => a.start.localeCompare(b.start));
     body = `<button class="btn btn-red btn-sm mt12" data-a="cyc-new" style="width:100%">+ Nouveau cycle client</button>
-      ${C.map(c => { const end = addDays(c.start, c.weeks * 7 - 1), done = Math.min(c.weeks, Math.max(0, Math.floor((new Date(t) - new Date(c.start)) / (7 * 864e5)) + (t >= c.start ? 1 : 0))), soon = end >= t && end <= addDays(t, 14); return `<div class="card mt8" style="${soon ? "box-shadow:0 0 0 2px var(--warn) inset" : ""}"><div class="row between"><b>${esc(c.who)}</b><span class="tag">${esc(offer(c.offer).name)}</span></div>
+      ${C.map(c => { const end = addDays(c.start, c.weeks * 7 - 1), done = Math.min(c.weeks, Math.max(0, Math.floor((new Date(t) - new Date(c.start)) / (7 * 864e5)) + (t >= c.start ? 1 : 0))), soon = end >= t && end <= addDays(t, 14); return `<div class="card mt8" style="${soon ? "box-shadow:0 0 0 2px var(--warn) inset" : ""}"><div class="row between"><b>${esc(c.who)}</b><span class="tag">${esc(cycName(c))}</span></div>
         <p class="xs muted mt4" style="margin-bottom:6px">${fmtDate(c.start, { day: "numeric", month: "short" })} → ${fmtDate(end, { day: "numeric", month: "short", year: "numeric" })} · ${c.weeks} sem. · ${eur(c.price)} ${c.split === "mois" ? "par mois" : "au total"}</p>
+        ${c.detail ? `<p class="small mt4" style="margin:0 0 6px;white-space:pre-line">${esc(c.detail)}</p>` : ""}
         <div class="gauge"><i style="width:${Math.round(done / c.weeks * 100)}%"></i></div><p class="xs mt4" style="margin:4px 0 0">${t < c.start ? "Commence bientôt" : end < t ? "Terminé" : `Semaine ${done}/${c.weeks}`}${soon ? " · <b>renouvellement à proposer</b>" : ""}</p>
         <div class="row mt8" style="gap:6px"><button class="btn btn-line btn-xs grow" data-a="cyc-pay" data-id="${c.id}">Créer les encaissements</button><button class="btn btn-ghost btn-xs" data-a="cyc-del" data-id="${c.id}" style="color:var(--red)">Supprimer</button></div></div>`; }).join("") || `<p class="empty small">Suis ici les cycles de coaching de tes clients (début, durée, prix) : l'app te prévient quand un renouvellement approche.</p>`}`;
   } else {
@@ -326,19 +327,26 @@ actions["pay-tog"] = async (b, d) => { const p = B().payments.find(p => p.id ===
 actions["pay-del"] = async (b, d) => { if (!confirm("Supprimer cet encaissement ?")) return; B().payments = B().payments.filter(p => p.id !== +d.id); closeSheet(); rerender(); await saveStore("biz"); };
 actions["cyc-new"] = () => sheet(`<h2 class="h2">Nouveau cycle client</h2><form data-f="cyc" class="mt12">
   <div class="grid2"><label class="field"><span>Client</span><select name="mid">${memberOpts()}</select></label><label class="field"><span>Ou nom</span><input name="who" placeholder="Client hors app"></label></div>
-  <label class="field mt8"><span>Formule</span><select name="offer">${OFFERS.filter(o => o.rank >= 2).map(o => `<option value="${o.id}">${esc(o.name)} · ${esc(o.price)}${esc(o.per)}</option>`).join("")}</select></label>
+  <label class="field mt8"><span>Formule</span><select name="offer">${OFFERS.filter(o => o.rank >= 2).map(o => `<option value="${o.id}">${esc(o.name)} · ${esc(o.price)}${esc(o.per)}</option>`).join("")}<option value="custom">Offre personnalisée (à décrire)</option></select></label>
+  <label class="field mt8"><span>Intitulé (si offre personnalisée)</span><input name="label" maxlength="80" placeholder="Coaching salle · 3 séances par semaine"></label>
+  <label class="field mt8"><span>Détail de l'offre</span><textarea name="detail" rows="4" maxlength="1000" placeholder="Ce qui est inclus, rythme, suivi, conditions…"></textarea></label>
   <div class="grid3 mt8"><label class="field"><span>Début</span><input type="date" name="start" value="${today()}" required></label><label class="field"><span>Semaines</span><input name="weeks" inputmode="numeric" value="12"></label><label class="field"><span>Prix (€)</span><input name="price" inputmode="decimal" placeholder="890"></label></div>
   <label class="field mt8"><span>Paiement</span><select name="split"><option value="total">En une fois (au début)</option><option value="mois">Chaque mois</option></select></label>
   <button class="btn btn-red mt12">Créer le cycle</button></form>`);
+// Nom affiché d'un cycle : l'intitulé personnalisé, sinon le nom de la formule
+const cycName = (c) => c.label || offer(c.offer).name;
 forms.cyc = async (v) => {
   const m = A.members?.find(x => x.id === v.mid), price = num(v.price) || priceOf(v.offer), weeks = Math.max(1, Math.round(num(v.weeks)) || 12);
-  B().cycles.push({ id: Date.now(), mid: v.mid || null, who: m ? first(m) : v.who.trim() || "Client", offer: v.offer, start: v.start, weeks, price, split: v.split });
+  const custom = v.offer === "custom";
+  if (custom && !v.label.trim()) return toast("Donne un intitulé à l'offre personnalisée");
+  if (!(price > 0)) return toast("Indique le prix");
+  B().cycles.push({ id: Date.now(), mid: v.mid || null, who: m ? first(m) : v.who.trim() || "Client", offer: custom ? "custom" : v.offer, label: custom || v.label.trim() ? v.label.trim() : "", detail: (v.detail || "").trim(), start: v.start, weeks, price, split: v.split });
   closeSheet(); rerender(); await saveStore("biz");
 };
 actions["cyc-pay"] = async (b, d) => {
   const c = B().cycles.find(x => x.id === +d.id), P = B().payments; let n = 0;
-  if (c.split === "mois") { const months = Math.max(1, Math.round(c.weeks / 4.33)); for (let i = 0; i < months; i++) { const dd = new Date(c.start + "T12:00:00"); dd.setMonth(dd.getMonth() + i); P.push({ id: Date.now() + i, mid: c.mid, who: c.who, amount: c.price, d: today(dd), label: `${offer(c.offer).name} · mois ${i + 1}/${months}`, paid: false }); n++; } }
-  else { P.push({ id: Date.now(), mid: c.mid, who: c.who, amount: c.price, d: c.start, label: `${offer(c.offer).name} · ${c.weeks} semaines`, paid: false }); n = 1; }
+  if (c.split === "mois") { const months = Math.max(1, Math.round(c.weeks / 4.33)); for (let i = 0; i < months; i++) { const dd = new Date(c.start + "T12:00:00"); dd.setMonth(dd.getMonth() + i); P.push({ id: Date.now() + i, mid: c.mid, who: c.who, amount: c.price, d: today(dd), label: `${cycName(c)} · mois ${i + 1}/${months}`, paid: false }); n++; } }
+  else { P.push({ id: Date.now(), mid: c.mid, who: c.who, amount: c.price, d: c.start, label: `${cycName(c)} · ${c.weeks} semaines`, paid: false }); n = 1; }
   toast(`${n} encaissement${n > 1 ? "s" : ""} prévu${n > 1 ? "s" : ""} ajouté${n > 1 ? "s" : ""}`); rerender(); await saveStore("biz");
 };
 actions["cyc-del"] = async (b, d) => { if (!confirm("Supprimer ce cycle ?")) return; B().cycles = B().cycles.filter(x => x.id !== +d.id); rerender(); await saveStore("biz"); };
