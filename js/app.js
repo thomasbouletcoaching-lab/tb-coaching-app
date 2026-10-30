@@ -18,6 +18,11 @@ import "./views/season.js";
 import "./views/admin.js";
 import "./views/coachprog.js";
 import "./views/account.js";
+import "./views/coachfood.js";
+import "./views/live.js";
+import { pullLive } from "./views/live.js";
+import { pullCoachFood } from "./views/coachfood.js";
+import { cloud as cloudMod } from "./core.js";
 import { applyTheme } from "./views/more.js";
 
 installEvents();
@@ -35,6 +40,10 @@ window.addEventListener("hashchange", render);
   pullCoachSlots(); setInterval(pullCoachSlots, 5 * 60000);
   pullCoachPlan(); setInterval(pullCoachPlan, 5 * 60000);
   refreshLibrary(); setInterval(refreshLibrary, 15 * 60000);
+  // Plan alimentaire du coach (toutes les 5 min) et séance en direct (toutes les 15 s, bandeau de l'accueil)
+  const pullFood = async () => { try { const c = await cloudMod(); if (c && S().profile && !S().me?.isCoach) { await pullCoachFood(c); if (R.route === "home") render(); } } catch { } };
+  pullFood(); setInterval(pullFood, 5 * 60000);
+  pullLive(); setInterval(pullLive, 15000);
   // Pas de menu « lien » sur un appui long dans la barre du bas ou sur les liens internes
   document.addEventListener("contextmenu", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });
   document.addEventListener("dragstart", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });

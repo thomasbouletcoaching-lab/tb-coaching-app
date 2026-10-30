@@ -258,3 +258,28 @@ export async function nutriRecent(days = 7) {
   const { data, error } = await sb.from("nutri_daily").select("user_id,d,kcal,sucres_g,sodium_mg,potassium_mg").gte("d", from);
   if (error) throw error; return data || [];
 }
+
+// Plan alimentaire écrit par le coach (table cxs_coach_food_plans). Le membre le lit, le coach l'écrit.
+export async function coachFood() {
+  if (!uid) await ensureSession();
+  const { data, error } = await sb.from("cxs_coach_food_plans").select("plan,updated_at").eq("user_id", uid).maybeSingle();
+  if (error) throw error; return data || null;
+}
+export async function coachFoodGet(memberId) {
+  const { data, error } = await sb.from("cxs_coach_food_plans").select("plan,updated_at").eq("user_id", memberId).maybeSingle();
+  if (error) throw error; return data || null;
+}
+export async function coachFoodSet(memberId, plan) {
+  const { error } = await sb.from("cxs_coach_food_plans").upsert({ user_id: memberId, plan, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
+
+// Séance en direct (table cxs_live_sessions) : une seule séance par membre, lue et écrite par le membre et le coach.
+export async function liveGet(userId) {
+  const { data, error } = await sb.from("cxs_live_sessions").select("state,updated_at").eq("user_id", userId).maybeSingle();
+  if (error) throw error; return data || null;
+}
+export async function liveSet(userId, state) {
+  const { error } = await sb.from("cxs_live_sessions").upsert({ user_id: userId, state, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}

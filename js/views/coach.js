@@ -322,6 +322,7 @@ routes.member = async () => {
   const D = mbr.data.data;
   const top = `<div class="row" style="gap:8px"><a class="btn btn-red btn-sm grow" href="#/chat/${m.id}">💬 Messages${m.unread ? ` · ${m.unread}` : ""}</a>${m.email ? `<a class="btn btn-line btn-sm grow" href="mailto:${esc(m.email)}">✉️ E-mail</a>` : ""}</div>
     <div class="row mt8" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="mb-assign">📋 Assigner un programme</button><button class="btn btn-line btn-sm grow" data-a="mb-plan">🍽️ Envoyer un plan</button></div>
+    <div class="row mt8" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="go" data-r="member-food" data-p="${esc(m.id)}">📊 Plan alimentaire (semaine ou jour)</button><button class="btn btn-red btn-sm grow" data-a="live-start" data-id="${esc(m.id)}">▶ Séance en direct</button></div>
     <div class="mt12">${chips(tabs, mbr.tab, "mb-tab")}</div>
     ${D ? `<p class="xs muted mt4">Données mises à jour ${ago(mbr.data.updated_at)}</p>` : ""}`;
   if (mbr.tab !== "profil") {
