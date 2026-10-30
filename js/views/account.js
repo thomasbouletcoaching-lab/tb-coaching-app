@@ -1,8 +1,9 @@
 // Mon compte : connexion par e-mail aux comptes TB my Coach (coaching, messages, synchronisation).
 import * as C from "../cloud.js";
 import { convertTb, tbPosition } from "../tbconvert.js";
-import { S, update } from "../store.js";
-import { $app, esc, toast, routes, forms, actions, I, header, tabbar, rerender, go } from "../core.js";
+import { S, update, APP_MODE } from "../store.js";
+import { refreshMe } from "../sync.js";
+import { $app, esc, toast, routes, forms, actions, I, header, tabbar, rerender, go, isCoach } from "../core.js";
 
 let mode = "signin"; // signin | signup | reset
 
@@ -96,7 +97,9 @@ forms["account-signin"] = async (v) => {
   try {
     await C.signInEmail(loginId(v.email), v.password);
     let r = { w: 0, f: 0, m: 0, p: 0 }; try { r = await restoreMigrated(); } catch (err) { console.warn("Données non restaurées :", err.message); }
-    toast(r.w + r.f + r.m ? `Connecté · ${r.w} séances, ${r.f} repas, ${r.m} mesures restaurés` : "Connecté"); go("profile");
+    await refreshMe().catch(() => { });
+    toast(r.w + r.f + r.m ? `Connecté · ${r.w} séances, ${r.f} repas, ${r.m} mesures restaurés` : "Connecté");
+    go(APP_MODE === "coach" && isCoach() ? "admin-today" : "profile");
   }
   catch (e) { toast(e.message === "Invalid login credentials" ? "E-mail ou mot de passe incorrect" : "Connexion impossible : " + e.message); }
 };

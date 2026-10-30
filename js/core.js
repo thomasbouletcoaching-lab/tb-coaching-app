@@ -212,7 +212,7 @@ export function render() {
   const h = location.hash.replace(/^#\/?/, "").split("/");
   R.route = h[0] || "home"; R.param = h[1] ? decodeURIComponent(h[1]) : null; R.param2 = h[2] ? decodeURIComponent(h[2]) : null;
   // L'app coach s'ouvre sur l'espace coach, seulement pour un compte coach (sinon : accueil client, sans boucle)
-  if (APP_MODE === "coach" && R.route === "home" && S().me?.isCoach) R.route = "admin-today";
+  if (APP_MODE === "coach" && R.route === "home") R.route = isCoach() ? "admin-today" : "account"; // app coach : connexion directe, sans onboarding
   if (!S().profile && !["onboarding", "x", "privacy", "account"].includes(R.route)) R.route = "onboarding";
   if (S().current && !["workout", "x", "fiche", "simu"].includes(R.route) && sessionStorage.getItem("cxs.min") !== "1") R.route = "workout";
   stops.forEach(f => f()); stops.clear(); closeSheet(); document.getElementById("hlb")?.remove();
