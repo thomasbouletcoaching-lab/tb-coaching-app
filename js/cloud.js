@@ -127,7 +127,8 @@ export async function markRead(memberId, fromOther) {
     await sb.from("messages").update({ read_at: new Date().toISOString() }).eq("client_id", cid).eq("from_coach", true).is("read_at", null); return;
   }
   const cid = await clientIdFor(memberId);
-  if (cid) { await sb.from("messages").update({ read_at: new Date().toISOString() }).eq("client_id", cid).eq("from_coach", false).is("read_at", null); return; }
+  // Les messages du membre sont dans les deux tables selon l'époque : on marque lu dans les deux
+  if (cid) await sb.from("messages").update({ read_at: new Date().toISOString() }).eq("client_id", cid).eq("from_coach", false).is("read_at", null);
   await sb.from("cxs_messages").update({ read_at: new Date().toISOString() }).eq("user_id", memberId).neq("sender", uid).is("read_at", null);
 }
 export async function unreadFromCoach() {
