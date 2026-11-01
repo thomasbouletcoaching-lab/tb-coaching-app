@@ -151,7 +151,7 @@ export async function members() {
   if (error) throw error;
   const { data: un } = await sb.from("cxs_messages").select("user_id,sender").is("read_at", null).limit(2000);
   const unread = {}; (un || []).forEach(m => { if (m.sender === m.user_id) unread[m.user_id] = (unread[m.user_id] || 0) + 1; });
-  return data.filter(p => !p.is_coach).map(p => ({ ...p, unread: unread[p.id] || 0 }));
+  return data.filter(p => !p.is_coach && !p.onboarding?.hidden).map(p => ({ ...p, unread: unread[p.id] || 0 }));
 }
 export async function setTier(id, tier) { const { error } = await sb.rpc("cxs_set_tier", { target: id, new_tier: tier }); if (error) throw error; }
 export async function notify(title, body, to = null) {

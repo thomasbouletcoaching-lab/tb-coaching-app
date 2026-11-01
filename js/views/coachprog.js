@@ -123,9 +123,9 @@ routes["member-prog"] = async () => {
       const cur = await c.coachPlanGet(memberId).catch(() => null);
       src = cur?.program?.s?.length ? cur.program : memberProgram(md?.data);
     }
-    D = draftFrom(memberId, src, src?.name);
-    D.memberName = m?.name || m?.email || "";
-    render();
+    // Même éditeur complet que celui du client : semaines, techniques, surcharge, superset
+    const { openBuilderForMember } = await import("./train.js");
+    openBuilderForMember(memberId, m?.name || m?.email || "client", src);
   } catch (e) { $app.innerHTML = header("Programme", "", { back: "admin" }) + `<main class="page"><p class="empty">Chargement impossible : ${esc(e.message)}</p></main>`; }
 };
 
