@@ -18,6 +18,7 @@ const mainOf = (t) => t === "banque" ? "banque" : t === "stats" ? "stats" : "min
 // PAGE ENTRAÎNEMENT
 // =====================================================================
 routes.train = async () => {
+  if (draft?.forMember) draft = null;
   await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
   if (R.param && TABS.some(t => t[0] === R.param)) tab = R.param;
   if (tab === "historique") { carnetTab = "faites"; carnetMain = "seances"; return go("carnet"); }
@@ -656,6 +657,15 @@ routes.done = () => {
 // CRÉER SON PROGRAMME : séances, exercices, séries écrites une par une, règles de surcharge, cycle entier
 // =====================================================================
 let draft = null;
+// Coach : ouvre l'éditeur complet du client (semaines, techniques, surcharge) sur le programme d'un membre
+export function openBuilderForMember(memberId, name, program) {
+  const p = JSON.parse(JSON.stringify(program || { name: "Programme", s: [["Séance A", "Lundi", []]] }));
+  p.custom = true; p.id = "my-" + Date.now(); p.forMember = { id: memberId, name }; p.weeks = p.weeks || 12; p.lvl = p.lvl || "Tous niveaux";
+  if (p.deload === undefined && !p.phases) p.deload = { every: 5 };
+  if (!Array.isArray(p.days) || p.days.length !== 7) p.days = E.DAY_NAMES.map(n => p.s.some(x => x[1] === n));
+  if (!p.days.some(Boolean)) p.days = [true, false, true, false, true, false, false];
+  draft = p; go("builder");
+}
 const KINDS = [["F", "Force"], ["P", "Principal"], ["S", "Secondaire"], ["I", "Isolation"], ["U", "Unilatéral"], ["C", "Gainage"], ["N", "Street"], ["M", "Mobilité"], ["X", "Autre"]];
 const ST_SHORT = { N: "Normale", W: "Échauf.", T: "Top set", B: "Back-off", D: "Dégressive", A: "AMRAP", E: "Échec" };
 const newRow = (n) => { const x = E.migrateRow({ sets: 3, lo: 8, hi: 12, rpe: 8, pct: null, tech: [], rest: 120 }); return [n, "P", "", null, null, x]; };
@@ -697,7 +707,7 @@ routes.builder = async () => {
   const D = draft; D.s.forEach(se => se[2].forEach(r => { r[5] = E.migrateRow(r[5] || { sets: 3 }); }));
   if (!D.phases && D.deload === undefined) D.deload = { every: 4 };
   const dl = D.phases ? "phases" : !D.deload ? "none" : D.deload.w ? "last" : String(D.deload.every);
-  $app.innerHTML = header(D.from ? "Personnaliser" : "Créer mon programme", "", { back: "train" }) + `<main class="page">
+  $app.innerHTML = header(D.forMember ? "Programme de " + esc(D.forMember.name) : D.from ? "Personnaliser" : "Créer mon programme", "", { back: D.forMember ? "admin" : "train" }) + `<main class="page">
     <label class="field"><span>Nom</span><input data-c="bd" data-k="name" value="${esc(D.name)}" maxlength="70"></label>
     <div class="grid2 mt8"><label class="field"><span>Durée du cycle</span><select data-c="bd" data-k="weeks">${Array.from({ length: 14 }, (_, i) => i + 3).map(w => `<option ${D.weeks === w ? "selected" : ""} value="${w}">${w} semaines</option>`).join("")}</select></label>
       <label class="field"><span>Semaines d'allègement</span><select data-c="bd-deload">${D.phases ? `<option value="phases" selected>Selon les phases du programme</option>` : ""}<option value="4" ${dl === "4" ? "selected" : ""}>Toutes les 4 semaines</option><option value="5" ${dl === "5" ? "selected" : ""}>Toutes les 5 semaines</option><option value="6" ${dl === "6" ? "selected" : ""}>Toutes les 6 semaines</option><option value="last" ${dl === "last" ? "selected" : ""}>Dernière semaine du cycle</option><option value="none" ${dl === "none" ? "selected" : ""}>Aucune</option></select></label></div>
@@ -709,7 +719,7 @@ routes.builder = async () => {
       <button class="btn btn-line btn-sm mt12" data-a="bd-add" data-s="${si}" style="width:100%">+ Exercices</button></div>`).join("")}
     <button class="btn btn-ghost mt12" data-a="bd-sadd">+ Ajouter une séance</button>
     <p class="xs muted mt12">Touche un exercice pour écrire ses séries, ses règles de surcharge et chaque semaine du cycle. Les charges en % se calculent sur ton 1RM estimé.</p>
-    <div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="bd-save">Enregistrer</button><button class="btn btn-line grow" data-a="bd-use">Enregistrer et suivre</button></div>
+    ${D.forMember ? `<button class="btn btn-red mt12" style="width:100%" data-a="bd-send">Envoyer à ${esc(D.forMember.name)}</button><p class="xs muted mt8">Le programme remplace celui du client ; sa semaine en cours est conservée.</p>` : `<div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="bd-save">Enregistrer</button><button class="btn btn-line grow" data-a="bd-use">Enregistrer et suivre</button></div>`}
     ${isCoach() ? `<label class="field mt12"><span>Pour qui (affiché dans la banque)</span><input data-c="bd" data-k="prof" value="${esc(D.prof || "")}" placeholder="Ex. père de famille, 3 séances, reprise"></label><button class="btn btn-red mt8" data-a="bd-publish" style="width:100%">📤 ${D.lib ? "Mettre à jour dans la banque des membres" : "Publier dans la banque des membres"}</button>` : ""}
     ${(S().customPrograms || []).some(p => p.id === D.id) ? `<button class="btn btn-ghost mt8" data-a="bd-del" style="color:var(--red)">Supprimer ce programme</button>` : ""}
   </main>${tabbar("train")}`;
@@ -829,6 +839,17 @@ actions["bd-publish"] = async () => {
   let k = 0; draft.days.forEach((on, i) => { if (on && draft.s[k]) draft.s[k++][1] = E.DAY_NAMES[i]; });
   const { id, from, lib, publish, ...data } = JSON.parse(JSON.stringify(draft));
   const c = await cloud(); try { if (lib) await c.libraryUpdate(lib, { name: draft.name, data }); else await c.libraryAdd("program", draft.name, data); const { refreshLibrary } = await import("../library.js"); await refreshLibrary(); toast(lib ? "Programme mis à jour pour tous" : "Programme publié : tes membres le voient dans la banque"); draft = null; go("admin-db"); } catch (e) { toast("Publication impossible : " + e.message); }
+};
+actions["bd-send"] = async () => {
+  if (!draft?.forMember) return;
+  if (!draft.s.some(s => s[2].length)) return toast("Ajoute au moins un exercice.");
+  let k = 0; draft.days.forEach((on, i) => { if (on && draft.s[k]) draft.s[k++][1] = E.DAY_NAMES[i]; });
+  const { id, forMember, from, lib, publish, prof, ...prog } = JSON.parse(JSON.stringify(draft));
+  try {
+    const c = await cloud(); await c.coachPlanSet(forMember.id, prog);
+    await c.notify("📋 Ton programme", `Thomas a mis à jour ton programme : « ${prog.name} ». Il s'applique dans l'onglet Coaching.`, forMember.id).catch(() => { });
+    buzz(); toast("Programme envoyé : il s'applique chez le client à sa prochaine ouverture"); draft = null; go("member", forMember.id);
+  } catch (e) { toast("Envoi impossible : " + e.message); }
 };
 actions["bd-save"] = () => { if (saveDraft()) { toast("Programme enregistré"); tab = "banque"; draft = null; go("train", "banque"); } };
 actions["bd-use"] = () => {
