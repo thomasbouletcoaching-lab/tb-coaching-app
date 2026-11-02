@@ -717,6 +717,7 @@ routes.builder = async () => {
         return `<div class="bd-ex"><div class="row" style="gap:6px;align-items:flex-start"><span class="num xs" style="width:18px;padding-top:3px">${ri + 1}</span><button class="grow" style="text-align:left" data-a="bd-edit" data-s="${si}" data-r="${ri}"><b class="small" style="color:var(--red)">${r[3] ? `[${esc(r[3])}] ` : ""}${esc(r[0])}</b><br><span class="xs">S1 : ${esc(E.setsTxt(E.weekPlan(x, 1, D).sets).replace(/x/g, "×") || "aucune série")}</span><br><span class="xs muted">${esc(rules)}</span></button>
           <div class="col" style="gap:4px"><button class="icon-btn sm" data-a="bd-rmv" data-s="${si}" data-r="${ri}" data-v="-1" aria-label="Monter" ${ri ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn sm" data-a="bd-rmv" data-s="${si}" data-r="${ri}" data-v="1" aria-label="Descendre" ${ri < se[2].length - 1 ? "" : "disabled style=\"opacity:.3\""}>↓</button></div></div></div>`; }).join("")}
       <button class="btn btn-line btn-sm mt12" data-a="bd-add" data-s="${si}" style="width:100%">+ Exercices</button></div>`).join("")}
+    <button class="btn btn-red mt12" style="width:100%" data-a="go" data-r="builder-weeks">📅 Écrire la séance semaine par semaine</button>
     <button class="btn btn-ghost mt12" data-a="bd-sadd">+ Ajouter une séance</button>
     <p class="xs muted mt12">Touche un exercice pour écrire ses séries, ses règles de surcharge et chaque semaine du cycle. Les charges en % se calculent sur ton 1RM estimé.</p>
     ${D.forMember ? `<button class="btn btn-red mt12" style="width:100%" data-a="bd-send">Envoyer à ${esc(D.forMember.name)}</button><p class="xs muted mt8">Le programme remplace celui du client ; sa semaine en cours est conservée.</p>` : `<div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="bd-save">Enregistrer</button><button class="btn btn-line grow" data-a="bd-use">Enregistrer et suivre</button></div>`}
@@ -733,6 +734,58 @@ actions["bd-sdel"] = (b, d) => { if (!confirm("Supprimer cette séance ?")) retu
 actions["bd-smv"] = (b, d) => { const a = draft.s, i = +d.s, j = i + +d.v; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; rerender(); };
 actions["bd-rmv"] = (b, d) => { const a = draft.s[+d.s][2], i = +d.r, j = i + +d.v; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; rerender(); };
 actions["bd-add"] = (b, d) => pickExercise((n) => { draft.s[+d.s][2].push(newRow(n)); }, "Ajouter des exercices", { multi: true });
+
+// ---------- Vue « semaine par semaine » : écrire chaque séance, semaine après semaine ----------
+// Pour chaque exercice et chaque semaine : séries et reps, charge ou %, RPE, techniques, ou pas du tout cette semaine.
+const WK = { si: 0, w: 1 };
+routes["builder-weeks"] = async () => {
+  await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
+  if (!draft) return go("train");
+  const D = draft, W = D.weeks || 8;
+  D.s.forEach(se => se[2].forEach(r => { r[5] = E.migrateRow(r[5] || { sets: 3 }); }));
+  WK.si = Math.min(WK.si, D.s.length - 1); WK.w = Math.min(Math.max(1, WK.w), W);
+  const se = D.s[WK.si];
+  const weeks = Array.from({ length: W }, (_, i) => i + 1).map(w => `<button class="chip sm ${w === WK.w ? "on" : ""}" data-a="bw-w" data-v="${w}">S${w}${E.isDeload(D, w) ? " ↓" : ""}</button>`).join("");
+  const sess = D.s.map((x, i) => `<button class="chip sm ${i === WK.si ? "on" : ""}" data-a="bw-s" data-v="${i}">${esc(String(x[0]).split("·")[0].trim())}</button>`).join("");
+  const rows = se[2].map((r, ri) => {
+    const x = r[5], pl = E.weekPlan(x, WK.w, D), off = !pl.sets.length, hand = !!x.weeks?.[WK.w];
+    return `<div class="card mt8"><div class="row between" style="gap:8px"><b class="small">${esc(r[0])}${r[3] ? ` <span class="tag r">Superset ${esc(r[3])}</span>` : ""}</b><span class="xs muted">${off ? "pas cette semaine" : hand ? "écrite à la main" : "selon les règles"}</span></div>
+      <input class="inp mt4" style="text-align:left" data-c="bw-sets" data-r="${ri}" value="${esc(off ? "" : E.setsTxt(pl.sets))}" placeholder="${off ? "Pas cette semaine : écris 3x8-10 RPE8 pour la remettre" : "3x8-10 RPE8"}" aria-label="Séries de ${esc(r[0])} en semaine ${WK.w}">
+      ${off ? "" : `<div class="chips wrap mt4">${E.TECHS.slice(1, 9).map(([e, t]) => `<button class="chip sm ${(x.techW?.[WK.w] || []).includes(t) ? "on" : ""}" data-a="bw-tech" data-r="${ri}" data-v="${esc(t)}">${e} ${esc(t)}</button>`).join("")}</div>`}
+      <div class="row mt4" style="gap:12px;flex-wrap:wrap">
+        <button class="link xs" data-a="bw-edit" data-r="${ri}">Détail des séries</button>
+        <button class="link xs" data-a="bw-off" data-r="${ri}">${off ? "Remettre" : "Retirer cette semaine"}</button>
+        ${hand ? `<button class="link xs" data-a="bw-reset" data-r="${ri}">Revenir aux règles</button>` : ""}
+        <button class="link xs" data-a="bw-copy" data-r="${ri}">Copier sur les semaines suivantes</button></div></div>`;
+  }).join("");
+  $app.innerHTML = header("Semaine par semaine", esc(D.name), { back: "builder" }) + `<main class="page">
+    <div class="lbl">Séance</div><div class="chips wrap mt4">${sess}</div>
+    <div class="lbl mt12">Semaine</div><div class="chips wrap mt4">${weeks}</div>
+    <p class="xs muted mt8">${esc(E.phaseOf(D, WK.w))} · écris les séries comme « 4x6-8 RPE8 », « 1x5@85% + 3x8@70% » ou « 4x10@60kg RPE9 ». Tu peux changer reps, séries, charge, RPE et technique d'une semaine à l'autre, ou retirer un exercice pour une semaine.</p>
+    ${rows || `<p class="empty small">Cette séance n'a pas encore d'exercice.</p>`}
+    <button class="btn btn-line mt12" style="width:100%" data-a="bw-add">+ Ajouter un exercice à partir de la semaine ${WK.w}</button>
+    <div class="row mt12" style="gap:8px"><button class="btn btn-ghost grow" data-a="bw-w" data-v="${WK.w - 1}" ${WK.w > 1 ? "" : "disabled"}>← S${WK.w - 1}</button><button class="btn btn-ghost grow" data-a="bw-w" data-v="${WK.w + 1}" ${WK.w < W ? "" : "disabled"}>S${WK.w + 1} →</button></div>
+    ${D.forMember ? `<button class="btn btn-red mt16" style="width:100%" data-a="bd-send">Envoyer à ${esc(D.forMember.name)}</button>` : `<button class="btn btn-red mt16" style="width:100%" data-a="bd-save">Enregistrer</button>`}
+  </main>`;
+};
+const wkRow = (r) => draft.s[WK.si][2][+r][5];
+actions["bw-w"] = (b, d) => { WK.w = +d.v; rerender(); };
+actions["bw-s"] = (b, d) => { WK.si = +d.v; rerender(); };
+changes["bw-sets"] = (el) => {
+  const x = wkRow(el.dataset.r), txt = el.value.trim();
+  if (!txt) { x.weeks = x.weeks || {}; x.weeks[WK.w] = []; return rerender(); }
+  const parsed = E.parseSets(txt);
+  if (!parsed.length) return toast("Séries illisibles : écris par exemple « 3x8-10 RPE8 »");
+  const warm = E.weekPlan(x, WK.w, draft).sets.filter(s => s.t === "W");
+  x.weeks = x.weeks || {}; x.weeks[WK.w] = [...warm, ...parsed];
+  rerender();
+};
+actions["bw-off"] = (b, d) => { const x = wkRow(d.r); x.weeks = x.weeks || {}; if (!E.weekPlan(x, WK.w, draft).sets.length) delete x.weeks[WK.w]; else x.weeks[WK.w] = []; if (!x.weeks[WK.w] && !x.sets?.length) x.weeks[WK.w] = E.parseSets("3x8-10 RPE8"); rerender(); };
+actions["bw-reset"] = (b, d) => { const x = wkRow(d.r); delete x.weeks?.[WK.w]; rerender(); };
+actions["bw-copy"] = (b, d) => { const x = wkRow(d.r), src = JSON.parse(JSON.stringify(E.weekPlan(x, WK.w, draft).sets)); x.weeks = x.weeks || {}; for (let w = WK.w + 1; w <= (draft.weeks || 8); w++) x.weeks[w] = JSON.parse(JSON.stringify(src)); toast(`Copiée sur les semaines ${WK.w + 1} à ${draft.weeks || 8}`); rerender(); };
+actions["bw-tech"] = (b, d) => { const x = wkRow(d.r); x.techW = x.techW || {}; const a = x.techW[WK.w] || []; x.techW[WK.w] = a.includes(d.v) ? a.filter(t => t !== d.v) : [...a, d.v]; if (!x.techW[WK.w].length) delete x.techW[WK.w]; rerender(); };
+actions["bw-edit"] = (b, d) => { ed.si = WK.si; ed.ri = +d.r; ed.w = WK.w; weekEditor(); };
+actions["bw-add"] = () => pickExercise((n) => { const row = newRow(n); row[5].weeks = {}; for (let k = 1; k < WK.w; k++) row[5].weeks[k] = []; draft.s[WK.si][2].push(row); rerender(); }, `Ajouter à partir de la semaine ${WK.w}`);
 
 // ---------- Éditeur d'un exercice ----------
 const ed = { si: 0, ri: 0, w: null }; // w = null : séries de base (semaine 1) ; sinon semaine écrite

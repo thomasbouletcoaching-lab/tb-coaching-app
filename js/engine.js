@@ -297,8 +297,8 @@ export function buildSession(at = null) {
       [[.5, 8], [.7, 4], [.85, 2]].reverse().forEach(([f, r]) => sets.unshift({ g: -1, type: "W", kg: roundTo(top * f, step), reps: r, lo: r, hi: r, trpe: 5, rpe: null, pct: null, tech: [], note: "", done: false }));
     }
     const sug = bw ? null : suggestion(name, groups.at(-1).rpe || 8, groups.at(-1).lo, groups.at(-1).hi, step);
-    return { orig, name, kind, note: row[2] || "", ss: row[3] || null, tempo: plan?.tempo || row[4] || null, scheme, unit, bw, step, rest: (row[5]?.rest) || REST[kind] || 90, sets, e1: e, sug, myNote: "" };
-  });
+    return { orig, name, kind, note: row[2] || "", ss: row[3] || null, tempo: plan?.tempo || row[4] || null, scheme, unit, bw, step, rest: (row[5]?.rest) || REST[kind] || 90, sets, e1: e, sug, myNote: "", off: !!plan && !plan.sets.length };
+  }).filter(e => !e.off);
   return { id: Date.now(), programId: p.id, week, idx: ns.idx % p.s.length, cycle: ns.cycle, title: ns.title, phase: ns.phase, start: new Date().toISOString(), comeback, exercises };
 }
 export function freeSession(title = "Séance libre") {
