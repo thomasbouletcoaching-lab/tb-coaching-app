@@ -388,7 +388,7 @@ function exerciseBlock(ex, xi) {
     ${ex.sets.map((s, si) => {
       const lab = s.type === "W" ? "É" : String(++n);
       const pv = s.type === "W" ? prevWu[wu++] : prevW[wi++];
-      const meta = [s.type !== "N" ? `<span class="tag ${s.type === "W" ? "" : "r"}">${E.SET_TYPES[s.type]}</span>` : "", ...(s.tech || []).map(t => `<span class="tag" ${E.TECH_QTY[t] ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${esc(t)}${s.tq?.[t] != null ? ` ×${s.tq[t]}${E.TECH_QTY[t]?.[1] === "s" ? " s" : ""}` : ""}</span>`), `<span>${s.lo !== s.hi ? `${s.lo}-${s.hi}` : s.lo} ${unit.toLowerCase()} · RPE ${String(s.trpe).replace(".", ",")}${adv() && s.pct ? ` · ${s.pct} %` : ""}</span>`, s.pain ? `<span class="tag" style="background:var(--warn);color:#fff">Douleur</span>` : "", s.note ? `<span>📝 ${esc(s.note)}</span>` : "", pv ? `<span class="prev">↺ ${esc(prevTxt(pv))}</span>` : ""].filter(Boolean).join("");
+      const meta = [s.type !== "N" ? `<span class="tag ${s.type === "W" ? "" : "r"}" ${s.type === "E" ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${E.SET_TYPES[s.type]}${s.type === "E" && s.tq?.["À l'échec"] != null ? ` à ${s.tq["À l'échec"]}` : ""}</span>` : "", ...(s.tech || []).map(t => `<span class="tag" ${E.TECH_QTY[t] ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${esc(t)}${s.tq?.[t] != null ? ` ×${s.tq[t]}${E.TECH_QTY[t]?.[1] === "s" ? " s" : ""}` : ""}</span>`), `<span>${s.lo !== s.hi ? `${s.lo}-${s.hi}` : s.lo} ${unit.toLowerCase()} · RPE ${String(s.trpe).replace(".", ",")}${adv() && s.pct ? ` · ${s.pct} %` : ""}</span>`, s.pain ? `<span class="tag" style="background:var(--warn);color:#fff">Douleur</span>` : "", s.note ? `<span>📝 ${esc(s.note)}</span>` : "", pv ? `<span class="prev">↺ ${esc(prevTxt(pv))}</span>` : ""].filter(Boolean).join("");
       return `<div class="set ${s.done ? "done" : ""} ${s.type === "W" ? "w" : ""}"><button class="n" data-a="set-menu" data-x="${xi}" data-s="${si}" aria-label="Options de la série">${lab}${s.type !== "N" ? `<small>${s.type === "W" ? "échauf." : E.SET_TYPES[s.type].split(" ")[0].toLowerCase()}</small>` : ""}</button>
         <input inputmode="decimal" data-i="set" data-k="kg" data-x="${xi}" data-s="${si}" value="${ex.bw ? kgTxt(s.kg || "") : kgTxt(s.kg)}" placeholder="${ex.bw ? "PDC" : E.isAssisted(ex.name) ? "aide" : "kg"}" aria-label="${E.isAssisted(ex.name) ? "Aide (poids en moins)" : "Charge"}">
         <input inputmode="numeric" data-i="set" data-k="reps" data-x="${xi}" data-s="${si}" value="${s.reps ?? ""}" placeholder="${s.lo}" aria-label="${unit}">
@@ -432,18 +432,20 @@ actions.tick = (b, d) => {
   if (s.done && s.reps == null) s.reps = s.lo;
   save(); buzz(s.done ? 18 : 8); rerender();
   if (s.done) startRest(s.type === "W" ? 60 : ex.rest);
-  if (s.done && s.type !== "W" && (s.tech || []).some(t => E.TECH_QTY[t] && s.tq?.[t] == null)) techQtySheet(+d.x, +d.s);
+  if (s.done && s.type !== "W" && qtyKeys(s).some(t => s.tq?.[t] == null)) techQtySheet(+d.x, +d.s);
 };
 // Menu « combien ? » pour chaque technique d'intensification utilisée sur la série
+const qtyKeys = (s) => [...new Set([...(s.tech || []), ...(s.type === "E" ? ["À l'échec"] : [])])].filter(t => E.TECH_QTY[t]);
 function techQtySheet(xi, si) {
   const ex = S().current.exercises[xi], s = ex?.sets[si]; if (!s) return;
-  const ts = (s.tech || []).filter(t => E.TECH_QTY[t]); if (!ts.length) return;
+  const ts = qtyKeys(s); if (!ts.length) return;
   sheet(`<h2 class="h2">⚡ Technique d'intensification</h2><p class="xs muted">${esc(ex.name)} · série ${si + 1}</p>
-    ${ts.map(t => { const [q, u] = E.TECH_QTY[t], isS = u === "s", vals = isS ? [5, 10, 15, 20, 30, 45, 60] : [0, 1, 2, 3, 4, 5, 6, 8, 10]; return `<div class="lbl mt16">${(E.TECHS.find(x => x[1] === t) || [""])[0]} ${esc(q)}</div>
-      <div class="chips wrap mt8">${vals.map(v => `<button class="chip ${s.tq?.[t] === v ? "on" : ""}" data-a="tq-set" data-x="${xi}" data-s="${si}" data-t="${esc(t)}" data-v="${v}">${v}</button>`).join("")}</div>`; }).join("")}
+    ${ts.map(t => { const [q, u] = E.TECH_QTY[t], isS = u === "s", vals = isS ? [5, 10, 15, 20, 30, 45, 60] : t === "À l'échec" ? [5, 6, 8, 10, 12, 15, 20, 25] : [0, 1, 2, 3, 4, 5, 6, 8, 10]; return `<div class="lbl mt16">${(E.TECHS.find(x => x[1] === t) || [""])[0]} ${esc(q)}</div>
+      <div class="chips wrap mt8">${vals.map(v => `<button class="chip ${s.tq?.[t] === v ? "on" : ""}" data-a="tq-set" data-x="${xi}" data-s="${si}" data-t="${esc(t)}" data-v="${v}">${v}</button>`).join("")}<input class="chip" style="width:84px;text-align:center" inputmode="numeric" data-i="tqin" data-x="${xi}" data-s="${si}" data-t="${esc(t)}" placeholder="Autre" value="${s.tq?.[t] != null && !vals.includes(s.tq[t]) ? s.tq[t] : ""}"></div>`; }).join("")}
     <button class="btn btn-red mt16" data-a="set-close">OK</button>`);
 }
 actions["tq-set"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.tq = { ...(s.tq || {}), [d.t]: +d.v }; save(); techQtySheet(+d.x, +d.s); rerender(); };
+changes["i:tqin"] = (el) => { const s = S().current.exercises[+el.dataset.x].sets[+el.dataset.s], v = num(el.value); if (v == null || v < 0) return; s.tq = { ...(s.tq || {}), [el.dataset.t]: v }; save(); rerender(); };
 actions["tq-edit"] = (b, d) => techQtySheet(+d.x, +d.s);
 // Chrono pour les exercices tenus (gainage, planche…) : compte les secondes, vibre au but, remplit la série
 let CH = null;
@@ -563,8 +565,8 @@ function setMenu(xi, si) {
     <button class="btn btn-red mt12" data-a="set-close">OK</button>`);
 }
 actions["set-menu"] = (b, d) => setMenu(+d.x, +d.s);
-actions["set-type"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.type = d.v; if (d.v === "W") s.trpe = 5; save(); setMenu(+d.x, +d.s); };
-actions["set-tech"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.tech = s.tech.includes(d.v) ? s.tech.filter(t => t !== d.v) : [...s.tech, d.v]; save(); setMenu(+d.x, +d.s); };
+actions["set-type"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.type = d.v; if (d.v === "W") s.trpe = 5; save(); if (d.v === "E") { rerender(); techQtySheet(+d.x, +d.s); } else setMenu(+d.x, +d.s); };
+actions["set-tech"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s], adding = !s.tech.includes(d.v); s.tech = adding ? [...s.tech, d.v] : s.tech.filter(t => t !== d.v); if (!adding && s.tq) delete s.tq[d.v]; save(); rerender(); if (adding && E.TECH_QTY[d.v]) techQtySheet(+d.x, +d.s); else setMenu(+d.x, +d.s); };
 actions["set-pain"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.pain = !s.pain; save(); setMenu(+d.x, +d.s); };
 actions["set-dup"] = (b, d) => { const a = S().current.exercises[+d.x].sets; a.splice(+d.s + 1, 0, { ...a[+d.s], tech: [...a[+d.s].tech], done: false, rpe: null }); save(); closeSheet(); rerender(); };
 actions["set-del"] = (b, d) => { S().current.exercises[+d.x].sets.splice(+d.s, 1); save(); closeSheet(); rerender(); };
