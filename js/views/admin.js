@@ -42,7 +42,7 @@ const first = (m) => (m.name || m.email || "?").trim();
 // ---------- Mise en page commune ----------
 function frame(active, body, sub = "") {
   const email = S().profile?.email || "";
-  $app.innerHTML = header("Espace coach", esc(sub || email), { actions: `<button class="pill ic" data-a="go" data-r="home" aria-label="Revenir à mon app" title="Mon app">🏋️</button><button class="pill ic" data-a="adm-refresh" aria-label="Actualiser">↻</button>` })
+  $app.innerHTML = header("Espace coach", esc(sub || email), { actions: `<button class="pill ic" data-a="adm-refresh" aria-label="Actualiser">↻</button>` })
     + `<main class="page">${A.err ? `<div class="card" style="box-shadow:0 0 0 2px var(--warn) inset"><p class="small" style="margin:0">⚠️ ${esc(A.err)}</p></div>` : ""}${body}</main>${adminTabbar(active)}`;
 }
 async function guard(active) {

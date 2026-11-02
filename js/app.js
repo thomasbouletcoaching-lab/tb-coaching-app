@@ -45,8 +45,6 @@ window.addEventListener("hashchange", render);
   const pullFood = async () => { try { const c = await cloudMod(); if (c && S().profile && !S().me?.isCoach) { await pullCoachFood(c); if (R.route === "home") render(); } } catch { } };
   pullFood(); setInterval(pullFood, 5 * 60000);
   pullLive(); setInterval(pullLive, 15000);
-  // Compte coach : programme perso de Thomas (une seule fois)
-  setTimeout(async () => { try { if (!S().profile || !S().me?.isCoach) return; try { if (localStorage.getItem("cxs.persoHeal") === "1") return; } catch { } if ((S().customPrograms || []).some(p => p.id === "tb-main")) return; const { restorePersonalProgram } = await import("./views/account.js"); if (await restorePersonalProgram()) { try { localStorage.setItem("cxs.persoHeal", "1"); } catch { } (await import("./core.js")).toast("Ton programme perso (5 séances) est restauré"); if (["home", "train", "workout"].includes(R.route)) render(); } } catch (e) { console.warn("Programme perso non restauré :", e.message); } }, 6000);
   // Programme perdu sur le téléphone (plan vide) alors qu'il existe sur le serveur : on le recharge tout seul
   setTimeout(async () => { try { if (!S().profile || S().me?.isCoach) return;
     let done = false; try { done = localStorage.getItem("cxs.progHeal") === "2"; } catch { }
