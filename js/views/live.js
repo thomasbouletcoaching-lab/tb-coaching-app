@@ -2,10 +2,10 @@
 // Le coach peut réorganiser, changer, supprimer exercices et séries, mettre types, techniques, RPE et superset.
 // Mise à jour toutes les 6 secondes quand l'écran est ouvert (pas de temps réel continu). Chaque geste est écrit tout de suite.
 import * as E from "../engine.js";
-import { withState } from "../store.js";
+import { withState, S, update, onSave, today } from "../store.js";
 import { memberProgram } from "./coachprog.js";
 import { RPE_INFO } from "./train.js";
-import { $app, esc, toast, routes, actions, forms, header, R, go, isCoach, cloud, buzz, fr, num, onLeave, render, sheet, closeSheet } from "../core.js";
+import { $app, esc, toast, routes, actions, forms, header, R, go, isCoach, cloud, buzz, fr, num, onLeave, render, sheet, closeSheet, rerender } from "../core.js";
 
 const POLL_MS = 6000;
 const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
@@ -53,6 +53,8 @@ routes.live = async () => {
   $app.innerHTML = header("Séance en direct", "", { back: isCoach() ? "admin" : "home" }) + `<main class="page"><p class="empty">Chargement…</p></main>`;
   try { const r = await fetchState(id); LIVE.state = r?.state && Object.keys(r.state).length ? r.state : null; LIVE.updated_at = r?.updated_at || null; }
   catch (e) { $app.innerHTML = header("Séance en direct", "", { back: "home" }) + `<main class="page"><p class="empty">Impossible de charger la séance : ${esc(e.message)}</p></main>`; return; }
+  // Séance au format « interface client » : on ouvre exactement l'écran de séance du client, partagé en direct
+  if (LIVE.state?.session && !LIVE.state.ended) { stopPoll(); return enterMirror(id, LIVE.state, LIVE.updated_at); }
   drawLive();
   LIVE.timer = setInterval(pollLive, POLL_MS);
   onLeave(stopPoll);
@@ -274,9 +276,16 @@ actions["live-start"] = async (b, d) => {
 actions["live-launch"] = async (b, d) => {
   try {
     const c = await cloud(); const md = (await c.memberData(d.id))?.data, cp = await c.coachPlanGet(d.id).catch(() => null);
-    const prog = cp?.program?.s?.length ? cp.program : memberProgram(md);
-    await c.liveSet(d.id, buildLive(md, prog, +d.v, md?.plan?.week || 1));
-    closeSheet(); buzz(); toast("Séance lancée : elle apparaît chez le client"); go("live", d.id);
+    const prog0 = cp?.program?.s?.length ? cp.program : memberProgram(md);
+    if (!prog0) throw new Error("ce client n'a pas de programme");
+    await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
+    const prog = { ...prog0, id: prog0.id || "coach-plan", custom: true }, week = md?.plan?.week || 1;
+    const D2 = { ...(md || {}), customPrograms: [prog, ...((md?.customPrograms || []).filter(x => x.id !== prog.id))], plan: { programId: prog.id, startedAt: today(), week, idx: +d.v, cycle: 1 } };
+    const ses = withState(D2, () => E.buildSession(+d.v));
+    if (!ses) throw new Error("séance introuvable");
+    ses.start = nowIso(); ses.free = false;
+    await c.liveSet(d.id, { title: ses.title, startedAt: ses.start, by: "coach", ended: false, session: ses, log: [{ at: nowIso(), by: "coach", text: "Séance lancée" }] });
+    closeSheet(); buzz(); toast("Séance lancée : le client la voit aussi"); go("live", d.id);
   } catch (e) { toast("Impossible de lancer : " + e.message); }
 };
 
@@ -284,11 +293,13 @@ actions["live-launch"] = async (b, d) => {
 actions["live-self"] = async () => {
   try {
     await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
-    const ses = E.buildSession(); if (!ses) return toast("Pas de séance prévue : choisis un programme d'abord");
     const c = await cloud(); await c.ensureSession(); const uid = c.userId();
-    const exercises = ses.exercises.map(ex => ({ name: ex.name, note: ex.note || "", rest: ex.rest || 120, ss: ex.ss || null, notes: [], sets: ex.sets.filter(s => s.type !== "W").map(s => ({ t: s.type, lo: s.lo, hi: s.hi, kg: s.kg || null, pct: s.pct || null, rpe: s.trpe || null, tech: [...(s.tech || [])], done: false, reps: null, load: null, by: null })) })).filter(e => e.sets.length);
-    await c.liveSet(uid, { title: String(ses.title || "Séance").split("·")[0].trim(), startedAt: nowIso(), by: "member", ended: false, exercises, log: [{ at: nowIso(), by: "member", text: "Séance lancée par le client" }] });
-    LIVE_NOW = null; buzz(); toast("Séance partagée : Thomas peut la suivre"); go("live");
+    let ses = S().current; if (!ses) { ses = E.buildSession(); if (!ses) return toast("Pas de séance prévue : choisis un programme d'abord"); ses.start = nowIso(); }
+    MIRROR = { id: uid, stamp: null, quiet: true };
+    sessionStorage.removeItem("cxs.min");
+    update(st => { st.current = { ...ses, mirror: { id: uid } }; });
+    MIRROR.quiet = false; clearTimeout(pushT); await pushMirror();
+    buzz(); toast("Séance partagée : Thomas peut la suivre"); go("workout");
   } catch (e) { toast("Impossible de lancer : " + e.message); }
 };
 
@@ -339,3 +350,79 @@ const endDrag = async () => {
 };
 document.addEventListener("pointerup", endDrag);
 document.addEventListener("pointercancel", endDrag);
+
+// =====================================================================
+// SÉANCE EN DIRECT = la même interface que le client
+// La séance est un objet « séance du client » partagé dans le cloud. Le coach (ou le client) l'ouvre dans l'écran de séance
+// habituel : chaque modification est envoyée en direct, et ce que l'autre modifie arrive toutes les 6 secondes.
+// =====================================================================
+let MIRROR = null; // { id, stamp, timer, quiet, name }
+let pushT = null;
+const strip = (cur) => { const c = JSON.parse(JSON.stringify(cur)); delete c.mirror; return c; };
+async function pushMirror() {
+  const cur = S().current; if (!MIRROR || !cur?.mirror) return;
+  try {
+    const c = await cloud(); const r = await c.liveGet(MIRROR.id), base = r?.state || {};
+    if (base.ended) return;
+    const st = { log: [], ...base, title: cur.title, startedAt: base.startedAt || cur.start || nowIso(), by: base.by || (isCoach() ? "coach" : "member"), ended: false, session: strip(cur) };
+    MIRROR.stamp = await c.liveSet(MIRROR.id, st);
+  } catch { }
+}
+onSave(() => { if (!MIRROR || MIRROR.quiet || !S().current?.mirror) return; clearTimeout(pushT); pushT = setTimeout(pushMirror, 600); });
+function enterMirror(id, state, stamp) {
+  if (S().current && !S().current.mirror) { toast("Termine d'abord ta séance en cours"); return go("workout"); }
+  const m = (window.__members || []).find(x => x.id === id);
+  clearInterval(MIRROR?.timer);
+  MIRROR = { id, stamp, quiet: true, name: m ? (m.name || m.email || "client").split(" ")[0] : "" };
+  sessionStorage.removeItem("cxs.min");
+  update(st => { st.current = { ...state.session, start: state.session.start || state.startedAt, mirror: { id } }; });
+  MIRROR.quiet = false;
+  go("workout");
+}
+function leaveMirror(msg) {
+  clearInterval(MIRROR?.timer); clearTimeout(pushT); const id = MIRROR?.id; MIRROR = null;
+  update(st => { st.current = null; });
+  if (msg) toast(msg);
+  if (isCoach()) go("member", id); else go("home");
+}
+const baseWorkout = routes.workout, baseFinish = actions.finish, baseMin = actions.minimize;
+routes.workout = async () => {
+  const c0 = S().current;
+  if (c0?.mirror && !MIRROR) { if (isCoach()) { update(st => { st.current = null; }); return go("admin-today"); } MIRROR = { id: c0.mirror.id, stamp: null }; }
+  await baseWorkout();
+  if (!MIRROR || !S().current?.mirror) return;
+  const main = document.querySelector("main.page");
+  main?.insertAdjacentHTML("afterbegin", `<div class="card soft mt8"><span class="tag r">● En direct</span> <span class="xs muted">${isCoach() ? `Tu vois et modifies la séance${MIRROR.name ? " de " + esc(MIRROR.name) : ""} : tout est partagé.` : "Séance partagée avec Thomas : il voit tes séries en direct et peut modifier."}</span></div>`);
+  clearInterval(MIRROR.timer);
+  MIRROR.timer = setInterval(pollMirror, POLL_MS);
+};
+async function pollMirror() {
+  if (!MIRROR || R.route !== "workout" || !S().current?.mirror) { clearInterval(MIRROR?.timer); return; }
+  if (DRAG || document.querySelector(".sheet-wrap, input:focus, textarea:focus, select:focus")) return;
+  try {
+    const r = await (await cloud()).liveGet(MIRROR.id);
+    if (!r?.state || r.state.ended) {
+      if (!isCoach() && S().current.exercises.some(e => e.sets.some(x => x.done))) { const cur = S().current; E.finishSession(cur); MIRROR = null; clearInterval(0); toast("Thomas a terminé la séance : elle est enregistrée"); return go("done"); }
+      return leaveMirror("Séance terminée");
+    }
+    if (r.updated_at !== MIRROR.stamp && r.state.session) {
+      MIRROR.stamp = r.updated_at; MIRROR.quiet = true;
+      update(st => { st.current = { ...r.state.session, start: r.state.session.start || r.state.startedAt, mirror: { id: MIRROR.id } }; });
+      MIRROR.quiet = false; rerender();
+    }
+  } catch { }
+}
+actions.finish = async () => {
+  if (!MIRROR || !S().current?.mirror) return baseFinish();
+  if (isCoach()) {
+    if (!confirm("Terminer la séance en direct de ce client ?")) return;
+    try { const c = await cloud(); const r = await c.liveGet(MIRROR.id); await c.liveSet(MIRROR.id, { ...(r?.state || {}), ended: true, endedAt: nowIso(), session: strip(S().current) }); } catch (e) { return toast("Impossible : " + e.message); }
+    return leaveMirror("Séance terminée");
+  }
+  const id = MIRROR.id; baseFinish();
+  if (!S().current) { clearInterval(MIRROR?.timer); MIRROR = null; try { const c = await cloud(); const r = await c.liveGet(id); await c.liveSet(id, { ...(r?.state || {}), ended: true, endedAt: nowIso() }); } catch { } LIVE_NOW = null; }
+};
+actions.minimize = () => {
+  if (MIRROR && S().current?.mirror && isCoach()) return leaveMirror();
+  baseMin();
+};

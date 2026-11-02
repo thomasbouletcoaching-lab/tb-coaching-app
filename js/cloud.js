@@ -281,8 +281,10 @@ export async function liveGet(userId) {
   if (error) throw error; return data || null;
 }
 export async function liveSet(userId, state) {
-  const { error } = await sb.from("cxs_live_sessions").upsert({ user_id: userId, state, updated_at: new Date().toISOString() });
+  const at = new Date().toISOString();
+  const { error } = await sb.from("cxs_live_sessions").upsert({ user_id: userId, state, updated_at: at });
   if (error) throw error;
+  return at;
 }
 
 // Coach : séances en direct qui tournent en ce moment (moins de 8 h, non terminées)
