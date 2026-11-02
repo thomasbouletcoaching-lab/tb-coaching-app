@@ -64,7 +64,7 @@ actions["account-out"] = async () => {
 
 // Fusionne les données migrées de TB my Coach (séances, repas, mesures) avec ce que le téléphone contient déjà.
 // Rien n'est effacé : on ajoute ce qui manque (même identifiant ou même jour = déjà présent, on ne double pas).
-export async function restoreMigrated() {
+export async function restoreMigrated(force = false) {
   const m = await C.fetchMigrated();
   if (!m) return { w: 0, f: 0, m: 0, p: 0 };
   let w = 0, f = 0, ms = 0;
@@ -93,7 +93,7 @@ export async function restoreMigrated() {
       st.customPrograms = [...(st.customPrograms || []).filter(x => x.id !== prog.id), prog];
       // On remplace un plan vide ou un programme de la banque (onboarding), jamais le programme TB déjà en place ni un programme créé par le membre
       const cur = st.plan?.programId, mine = (st.customPrograms || []).some(x => x.id === cur && x.id !== prog.id);
-      if (!st.plan || (cur !== prog.id && !mine)) { st.plan = pos; st.current = null; }
+      if (!st.plan || (cur !== prog.id && (!mine || force))) { st.plan = pos; st.current = null; }
     });
     p = 1;
   }

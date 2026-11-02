@@ -49,7 +49,7 @@ window.addEventListener("hashchange", render);
   setTimeout(async () => { try { if (!S().profile || S().me?.isCoach) return;
     let done = false; try { done = localStorage.getItem("cxs.progHeal") === "2"; } catch { }
     if (S().plan?.programId && (done || (S().customPrograms || []).some(p => p.id === "tb-main"))) return;
-    try { localStorage.setItem("cxs.progHeal", "2"); } catch { } const { restoreMigrated } = await import("./views/account.js"); const r = await restoreMigrated(); if (r?.p && ["home", "train", "workout"].includes(R.route)) render(); } catch (e) { console.warn("Programme non rechargé :", e.message); } }, 2500);
+    const { restoreMigrated } = await import("./views/account.js"); const r = await restoreMigrated(); if (r?.p) { try { localStorage.setItem("cxs.progHeal", "2"); } catch { } } if (r?.p && ["home", "train", "workout"].includes(R.route)) render(); } catch (e) { console.warn("Programme non rechargé :", e.message); } }, 2500);
   // Quand l'app revient au premier plan : programme et séance du coach tout de suite (pas d'attente de 5 min)
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { pullCoachPlan(); pullFood(); pullLive(); } });
   // Pas de menu « lien » sur un appui long dans la barre du bas ou sur les liens internes
