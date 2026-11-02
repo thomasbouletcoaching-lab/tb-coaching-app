@@ -490,3 +490,9 @@ input,select,textarea{max-width:100%;min-width:0}
 .dragging{opacity:.55}
 
 .set[data-sw]{touch-action:pan-y;position:relative}
+.swwrap{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.swwrap>.set{border-bottom:0;position:relative;z-index:1}
+.swwrap.sw-on>.set{background:var(--input)}
+.swbg{opacity:0}.swwrap.sw-on .swbg{opacity:1}
+.swbg{position:absolute;inset:0;background:#b3261e;display:flex;align-items:center;justify-content:flex-end;padding-right:22px;color:#fff;font-weight:800;font-size:15px;letter-spacing:.2px}
+.swwrap.armed .swbg{background:#e03a30}

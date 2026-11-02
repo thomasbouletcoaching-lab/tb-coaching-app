@@ -9,7 +9,7 @@ export function convertTb(raw, tag = "main") {
   if (!sess.length) return null;
   const weeks = (raw.phases || []).length || 12;
   const s = sess.map((ses, i) => {
-    const rows = (ses.ex || []).map(ex => {
+    const rows = (ses.ex || []).filter(ex => ex && ex.name).map(ex => {
       const wk = {};
       (ex.weeks || []).forEach((str, w) => { if (w >= 1 && str) wk[w] = parseSets(String(str).replace(/%%/g, "%")); });
       const first = wk[1] || [];
