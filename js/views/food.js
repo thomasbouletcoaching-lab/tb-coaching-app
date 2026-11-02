@@ -98,7 +98,8 @@ function weekBody(t) {
       ${W.mode === "trainrest" ? `<div class="lbl mt12">Calories en plus les jours d'entraînement</div><div class="chips wrap mt4">${[0, 5, 10, 15, 20].map(p => `<button class="chip ${W.pct === p ? "on" : ""}" data-a="wt-pct" data-v="${p}">+${p} %</button>`).join("")}</div>
         <p class="xs muted mt4">Les jours de repos baissent d'autant : ta semaine garde le même total. Les glucides suivent (protéines inchangées).</p>
         <div class="grid2 mt8"><label class="field"><span>🏋️ Plan des jours d'entraînement</span><select class="inp" data-c="wt-train">${opt(W.train)}</select></label><label class="field"><span>😌 Plan des jours de repos</span><select class="inp" data-c="wt-rest">${opt(W.rest)}</select></label></div>` : ""}
-      ${W.mode === "days" ? `<div class="list mt8">${E.DAY_NAMES.map((n, i) => `<div class="li"><span class="grow small"><b>${n}</b></span><select class="inp" style="width:auto;font-size:15px" data-c="wt-day" data-i="${i}">${opt(W.days?.[i] || "main")}</select></div>`).join("")}</div>` : ""}
+      ${W.mode === "days" ? `<button class="btn btn-red btn-sm mt8" data-a="wt-days-all" style="width:100%">Créer un plan différent pour chaque jour</button>
+        <div class="list mt8">${E.DAY_NAMES.map((n, i) => { const cur = W.days?.[i] || "main"; return `<div class="li"><span class="grow small"><b>${n}</b></span><select class="inp" style="width:auto;font-size:15px" data-c="wt-day" data-i="${i}">${opt(cur)}</select>${cur === "main" ? `<button class="btn btn-line btn-xs" data-a="wt-day-new" data-i="${i}">Créer</button>` : `<button class="btn btn-line btn-xs" data-a="var-edit" data-id="${cur}">Modifier</button>`}</div>`; }).join("")}</div>` : ""}
       ${W.mode !== "same" ? `<div class="lbl mt12">Mes variantes de plan</div>
         ${V.length ? `<div class="list mt4">${V.map(v => `<div class="li"><span class="grow small"><b>${esc(v.name)}</b><br><span class="xs muted">${v.meals.length} repas · ${fr(v.meals.flatMap(m => m.items).reduce((a, x) => a + (x.kcal || 0), 0))} kcal</span></span><button class="btn btn-line btn-xs" data-a="var-edit" data-id="${v.id}">Modifier</button><button class="icon-btn" data-a="var-del" data-id="${v.id}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>` : ""}
         <button class="btn btn-line btn-sm mt8" data-a="var-new" style="width:100%">+ Créer une variante (copie de mon plan)</button>` : ""}</div>
@@ -124,6 +125,20 @@ actions["var-new"] = () => {
   const id = "v" + Date.now();
   update(st => { st.planVariants = [...(st.planVariants || []), { id, name: n.trim(), meals: JSON.parse(JSON.stringify(base)) }]; const w = st.weekType = { ...N.weekType(), ...(st.weekType || {}) }; if (w.mode === "trainrest" && (!w.rest || w.rest === "main")) w.rest = id; st.editVar = id; });
   tab = "plan"; toast("Variante créée : modifie-la aliment par aliment"); rerender(); window.scrollTo(0, 0);
+};
+const baseMeals = () => S().myPlan?.meals?.length ? S().myPlan.meals : N.dayPlan(N.targets()).map(x => ({ name: x.meal, time: x.time, title: x.n, items: (x.items || []).map(i => ({ label: i.n, g: i.g, kcal: i.kcal, p: i.p, c: i.c, f: i.f })) }));
+// Un plan par jour : crée une variante nommée comme le jour (copie du plan principal) et l'affecte à ce jour
+actions["wt-day-new"] = (b, d) => {
+  const i = +d.i, id = "v" + Date.now() + i;
+  update(st => { st.planVariants = [...(st.planVariants || []), { id, name: E.DAY_NAMES[i], meals: JSON.parse(JSON.stringify(baseMeals())) }]; const w = st.weekType = { ...N.weekType(), ...(st.weekType || {}) }; w.days = [...(w.days || Array(7).fill("main"))]; w.days[i] = id; st.editVar = id; });
+  tab = "plan"; toast(`Plan du ${E.DAY_NAMES[i].toLowerCase()} créé : modifie-le aliment par aliment`); rerender(); window.scrollTo(0, 0);
+};
+actions["wt-days-all"] = () => {
+  update(st => {
+    const w = st.weekType = { ...N.weekType(), ...(st.weekType || {}) }; w.days = [...(w.days || Array(7).fill("main"))];
+    E.DAY_NAMES.forEach((n, i) => { if (w.days[i] && w.days[i] !== "main") return; const id = "v" + Date.now() + i; st.planVariants = [...(st.planVariants || []), { id, name: n, meals: JSON.parse(JSON.stringify(baseMeals())) }]; w.days[i] = id; });
+  });
+  toast("7 plans créés : touche « Modifier » sur chaque jour"); rerender();
 };
 actions["var-edit"] = (b, d) => { update(st => st.editVar = d.id); tab = "plan"; rerender(); window.scrollTo(0, 0); };
 actions["var-done"] = () => { update(st => st.editVar = null); tab = "semaine"; rerender(); };
