@@ -478,9 +478,29 @@ actions["ex-order"] = () => orderSheet();
 function orderSheet() {
   const a = S().current.exercises;
   sheet(`<h2 class="h2">Réorganiser</h2><p class="small muted">Change l'ordre de ta séance : machine prise, envie de commencer par un autre mouvement.</p>
-    <div class="list mt12">${a.map((ex, i) => `<div class="li" style="gap:6px"><span class="num" style="width:22px">${i + 1}</span><span class="grow small"><b>${esc(ex.name)}</b><br><span class="xs muted">${ex.sets.filter(s => s.done).length}/${ex.sets.length} séries</span></span><button class="icon-btn" data-a="ord-mv" data-x="${i}" data-v="-1" ${i === 0 ? "disabled style=\"opacity:.3\"" : ""} aria-label="Monter">↑</button><button class="icon-btn" data-a="ord-mv" data-x="${i}" data-v="1" ${i === a.length - 1 ? "disabled style=\"opacity:.3\"" : ""} aria-label="Descendre">↓</button></div>`).join("")}</div>
+    <div class="list mt12" id="ordlist">${a.map((ex, i) => `<div class="li" data-oi="${i}" style="gap:8px"><span class="num" style="width:22px">${i + 1}</span><span class="grow small"><b>${esc(ex.name)}</b><br><span class="xs muted">${ex.sets.filter(s => s.done).length}/${ex.sets.length} séries</span></span><span data-ohandle style="touch-action:none;cursor:grab;font-size:26px;padding:8px 6px;user-select:none" aria-label="Glisser pour déplacer">⠿</span></div>`).join("")}</div>
     <button class="btn btn-red mt12" data-a="set-close">Terminé</button>`);
 }
+// Glisser-déposer : on attrape la poignée ⠿, la ligne suit le doigt, les autres s'écartent
+document.addEventListener("pointerdown", (e) => {
+  const h = e.target.closest?.("[data-ohandle]"); if (!h) return;
+  const row = h.closest("[data-oi]"), list = row.parentElement; e.preventDefault();
+  const from = +row.dataset.oi; let to = from; const startY = e.clientY;
+  const rows = [...list.children], rects = rows.map(r => r.getBoundingClientRect()), hgt = rects[from].height;
+  row.style.cssText += ";position:relative;z-index:5;box-shadow:0 6px 18px #0008;background:var(--card,#1b222c)"; try { h.setPointerCapture(e.pointerId); } catch { }
+  const mv = (ev) => {
+    const dy = ev.clientY - startY; row.style.transform = `translateY(${dy}px)`;
+    const c = rects[from].top + rects[from].height / 2 + dy;
+    const f = rects.findIndex(r => c < r.top + r.height / 2); to = f === -1 ? rows.length - 1 : f;
+    rows.forEach((r, k) => { if (k === from) return; r.style.transition = "transform .12s"; r.style.transform = from < to && k > from && k <= to ? `translateY(${-hgt}px)` : from > to && k < from && k >= to ? `translateY(${hgt}px)` : ""; });
+  };
+  const up = () => {
+    h.removeEventListener("pointermove", mv); h.removeEventListener("pointerup", up); h.removeEventListener("pointercancel", up);
+    if (to !== from && S().current) { const a = S().current.exercises; const [x] = a.splice(from, 1); a.splice(to, 0, x); save(); buzz?.(); }
+    orderSheet();
+  };
+  h.addEventListener("pointermove", mv); h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up);
+});
 actions["ord-mv"] = (b, d) => { const a = S().current.exercises, i = +d.x, j = i + +d.v; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; save(); orderSheet(); };
 actions["ex-move"] = (b, d) => { const a = S().current.exercises, i = +d.x, j = i + +d.v; [a[i], a[j]] = [a[j], a[i]]; save(); closeSheet(); rerender(); };
 actions["ex-del"] = (b, d) => { if (!confirm("Retirer cet exercice de la séance ?")) return; S().current.exercises.splice(+d.x, 1); save(); closeSheet(); rerender(); };
