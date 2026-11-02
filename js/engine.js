@@ -207,8 +207,12 @@ export function buildMerged(adapt = true) {
 }
 export function daysSinceLast() { const w = S().workouts; if (!w.length) return null; return Math.floor((Date.now() - new Date(w.at(-1).end).getTime()) / 864e5); }
 
+// Historique utilisé pour « la dernière fois » : celui du client quand le coach ouvre sa séance
+let HIST = null;
+export const setHist = (w) => { HIST = w || null; };
+export const hist = () => HIST || S().workouts;
 export function lastExercise(name) {
-  const w = S().workouts;
+  const w = hist();
   for (let i = w.length - 1; i >= 0; i--) { const ex = w[i].exercises.find(x => x.name === name); if (ex && ex.sets.some(s => s.done)) return { ex, date: w[i].end, week: w[i].week, title: w[i].title }; }
   return null;
 }

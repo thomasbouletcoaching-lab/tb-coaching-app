@@ -949,7 +949,7 @@ actions["bd-del"] = () => { if (!confirm("Supprimer ce programme ?")) return; co
 actions["ex-hist"] = (b, d) => {
   const cur = S().current, ex = cur?.exercises?.[+d.x]; if (!ex) return;
   const rows = [];
-  (S().workouts || []).slice().reverse().forEach(w => {
+  (E.hist() || []).slice().reverse().forEach(w => {
     (w.exercises || []).filter(x => x.name === ex.name).forEach(x => {
       const done = (x.sets || []).filter(s => s.done && s.type !== "W");
       if (done.length) rows.push({ d: w.end || w.start, sets: done, title: w.title });
