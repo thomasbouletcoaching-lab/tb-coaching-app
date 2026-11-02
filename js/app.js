@@ -45,6 +45,8 @@ window.addEventListener("hashchange", render);
   const pullFood = async () => { try { const c = await cloudMod(); if (c && S().profile && !S().me?.isCoach) { await pullCoachFood(c); if (R.route === "home") render(); } } catch { } };
   pullFood(); setInterval(pullFood, 5 * 60000);
   pullLive(); setInterval(pullLive, 15000);
+  // Programme perdu sur le téléphone (plan vide) alors qu'il existe sur le serveur : on le recharge tout seul
+  setTimeout(async () => { try { if (!S().profile || S().plan?.programId || S().me?.isCoach) return; const { restoreMigrated } = await import("./views/account.js"); const r = await restoreMigrated(); if (r?.p && ["home", "train", "workout"].includes(R.route)) render(); } catch (e) { console.warn("Programme non rechargé :", e.message); } }, 2500);
   // Quand l'app revient au premier plan : programme et séance du coach tout de suite (pas d'attente de 5 min)
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { pullCoachPlan(); pullFood(); pullLive(); } });
   // Pas de menu « lien » sur un appui long dans la barre du bas ou sur les liens internes
