@@ -371,7 +371,7 @@ function exerciseBlock(ex, xi) {
   const unit = ex.unit === "s" ? "Sec" : "Reps";
   let n = 0;
   const L = E.lastExercise(ex.name), prevW = L ? L.ex.sets.filter(s => s.done && s.type !== "W") : [], prevWu = L ? L.ex.sets.filter(s => s.done && s.type === "W") : [];
-  const prevTxt = (s) => s ? `${s.kg ? kgTxt(s.kg) + " kg × " : ""}${s.reps ?? "–"}${ex.unit === "s" ? " s" : ""}${s.rpe != null ? ` @${String(s.rpe).replace(".", ",")}` : ""}${s.type && s.type !== "N" && s.type !== "W" ? ` · ${E.SET_TYPES[s.type]}` : ""}${(s.tech || []).length ? ` · ${s.tech.join(", ")}` : ""}${s.note ? ` · « ${s.note} »` : ""}` : "";
+  const asst = E.isAssisted(ex.name), prevTxt = (s) => s ? `${s.kg ? (asst ? "aide " : "") + kgTxt(s.kg) + " kg × " : ""}${s.reps ?? "–"}${ex.unit === "s" ? " s" : ""}${s.rpe != null ? ` @${String(s.rpe).replace(".", ",")}` : ""}${s.type && s.type !== "N" && s.type !== "W" ? ` · ${E.SET_TYPES[s.type]}` : ""}${(s.tech || []).length ? ` · ${s.tech.join(", ")}` : ""}${s.note ? ` · « ${s.note} »` : ""}` : "";
   let wi = 0, wu = 0;
   const stall = E.stalls().find(x => x.name === ex.name);
   const sugBox = ex.sug ? (premium() ? `<div class="sug">💡 <b>Suggestion</b> · ${esc(ex.sug.txt)}<br><span class="xs muted">Dernière fois : ${esc(ex.sug.last)}</span></div>` : `<div class="sug">💡 Dernière fois : <b>${esc(ex.sug.last)}</b> <button class="lock" data-a="go" data-r="offers" style="margin-left:4px">🔒 Suggestion Premium</button></div>`) : "";
@@ -384,17 +384,17 @@ function exerciseBlock(ex, xi) {
     ${sugBox}
     ${L ? `<details class="prevbox"><summary>↺ La dernière fois · ${fmtDate(today(new Date(L.date)), { weekday: "short", day: "numeric", month: "short" })}${L.week ? ` · semaine ${L.week}` : ""}</summary><div class="xs mt4">${L.ex.sets.filter(s => s.done).map((s, i) => `<div>${s.type === "W" ? "Échauf." : "Série " + (L.ex.sets.filter(x => x.done && x.type !== "W").indexOf(s) + 1)} : ${esc(prevTxt(s))}</div>`).join("")}${L.ex.myNote ? `<div class="mt4">📝 ${esc(L.ex.myNote)}</div>` : ""}</div></details>` : ""}
     ${stall ? `<div class="sug" style="box-shadow:0 0 0 1.5px var(--warn) inset">📹 <b>Tu bloques sur cet exercice depuis ${stall.weeks} semaines.</b> Filme une série de profil et envoie-la à Thomas : il corrige ta technique et ajuste ta progression. <button class="link xs" data-a="stall-video" data-n="${esc(ex.name)}">Envoyer une vidéo</button></div>` : ""}
-    <div class="sethead"><span>Série</span><span>${ex.bw ? "Lest" : "Kg"}</span><span>${unit}</span><span>RPE</span><span></span></div>
+    <div class="sethead"><span>Série</span><span>${ex.bw ? "Lest" : E.isAssisted(ex.name) ? "Aide kg" : "Kg"}</span><span>${unit}</span><span>RPE</span><span></span></div>
     ${ex.sets.map((s, si) => {
       const lab = s.type === "W" ? "É" : String(++n);
       const pv = s.type === "W" ? prevWu[wu++] : prevW[wi++];
       const meta = [s.type !== "N" ? `<span class="tag ${s.type === "W" ? "" : "r"}">${E.SET_TYPES[s.type]}</span>` : "", ...(s.tech || []).map(t => `<span class="tag" ${E.TECH_QTY[t] ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${esc(t)}${s.tq?.[t] != null ? ` ×${s.tq[t]}${E.TECH_QTY[t]?.[1] === "s" ? " s" : ""}` : ""}</span>`), `<span>${s.lo !== s.hi ? `${s.lo}-${s.hi}` : s.lo} ${unit.toLowerCase()} · RPE ${String(s.trpe).replace(".", ",")}${adv() && s.pct ? ` · ${s.pct} %` : ""}</span>`, s.pain ? `<span class="tag" style="background:var(--warn);color:#fff">Douleur</span>` : "", s.note ? `<span>📝 ${esc(s.note)}</span>` : "", pv ? `<span class="prev">↺ ${esc(prevTxt(pv))}</span>` : ""].filter(Boolean).join("");
       return `<div class="set ${s.done ? "done" : ""} ${s.type === "W" ? "w" : ""}"><button class="n" data-a="set-menu" data-x="${xi}" data-s="${si}" aria-label="Options de la série">${lab}${s.type !== "N" ? `<small>${s.type === "W" ? "échauf." : E.SET_TYPES[s.type].split(" ")[0].toLowerCase()}</small>` : ""}</button>
-        <input inputmode="decimal" data-i="set" data-k="kg" data-x="${xi}" data-s="${si}" value="${ex.bw ? kgTxt(s.kg || "") : kgTxt(s.kg)}" placeholder="${ex.bw ? "PDC" : "kg"}" aria-label="Charge">
+        <input inputmode="decimal" data-i="set" data-k="kg" data-x="${xi}" data-s="${si}" value="${ex.bw ? kgTxt(s.kg || "") : kgTxt(s.kg)}" placeholder="${ex.bw ? "PDC" : E.isAssisted(ex.name) ? "aide" : "kg"}" aria-label="${E.isAssisted(ex.name) ? "Aide (poids en moins)" : "Charge"}">
         <input inputmode="numeric" data-i="set" data-k="reps" data-x="${xi}" data-s="${si}" value="${s.reps ?? ""}" placeholder="${s.lo}" aria-label="${unit}">
         <button class="rpe-btn ${s.rpe == null ? "ph" : ""}" data-a="rpe-pick" data-x="${xi}" data-s="${si}" aria-label="RPE de la série">${s.rpe != null ? String(s.rpe).replace(".", ",") : String(s.trpe).replace(".", ",")}</button>
         <button class="tick" data-a="tick" data-x="${xi}" data-s="${si}" aria-label="Valider la série">${I.check}</button>
-        <div class="setmeta">${meta}</div></div>`;
+        <div class="setmeta">${meta}${ex.unit === "s" && s.type !== "W" ? ` <button class="chip sm" data-a="chrono" data-x="${xi}" data-s="${si}">⏱️ Chrono</button>` : ""}</div></div>`;
     }).join("")}
     <div class="row mt8" style="gap:8px"><button class="btn btn-ghost btn-xs" data-a="add-set" data-x="${xi}">+ Série</button><button class="btn btn-ghost btn-xs" data-a="add-set" data-x="${xi}" data-t="W">+ Échauffement</button></div>
     <label class="field mt8"><span>📝 Note sur l'exercice (réglages, sensations, douleur…)</span><textarea rows="1" data-i="exnote" data-x="${xi}" placeholder="Ex. siège cran 4, gêne épaule droite">${esc(ex.myNote || "")}</textarea></label>
@@ -445,6 +445,38 @@ function techQtySheet(xi, si) {
 }
 actions["tq-set"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.tq = { ...(s.tq || {}), [d.t]: +d.v }; save(); techQtySheet(+d.x, +d.s); rerender(); };
 actions["tq-edit"] = (b, d) => techQtySheet(+d.x, +d.s);
+// Chrono pour les exercices tenus (gainage, planche…) : compte les secondes, vibre au but, remplit la série
+let CH = null;
+function chronoDraw() {
+  const el = document.getElementById("ch-time"); if (!el || !CH) return;
+  const left = CH.prep ? Math.ceil((CH.t0 - Date.now()) / 1000) : null;
+  if (CH.prep && left <= 0) { CH.prep = false; CH.t0 = Date.now(); buzz(30); }
+  if (CH.prep) { el.textContent = String(Math.max(1, left)); el.style.opacity = ".6"; return; }
+  el.style.opacity = "1";
+  const sec = CH.run ? Math.floor((Date.now() - CH.t0) / 1000) : CH.el;
+  if (CH.run) CH.el = sec;
+  el.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+  if (CH.run && CH.goal && sec >= CH.goal && !CH.hit) { CH.hit = true; buzz(60); toast("Objectif atteint 🎯"); }
+  const ok = document.getElementById("ch-ok"); if (ok) ok.textContent = `Valider ${sec} s`;
+}
+function chronoSheet() {
+  const ex = S().current.exercises[CH.x];
+  sheet(`<h2 class="h2">⏱️ ${esc(ex.name)}</h2><p class="xs muted">Série ${CH.s + 1}${CH.goal ? ` · objectif ${CH.goal} s` : ""}</p>
+    <div id="ch-time" style="font-size:64px;font-weight:800;text-align:center;margin:18px 0;font-variant-numeric:tabular-nums">0:00</div>
+    <div class="row" style="gap:8px">${CH.run || CH.prep ? `<button class="btn btn-line grow" data-a="chrono-stop">⏸ Pause</button>` : `<button class="btn btn-red grow" data-a="chrono-go">▶ Démarrer</button><button class="btn btn-line grow" data-a="chrono-go" data-p="5">⏲ Dans 5 s</button>`}<button class="btn btn-line" data-a="chrono-reset">↺</button></div>
+    <button class="btn btn-red mt12" id="ch-ok" data-a="chrono-ok">Valider ${CH.el || 0} s</button>`);
+  clearInterval(CH.iv); CH.iv = setInterval(() => { if (!document.getElementById("ch-time")) { clearInterval(CH.iv); return; } chronoDraw(); }, 200); chronoDraw();
+}
+actions.chrono = (b, d) => { const ex = S().current.exercises[+d.x], s = ex.sets[+d.s]; if (CH?.iv) clearInterval(CH.iv); CH = { x: +d.x, s: +d.s, run: false, prep: false, el: 0, t0: 0, goal: s.lo || null, hit: false }; chronoSheet(); };
+actions["chrono-go"] = (b, d) => { if (!CH) return; const prep = +d.p || 0; CH.hit = false; if (prep) { CH.prep = true; CH.t0 = Date.now() + prep * 1000; } else CH.t0 = Date.now() - CH.el * 1000; CH.run = true; chronoSheet(); };
+actions["chrono-stop"] = () => { if (!CH) return; if (CH.run && !CH.prep) CH.el = Math.floor((Date.now() - CH.t0) / 1000); CH.run = false; CH.prep = false; chronoSheet(); };
+actions["chrono-reset"] = () => { if (!CH) return; CH.run = false; CH.prep = false; CH.el = 0; CH.hit = false; chronoSheet(); };
+actions["chrono-ok"] = () => {
+  if (!CH) return; if (CH.run && !CH.prep) CH.el = Math.floor((Date.now() - CH.t0) / 1000);
+  clearInterval(CH.iv); const ex = S().current.exercises[CH.x], s = ex.sets[CH.s], sec = CH.el; CH = null;
+  if (sec > 0) { s.reps = sec; if (!s.done) { s.done = true; startRest(ex.rest); } save(); buzz(18); }
+  closeSheet(); rerender();
+};
 actions["add-set"] = (b, d) => {
   const ex = S().current.exercises[+d.x];
   if (d.t === "W") { const top = ex.sets.find(s => s.type !== "W")?.kg; const w = ex.sets.filter(s => s.type === "W").length; ex.sets.splice(w, 0, { g: -1, type: "W", kg: top ? E.roundTo(top * .5, ex.step) : null, reps: 8, lo: 8, hi: 8, trpe: 5, rpe: null, pct: null, tech: [], note: "", done: false }); }
