@@ -74,7 +74,7 @@ const stLbl = (r) => r.ip ? ["⏱️ En cours", "ip"] : r.a.st === "done" ? ["�
 function agRow(r, d) {
   const [l, c] = stLbl(r), past = d < today() || (d === today() && r.a.st === "done");
   const shift = r.me ? "" : `<button class="ghost sm" data-a="ag-shift" data-m="${r.m.id}" data-d="${d}" data-t="${esc(r.a.time || "")}">↪︎ Décaler</button>`;
-  return `<div class="row" style="gap:6px;align-items:stretch"><div class="grow" style="min-width:0"><button class="ag-row ${past && !r.ip ? "past" : ""}" ${r.me ? `data-a="ag-day" data-v="${d}"` : `data-a="go" data-r="member" data-p="${r.m.id}"`}><span class="t">${esc(r.a.time || "—")}</span><span class="small"><b>${esc(r.name)}</b> · ${esc(r.a.title)}${r.a.moved ? ` <span class="muted">(déplacée)</span>` : ""}${r.a.place ? `<br><span class="xs muted">${esc(r.a.place)}${r.a.dur ? ` · ${r.a.dur} min` : ""}</span>` : ""}</span><span class="ag-st ${c}">${l}</span></button></div>${shift}</div>`;
+  return `<div class="row" style="gap:6px;align-items:stretch"><div class="grow" style="min-width:0"><button class="ag-row ${past && !r.ip ? "past" : ""}" ${r.me ? `data-a="ag-day" data-v="${d}"` : r.ip ? `data-a="go" data-r="live" data-p="${r.m.id}"` : `data-a="go" data-r="member" data-p="${r.m.id}"`}><span class="t">${esc(r.a.time || "—")}</span><span class="small"><b>${esc(r.name)}</b> · ${esc(r.a.title)}${r.a.moved ? ` <span class="muted">(déplacée)</span>` : ""}${r.a.place ? `<br><span class="xs muted">${esc(r.a.place)}${r.a.dur ? ` · ${r.a.dur} min` : ""}</span>` : ""}</span><span class="ag-st ${c}">${l}</span></button></div>${shift}</div>`;
 }
 actions["ag-shift"] = (b, d) => {
   const m = A.members.find(x => x.id === d.m);
@@ -238,10 +238,12 @@ actions["adm-rank"] = () => rankingSheet();
 let LIVE_LIST = [];
 // Séances en direct en cours chez les clients : le coach les ouvre et voit ce qui se remplit
 function liveNowBlock() {
+  const have = new Set(LIVE_LIST.map(r => r.user_id));
+  (A.members || []).forEach(m => { const s = A.sums[m.id]; if (!have.has(m.id) && s?.inProgress && s.today === today()) LIVE_LIST.push({ user_id: m.id, state: { title: s.inProgress.title, session: { exercises: [] }, snap: s.inProgress.done }, updated_at: null }); });
   if (!LIVE_LIST.length) return "";
   return `<div class="card mt12" style="box-shadow:0 0 0 2px var(--red) inset"><div class="lbl">🔴 Séances en direct</div><div class="list mt8">${LIVE_LIST.map(r => {
-    const m = (A.members || []).find(x => x.id === r.user_id), exs = r.state.session?.exercises || r.state.exercises || [], done = exs.flatMap(e => e.sets || []).filter(x => x.done).length, tot = exs.flatMap(e => e.sets || []).filter(x => x.type !== "W").length;
-    return `<button class="li" data-a="go" data-r="live" data-p="${r.user_id}"><span class="grow small"><b>${esc(m ? first(m) : "Client")}</b> · ${esc(r.state.title || "Séance")}<br><span class="xs muted">${done}/${tot} séries · touche pour ouvrir et remplir avec lui · mis à jour ${ago(r.updated_at)}${r.state.by === "member" ? " · lancée par le client" : ""}</span></span>${I.chev}</button>`;
+    const m = (A.members || []).find(x => x.id === r.user_id), exs = r.state.session?.exercises || r.state.exercises || [], done = r.state.snap ?? exs.flatMap(e => e.sets || []).filter(x => x.done).length, tot = exs.flatMap(e => e.sets || []).filter(x => x.type !== "W").length, tt = r.state.snap != null ? `${done} séries faites` : `${done}/${tot} séries`;
+    return `<button class="li" data-a="go" data-r="live" data-p="${r.user_id}"><span class="grow small"><b>${esc(m ? first(m) : "Client")}</b> · ${esc(r.state.title || "Séance")}<br><span class="xs muted">${tt} · touche pour ouvrir et remplir avec lui${r.updated_at ? ` · mis à jour ${ago(r.updated_at)}` : ""}${r.state.by === "member" ? " · lancée par le client" : ""}</span></span>${I.chev}</button>`;
   }).join("")}</div></div>`;
 }
 routes["admin-today"] = async () => {
