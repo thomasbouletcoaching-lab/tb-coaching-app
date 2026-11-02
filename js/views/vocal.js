@@ -10,7 +10,7 @@ const DB = "cxs-memos";
 const open = () => new Promise((res, rej) => { const r = indexedDB.open(DB, 1); r.onupgradeneeded = () => r.result.createObjectStore("m", { keyPath: "id" }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
 const tx = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction("m", mode), s = t.objectStore("m"), q = fn(s); t.oncomplete = () => res(q?.result); t.onerror = () => rej(t.error); }); };
 async function load() { try { MEMOS = (await tx("readonly", s => s.getAll())) || []; MEMOS.sort((a, b) => a.id - b.id); } catch { MEMOS = []; } }
-load().then(() => rerender?.()).catch(() => { });
+load().then(() => { if (MEMOS.length && location.hash.startsWith("#/food")) rerender(); }).catch(() => { });
 
 const mealFor = (t) => { const h = +String(t).slice(0, 2); return h < 11 ? "Petit-déjeuner" : h < 15 ? "Déjeuner" : h < 18 ? "Collation" : "Dîner"; };
 export function memosCard(d) {
