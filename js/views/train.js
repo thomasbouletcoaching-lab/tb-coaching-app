@@ -377,7 +377,7 @@ function exerciseBlock(ex, xi) {
   const sugBox = ex.sug ? (premium() ? `<div class="sug">💡 <b>Suggestion</b> · ${esc(ex.sug.txt)}<br><span class="xs muted">Dernière fois : ${esc(ex.sug.last)}</span></div>` : `<div class="sug">💡 Dernière fois : <b>${esc(ex.sug.last)}</b> <button class="lock" data-a="go" data-r="offers" style="margin-left:4px">🔒 Suggestion Premium</button></div>`) : "";
   return `<article class="card ex"><div class="head"><div class="grow">
       <div>${ex.ss ? `<span class="tag r">Superset ${esc(ex.ss)}</span>` : ""}<span class="tag">${E.KIND_LABEL[ex.kind] || ex.kind}</span>${ex.tempo ? `<span class="tag">Tempo ${esc(ex.tempo)}</span>` : ""}<span class="tag">⏱️ ${Math.floor(ex.rest / 60)}:${String(ex.rest % 60).padStart(2, "0")}</span></div>
-      <h3 class="mt8">${esc(ex.name)}</h3><div class="xs muted mt4">🎯 ${targetTxt(ex)}${ex.name !== ex.orig ? ` · remplace ${esc(ex.orig)}` : ""}${adv() && ex.e1 ? ` · e1RM ${fr(ex.e1)} kg` : ""}</div>
+      <h3 class="mt8">${esc(ex.name)} <button class="link xs" data-a="ex-hist" data-x="${xi}" style="font-weight:600">📈 Historique</button></h3><div class="xs muted mt4">🎯 ${targetTxt(ex)}${ex.name !== ex.orig ? ` · remplace ${esc(ex.orig)}` : ""}${adv() && ex.e1 ? ` · e1RM ${fr(ex.e1)} kg` : ""}</div>
       ${!ex.bw && ex.sets.every(s => !s.kg) ? `<div class="xs mt8 red">Première fois : choisis une charge qui te laisse 2 à 3 répétitions en réserve. L'app calcule la suite.</div>` : ""}
       ${ex.note ? `<div class="xs mt8">📝 ${esc(ex.note)}</div>` : ""}</div></div>
     <div class="acts"><button data-a="go" data-r="fiche" data-p="${esc(ex.name)}">📖 Fiche</button><button data-a="ex-swap" data-x="${xi}">🔄 Remplacer</button><button data-a="ex-prog" data-x="${xi}">📈 Progression</button><button data-a="ex-rest" data-x="${xi}">⏱️ Repos</button><button data-a="ex-more" data-x="${xi}">${I.dots.replace("<svg", '<svg width="18"')}</button></div>
@@ -912,3 +912,19 @@ actions["bd-use"] = () => {
   toast(keepWeek > 1 ? `C'est parti, tu restes en semaine ${keepWeek}` : "C'est parti avec ton programme"); draft = null; tab = "programme"; pushStats(); go("train", "programme");
 };
 actions["bd-del"] = () => { if (!confirm("Supprimer ce programme ?")) return; const id = draft.id; update(st => { st.customPrograms = st.customPrograms.filter(p => p.id !== id); if (st.plan?.programId === id) st.plan = { programId: st.profile.startProgram || "tb-rep3", startedAt: today(), week: 1, idx: 0, cycle: 1 }; }); draft = null; go("train", "banque"); };
+
+// Historique d'un exercice, consultable pendant la séance (toutes les séances passées, les plus récentes d'abord)
+actions["ex-hist"] = (b, d) => {
+  const cur = S().current, ex = cur?.exercises?.[+d.x]; if (!ex) return;
+  const rows = [];
+  (S().workouts || []).slice().reverse().forEach(w => {
+    (w.exercises || []).filter(x => x.name === ex.name).forEach(x => {
+      const done = (x.sets || []).filter(s => s.done && s.type !== "W");
+      if (done.length) rows.push({ d: w.end || w.start, sets: done, title: w.title });
+    });
+  });
+  const best = rows.length ? rows.reduce((a, r) => { const top = r.sets.reduce((m, s) => (E.e1rm(s.kg, s.reps, s.rpe) > E.e1rm(m.kg, m.reps, m.rpe) ? s : m)); return E.e1rm(top.kg, top.reps, top.rpe) > (a.v || 0) ? { v: E.e1rm(top.kg, top.reps, top.rpe), s: top, d: r.d } : a; }, {}) : null;
+  sheet(`<h2 class="h2">${esc(ex.name)}</h2><p class="xs muted">Tes séances précédentes sur cet exercice.</p>
+    ${best?.s ? `<div class="card soft mt8"><b class="small">🏆 Meilleure série estimée</b><p class="small" style="margin:4px 0 0">${fr(best.s.kg)} kg × ${best.s.reps}${best.s.rpe != null ? ` @${String(best.s.rpe).replace(".", ",")}` : ""} · 1RM estimé ${fr(best.v)} kg · ${fmtDate(best.d.slice(0, 10))}</p></div>` : ""}
+    ${rows.length ? `<div class="list mt8">${rows.slice(0, 25).map(r => `<div class="li" style="align-items:flex-start"><span class="grow small"><b>${fmtDate(r.d.slice(0, 10))}</b> <span class="xs muted">· ${esc(r.title || "")}</span><br>${r.sets.map(s => `${s.kg ? fr(s.kg) + " kg × " : ""}${s.reps ?? "–"}${s.rpe != null ? ` @${String(s.rpe).replace(".", ",")}` : ""}`).join(" · ")}</span></div>`).join("")}</div>` : `<p class="empty small mt8">Pas encore de séance enregistrée sur cet exercice.</p>`}`);
+};
