@@ -1,6 +1,6 @@
 // Entraînement : programme et cycle, banque, programme perso, carnet de séance, stats, records, simulateur, fiches.
 import { S, update, save, today } from "../store.js";
-import { tbLogo, medalHtml, celebrate, recLabel } from "../fx.js";
+import { tbLogo, medalHtml, celebrate, recLabel, gradeOf, weightLike } from "../fx.js";
 import * as E from "../engine.js";
 import { CONFIG } from "../config.js";
 import { $app, esc, num, fr, buzz, toast, routes, R, actions, changes, forms, go, I, header, tabbar, chips, seg, sheet, closeSheet, lockVeil, lineChart, barChart, hbars, wordOn, premium, rank, programOpen, weekOpen, fmtDate, addDays, rerender, onLeave, isCoach, cloud, modeBar } from "../core.js";
@@ -311,6 +311,27 @@ actions["dur-go"] = () => { const w = document.getElementById("sheet"), x = num(
 actions["mg-pick"] = (b, d) => { const w = document.getElementById("sheet"); w._mode = d.v; w.querySelectorAll('[data-a="mg-pick"]').forEach(x => x.classList.toggle("on", x === b)); if (d.v) w._min = Math.max(w._min || 0, d.v === "full" ? 90 : 75); w.querySelectorAll('[data-a="dur-pick"]').forEach(x => x.classList.toggle("on", +x.dataset.v === w._min)); };
 // ---------- Corriger ou supprimer une séance faite ----------
 let wEdit = null;
+// Détail complet d'une séance faite : séries, RPE, techniques, notes, records, grade
+actions["w-detail"] = (b, d) => {
+  const w = S().workouts.find(x => x.id === +d.id); if (!w) return;
+  const mins = Math.round((new Date(w.end) - new Date(w.start)) / 6e4), g = gradeOf(w.volume || 0), like = weightLike(w.volume || 0);
+  const rpe = (v) => v != null ? ` @${String(v).replace(".", ",")}` : "";
+  const exs = w.exercises.filter(e => e.sets.some(s => s.done)).map(e => {
+    const as = E.isAssisted(e.name), n = { i: 0 };
+    return `<div class="card soft mt8" style="padding:12px"><b>${esc(e.name)}</b>${e.name !== e.orig && e.orig ? ` <span class="xs muted">(remplace ${esc(e.orig)})</span>` : ""}
+      ${(e.recsHit || []).length ? `<div class="xs mt4">🏆 ${e.recsHit.map(r => `${recLabel(r.k)[1]} : ${esc(r.txt)}`).join(" · ")}</div>` : ""}
+      ${e.sets.filter(s => s.done).map(s => {
+        const lab = s.type === "W" ? "Échauf." : "Série " + (++n.i), tech = (s.tech || []).map(t => `${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${t}${E.techSummary(t, s.td?.[t]) ? " (" + E.techSummary(t, s.td[t]) + ")" : ""}`);
+        return `<div class="row between small" style="padding:5px 0;border-top:1px solid var(--line);align-items:flex-start;gap:8px"><span class="muted" style="min-width:64px">${lab}${s.type && s.type !== "N" && s.type !== "W" ? `<br><span class="xs">${E.SET_TYPES[s.type]}</span>` : ""}</span>
+          <span class="grow" style="text-align:right"><b>${s.kg ? (as ? "aide " : "") + E.fmtKg(s.kg) + " kg × " : ""}${s.reps ?? "–"}${e.unit === "s" ? " s" : ""}</b>${rpe(s.rpe)}${s.pain ? " ⚠️" : ""}${tech.length ? `<br><span class="xs muted">${tech.map(esc).join(" · ")}</span>` : ""}${s.note ? `<br><span class="xs muted">📝 ${esc(s.note)}</span>` : ""}</span></div>`; }).join("")}
+      ${e.myNote ? `<div class="xs muted mt4">📝 ${esc(e.myNote)}</div>` : ""}</div>`; }).join("");
+  sheet(`<h2 class="h2">${esc(w.title)}</h2><p class="xs muted">${fmtDate(today(new Date(w.end)), { weekday: "long", day: "numeric", month: "long" })} · ${new Date(w.start).toTimeString().slice(0, 5)}</p>
+    <div class="stat3 mt8"><div><b>${mins}</b><span>min</span></div><div><b>${w.setsDone ?? 0}</b><span>séries</span></div><div><b>${((w.volume || 0) / 1000).toFixed(1).replace(".", ",")}</b><span>tonnes</span></div></div>
+    <div class="card soft mt8" style="padding:12px;text-align:center"><b>${g.icon} Grade ${g.name}</b><div class="xs muted mt4">${(w.volume || 0) >= 100 ? `Tu as soulevé l'équivalent ${like.txt.replace(/^une? /, m => m.startsWith("une") ? "d'une " : "d'un ").replace(/^(\d)/, "de $1")} ${like.icon}` : ""}</div></div>
+    ${exs}
+    <div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="w-edit" data-id="${w.id}">✏️ Modifier</button><button class="btn btn-ghost btn-sm grow" data-a="w-del" data-id="${w.id}" style="color:var(--red)">🗑️ Supprimer</button></div>
+    <button class="btn btn-red mt12" data-a="set-close">Fermer</button>`);
+};
 actions["w-edit"] = (b, d) => { const w = S().workouts.find(x => x.id === +d.id); if (!w) return; wEdit = JSON.parse(JSON.stringify(w)); wEditSheet(); };
 function wEditSheet() {
   const w = wEdit, dt = new Date(w.end), loc = new Date(dt.getTime() - dt.getTimezoneOffset() * 6e4).toISOString();

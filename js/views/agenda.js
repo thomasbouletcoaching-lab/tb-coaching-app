@@ -87,7 +87,7 @@ const PLACES = ["Salle", "Maison", "Extérieur"];
 actions["ag-day"] = (b, d) => {
   const k = d.v, a = E.agenda(k, k)[k], t = today();
   let html = `<h2 class="h1" style="text-transform:capitalize">${fmtDate(k)}</h2>`;
-  if (a?.st === "done") html += a.w.map(w => `<div class="card mt12"><div class="lbl">✅ Séance faite · ${new Date(w.start).toTimeString().slice(0, 5)}</div><b class="h3">${esc(w.title)}</b><p class="small muted mt4">${w.setsDone} séries · ${(w.volume / 1000).toFixed(1).replace(".", ",")} t · ${Math.round((new Date(w.end) - new Date(w.start)) / 6e4)} min</p>
+  if (a?.st === "done") html += a.w.map(w => `<div class="card mt12" data-a="w-detail" data-id="${w.id}" style="cursor:pointer"><div class="lbl">✅ Séance faite · ${new Date(w.start).toTimeString().slice(0, 5)} <span style="float:right;text-transform:none" class="red">Voir le détail ›</span></div><b class="h3">${esc(w.title)}</b><p class="small muted mt4">${w.setsDone} séries · ${(w.volume / 1000).toFixed(1).replace(".", ",")} t · ${Math.round((new Date(w.end) - new Date(w.start)) / 6e4)} min</p>
       <div class="small mt8">${w.exercises.filter(e => e.sets.some(s => s.done)).map(e => `<div class="row between"><span>${esc(e.name)}</span><span class="muted">${e.sets.filter(s => s.done && s.type !== "W").map(s => s.kg ? `${E.fmtKg(s.kg)}×${s.reps}` : s.reps).join(" · ")}</span></div>`).join("")}</div>
       <div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="w-edit" data-id="${w.id}">✏️ Modifier</button><button class="btn btn-ghost btn-sm grow" data-a="w-del" data-id="${w.id}" style="color:var(--red)">🗑️ Supprimer</button></div></div>`).join("");
   else if (a?.st === "planned" || (a?.st === "missed")) {
