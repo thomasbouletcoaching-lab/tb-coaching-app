@@ -483,6 +483,15 @@ actions.finish = async () => {
   const id = MIRROR.id; baseFinish();
   if (!S().current) { clearInterval(MIRROR?.timer); MIRROR = null; E.setHist(null); try { const c = await cloud(); const r = await c.liveGet(id); await c.liveSet(id, { ...(r?.state || {}), ended: true, endedAt: nowIso() }); } catch { } LIVE_NOW = null; }
 };
+const baseAbandon = actions.abandon;
+actions.abandon = async () => {
+  if (!MIRROR || !S().current?.mirror) return baseAbandon();
+  if (isCoach()) { if (!confirm("Quitter la séance de ce client ? (elle reste ouverte chez lui)")) return; return leaveMirror(); }
+  if (!confirm("Abandonner cette séance ? Thomas ne la verra plus et rien ne sera enregistré.")) return;
+  const id = MIRROR.id; clearInterval(MIRROR.timer); clearTimeout(pushT); MIRROR = null;
+  try { const c = await cloud(); const r = await c.liveGet(id); await c.liveSet(id, { ...(r?.state || {}), ended: true, endedAt: nowIso(), abandoned: true, session: null }); } catch { }
+  LIVE_NOW = null; update(st => { st.current = null; }); sessionStorage.removeItem("cxs.min"); toast("Séance abandonnée"); go("home");
+};
 actions.minimize = () => {
   if (MIRROR && S().current?.mirror && isCoach()) return leaveMirror();
   baseMin();
