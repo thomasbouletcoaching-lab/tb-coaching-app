@@ -284,3 +284,11 @@ export async function liveSet(userId, state) {
   const { error } = await sb.from("cxs_live_sessions").upsert({ user_id: userId, state, updated_at: new Date().toISOString() });
   if (error) throw error;
 }
+
+// Coach : séances en direct qui tournent en ce moment (moins de 8 h, non terminées)
+export async function liveAll() {
+  const { data, error } = await sb.from("cxs_live_sessions").select("user_id,state,updated_at").order("updated_at", { ascending: false }).limit(50);
+  if (error) throw error;
+  const lim = Date.now() - 8 * 3600e3;
+  return (data || []).filter(r => r.state && Object.keys(r.state).length && !r.state.ended && new Date(r.updated_at).getTime() > lim);
+}
