@@ -7,7 +7,7 @@ import { memberProgram } from "./coachprog.js";
 import { RPE_INFO } from "./train.js";
 import { $app, esc, toast, routes, actions, forms, header, R, go, isCoach, cloud, buzz, fr, num, onLeave, render, sheet, closeSheet, rerender } from "../core.js";
 
-const POLL_MS = 6000;
+const POLL_MS = 4000;
 const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 let LIVE = null;          // séance ouverte : { id, state, updated_at, timer }
 export let LIVE_NOW = null; // séance active vue par le membre (bandeau de l'accueil)
@@ -426,6 +426,29 @@ routes.workout = async () => {
   clearInterval(MIRROR.timer);
   MIRROR.timer = setInterval(pollMirror, POLL_MS);
 };
+// Coach : reprend dans sa copie tout ce que le client valide sur son téléphone (lu dans ses données synchronisées),
+// sans écraser ce que le coach a modifié sur des séries non faites.
+async function mergeClientProgress() {
+  const c = await cloud(), md = await c.memberData(MIRROR.id), snap = md?.data?.current, cur = S().current;
+  if (!snap?.exercises || !cur || md.updated_at === MIRROR.snapStamp) return;
+  MIRROR.snapStamp = md.updated_at;
+  if (snap.start && cur.start && new Date(snap.start).getTime() !== new Date(cur.start).getTime()) return; // autre séance
+  let changed = false; const F = ["kg", "reps", "rpe", "done", "note", "pain", "tech", "type", "trpe"];
+  const next = JSON.parse(JSON.stringify(cur));
+  snap.exercises.forEach(se => {
+    let le = next.exercises.find(e => e.name === se.name && e.orig === se.orig) || next.exercises.find(e => e.name === se.name);
+    if (!le) { next.exercises.push(JSON.parse(JSON.stringify(se))); changed = true; return; }
+    se.sets.forEach((cs, k) => {
+      const ls = le.sets[k];
+      if (!ls) { le.sets.push(JSON.parse(JSON.stringify(cs))); changed = true; return; }
+      if (cs.done && JSON.stringify(F.map(f => cs[f])) !== JSON.stringify(F.map(f => ls[f]))) { F.forEach(f => { if (cs[f] !== undefined) ls[f] = cs[f]; }); changed = true; }
+    });
+  });
+  if (!changed) return;
+  MIRROR.quiet = true; update(st => { st.current = { ...next, mirror: cur.mirror }; }); MIRROR.quiet = false;
+  try { await pushMirror(); } catch { }
+  rerender();
+}
 async function pollMirror() {
   if (!MIRROR || R.route !== "workout" || !S().current?.mirror) { clearInterval(MIRROR?.timer); return; }
   if (DRAG || document.querySelector(".sheet-wrap, input:focus, textarea:focus, select:focus")) return;
@@ -435,6 +458,7 @@ async function pollMirror() {
       if (!isCoach() && S().current.exercises.some(e => e.sets.some(x => x.done))) { const cur = S().current; E.finishSession(cur); MIRROR = null; clearInterval(0); toast("Thomas a terminé la séance : elle est enregistrée"); return go("done"); }
       return leaveMirror("Séance terminée");
     }
+    if (isCoach()) await mergeClientProgress();
     if (r.updated_at !== MIRROR.stamp && r.state.session) {
       MIRROR.stamp = r.updated_at; MIRROR.quiet = true;
       update(st => { st.current = { ...r.state.session, start: r.state.session.start || r.state.startedAt, mirror: { id: MIRROR.id } }; });

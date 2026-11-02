@@ -62,7 +62,7 @@ let tmr = null, last = 0;
 export function pushData(now = false) {
   if (!S().profile || !S().synced) return;
   clearTimeout(tmr);
-  const wait = now ? 0 : Math.max(4000, 20000 - (Date.now() - last));
+  const wait = now ? 0 : Math.max(1500, (S().current ? 4000 : 20000) - (Date.now() - last));
   tmr = setTimeout(async () => { const c = await cloud(); if (!c) return; try { const { data, summary } = snapshot(); await c.pushData(data, summary); last = Date.now(); await pushNutri(c).catch(() => { }); } catch (e) { console.warn("Envoi au coach impossible :", e.message); } }, wait);
 }
 onSave(() => pushData());
