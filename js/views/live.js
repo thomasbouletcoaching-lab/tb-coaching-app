@@ -27,7 +27,7 @@ export function buildLive(D, prog, si, week = 1) {
   const exercises = (rows || []).filter(r => r[0]).map(r => {
     const wp = withState(D || {}, () => E.weekPlan(r[5], week, prog));
     return { name: r[0], note: r[2] || "", rest: r[5]?.rest || 120, ss: null, notes: [], sets: (wp.sets || []).filter(s => s.t !== "W").map(s => ({ t: s.t, lo: s.lo, hi: s.hi, kg: s.kg || null, pct: s.pct || null, rpe: s.rpe || null, tech: [], done: false, reps: null, load: null, by: null })) };
-  });
+  }).filter(ex => ex.sets.length);
   return { title: String(title || "Séance").split("·")[0].trim(), startedAt: nowIso(), by: "coach", ended: false, exercises, log: [{ at: nowIso(), by: "coach", text: "Séance lancée" }] };
 }
 
