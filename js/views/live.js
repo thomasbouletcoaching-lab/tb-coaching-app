@@ -290,17 +290,27 @@ actions["live-launch"] = async (b, d) => {
 };
 
 // Membre : lance sa propre séance partagée (le coach la voit remplir en direct)
+// Membre : partage la séance en cours (ou celle du jour) avec le coach. Garde la progression si la séance a déjà commencé.
+async function shareSession(silent = false) {
+  await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
+  const c = await cloud(); await c.ensureSession(); const uid = c.userId();
+  let cur = S().current;
+  if (!cur) {
+    const ses = E.buildSession(); if (!ses) { if (!silent) toast("Pas de séance prévue : choisis un programme d'abord"); return false; }
+    ses.start = nowIso(); cur = ses;
+  }
+  update(st => { st.current = { ...cur, mirror: { id: uid } }; });
+  MIRROR = { id: uid, stamp: null, quiet: false };
+  await pushMirror();
+  if (!silent) { buzz(); toast("Séance partagée : Thomas peut la suivre"); }
+  return true;
+}
 actions["live-self"] = async () => {
   try {
-    await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
-    const c = await cloud(); await c.ensureSession(); const uid = c.userId();
-    let ses = S().current; if (!ses) { ses = E.buildSession(); if (!ses) return toast("Pas de séance prévue : choisis un programme d'abord"); ses.start = nowIso(); }
-    MIRROR = { id: uid, stamp: null, quiet: true };
-    sessionStorage.removeItem("cxs.min");
-    update(st => { st.current = { ...ses, mirror: { id: uid } }; });
-    MIRROR.quiet = false; clearTimeout(pushT); await pushMirror();
-    buzz(); toast("Séance partagée : Thomas peut la suivre"); go("workout");
-  } catch (e) { toast("Impossible de lancer : " + e.message); }
+    const was = !!S().current;
+    if (!(await shareSession(false))) return;
+    if (!was) { sessionStorage.removeItem("cxs.min"); go("workout"); } else rerender();
+  } catch (e) { toast("Impossible de partager : " + e.message); }
 };
 
 // Membre : bandeau sur l'accueil quand une séance tourne
@@ -387,6 +397,8 @@ function leaveMirror(msg) {
 }
 const baseWorkout = routes.workout, baseFinish = actions.finish, baseMin = actions.minimize;
 routes.workout = async () => {
+  // Toute séance d'un client est partagée automatiquement avec le coach dès qu'elle est ouverte
+  if (!isCoach() && S().current && !S().current.mirror) { try { await shareSession(true); } catch { } }
   const c0 = S().current;
   if (c0?.mirror && !MIRROR) { if (isCoach()) { update(st => { st.current = null; }); return go("admin-today"); } MIRROR = { id: c0.mirror.id, stamp: null }; }
   await baseWorkout();
