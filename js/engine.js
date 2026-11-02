@@ -21,6 +21,8 @@ const REST = { F: 180, N: 150, S: 120, P: 120, A: 90, U: 90, J: 90, I: 75, G: 60
 
 // Types de séries et techniques d'intensification
 export const SET_TYPES = { N: "Normale", W: "Échauffement", T: "Top set", B: "Back-off", D: "Dégressive", A: "AMRAP", E: "À l'échec" };
+// Techniques pour lesquelles on précise « combien » à la validation de la série : [question, unité]
+export const TECH_QTY = { "Reps forcées": ["Combien de reps forcées ?", "reps forcées"], "Dropset": ["Combien de drops ?", "drops"], "Dropset mécanique": ["Combien de changements de variante ?", "variantes"], "Rest-pause": ["Combien de mini-séries après la pause ?", "mini-séries"], "Myo-reps": ["Combien de mini-séries (myo-reps) ?", "mini-séries"], "Cluster": ["Combien de clusters ?", "clusters"], "Partielles": ["Combien de reps partielles ?", "partielles"], "Négatives": ["Combien de négatives ?", "négatives"], "Reps trichées": ["Combien de reps trichées ?", "trichées"], "Reps et demie": ["Combien de reps et demie ?", "reps ½"], "Excentrique lent": ["Combien de reps en excentrique lent ?", "reps lentes"], "Pause à chaque rep": ["Combien de reps avec pause ?", "reps pausées"], "Isométrie": ["Combien de secondes d'isométrie ?", "s"] };
 export const TECHS = [
   ["♨️", "Échauffement"], ["📶", "Montée en gamme"], ["💀", "À l'échec"], ["🔻", "Dropset"], ["⏱️", "Rest-pause"], ["🔁", "Myo-reps"],
   ["🧩", "Cluster"], ["🔀", "Dropset mécanique"], ["✂️", "Partielles"], ["🤝", "Reps forcées"], ["⬇️", "Négatives"], ["🐢", "Excentrique lent"],

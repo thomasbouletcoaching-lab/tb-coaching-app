@@ -388,7 +388,7 @@ function exerciseBlock(ex, xi) {
     ${ex.sets.map((s, si) => {
       const lab = s.type === "W" ? "É" : String(++n);
       const pv = s.type === "W" ? prevWu[wu++] : prevW[wi++];
-      const meta = [s.type !== "N" ? `<span class="tag ${s.type === "W" ? "" : "r"}">${E.SET_TYPES[s.type]}</span>` : "", ...(s.tech || []).map(t => `<span class="tag">${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${esc(t)}</span>`), `<span>${s.lo !== s.hi ? `${s.lo}-${s.hi}` : s.lo} ${unit.toLowerCase()} · RPE ${String(s.trpe).replace(".", ",")}${adv() && s.pct ? ` · ${s.pct} %` : ""}</span>`, s.pain ? `<span class="tag" style="background:var(--warn);color:#fff">Douleur</span>` : "", s.note ? `<span>📝 ${esc(s.note)}</span>` : "", pv ? `<span class="prev">↺ ${esc(prevTxt(pv))}</span>` : ""].filter(Boolean).join("");
+      const meta = [s.type !== "N" ? `<span class="tag ${s.type === "W" ? "" : "r"}">${E.SET_TYPES[s.type]}</span>` : "", ...(s.tech || []).map(t => `<span class="tag" ${E.TECH_QTY[t] ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${esc(t)}${s.tq?.[t] != null ? ` ×${s.tq[t]}${E.TECH_QTY[t]?.[1] === "s" ? " s" : ""}` : ""}</span>`), `<span>${s.lo !== s.hi ? `${s.lo}-${s.hi}` : s.lo} ${unit.toLowerCase()} · RPE ${String(s.trpe).replace(".", ",")}${adv() && s.pct ? ` · ${s.pct} %` : ""}</span>`, s.pain ? `<span class="tag" style="background:var(--warn);color:#fff">Douleur</span>` : "", s.note ? `<span>📝 ${esc(s.note)}</span>` : "", pv ? `<span class="prev">↺ ${esc(prevTxt(pv))}</span>` : ""].filter(Boolean).join("");
       return `<div class="set ${s.done ? "done" : ""} ${s.type === "W" ? "w" : ""}"><button class="n" data-a="set-menu" data-x="${xi}" data-s="${si}" aria-label="Options de la série">${lab}${s.type !== "N" ? `<small>${s.type === "W" ? "échauf." : E.SET_TYPES[s.type].split(" ")[0].toLowerCase()}</small>` : ""}</button>
         <input inputmode="decimal" data-i="set" data-k="kg" data-x="${xi}" data-s="${si}" value="${ex.bw ? kgTxt(s.kg || "") : kgTxt(s.kg)}" placeholder="${ex.bw ? "PDC" : "kg"}" aria-label="Charge">
         <input inputmode="numeric" data-i="set" data-k="reps" data-x="${xi}" data-s="${si}" value="${s.reps ?? ""}" placeholder="${s.lo}" aria-label="${unit}">
@@ -432,7 +432,19 @@ actions.tick = (b, d) => {
   if (s.done && s.reps == null) s.reps = s.lo;
   save(); buzz(s.done ? 18 : 8); rerender();
   if (s.done) startRest(s.type === "W" ? 60 : ex.rest);
+  if (s.done && s.type !== "W" && (s.tech || []).some(t => E.TECH_QTY[t] && s.tq?.[t] == null)) techQtySheet(+d.x, +d.s);
 };
+// Menu « combien ? » pour chaque technique d'intensification utilisée sur la série
+function techQtySheet(xi, si) {
+  const ex = S().current.exercises[xi], s = ex?.sets[si]; if (!s) return;
+  const ts = (s.tech || []).filter(t => E.TECH_QTY[t]); if (!ts.length) return;
+  sheet(`<h2 class="h2">⚡ Technique d'intensification</h2><p class="xs muted">${esc(ex.name)} · série ${si + 1}</p>
+    ${ts.map(t => { const [q, u] = E.TECH_QTY[t], isS = u === "s", vals = isS ? [5, 10, 15, 20, 30, 45, 60] : [0, 1, 2, 3, 4, 5, 6, 8, 10]; return `<div class="lbl mt16">${(E.TECHS.find(x => x[1] === t) || [""])[0]} ${esc(q)}</div>
+      <div class="chips wrap mt8">${vals.map(v => `<button class="chip ${s.tq?.[t] === v ? "on" : ""}" data-a="tq-set" data-x="${xi}" data-s="${si}" data-t="${esc(t)}" data-v="${v}">${v}</button>`).join("")}</div>`; }).join("")}
+    <button class="btn btn-red mt16" data-a="set-close">OK</button>`);
+}
+actions["tq-set"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.tq = { ...(s.tq || {}), [d.t]: +d.v }; save(); techQtySheet(+d.x, +d.s); rerender(); };
+actions["tq-edit"] = (b, d) => techQtySheet(+d.x, +d.s);
 actions["add-set"] = (b, d) => {
   const ex = S().current.exercises[+d.x];
   if (d.t === "W") { const top = ex.sets.find(s => s.type !== "W")?.kg; const w = ex.sets.filter(s => s.type === "W").length; ex.sets.splice(w, 0, { g: -1, type: "W", kg: top ? E.roundTo(top * .5, ex.step) : null, reps: 8, lo: 8, hi: 8, trpe: 5, rpe: null, pct: null, tech: [], note: "", done: false }); }
