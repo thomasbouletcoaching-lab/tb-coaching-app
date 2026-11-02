@@ -241,7 +241,7 @@ function liveNowBlock() {
   if (!LIVE_LIST.length) return "";
   return `<div class="card mt12" style="box-shadow:0 0 0 2px var(--red) inset"><div class="lbl">🔴 Séances en direct</div><div class="list mt8">${LIVE_LIST.map(r => {
     const m = (A.members || []).find(x => x.id === r.user_id), exs = r.state.session?.exercises || r.state.exercises || [], done = exs.flatMap(e => e.sets || []).filter(x => x.done).length, tot = exs.flatMap(e => e.sets || []).filter(x => x.type !== "W").length;
-    return `<button class="li" data-a="go" data-r="live" data-p="${r.user_id}"><span class="grow small"><b>${esc(m ? first(m) : "Client")}</b> · ${esc(r.state.title || "Séance")}<br><span class="xs muted">${done}/${tot} séries · mis à jour ${ago(r.updated_at)}${r.state.by === "member" ? " · lancée par le client" : ""}</span></span>${I.chev}</button>`;
+    return `<button class="li" data-a="go" data-r="live" data-p="${r.user_id}"><span class="grow small"><b>${esc(m ? first(m) : "Client")}</b> · ${esc(r.state.title || "Séance")}<br><span class="xs muted">${done}/${tot} séries · touche pour ouvrir et remplir avec lui · mis à jour ${ago(r.updated_at)}${r.state.by === "member" ? " · lancée par le client" : ""}</span></span>${I.chev}</button>`;
   }).join("")}</div></div>`;
 }
 routes["admin-today"] = async () => {
