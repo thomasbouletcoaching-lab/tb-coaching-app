@@ -31,6 +31,7 @@ function weekList(mon) {
     return `<button class="li" data-a="ag-day" data-v="${k}" style="${k === t ? "box-shadow:0 0 0 2px var(--red) inset;border-radius:14px" : ""}"><span class="em" style="font-size:22px">${em}</span><span class="grow"><b>${E.DAY_NAMES[i]} ${Number(k.slice(8))}</b><br><span class="small muted">${a && a.st !== "rest" && a.st !== "away" ? esc(a.title) + " · " : ""}${sub}${N.cheatOn(k).length ? " · 🍕 Cheat meal" : ""}</span>${a && (a.st === "planned" || a.st === "missed") && slotTxt(a) ? `<br><span class="xs muted">🕐 ${esc(slotTxt(a))}</span>` : ""}</span>${a?.st === "planned" && a.time ? `<b class="small" style="color:var(--red)">${a.time}</b>` : ""}${I.chev}</button>`;
   }).join("")}</div>
   <button class="btn btn-line btn-sm mt8" data-a="week-plan" style="width:100%">🔁 Ma semaine type : jours, heures, durée, lieu</button>
+  ${calButtons()}
   <p class="xs muted center mt8">Touche un jour pour décaler une séance, changer son heure ou prendre un repos.</p>`;
 }
 function cycleBlock() {
@@ -104,6 +105,7 @@ actions["ag-day"] = (b, d) => {
   else if (a?.st === "away") html += `<div class="card mt12"><p>Séance déplacée au <b>${fmtDate(a.to)}</b>${E.slotOf(a.to).time ? ` à ${E.slotOf(a.to).time}` : ""}.</p><button class="btn btn-line btn-sm mt8" data-a="ag-move" data-f="${k}" data-v="${k}">Annuler le déplacement</button></div>`;
   else if (a?.st === "rest") html += `<div class="card mt12"><p>Repos choisi ce jour-là.</p><button class="btn btn-line btn-sm mt8" data-a="ag-skip" data-v="${k}">Remettre la séance</button></div>`;
   else html += `<div class="card mt12"><p class="muted">Jour de repos. Récupérer fait partie du programme.</p>${k === t ? `<button class="btn btn-line btn-sm mt8" data-a="free-session">Faire une séance libre</button>` : ""}${k >= t ? `<p class="xs muted mt8" style="margin-bottom:0">Pour t'entraîner ce jour-là, ouvre une séance prévue et décale-la ici.</p>` : ""}</div>`;
+  html += busyHtml(k);
   html += `<button class="btn btn-ghost btn-sm mt12" data-a="week-plan" style="width:100%">🔁 Ma semaine type (jours et heures)</button>`;
   sheet(html, (w) => { w._from = k; });
 };
@@ -151,3 +153,69 @@ actions["week-ics"] = () => {
   toast("Ouvre le fichier pour ajouter tes séances au calendrier");
 };
 actions["ag-skip"] = (b, d) => { E.toggleSkip(d.v); closeSheet(); toast("Agenda mis à jour"); rerender(); };
+
+// ---------- Calendrier externe (Google, Apple, Outlook) par fichier .ics ----------
+// Export : tes séances prévues sur 6 semaines. Import : tes rendez-vous, pour voir tes créneaux libres.
+const pad = (n) => String(n).padStart(2, "0");
+function calButtons() {
+  const n = (S().busy || []).length;
+  return `<div class="card mt12"><div class="lbl">📅 Mon calendrier</div>
+    <p class="xs muted mt4">Exporte tes séances dans Google Agenda ou Apple Calendrier, et importe ton agenda (fichier .ics) pour voir tes créneaux libres.</p>
+    <div class="row mt8" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="ics-export">⬇️ Exporter mes séances</button><label class="btn btn-line btn-sm grow" style="text-align:center;cursor:pointer">⬆️ Importer .ics<input type="file" accept=".ics,text/calendar" data-c="ics-file" hidden></label></div>
+    ${n ? `<p class="xs muted mt8">${n} événement${n > 1 ? "s" : ""} importé${n > 1 ? "s" : ""} · <button class="link xs" data-a="ics-clear">Les retirer</button></p>` : ""}</div>`;
+}
+const icsEsc = (t) => String(t || "").replace(/[\\;,]/g, (m) => "\\" + m).replace(/\n/g, "\\n");
+actions["ics-export"] = async () => {
+  const t = today(), ag = E.agenda(t, addDays(t, 42)), now = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+  const ev = Object.entries(ag).filter(([, a]) => a.st === "planned").map(([k, a]) => {
+    const [h, m] = String(a.time || "18:00").split(":").map(Number), dur = +a.dur || 60, st = new Date(`${k}T${pad(h)}:${pad(m || 0)}:00`), en = new Date(st.getTime() + dur * 60000);
+    const f = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+    return `BEGIN:VEVENT\r\nUID:${k}-${h}${m}@tbmycoach\r\nDTSTAMP:${now}\r\nDTSTART:${f(st)}\r\nDTEND:${f(en)}\r\nSUMMARY:${icsEsc("🏋️ " + (a.title || "Séance"))}\r\n${a.place ? `LOCATION:${icsEsc(a.place)}\r\n` : ""}END:VEVENT`;
+  });
+  if (!ev.length) return toast("Aucune séance prévue à exporter");
+  const txt = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//TB my Coach//FR\r\nCALSCALE:GREGORIAN\r\n${ev.join("\r\n")}\r\nEND:VCALENDAR\r\n`;
+  const file = new File([txt], "mes-seances.ics", { type: "text/calendar" });
+  try { if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: "Mes séances" }); return; } } catch (e) { if (e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = "mes-seances.ics"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast(`${ev.length} séances exportées : ouvre le fichier pour les ajouter à ton calendrier`);
+};
+export function parseIcs(txt) {
+  const lines = txt.replace(/\r?\n[ \t]/g, "").split(/\r?\n/), out = []; let cur = null;
+  const when = (v, params) => {
+    if (/VALUE=DATE(?!-)/.test(params) || /^\d{8}$/.test(v)) return { d: `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}`, h: "00:00", all: true };
+    const m = v.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/); if (!m) return null;
+    const dt = m[7] ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6])) : new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+    return { d: `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`, h: `${pad(dt.getHours())}:${pad(dt.getMinutes())}` };
+  };
+  for (const l of lines) {
+    if (l === "BEGIN:VEVENT") cur = {}; else if (l === "END:VEVENT") { if (cur?.s) out.push(cur); cur = null; }
+    else if (cur) {
+      const i = l.indexOf(":"); if (i < 0) continue; const key = l.slice(0, i), val = l.slice(i + 1), [name, ...params] = key.split(";");
+      if (name === "DTSTART") { const w = when(val, params.join(";")); if (w) { cur.s = w; } }
+      else if (name === "DTEND") { const w = when(val, params.join(";")); if (w) cur.e = w; }
+      else if (name === "SUMMARY") cur.t = val.replace(/\\([,;nN\\])/g, (x, c) => c === "n" || c === "N" ? " " : c);
+    }
+  }
+  return out.map(x => ({ d: x.s.d, s: x.s.h, e: x.s.all ? "23:59" : (x.e && x.e.d === x.s.d ? x.e.h : "23:59"), t: x.t || "Occupé" }));
+}
+changes["ics-file"] = async (el) => {
+  const f = el.files?.[0]; if (!f) return;
+  try {
+    const ev = parseIcs(await f.text()), from = addDays(today(), -7), to = addDays(today(), 90);
+    const keep = ev.filter(x => x.d >= from && x.d <= to);
+    update(st => { st.busy = keep; });
+    toast(keep.length ? `${keep.length} événements importés` : "Aucun événement trouvé dans ce fichier"); rerender();
+  } catch (e) { toast("Fichier illisible : " + e.message); }
+};
+actions["ics-clear"] = () => { update(st => { st.busy = []; }); rerender(); };
+// Événements importés du jour + créneaux libres entre 7 h et 22 h
+function busyHtml(k) {
+  const b = (S().busy || []).filter(x => x.d === k).sort((a, c) => a.s.localeCompare(c.s));
+  if (!b.length) return "";
+  const toMin = (h) => +h.slice(0, 2) * 60 + +h.slice(3, 5), fm = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+  const free = []; let at = 7 * 60;
+  b.forEach(x => { const s = toMin(x.s), e = toMin(x.e); if (s - at >= 60) free.push([at, s]); at = Math.max(at, e); });
+  if (22 * 60 - at >= 60) free.push([at, 22 * 60]);
+  return `<div class="card mt12"><div class="lbl">Ton calendrier</div>${b.map(x => `<p class="small" style="margin:4px 0">${esc(x.s)}–${esc(x.e)} · ${esc(x.t)}</p>`).join("")}
+    <div class="lbl mt8">Créneaux libres</div><p class="small" style="margin:4px 0">${free.length ? free.map(([a, c]) => `${fm(a)}–${fm(c)}`).join(" · ") : "Aucun créneau d'une heure"}</p></div>`;
+}

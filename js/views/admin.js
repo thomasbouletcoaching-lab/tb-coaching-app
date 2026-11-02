@@ -235,9 +235,19 @@ function rankingSheet() {
 actions["adm-rank"] = () => rankingSheet();
 
 // Onglet « Aujourd'hui » : qui s'entraîne aujourd'hui et à quelle heure, ce qui est en cours, à traiter
+let LIVE_LIST = [];
+// Séances en direct en cours chez les clients : le coach les ouvre et voit ce qui se remplit
+function liveNowBlock() {
+  if (!LIVE_LIST.length) return "";
+  return `<div class="card mt12" style="box-shadow:0 0 0 2px var(--red) inset"><div class="lbl">🔴 Séances en direct</div><div class="list mt8">${LIVE_LIST.map(r => {
+    const m = (A.members || []).find(x => x.id === r.user_id), done = (r.state.exercises || []).flatMap(e => e.sets || []).filter(x => x.done).length, tot = (r.state.exercises || []).flatMap(e => e.sets || []).length;
+    return `<button class="li" data-a="go" data-r="live" data-p="${r.user_id}"><span class="grow small"><b>${esc(m ? first(m) : "Client")}</b> · ${esc(r.state.title || "Séance")}<br><span class="xs muted">${done}/${tot} séries · mis à jour ${ago(r.updated_at)}${r.state.by === "member" ? " · lancée par le client" : ""}</span></span>${I.chev}</button>`;
+  }).join("")}</div></div>`;
+}
 routes["admin-today"] = async () => {
   if (!(await guard("admin-today"))) return;
-  frame("admin-today", `${agendaBlock()}${todayBlock()}${todoBlock()}`, "Aujourd'hui");
+  try { LIVE_LIST = await (await cloud()).liveAll(); } catch { LIVE_LIST = []; }
+  frame("admin-today", `${liveNowBlock()}${agendaBlock()}${todayBlock()}${todoBlock()}`, "Aujourd'hui");
 };
 
 routes.admin = async () => {

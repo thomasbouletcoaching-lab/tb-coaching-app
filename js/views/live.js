@@ -68,7 +68,7 @@ async function ownId() { const c = await cloud(); await c.ensureSession(); retur
 function drawLive() {
   const st = LIVE.state, id = LIVE.id;
   if (!st || st.ended) {
-    $app.innerHTML = header("Séance en direct", "", { back: isCoach() ? "admin" : "home" }) + `<main class="page"><div class="card center mt16"><p style="margin:0">${st?.ended ? "Cette séance est terminée." : "Aucune séance en cours."}</p>${isCoach() ? `<button class="btn btn-red mt12" data-a="live-start" data-id="${esc(id)}">▶ Lancer une séance</button>` : ""}</div></main>`;
+    $app.innerHTML = header("Séance en direct", "", { back: isCoach() ? "admin" : "home" }) + `<main class="page"><div class="card center mt16"><p style="margin:0">${st?.ended ? "Cette séance est terminée." : "Aucune séance en cours."}</p>${isCoach() ? `<button class="btn btn-red mt12" data-a="live-start" data-id="${esc(id)}">▶ Lancer une séance</button>` : `<button class="btn btn-red mt12" data-a="live-self">▶ Lancer ma séance du jour</button>`}</div></main>`;
     return;
   }
   const C = isCoach();
@@ -111,8 +111,8 @@ function drawLive() {
     </div>`;
   }).join("");
   const log = (st.log || []).slice(-12).reverse().map(l => `<div class="li"><span class="grow small"><b>${esc(who(l.by))}</b> · ${esc(l.text)}</span><span class="xs muted">${hm(l.at)}</span></div>`).join("");
-  $app.innerHTML = header(esc(st.title), `Lancée par Thomas à ${hm(st.startedAt)}`, { back: isCoach() ? "admin" : "home" }) + `<main class="page">
-    <div class="card soft mt8"><span class="tag r">● En cours</span> <span class="xs muted">Vous la voyez tous les deux et vous pouvez tout ajouter.</span></div>
+  $app.innerHTML = header(esc(st.title), `Lancée par ${st.by === "member" ? "le client" : "Thomas"} à ${hm(st.startedAt)}`, { back: isCoach() ? "admin" : "home" }) + `<main class="page">
+    <div class="card soft mt8"><span class="tag r">● En cours</span> <span class="xs muted">Vous la voyez tous les deux et vous pouvez tout ajouter. Mise à jour toutes les 6 secondes.</span></div>
     ${exs}
     <h2 class="sec">Ajouter un exercice</h2>
     <form class="card" data-f="live-add"><label class="field"><span>Exercice</span><input name="name" required maxlength="80" placeholder="Ex. Rowing buste penché"></label>
@@ -277,6 +277,18 @@ actions["live-launch"] = async (b, d) => {
   } catch (e) { toast("Impossible de lancer : " + e.message); }
 };
 
+// Membre : lance sa propre séance partagée (le coach la voit remplir en direct)
+actions["live-self"] = async () => {
+  try {
+    await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
+    const ses = E.buildSession(); if (!ses) return toast("Pas de séance prévue : choisis un programme d'abord");
+    const c = await cloud(); await c.ensureSession(); const uid = c.userId();
+    const exercises = ses.exercises.map(ex => ({ name: ex.name, note: ex.note || "", rest: ex.rest || 120, ss: ex.ss || null, notes: [], sets: ex.sets.filter(s => s.type !== "W").map(s => ({ t: s.type, lo: s.lo, hi: s.hi, kg: s.kg || null, pct: s.pct || null, rpe: s.trpe || null, tech: [...(s.tech || [])], done: false, reps: null, load: null, by: null })) })).filter(e => e.sets.length);
+    await c.liveSet(uid, { title: String(ses.title || "Séance").split("·")[0].trim(), startedAt: nowIso(), by: "member", ended: false, exercises, log: [{ at: nowIso(), by: "member", text: "Séance lancée par le client" }] });
+    LIVE_NOW = null; buzz(); toast("Séance partagée : Thomas peut la suivre"); go("live");
+  } catch (e) { toast("Impossible de lancer : " + e.message); }
+};
+
 // Membre : bandeau sur l'accueil quand une séance tourne
 export async function pullLive() {
   if (isCoach()) return;
@@ -289,6 +301,7 @@ export async function pullLive() {
   } catch { }
 }
 export function liveBanner() {
-  if (!LIVE_NOW || isCoach()) return "";
+  if (isCoach()) return "";
+  if (!LIVE_NOW) return `<button class="btn btn-line btn-sm mt12" data-a="live-self" style="width:100%">🔴 Partager ma séance en direct avec Thomas</button>`;
   return `<button class="card tap mt12" data-a="go" data-r="live" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;box-shadow:0 0 0 2px var(--red) inset"><span style="font-size:26px">🔴</span><span class="grow"><b>Séance en cours avec Thomas</b><br><span class="small muted">${esc(LIVE_NOW.title)} · touche pour la suivre et ajouter</span></span></button>`;
 }
