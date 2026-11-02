@@ -440,7 +440,7 @@ async function mergeClientProgress() {
   if (!snap?.exercises || !cur || md.updated_at === MIRROR.snapStamp) return;
   MIRROR.snapStamp = md.updated_at;
   if (snap.start && cur.start && new Date(snap.start).getTime() !== new Date(cur.start).getTime()) return; // autre séance
-  let changed = false; const F = ["kg", "reps", "rpe", "done", "note", "pain", "tech", "type", "trpe", "tq"];
+  let changed = false; const F = ["kg", "reps", "rpe", "done", "note", "pain", "tech", "type", "trpe", "tq", "td"];
   const next = JSON.parse(JSON.stringify(cur));
   snap.exercises.forEach(se => {
     let le = next.exercises.find(e => e.name === se.name && e.orig === se.orig) || next.exercises.find(e => e.name === se.name);

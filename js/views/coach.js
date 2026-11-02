@@ -361,7 +361,7 @@ const mbr = { id: null, tab: "jour", day: null, data: null };
 actions["mb-tab"] = (b, d) => { mbr.tab = d.v; rerender(false); };
 actions["mb-day"] = (b, d) => { const n = addDays(mbr.day || today(), +d.v); mbr.day = n > today() ? null : n; rerender(); };
 actions["mb-reload"] = () => { mbr.data = null; rerender(); };
-const setsLine = (e) => e.sets.filter(s => s.done).map(s => `${s.type === "W" ? "é " : ""}${s.kg ? E.fmtKg(s.kg) + "×" : ""}${s.reps ?? "–"}${s.rpe != null ? "@" + String(s.rpe).replace(".", ",") : ""}${s.pain ? " ⚠️" : ""}${Object.entries(s.tq || {}).filter(([, v]) => v).map(([t, v]) => ` (${t} ×${v})`).join("")}`).join(" · ");
+const setsLine = (e) => e.sets.filter(s => s.done).map(s => `${s.type === "W" ? "é " : ""}${s.kg ? E.fmtKg(s.kg) + "×" : ""}${s.reps ?? "–"}${s.rpe != null ? "@" + String(s.rpe).replace(".", ",") : ""}${s.pain ? " ⚠️" : ""}${Object.entries(s.td || {}).map(([t, d]) => E.techSummary(t, d) ? ` (${t} : ${E.techSummary(t, d)})` : "").join("") || Object.entries(s.tq || {}).filter(([, v]) => v).map(([t, v]) => ` (${t} ×${v})`).join("")}`).join(" · ");
 function workoutCard(w, open = false) {
   const mins = Math.round((new Date(w.end || Date.now()) - new Date(w.start)) / 6e4);
   return `<details class="card mt8" ${open ? "open" : ""}><summary style="list-style:none;cursor:pointer"><div class="row between"><b>${esc(w.title)}</b><span class="xs muted">${fmtDate(today(new Date(w.end || w.start)), { weekday: "short", day: "numeric", month: "short" })}</span></div>

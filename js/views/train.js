@@ -400,7 +400,7 @@ function exerciseBlock(ex, xi) {
     ${ex.sets.map((s, si) => {
       const lab = s.type === "W" ? "É" : String(++n);
       const pv = s.type === "W" ? prevWu[wu++] : prevW[wi++];
-      const meta = [s.type !== "N" ? `<span class="tag ${s.type === "W" ? "" : "r"}" ${s.type === "E" ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${E.SET_TYPES[s.type]}${s.type === "E" && s.tq?.["À l'échec"] != null ? ` à ${s.tq["À l'échec"]}` : ""}</span>` : "", ...(s.tech || []).map(t => `<span class="tag" ${E.TECH_QTY[t] ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${esc(t)}${s.tq?.[t] != null ? ` ×${s.tq[t]}${E.TECH_QTY[t]?.[1] === "s" ? " s" : ""}` : ""}</span>`), `<span>${s.lo !== s.hi ? `${s.lo}-${s.hi}` : s.lo} ${unit.toLowerCase()} · RPE ${String(s.trpe).replace(".", ",")}${adv() && s.pct ? ` · ${s.pct} %` : ""}</span>`, s.pain ? `<span class="tag" style="background:var(--warn);color:#fff">Douleur</span>` : "", s.note ? `<span>📝 ${esc(s.note)}</span>` : "", pv ? `<span class="prev">↺ ${esc(prevTxt(pv))}</span>` : ""].filter(Boolean).join("");
+      const meta = [s.type !== "N" ? `<span class="tag ${s.type === "W" ? "" : "r"}" ${s.type === "E" ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${E.SET_TYPES[s.type]}${s.type === "E" && s.tq?.["À l'échec"] != null ? ` à ${s.tq["À l'échec"]}` : ""}</span>` : "", ...(s.tech || []).map(t => `<span class="tag" ${E.TECH_DETAIL[t] ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${esc(t)}${E.techSummary(t, s.td?.[t]) ? ` · ${esc(E.techSummary(t, s.td[t]))}` : ""}</span>`), `<span>${s.lo !== s.hi ? `${s.lo}-${s.hi}` : s.lo} ${unit.toLowerCase()} · RPE ${String(s.trpe).replace(".", ",")}${adv() && s.pct ? ` · ${s.pct} %` : ""}</span>`, s.pain ? `<span class="tag" style="background:var(--warn);color:#fff">Douleur</span>` : "", s.note ? `<span>📝 ${esc(s.note)}</span>` : "", pv ? `<span class="prev">↺ ${esc(prevTxt(pv))}</span>` : ""].filter(Boolean).join("");
       return `<div class="swwrap"><div class="swbg"><span>🗑️ Supprimer</span></div><div class="set ${s.done ? "done" : ""} ${s.type === "W" ? "w" : ""}" data-sw data-x="${xi}" data-s="${si}"><button class="n" data-a="set-menu" data-x="${xi}" data-s="${si}" aria-label="Options de la série">${lab}${s.type !== "N" ? `<small>${s.type === "W" ? "échauf." : E.SET_TYPES[s.type].split(" ")[0].toLowerCase()}</small>` : ""}</button>
         <input inputmode="decimal" data-i="set" data-k="kg" data-x="${xi}" data-s="${si}" value="${ex.bw ? kgTxt(s.kg || "") : kgTxt(s.kg)}" placeholder="${ex.bw ? "PDC" : E.isAssisted(ex.name) ? "aide" : "kg"}" aria-label="${E.isAssisted(ex.name) ? "Aide (poids en moins)" : "Charge"}">
         <input inputmode="numeric" data-i="set" data-k="reps" data-x="${xi}" data-s="${si}" value="${s.reps ?? ""}" placeholder="${s.lo}" aria-label="${unit}">
@@ -462,20 +462,32 @@ actions.tick = (b, d) => {
   save(); buzz(s.done ? 18 : 8); rerender();
   if (recs.length) setTimeout(() => celebrate(ex.name, recs), 250);
   if (s.done) startRest(s.type === "W" ? 60 : ex.rest);
-  if (s.done && s.type !== "W" && qtyKeys(s).some(t => s.tq?.[t] == null)) techQtySheet(+d.x, +d.s);
+  if (s.done && s.type !== "W" && detKeys(s).some(t => !Object.keys(s.td?.[t] || {}).length)) techQtySheet(+d.x, +d.s);
 };
 // Menu « combien ? » pour chaque technique d'intensification utilisée sur la série
-const qtyKeys = (s) => [...new Set([...(s.tech || []), ...(s.type === "E" ? ["À l'échec"] : [])])].filter(t => E.TECH_QTY[t]);
+const detKeys = (s) => [...new Set([...(s.tech || []), ...(s.type === "E" ? ["À l'échec"] : [])])].filter(t => E.TECH_DETAIL[t]);
+const tdOf = (s, t) => ((s.td = s.td || {})[t] = s.td[t] || {});
+const syncTq = (s, t) => { const q = E.techQty(t, s.td?.[t]); s.tq = { ...(s.tq || {}) }; if (q != null) s.tq[t] = q; else delete s.tq[t]; };
 function techQtySheet(xi, si) {
   const ex = S().current.exercises[xi], s = ex?.sets[si]; if (!s) return;
-  const ts = qtyKeys(s); if (!ts.length) return;
-  sheet(`<h2 class="h2">⚡ Technique d'intensification</h2><p class="xs muted">${esc(ex.name)} · série ${si + 1}</p>
-    ${ts.map(t => { const [q, u] = E.TECH_QTY[t], isS = u === "s", vals = isS ? [5, 10, 15, 20, 30, 45, 60] : t === "À l'échec" ? [5, 6, 8, 10, 12, 15, 20, 25] : [0, 1, 2, 3, 4, 5, 6, 8, 10]; return `<div class="lbl mt16">${(E.TECHS.find(x => x[1] === t) || [""])[0]} ${esc(q)}</div>
-      <div class="chips wrap mt8">${vals.map(v => `<button class="chip ${s.tq?.[t] === v ? "on" : ""}" data-a="tq-set" data-x="${xi}" data-s="${si}" data-t="${esc(t)}" data-v="${v}">${v}</button>`).join("")}<input class="chip" style="width:84px;text-align:center" inputmode="numeric" data-i="tqin" data-x="${xi}" data-s="${si}" data-t="${esc(t)}" placeholder="Autre" value="${s.tq?.[t] != null && !vals.includes(s.tq[t]) ? s.tq[t] : ""}"></div>`; }).join("")}
+  const ts = detKeys(s); if (!ts.length) return;
+  const sc = ex.step || 2.5;
+  ts.forEach(t => { const D = E.TECH_DETAIL[t], d = tdOf(s, t); if (D.list && !(d.list || []).length) d.list = [{}]; if (D.list?.prefill === "drop" && d.list.length && d.list[0].kg == null && s.kg) d.list[0].kg = E.roundTo(s.kg * .8, sc); });
+  const inp = (t, f, v, extra) => `<input class="chip" style="width:100%;text-align:center" ${f[2] === "text" ? "" : 'inputmode="decimal"'} ${extra} placeholder="${esc(f[1])}" value="${v ?? ""}">`;
+  sheet(`<h2 class="h2">⚡ Technique d'intensification</h2><p class="xs muted">${esc(ex.name)} · série ${si + 1}${s.kg ? ` · ${E.fmtKg(s.kg)} kg × ${s.reps ?? "–"}` : ""}</p>
+    ${ts.map(t => { const D = E.TECH_DETAIL[t], d = tdOf(s, t); return `<div class="card soft mt12" style="padding:12px"><b>${(E.TECHS.find(x => x[1] === t) || [""])[0]} ${esc(t)}</b>
+      ${(D.fields || []).map(f => f[2] === "chips" ? `<div class="lbl mt8">${esc(f[1])}</div><div class="chips wrap mt4">${f[3].map(o => `<button class="chip ${d[f[0]] === o ? "on" : ""}" data-a="td-chip" data-x="${xi}" data-s="${si}" data-t="${esc(t)}" data-f="${f[0]}" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>`
+        : `<label class="field mt8"><span>${esc(f[1])}</span>${inp(t, f, d[f[0]], `data-i="tdf" data-x="${xi}" data-s="${si}" data-t="${esc(t)}" data-f="${f[0]}" data-ty="${f[2] || "num"}"`)}</label>`).join("")}
+      ${D.list ? `<div class="lbl mt12">${esc(D.list.label)}</div><div class="row xs muted" style="gap:6px;padding-left:28px">${D.list.fields.map(f => `<span class="grow" style="text-align:center">${esc(f[1])}</span>`).join("")}<span style="width:36px"></span></div>${(d.list || []).map((r, j) => `<div class="row mt4" style="gap:6px;align-items:center"><span class="num" style="width:22px">${j + 1}</span>${D.list.fields.map(f => `<div class="grow">${inp(t, f, r[f[0]], `data-i="tdl" data-x="${xi}" data-s="${si}" data-t="${esc(t)}" data-j="${j}" data-f="${f[0]}" data-ty="${f[2] || "num"}"`)}</div>`).join("")}<button class="icon-btn" data-a="td-del" data-x="${xi}" data-s="${si}" data-t="${esc(t)}" data-j="${j}" aria-label="Supprimer la ligne">✕</button></div>`).join("")}
+        <button class="btn btn-line btn-sm mt8" data-a="td-add" data-x="${xi}" data-s="${si}" data-t="${esc(t)}">${esc(D.list.add)}</button>` : ""}</div>`; }).join("")}
     <button class="btn btn-red mt16" data-a="set-close">OK</button>`);
 }
-actions["tq-set"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.tq = { ...(s.tq || {}), [d.t]: +d.v }; save(); techQtySheet(+d.x, +d.s); rerender(); };
-changes["i:tqin"] = (el) => { const s = S().current.exercises[+el.dataset.x].sets[+el.dataset.s], v = num(el.value); if (v == null || v < 0) return; s.tq = { ...(s.tq || {}), [el.dataset.t]: v }; save(); rerender(); };
+const tdVal = (el) => el.dataset.ty === "text" ? el.value.trim() : (el.value.trim() === "" ? "" : num(el.value));
+changes["i:tdf"] = (el) => { const s = S().current.exercises[+el.dataset.x].sets[+el.dataset.s], t = el.dataset.t; tdOf(s, t)[el.dataset.f] = tdVal(el); syncTq(s, t); save(); rerender(); };
+changes["i:tdl"] = (el) => { const s = S().current.exercises[+el.dataset.x].sets[+el.dataset.s], t = el.dataset.t, d = tdOf(s, t); (d.list = d.list || [])[+el.dataset.j] = { ...(d.list[+el.dataset.j] || {}), [el.dataset.f]: tdVal(el) }; syncTq(s, t); save(); rerender(); };
+actions["td-chip"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s], x = tdOf(s, d.t); x[d.f] = x[d.f] === d.v ? "" : d.v; syncTq(s, d.t); save(); techQtySheet(+d.x, +d.s); rerender(); };
+actions["td-add"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s], x = tdOf(s, d.t), last = (x.list || []).at(-1) || {}; (x.list = x.list || []).push(d.t === "Dropset" && last.kg ? { kg: E.roundTo(last.kg * .8, S().current.exercises[+d.x].step || 2.5) } : {}); save(); techQtySheet(+d.x, +d.s); };
+actions["td-del"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s], x = tdOf(s, d.t); x.list.splice(+d.j, 1); syncTq(s, d.t); save(); techQtySheet(+d.x, +d.s); rerender(); };
 actions["tq-edit"] = (b, d) => techQtySheet(+d.x, +d.s);
 // Chrono pour les exercices tenus (gainage, planche…) : compte les secondes, vibre au but, remplit la série
 let CH = null;
@@ -606,7 +618,7 @@ function setMenu(xi, si) {
 }
 actions["set-menu"] = (b, d) => setMenu(+d.x, +d.s);
 actions["set-type"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.type = d.v; if (d.v === "W") s.trpe = 5; save(); if (d.v === "E") { rerender(); techQtySheet(+d.x, +d.s); } else setMenu(+d.x, +d.s); };
-actions["set-tech"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s], adding = !s.tech.includes(d.v); s.tech = adding ? [...s.tech, d.v] : s.tech.filter(t => t !== d.v); if (!adding && s.tq) delete s.tq[d.v]; save(); rerender(); if (adding && E.TECH_QTY[d.v]) techQtySheet(+d.x, +d.s); else setMenu(+d.x, +d.s); };
+actions["set-tech"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s], adding = !s.tech.includes(d.v); s.tech = adding ? [...s.tech, d.v] : s.tech.filter(t => t !== d.v); if (!adding && s.tq) delete s.tq[d.v]; save(); rerender(); if (adding && E.TECH_DETAIL[d.v]) techQtySheet(+d.x, +d.s); else setMenu(+d.x, +d.s); };
 actions["set-pain"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.pain = !s.pain; save(); setMenu(+d.x, +d.s); };
 actions["set-dup"] = (b, d) => { const a = S().current.exercises[+d.x].sets; a.splice(+d.s + 1, 0, { ...a[+d.s], tech: [...a[+d.s].tech], done: false, rpe: null }); save(); closeSheet(); rerender(); };
 // Glisser une série vers la gauche pour la supprimer (avec « Annuler » pendant 5 s)
