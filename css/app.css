@@ -488,3 +488,5 @@ input,select,textarea{max-width:100%;min-width:0}
 
 .drop-t{outline:2px dashed var(--red);outline-offset:2px}
 .dragging{opacity:.55}
+
+.set[data-sw]{touch-action:pan-y;position:relative}

@@ -389,7 +389,7 @@ function exerciseBlock(ex, xi) {
       const lab = s.type === "W" ? "É" : String(++n);
       const pv = s.type === "W" ? prevWu[wu++] : prevW[wi++];
       const meta = [s.type !== "N" ? `<span class="tag ${s.type === "W" ? "" : "r"}" ${s.type === "E" ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${E.SET_TYPES[s.type]}${s.type === "E" && s.tq?.["À l'échec"] != null ? ` à ${s.tq["À l'échec"]}` : ""}</span>` : "", ...(s.tech || []).map(t => `<span class="tag" ${E.TECH_QTY[t] ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${esc(t)}${s.tq?.[t] != null ? ` ×${s.tq[t]}${E.TECH_QTY[t]?.[1] === "s" ? " s" : ""}` : ""}</span>`), `<span>${s.lo !== s.hi ? `${s.lo}-${s.hi}` : s.lo} ${unit.toLowerCase()} · RPE ${String(s.trpe).replace(".", ",")}${adv() && s.pct ? ` · ${s.pct} %` : ""}</span>`, s.pain ? `<span class="tag" style="background:var(--warn);color:#fff">Douleur</span>` : "", s.note ? `<span>📝 ${esc(s.note)}</span>` : "", pv ? `<span class="prev">↺ ${esc(prevTxt(pv))}</span>` : ""].filter(Boolean).join("");
-      return `<div class="set ${s.done ? "done" : ""} ${s.type === "W" ? "w" : ""}"><button class="n" data-a="set-menu" data-x="${xi}" data-s="${si}" aria-label="Options de la série">${lab}${s.type !== "N" ? `<small>${s.type === "W" ? "échauf." : E.SET_TYPES[s.type].split(" ")[0].toLowerCase()}</small>` : ""}</button>
+      return `<div class="set ${s.done ? "done" : ""} ${s.type === "W" ? "w" : ""}" data-sw data-x="${xi}" data-s="${si}"><button class="n" data-a="set-menu" data-x="${xi}" data-s="${si}" aria-label="Options de la série">${lab}${s.type !== "N" ? `<small>${s.type === "W" ? "échauf." : E.SET_TYPES[s.type].split(" ")[0].toLowerCase()}</small>` : ""}</button>
         <input inputmode="decimal" data-i="set" data-k="kg" data-x="${xi}" data-s="${si}" value="${ex.bw ? kgTxt(s.kg || "") : kgTxt(s.kg)}" placeholder="${ex.bw ? "PDC" : E.isAssisted(ex.name) ? "aide" : "kg"}" aria-label="${E.isAssisted(ex.name) ? "Aide (poids en moins)" : "Charge"}">
         <input inputmode="numeric" data-i="set" data-k="reps" data-x="${xi}" data-s="${si}" value="${s.reps ?? ""}" placeholder="${s.lo}" aria-label="${unit}">
         <button class="rpe-btn ${s.rpe == null ? "ph" : ""}" data-a="rpe-pick" data-x="${xi}" data-s="${si}" aria-label="RPE de la série">${s.rpe != null ? String(s.rpe).replace(".", ",") : String(s.trpe).replace(".", ",")}</button>
@@ -569,6 +569,37 @@ actions["set-type"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.
 actions["set-tech"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s], adding = !s.tech.includes(d.v); s.tech = adding ? [...s.tech, d.v] : s.tech.filter(t => t !== d.v); if (!adding && s.tq) delete s.tq[d.v]; save(); rerender(); if (adding && E.TECH_QTY[d.v]) techQtySheet(+d.x, +d.s); else setMenu(+d.x, +d.s); };
 actions["set-pain"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.pain = !s.pain; save(); setMenu(+d.x, +d.s); };
 actions["set-dup"] = (b, d) => { const a = S().current.exercises[+d.x].sets; a.splice(+d.s + 1, 0, { ...a[+d.s], tech: [...a[+d.s].tech], done: false, rpe: null }); save(); closeSheet(); rerender(); };
+// Glisser une série vers la gauche pour la supprimer (avec « Annuler » pendant 5 s)
+let swipe = null;
+document.addEventListener("pointerdown", (e) => {
+  const row = e.target.closest?.("[data-sw]"); if (!row || e.target.closest("button.tick")) return;
+  swipe = { row, x0: e.clientX, y0: e.clientY, dx: 0, on: false, id: e.pointerId };
+}, true);
+document.addEventListener("pointermove", (e) => {
+  if (!swipe || e.pointerId !== swipe.id) return;
+  const dx = e.clientX - swipe.x0, dy = e.clientY - swipe.y0;
+  if (!swipe.on) { if (Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * 1.5 && dx < 0) { swipe.on = true; swipe.row.style.transition = "none"; document.activeElement?.blur?.(); } else if (Math.abs(dy) > 14) { swipe = null; return; } else return; }
+  swipe.dx = Math.min(0, dx); swipe.row.style.transform = `translateX(${swipe.dx}px)`; swipe.row.style.boxShadow = `inset -${Math.min(-swipe.dx, 400)}px 0 0 #c0392b55`; e.preventDefault();
+}, { passive: false, capture: true });
+const swEnd = (e) => {
+  if (!swipe || e.pointerId !== swipe.id) return; const { row, dx, on } = swipe; swipe = null; if (!on) return;
+  const w = row.getBoundingClientRect().width;
+  if (-dx > Math.min(130, w * .35) && S().current) {
+    const ex = S().current.exercises[+row.dataset.x], si = +row.dataset.s, gone = ex.sets[si]; if (!gone) return;
+    row.style.transition = "transform .15s"; row.style.transform = `translateX(-${w}px)`;
+    setTimeout(() => {
+      ex.sets.splice(si, 1); save(); buzz(14); rerender();
+      document.getElementById("undo-bar")?.remove();
+      const bar = document.createElement("div"); bar.id = "undo-bar";
+      bar.style.cssText = "position:fixed;left:16px;right:16px;bottom:96px;z-index:200;background:#222a35;color:#fff;border-radius:14px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 8px 24px #0008";
+      bar.innerHTML = `<span>Série supprimée</span><button style="color:#7aa7ff;font-weight:700;background:none;border:0">Annuler</button>`;
+      bar.querySelector("button").onclick = () => { if (S().current) { ex.sets.splice(Math.min(si, ex.sets.length), 0, gone); save(); rerender(); } bar.remove(); };
+      document.body.appendChild(bar); setTimeout(() => bar.remove(), 5000);
+    }, 140);
+  } else { row.style.transition = "transform .15s"; row.style.transform = ""; row.style.boxShadow = ""; }
+};
+document.addEventListener("pointerup", swEnd, true);
+document.addEventListener("pointercancel", swEnd, true);
 actions["set-del"] = (b, d) => { S().current.exercises[+d.x].sets.splice(+d.s, 1); save(); closeSheet(); rerender(); };
 actions["set-close"] = () => { closeSheet(); rerender(); };
 
