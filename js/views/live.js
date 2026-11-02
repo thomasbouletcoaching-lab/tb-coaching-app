@@ -53,12 +53,29 @@ routes.live = async () => {
   $app.innerHTML = header("Séance en direct", "", { back: isCoach() ? "admin" : "home" }) + `<main class="page"><p class="empty">Chargement…</p></main>`;
   try { const r = await fetchState(id); LIVE.state = r?.state && Object.keys(r.state).length ? r.state : null; LIVE.updated_at = r?.updated_at || null; }
   catch (e) { $app.innerHTML = header("Séance en direct", "", { back: "home" }) + `<main class="page"><p class="empty">Impossible de charger la séance : ${esc(e.message)}</p></main>`; return; }
+  // Coach : séance en cours chez le client mais jamais partagée → on la lit dans ses données synchronisées, sans rien lui demander
+  if (isCoach() && (!LIVE.state || LIVE.state.ended || !LIVE.state.session)) {
+    try {
+      const seeded = await seedFromSnapshot(id, LIVE.state);
+      if (seeded) { LIVE.state = seeded.state; LIVE.updated_at = seeded.updated_at; }
+    } catch (e) { console.warn("seed live", e.message); }
+  }
   // Séance au format « interface client » : on ouvre exactement l'écran de séance du client, partagé en direct
   if (LIVE.state?.session && !LIVE.state.ended) { stopPoll(); return enterMirror(id, LIVE.state, LIVE.updated_at); }
   drawLive();
   LIVE.timer = setInterval(pollLive, POLL_MS);
   onLeave(stopPoll);
 };
+async function seedFromSnapshot(id, old) {
+  const c = await cloud(); const md = await c.memberData(id); const cur = md?.data?.current;
+  if (!cur?.exercises?.length) return null;
+  const start = cur.start || md.data.at || nowIso();
+  if (old?.ended && old.endedAt && new Date(old.endedAt) >= new Date(start)) return null; // cette séance est déjà terminée
+  const session = JSON.parse(JSON.stringify(cur)); delete session.mirror;
+  const st = { title: cur.title, startedAt: start, by: "member", ended: false, session, log: [{ at: nowIso(), by: "coach", text: "Séance ouverte par le coach" }] };
+  const stamp = await c.liveSet(id, st);
+  return { state: st, updated_at: stamp };
+}
 function stopPoll() { if (LIVE?.timer) clearInterval(LIVE.timer); if (LIVE) LIVE.timer = null; }
 async function pollLive() {
   if (!LIVE || !location.hash.startsWith("#/live")) return stopPoll();
@@ -266,6 +283,7 @@ actions["live-start"] = async (b, d) => {
     const c = await cloud(); const cur = await c.liveGet(id);
     if (cur?.state && !cur.state.ended && Object.keys(cur.state).length) return go("live", id);
     const md = (await c.memberData(id))?.data, cp = await c.coachPlanGet(id).catch(() => null);
+    if (md?.current?.exercises?.length) return go("live", id);
     const prog = cp?.program?.s?.length ? cp.program : memberProgram(md);
     if (!prog) return toast("Ce client n'a pas encore de programme : envoie-lui un programme d'abord");
     const week = md?.plan?.week || 1;
