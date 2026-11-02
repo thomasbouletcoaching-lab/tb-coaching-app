@@ -11,12 +11,12 @@ const shift = (d, n) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDa
 
 // Avatar : la personne telle qu'elle se construit, par stades de niveau (représentation, pas un corps idéalisé)
 export const STAGES = [
-  { from: 1, name: "Le Commençant", icon: "🌱", line: "Chaque début compte. Le premier pas est déjà une décision." },
-  { from: 3, name: "L'Homme de la reprise", icon: "🔥", line: "Tu reviens après les écarts. C'est ça, la force." },
-  { from: 5, name: "L'Homme de discipline", icon: "🛡️", line: "Ta régularité se voit : elle devient ton caractère." },
-  { from: 8, name: "L'Homme de fer", icon: "🏛️", line: "Corps, régularité et méthode tiennent ensemble. Continue." },
+  { from: 1, name: "Le Commençant", nameF: "La Commençante", icon: "🌱", line: "Chaque début compte. Le premier pas est déjà une décision." },
+  { from: 3, name: "L'Homme de la reprise", nameF: "La Femme de la reprise", icon: "🔥", line: "Tu reviens après les écarts. C'est ça, la force." },
+  { from: 5, name: "L'Homme de discipline", nameF: "La Femme de discipline", icon: "🛡️", line: "Ta régularité se voit : elle devient ton caractère." },
+  { from: 8, name: "L'Homme de fer", nameF: "La Femme de fer", icon: "🏛️", line: "Corps, régularité et méthode tiennent ensemble. Continue." },
 ];
-export const stageOf = (level) => [...STAGES].reverse().find(s => level >= s.from);
+export const stageOf = (level, sex = S().profile?.sex) => { const s = [...STAGES].reverse().find(x => level >= x.from); return sex === "f" ? { ...s, name: s.nameF || s.name } : s; };
 
 // Trophées : débloqués par la régularité et les bons comportements, jamais par le poids
 export const TROPHIES = [
@@ -32,8 +32,8 @@ export const TROPHIES = [
 
 // Récompenses : débloquées par le niveau. Réclamées dans la conversation avec Thomas.
 export const REWARDS = [
-  { id: "r3", lvl: 3, icon: "🎟️", name: "−5 % sur ta candidature coaching" },
-  { id: "r5", lvl: 5, icon: "🎟️", name: "−10 % sur ta candidature coaching" },
+  { id: "r3", lvl: 3, icon: "🎟️", name: "−5 % sur ta candidature coaching", discount: true },
+  { id: "r5", lvl: 5, icon: "🎟️", name: "−10 % sur ta candidature coaching", discount: true },
   { id: "r8", lvl: 8, icon: "🎁", name: "Une séance de 15 min offerte avec Thomas" },
 ];
 
@@ -83,7 +83,9 @@ export function gather(today_ = today()) {
 }
 
 export const unlockedTrophies = (c) => TROPHIES.filter(t => t.ok(c));
-export const unlockedRewards = (c) => REWARDS.filter(r => c.level >= r.lvl);
+// Les invités (accès offert par Thomas) n'ont jamais de réduction
+export const rewardsFor = () => REWARDS.filter(r => !(r.discount && S().me?.tier === "invite"));
+export const unlockedRewards = (c) => rewardsFor().filter(r => c.level >= r.lvl);
 
 // Quêtes du jour : les gestes qui comptent, avec leur valeur en points
 export function dailyQuests(c) {

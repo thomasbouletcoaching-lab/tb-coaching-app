@@ -1,5 +1,6 @@
 // Entraînement : programme et cycle, banque, programme perso, carnet de séance, stats, records, simulateur, fiches.
 import { S, update, save, today } from "../store.js";
+import { tbLogo, medalHtml, celebrate, recLabel } from "../fx.js";
 import * as E from "../engine.js";
 import { CONFIG } from "../config.js";
 import { $app, esc, num, fr, buzz, toast, routes, R, actions, changes, forms, go, I, header, tabbar, chips, seg, sheet, closeSheet, lockVeil, lineChart, barChart, hbars, wordOn, premium, rank, programOpen, weekOpen, fmtDate, addDays, rerender, onLeave, isCoach, cloud, modeBar } from "../core.js";
@@ -427,11 +428,29 @@ actions["rpe-set"] = (b, d) => { rpeSel = +d.v; buzz(8); rpeSheet(+d.x, +d.s); }
 actions["rpe-ok"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.rpe = rpeSel ?? s.rpe ?? s.trpe; rpeSel = null; save(); closeSheet(); rerender(); };
 actions["rpe-clear"] = (b, d) => { S().current.exercises[+d.x].sets[+d.s].rpe = null; rpeSel = null; save(); closeSheet(); rerender(); };
 actions["adv-toggle"] = () => { update(st => st.settings.adv = !adv()); rerender(); };
+// Records de l'exercice : charge la plus lourde, meilleur 1RM estimé, meilleur volume sur une série (comparés à tout l'historique)
+function recordsFor(ex, s) {
+  if (s.type === "W" || !s.kg || !s.reps || ex.unit === "s" || E.isAssisted(ex.name)) return [];
+  const best = { kg: 0, e1: 0, vol: 0 }; let seen = false;
+  (E.hist() || []).forEach(w => (w.exercises || []).filter(x => x.name === ex.name).forEach(x => (x.sets || []).filter(t => t.done && t.type !== "W" && t.kg && t.reps).forEach(t => {
+    seen = true; best.kg = Math.max(best.kg, t.kg); best.e1 = Math.max(best.e1, E.e1rm(t.kg, t.reps, t.rpe ?? t.trpe)); best.vol = Math.max(best.vol, t.kg * t.reps);
+  })));
+  if (!seen) return [];
+  const here = { kg: s.kg, e1: E.e1rm(s.kg, s.reps, s.rpe ?? s.trpe), vol: s.kg * s.reps }, got = ex.rec || (ex.rec = { kg: 0, e1: 0, vol: 0 }), out = [];
+  if (here.kg > best.kg && here.kg > got.kg) out.push({ k: "kg", v: here.kg, txt: `${E.fmtKg(here.kg)} kg (avant ${E.fmtKg(best.kg)})` });
+  if (here.e1 > best.e1 * 1.005 && here.e1 > got.e1 * 1.005) out.push({ k: "e1", v: here.e1, txt: `${E.fmtKg(Math.round(here.e1 * 10) / 10)} kg (avant ${E.fmtKg(Math.round(best.e1 * 10) / 10)})` });
+  if (here.vol > best.vol && here.vol > got.vol) out.push({ k: "vol", v: here.vol, txt: `${E.fmtKg(here.vol)} kg (${E.fmtKg(s.kg)} × ${s.reps})` });
+  got.kg = Math.max(got.kg, here.kg); got.e1 = Math.max(got.e1, here.e1); got.vol = Math.max(got.vol, here.vol);
+  if (out.length) (ex.recsHit = ex.recsHit || []).push(...out.map(r => ({ k: r.k, txt: r.txt })));
+  return out;
+}
 actions.tick = (b, d) => {
   const ex = S().current.exercises[+d.x], s = ex.sets[+d.s];
   s.done = !s.done;
   if (s.done && s.reps == null) s.reps = s.lo;
+  const recs = s.done ? recordsFor(ex, s) : [];
   save(); buzz(s.done ? 18 : 8); rerender();
+  if (recs.length) setTimeout(() => celebrate(ex.name, recs), 250);
   if (s.done) startRest(s.type === "W" ? 60 : ex.rest);
   if (s.done && s.type !== "W" && qtyKeys(s).some(t => s.tq?.[t] == null)) techQtySheet(+d.x, +d.s);
 };
@@ -752,10 +771,13 @@ routes.done = () => {
   const adj = w.exercises.filter(e => !e.bw && e.sets.some(s => s.done && s.type !== "W")).map(e => {
     const g = E.parseScheme(e.scheme).at(-1); const s = E.suggestion(e.name, g.rpe || 8, g.lo, g.hi, e.step); return s ? { n: e.name, s } : null;
   }).filter(Boolean);
+  const recsAll = w.exercises.flatMap(e => (e.recsHit || []).map(r => ({ ...r, name: e.name })));
   $app.innerHTML = `<section class="loader done" style="justify-content:flex-start;padding-top:calc(40px + var(--safe-t));text-align:center;overflow:auto">
-    <svg class="big-x" viewBox="0 0 40 40"><path class="s1" d="M9 9l22 22" stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none"/><path class="s2" d="M9 31 31 9" stroke="#EE8A45" stroke-width="5" stroke-linecap="round" fill="none"/></svg>
+    ${tbLogo(84)}
     <div><h1 class="h1" style="color:#fff">Séance terminée 💪</h1><p style="opacity:.8" class="mt8">${esc(w.title)}</p></div>
     <div style="width:100%;max-width:560px"><div class="stat3"><div><b>${mins}</b><span>minutes</span></div><div><b>${w.setsDone}</b><span>séries</span></div><div><b>${(w.volume / 1000).toFixed(1).replace(".", ",")}</b><span>tonnes</span></div></div></div>
+    ${medalHtml(w, { planned: w.exercises.reduce((a, e) => a + e.sets.filter(x => x.type !== "W").length, 0), recs: recsAll })}
+    ${recsAll.length ? `<div style="width:100%;max-width:560px;text-align:left;background:rgba(255,255,255,.12);border-radius:18px;padding:14px"><b>🏆 Records battus pendant la séance</b>${recsAll.map(r => `<div class="row between small mt8"><span>${esc(r.name)} · ${recLabel(r.k)[1]}</span><b>${esc(r.txt)}</b></div>`).join("")}</div>` : ""}
     ${w.records.length ? `<div style="width:100%;max-width:560px;text-align:left;background:rgba(255,255,255,.12);border-radius:18px;padding:14px"><b>🏆 Nouveau${w.records.length > 1 ? "x" : ""} record${w.records.length > 1 ? "s" : ""}</b>${w.records.map(r => `<div class="row between small mt8"><span>${esc(r.name)}</span><b>${Math.round(r.after)} kg <span style="opacity:.7;font-weight:400">1RM estimé</span></b></div>`).join("")}</div>` : ""}
     ${adj.length ? `<div style="width:100%;max-width:560px;text-align:left;background:rgba(255,255,255,.12);border-radius:18px;padding:14px"><b>🎯 Pour la prochaine séance</b>${premium() ? adj.map(a => `<div class="small mt8"><b>${esc(a.n)}</b><br><span style="opacity:.85">${esc(a.s.txt)}</span></div>`).join("") : `<p class="small mt8" style="opacity:.85">Tes charges sont recalculées. Les conseils détaillés (charge ou reps à viser selon ton RPE) sont dans Premium.</p>`}</div>` : ""}
     <button class="btn" style="max-width:560px;background:#fff;color:var(--red)" data-a="go" data-r="home">Retour à l'accueil</button></section>`;

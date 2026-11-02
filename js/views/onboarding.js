@@ -1,3 +1,4 @@
+import { tbLogo } from "../fx.js";
 import { S, update, today } from "../store.js";
 import { coachLogo } from "../core.js";
 import * as E from "../engine.js";
@@ -75,7 +76,7 @@ function next(val, echo) { const s = visible()[OB.i]; if (s) OB.a[s.id] = val; O
 async function building() {
   const a = OB.a;
   const lines = ["Analyse de ton profil", "Choix de ton programme", "Calcul de tes charges", "Calcul de ton carburant"];
-  $app.innerHTML = `<section class="loader"><svg class="big-x" viewBox="0 0 40 40"><defs><linearGradient id="gxl" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#8F3510"/><stop offset=".6" stop-color="#C2541F"/><stop offset="1" stop-color="#EE8A45"/></linearGradient></defs><path class="s1" d="M9 9l22 22" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/><path class="s2" d="M9 31 31 9" stroke="url(#gxl)" stroke-width="5" stroke-linecap="round" fill="none"/></svg><ul style="padding:0;margin:0">${lines.map(l => `<li><i></i>${l}</li>`).join("")}</ul></section>`;
+  $app.innerHTML = `<section class="loader">${tbLogo(104)}<ul style="padding:0;margin:0">${lines.map(l => `<li><i></i>${l}</li>`).join("")}</ul></section>`;
   await Promise.all([E.loadPrograms(), N.loadModels()]);
   const rec = {};
   Object.entries(a.records || {}).forEach(([k, v]) => { if (v.r > 0) rec[k] = { ...v, rpe: 9, e1rm: v.k > 0 ? Math.round(E.e1rm(v.k, v.r, 9) * 10) / 10 : 0, d: today() }; });
