@@ -23,6 +23,38 @@ const REST = { F: 180, N: 150, S: 120, P: 120, A: 90, U: 90, J: 90, I: 75, G: 60
 export const SET_TYPES = { N: "Normale", W: "Échauffement", T: "Top set", B: "Back-off", D: "Dégressive", A: "AMRAP", E: "À l'échec" };
 // Techniques pour lesquelles on précise « combien » à la validation de la série : [question, unité]
 export const TECH_QTY = { "À l'échec": ["À combien de reps as-tu atteint l'échec ?", "reps"], "Reps forcées": ["Combien de reps forcées ?", "reps forcées"], "Dropset": ["Combien de drops ?", "drops"], "Dropset mécanique": ["Combien de changements de variante ?", "variantes"], "Rest-pause": ["Combien de mini-séries après la pause ?", "mini-séries"], "Myo-reps": ["Combien de mini-séries (myo-reps) ?", "mini-séries"], "Cluster": ["Combien de clusters ?", "clusters"], "Partielles": ["Combien de reps partielles ?", "partielles"], "Négatives": ["Combien de négatives ?", "négatives"], "Reps trichées": ["Combien de reps trichées ?", "trichées"], "Reps et demie": ["Combien de reps et demie ?", "reps ½"], "Excentrique lent": ["Combien de reps en excentrique lent ?", "reps lentes"], "Pause à chaque rep": ["Combien de reps avec pause ?", "reps pausées"], "Isométrie": ["Combien de secondes d'isométrie ?", "s"] };
+// Détail à renseigner pour chaque technique : champs [clé, libellé, type(num|text|chips), options] et listes de lignes (drops, mini-séries…)
+const POS = ["Bas", "Milieu", "Haut"];
+export const TECH_DETAIL = {
+  "À l'échec": { fields: [["n", "Reps réalisées à l'échec"]] },
+  "Dropset": { list: { label: "Drops", add: "+ Drop", fields: [["kg", "Poids (kg)"], ["reps", "Reps"]], prefill: "drop" } },
+  "Dropset mécanique": { list: { label: "Variantes enchaînées (de la plus dure à la plus facile)", add: "+ Variante", fields: [["name", "Variante / exercice", "text"], ["reps", "Reps"]] } },
+  "Rest-pause": { fields: [["pause", "Pause entre les mini-séries (s)"]], list: { label: "Mini-séries après la pause", add: "+ Mini-série", fields: [["reps", "Reps"]] } },
+  "Myo-reps": { fields: [["act", "Reps de la série d'activation"], ["pause", "Repos entre mini-séries (s)"]], list: { label: "Mini-séries", add: "+ Mini-série", fields: [["reps", "Reps"]] } },
+  "Cluster": { fields: [["n", "Nombre de clusters"], ["reps", "Reps par cluster"], ["pause", "Repos entre clusters (s)"]] },
+  "Partielles": { fields: [["n", "Reps partielles"], ["zone", "Amplitude travaillée", "chips", POS]] },
+  "Reps forcées": { fields: [["n", "Reps forcées"], ["aide", "Aide", "chips", ["Pareur", "Élastique", "Machine"]]] },
+  "Négatives": { fields: [["n", "Reps négatives"], ["dur", "Durée de la descente (s)"], ["kg", "Charge (kg), si différente"]] },
+  "Excentrique lent": { fields: [["n", "Reps en excentrique lent"], ["dur", "Durée de la descente (s)"]] },
+  "Pause à chaque rep": { fields: [["n", "Reps avec pause"], ["dur", "Durée de la pause (s)"], ["pos", "Position de la pause", "chips", POS]] },
+  "Isométrie": { fields: [["dur", "Durée de la tenue (s)"], ["pos", "Position dans le mouvement", "chips", [...POS, "Contraction max"]], ["n", "Nombre de tenues"]] },
+  "Reps et demie": { fields: [["n", "Reps et demie"], ["pos", "Demi-rep sur", "chips", ["Bas", "Haut"]]] },
+  "Reps trichées": { fields: [["n", "Reps trichées"]] },
+  "Série 21 (7-7-7)": { fields: [["kg", "Charge (kg)"]] },
+  "Enchaînée (superset, pré-fatigue)": { fields: [["avec", "Enchaînée avec", "text"], ["pause", "Repos entre les deux (s)"]] },
+  "Occlusion (BFR)": { fields: [["press", "Pression (mmHg ou %)"], ["pause", "Repos (s)"]] },
+};
+const SHORT = { n: v => `×${v}`, pause: v => `pause ${v} s`, dur: v => `${v} s`, act: v => `activation ${v}`, reps: v => `${v} reps`, kg: v => `${v} kg`, press: v => `pression ${v}` };
+// Résumé court d'une technique d'après ce qui a été saisi : « 80×8 → 60×10 », « ×3 · Pareur »…
+export function techSummary(t, d) {
+  const D = TECH_DETAIL[t]; if (!D || !d) return "";
+  const out = [], filled = (v) => v !== "" && v != null;
+  if (D.list) { const rows = (d.list || []).filter(r => Object.values(r).some(filled)); if (rows.length) out.push(rows.map(r => D.list.fields.map(([k]) => r[k]).filter(filled).join("×")).join(" → ")); }
+  (D.fields || []).forEach(([k, , type]) => { const v = d[k]; if (!filled(v)) return; out.push(type === "chips" || type === "text" ? String(v) : (SHORT[k] || String)(v)); });
+  return out.join(" · ");
+}
+// Quantité principale (pour les anciens affichages)
+export const techQty = (t, d) => { const D = TECH_DETAIL[t]; if (!D || !d) return null; if (D.list) { const n = (d.list || []).filter(r => Object.values(r).some(v => v !== "" && v != null)).length; return n || null; } return d.n ?? d.dur ?? null; };
 export const TECHS = [
   ["♨️", "Échauffement"], ["📶", "Montée en gamme"], ["💀", "À l'échec"], ["🔻", "Dropset"], ["⏱️", "Rest-pause"], ["🔁", "Myo-reps"],
   ["🧩", "Cluster"], ["🔀", "Dropset mécanique"], ["✂️", "Partielles"], ["🤝", "Reps forcées"], ["⬇️", "Négatives"], ["🐢", "Excentrique lent"],
