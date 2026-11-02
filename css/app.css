@@ -496,3 +496,29 @@ input,select,textarea{max-width:100%;min-width:0}
 .swbg{opacity:0}.swwrap.sw-on .swbg{opacity:1}
 .swbg{position:absolute;inset:0;background:#b3261e;display:flex;align-items:center;justify-content:flex-end;padding-right:22px;color:#fff;font-weight:800;font-size:15px;letter-spacing:.2px}
 .swwrap.armed .swbg{background:#e03a30}
+/* Logo TB tracé */
+.tb-draw path{stroke-dasharray:1;stroke-dashoffset:1}
+.tb-draw .t1{animation:tbdraw .45s .05s ease-out forwards}
+.tb-draw .t2{animation:tbdraw .5s .45s ease-out forwards}
+.tb-draw .t3{animation:tbdraw .5s .95s ease-out forwards}
+.tb-draw .t4{animation:tbdraw .55s 1.4s ease-out forwards}
+.tb-draw .t5{animation:tbdraw .6s 1.9s ease-out forwards}
+@keyframes tbdraw{to{stroke-dashoffset:0}}
+/* Médaille de séance */
+.medal{text-align:center;width:100%;max-width:560px;color:#fff;background:rgba(255,255,255,.12);border-radius:22px;padding:18px 14px}
+.medal-disc{width:96px;height:96px;margin:0 auto 8px;border-radius:50%;display:grid;place-items:center;font-size:46px;background:radial-gradient(circle at 30% 25%,#fff8,var(--mc) 62%);box-shadow:0 0 0 4px #fff3,0 10px 30px #0006;animation:medalpop .7s .2s cubic-bezier(.2,1.6,.4,1) both}
+.medal-name{font-size:30px;font-weight:800;letter-spacing:.5px;color:var(--mc);text-shadow:0 2px 10px #0005;filter:brightness(1.25)}
+@keyframes medalpop{from{transform:scale(.2) rotate(-40deg);opacity:0}to{transform:none;opacity:1}}
+/* Record */
+#rec-fx{position:fixed;inset:0;z-index:300;background:rgba(8,10,14,.78);display:grid;place-items:center;overflow:hidden;animation:recfade .25s ease-out}
+#rec-fx i{position:absolute;top:-20px;left:var(--x);width:9px;height:16px;background:var(--c);border-radius:2px;animation:recfall 2.4s var(--d) ease-in forwards}
+@keyframes recfall{to{transform:translateY(105vh) rotate(var(--r))}}
+@keyframes recfade{from{opacity:0}to{opacity:1}}
+.rec-card{position:relative;text-align:center;color:#fff;padding:26px 22px;border-radius:26px;background:linear-gradient(160deg,#C2541F,#8F3510);box-shadow:0 20px 60px #000a;min-width:260px;max-width:88vw;animation:recpop .55s cubic-bezier(.2,1.5,.4,1) both}
+.rec-trophy{font-size:64px;line-height:1;animation:recbounce .9s .3s ease-in-out 2}
+.rec-title{font-weight:900;letter-spacing:2px;font-size:20px;margin-top:6px}
+.rec-ex{font-size:17px;font-weight:700;margin:6px 0 12px;opacity:.95}
+.rec-line{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-top:1px solid #fff3;font-size:14px}
+@keyframes recpop{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+@keyframes recbounce{50%{transform:translateY(-12px) scale(1.12)}}
+@media (prefers-reduced-motion:reduce){#rec-fx i{display:none}.tb-draw path{stroke-dashoffset:0;animation:none!important}}
