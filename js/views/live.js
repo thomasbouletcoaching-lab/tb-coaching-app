@@ -336,6 +336,12 @@ export async function pullLive() {
   if (isCoach()) return;
   try {
     const c = await cloud(); await c.ensureSession(); const r = await c.liveGet(c.userId());
+    // Séance terminée par le coach pendant que le client n'était pas dans l'appli : on l'enregistre dans son carnet
+    const st0 = r?.state;
+    if (st0?.ended && st0.session?.exercises && !S().current && Date.now() - new Date(st0.endedAt || 0) < 36 * 3600e3 && !(S().workouts || []).some(w => w.id === st0.session.id) && st0.session.exercises.some(e => e.sets.some(x => x.done))) {
+      const ses = JSON.parse(JSON.stringify(st0.session)); delete ses.mirror;
+      update(st => { st.current = ses; }); E.finishSession(S().current); toast("Séance terminée avec Thomas : elle est enregistrée dans ton carnet");
+    }
     const active = r?.state && !r.state.ended && Object.keys(r.state).length ? r.state : null;
     const changed = !!active !== !!LIVE_NOW;
     LIVE_NOW = active ? { ...active, id: c.userId() } : null;

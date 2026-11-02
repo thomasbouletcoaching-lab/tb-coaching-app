@@ -20,7 +20,7 @@ async function load(force = false) {
   try {
     await (c.currentSession().then(u => u || c.ensureSession()));
     const [ms, sums, th, st, nut] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled"]).catch(() => ({})), c.nutriRecent(7).catch(() => [])]);
-    A.members = ms.filter(m => m.name || m.email); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.threads = th; A.nutri = {}; (nut || []).forEach(r => { (A.nutri[r.user_id] = A.nutri[r.user_id] || []).push(r); });
+    A.members = ms.filter(m => m.name || m.email); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.snapAt = Object.fromEntries(sums.map(x => [x.user_id, x.updated_at])); A.threads = th; A.nutri = {}; (nut || []).forEach(r => { (A.nutri[r.user_id] = A.nutri[r.user_id] || []).push(r); });
     A.store = { todo: st.todo?.items || [], biz: st.biz || BIZ0(), notes: st.notes || {}, handled: st.handled || {} };
     A.store.biz.payments = A.store.biz.payments || []; A.store.biz.cycles = A.store.biz.cycles || []; A.store.biz.settings = A.store.biz.settings || {};
     window.__members = ms; A.at = Date.now(); A.err = null;
@@ -62,7 +62,7 @@ function agendaRows(d) {
   (A.members || []).forEach(m => {
     const s = A.sums[m.id] || {};
     (s.agenda || []).filter(a => a.d === d && a.st !== "away").forEach(a => {
-      const ip = s.inProgress && s.today === today() && d === today() && (s.inProgress.title === a.title || a.st === "planned");
+      const ip = (s.inProgress && s.today === today() && d === today() && (s.inProgress.title === a.title || a.st === "planned")) || (d === today() && LIVE_LIST.some(r => r.user_id === m.id && !r.state.snap));
       out.push({ m, a, ip, name: first(m) });
     });
   });
@@ -250,6 +250,15 @@ routes["admin-today"] = async () => {
   if (!(await guard("admin-today"))) return;
   if (S().current?.mirror) { E.setHist(null); update(st => { st.current = null; }); } // séance d'un client restée ouverte
   try { LIVE_LIST = await (await cloud()).liveAll(); } catch { LIVE_LIST = []; }
+  // Séance terminée par le client sur son téléphone : sa copie serveur n'a plus de séance en cours et est plus récente → on la retire (et on la clôt)
+  LIVE_LIST = LIVE_LIST.filter(r => {
+    const s = A.sums?.[r.user_id], at = A.snapAt?.[r.user_id];
+    if (s && at && !s.inProgress && new Date(at) > new Date(r.updated_at) && Date.now() - new Date(r.updated_at) > 3 * 60000) {
+      cloud().then(c => c.liveSet(r.user_id, { ...r.state, ended: true, endedAt: new Date().toISOString() })).catch(() => { });
+      return false;
+    }
+    return true;
+  });
   frame("admin-today", `${liveNowBlock()}${agendaBlock()}${todayBlock()}${todoBlock()}`, "Aujourd'hui");
 };
 
