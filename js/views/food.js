@@ -255,11 +255,58 @@ function drawSum() {
   if (!es.length) { box.innerHTML = `<p class="xs muted">Ajoute autant d'aliments que tu veux, puis touche « Terminé ».</p>`; return; }
   const k = es.reduce((a, e) => a + e.kcal, 0), p = es.reduce((a, e) => a + e.p, 0);
   box.innerHTML = `<div class="card" style="padding:10px 14px"><div class="row between"><b class="small">Dans ce repas · ${es.length} aliment${es.length > 1 ? "s" : ""}</b><span class="xs muted">${fr(k)} kcal · ${fr(p)} g P</span></div>
-    ${es.map(e => `<div class="row between xs mt4" style="gap:6px">${e.g ? `<input class="inp" style="width:64px;padding:4px 6px;font-size:15px" inputmode="decimal" value="${fr(e.g)}" data-c="afs-g" data-id="${e.id}" aria-label="Quantité en grammes"><span class="muted">g</span>` : ""}<span class="grow">${esc(e.label)}</span><span class="muted">${e.kcal} kcal</span><button class="icon-btn" style="width:30px;height:30px" data-a="afs-del" data-id="${e.id}" aria-label="Retirer">${I.close}</button></div>`).join("")}</div>`;
+    ${es.map(e => `<div class="row between xs mt4" style="gap:6px">${e.g ? `<input class="inp" style="width:64px;padding:4px 6px;font-size:15px" inputmode="decimal" value="${fr(e.g)}" data-c="afs-g" data-id="${e.id}" aria-label="Quantité en grammes"><span class="muted">g</span>` : ""}<span class="grow">${esc(e.label)}</span><span class="muted">${e.kcal} kcal</span><button class="icon-btn" style="width:30px;height:30px" data-a="edit-food" data-id="${e.id}" data-d="${afs.date}" data-back="afs" aria-label="Modifier ou remplacer">✏️</button><button class="icon-btn" style="width:30px;height:30px" data-a="afs-del" data-id="${e.id}" aria-label="Retirer">${I.close}</button></div>`).join("")}</div>`;
 }
 actions["afs-del"] = (b, d) => { N.removeEntry(+d.id, afs.date); drawSum(); };
 changes["afs-g"] = (el) => { const g = num(el.value); if (!(g > 0)) return; N.rescaleEntry(+el.dataset.id, afs.date, g); drawSum(); };
 actions["afs-done"] = () => closeSheet();
+// ---------- Modifier / remplacer un aliment déjà enregistré ----------
+let EF = null; // { id, date, back, g }
+const efEntry = () => N.dayLog(EF.date).find(x => x.id === EF.id);
+const efBack = () => { const m = efEntry()?.meal; if (EF.back === "afs" && m) addFoodSheet(m); else { closeSheet(); rerender(); } };
+function editFoodSheet() {
+  const e = efEntry(); if (!e) return closeSheet();
+  const g0 = e.g || null; EF.g = EF.g ?? g0;
+  sheet(`<h2 class="h2">Modifier l'aliment</h2><p class="small" style="margin:0">${esc(e.label)}</p>
+    ${g0 ? `<div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm" data-a="ef-step" data-v="-10" style="width:auto">−10</button><input id="ef-g" class="inp" inputmode="decimal" value="${EF.g}" style="width:90px;text-align:center" aria-label="Quantité en grammes"><span class="small muted">g</span><button class="btn btn-line btn-sm" data-a="ef-step" data-v="10" style="width:auto">+10</button></div>
+    <div class="chips wrap mt8">${[0.5, 0.75, 1, 1.5, 2].map(k => `<button class="chip" data-a="ef-k" data-k="${k}">×${k}</button>`).join("")}</div>
+    <div id="ef-v" class="mt12 small"></div>` : `<p class="xs muted mt8">Cet élément n'a pas de quantité en grammes (repas ou recette). Tu peux le remplacer.</p>`}
+    <button class="btn btn-red mt16" data-a="ef-save" style="width:100%">${g0 ? "Enregistrer la quantité" : "Fermer"}</button>
+    <button class="btn btn-line mt8" data-a="ef-swap" style="width:100%">🔁 Remplacer par un autre aliment</button>
+    <button class="link xs mt12" data-a="ef-del">Supprimer cet aliment</button>`, () => { efDraw(); const i = document.getElementById("ef-g"); i?.addEventListener("input", () => { EF.g = num(i.value) || 0; efDraw(); }); });
+}
+function efDraw() {
+  const e = efEntry(), v = document.getElementById("ef-v"); if (!e || !v || !e.g) return;
+  const k = (EF.g || 0) / e.g;
+  v.innerHTML = `<b>${Math.round(e.kcal * k)} kcal</b> <span class="xs muted">· P ${fr(e.p * k)} · G ${fr(e.c * k)} · L ${fr(e.f * k)} g (avant : ${e.kcal} kcal)</span>`;
+}
+actions["edit-food"] = (b, d) => { EF = { id: +d.id, date: d.d, back: d.back || "journal", g: null }; editFoodSheet(); };
+actions["ef-step"] = (b, d) => { EF.g = Math.max(1, Math.round((EF.g || 0) + +d.v)); const i = document.getElementById("ef-g"); if (i) i.value = EF.g; efDraw(); };
+actions["ef-k"] = (b, d) => { const e = efEntry(); EF.g = Math.round(e.g * +d.k); const i = document.getElementById("ef-g"); if (i) i.value = EF.g; efDraw(); };
+actions["ef-save"] = () => { const e = efEntry(); if (e?.g && EF.g > 0 && EF.g !== e.g) { N.rescaleEntry(EF.id, EF.date, EF.g); toast("Quantité modifiée"); } efBack(); };
+actions["ef-del"] = () => { N.removeEntry(EF.id, EF.date); efBack(); };
+actions["ef-swap"] = () => {
+  const e = efEntry(); if (!e) return;
+  sheet(`<h2 class="h2">Remplacer</h2><p class="xs muted" style="margin:0">« ${esc(e.label)} » sera remplacé, avec ${e.g ? "la même quantité (" + fr(e.g) + " g), modifiable ensuite" : "100 g"}.</p>
+    <div class="search mt12">${I.search}<input id="ef-q" placeholder="riz, poulet, skyr…" autocomplete="off" enterkeyhint="search"></div>
+    <div id="ef-r" class="mt12"></div><button class="link xs mt12" data-a="ef-cancel">Annuler</button>`, (w) => {
+    const inp = w.querySelector("#ef-q"), out = w.querySelector("#ef-r"); let ready = false, deb, list = [];
+    const li = (f, i) => `<div class="li"><button class="grow" style="text-align:left" data-a="ef-pick" data-i="${i}"><span class="small">${esc(f.n)}</span><br><span class="xs muted">${f.kcal} kcal · ${fr(f.p, 1)} g prot. / 100 g</span></button></div>`;
+    const quick = () => { list = [...(S().favFoods || []).slice(0, 8), ...(S().recentFoods || []).filter(f => !N.isFavFood(f.n)).slice(0, 8)]; window.__ef = list; out.innerHTML = list.length ? `<div class="list">${list.map(li).join("")}</div>` : `<p class="empty small">Tape le nom du nouvel aliment.</p>`; };
+    const run = () => { const q = inp.value.trim(); if (!q) return quick(); if (!ready) { out.innerHTML = `<p class="empty small">Chargement des aliments…</p>`; return; }
+      list = N.searchFoods(q); window.__ef = list; out.innerHTML = list.length ? `<div class="list">${list.map(li).join("")}</div>` : `<p class="empty small">Rien pour « ${esc(q)} ».</p>`;
+      N.searchBrands(q).then(off => { if (inp.value.trim() !== q || !off.length) return; list = [...list, ...off]; window.__ef = list; out.innerHTML = `<div class="list">${list.map(li).join("")}</div>`; }); };
+    inp.addEventListener("input", () => { clearTimeout(deb); deb = setTimeout(run, 140); });
+    N.loadCiqual().then(() => { ready = true; if (inp.value.trim()) run(); }); quick(); inp.focus();
+  });
+};
+actions["ef-cancel"] = () => editFoodSheet();
+actions["ef-pick"] = (b, d) => {
+  const f = window.__ef[+d.i], e = efEntry(); if (!f || !e) return;
+  const g = e.g || 100; N.rememberFood({ ...f, g }); N.replaceEntry(EF.id, EF.date, N.entryFromFood(f, g, e.meal));
+  EF.g = null; toast(`Remplacé par ${f.n.split(",")[0]}`); editFoodSheet();
+};
+
 function addedToMeal(e, label = "Ajouté") { afs.time = afsTime(); update(st => (st.food[afs.date] || []).forEach(x => { if (x.meal === afs.meal) x.time = afs.time; })); N.addEntry({ ...e, meal: afs.meal, time: afs.time }, afs.date); buzz(); toast(label); drawSum(); }
 // Sous la recherche vide : favoris puis récents, pour ajouter en un geste
 function quickFoods(foodLi) {

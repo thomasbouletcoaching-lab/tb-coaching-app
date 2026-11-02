@@ -352,6 +352,7 @@ export function setEntryTime(id, time, date = today()) { update(st => { const e 
 export const isFavFood = (n) => S().favFoods.some(f => f.n === n);
 export function toggleFavFood(f) { update(st => { st.favFoods = isFavFood(f.n) ? st.favFoods.filter(x => x.n !== f.n) : [f, ...st.favFoods]; }); }
 export function lastMealTime(date = today()) { const l = dayLog(date); return l.length ? l.map(e => e.time || "00:00").sort().at(-1) : null; }
+export function replaceEntry(id, date, ne) { update(st => { const l = st.food[date] || [], i = l.findIndex(x => x.id === id); if (i < 0) return; const o = l[i]; l[i] = { ...ne, id: o.id, meal: o.meal, time: o.time }; }); }
 export function removeEntry(id, date = today()) { update(st => { st.food[date] = (st.food[date] || []).filter(e => e.id !== id); }); }
 export function entryFromFood(f, g, meal) {
   const k = g / 100, mic = microOf(f, g);
