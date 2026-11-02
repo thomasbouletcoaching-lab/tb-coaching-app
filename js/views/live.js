@@ -12,6 +12,7 @@ const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 let LIVE = null;          // séance ouverte : { id, state, updated_at, timer }
 export let LIVE_NOW = null; // séance active vue par le membre (bandeau de l'accueil)
 let PICK = { j: -1, q: "", m: "", list: [] }; // sélecteur d'exercice (coach)
+let DRAG = null;
 
 const nowIso = () => new Date().toISOString();
 const hm = (iso) => new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -59,7 +60,7 @@ routes.live = async () => {
 function stopPoll() { if (LIVE?.timer) clearInterval(LIVE.timer); if (LIVE) LIVE.timer = null; }
 async function pollLive() {
   if (!LIVE || !location.hash.startsWith("#/live")) return stopPoll();
-  if (document.querySelector(".sheet-wrap, input:focus, textarea:focus")) return; // on ne redessine pas pendant une saisie
+  if (DRAG || document.querySelector(".sheet-wrap, input:focus, textarea:focus")) return; // on ne redessine pas pendant une saisie
   try { const r = await fetchState(LIVE.id); const s = r?.state && Object.keys(r.state).length ? r.state : null; if (r?.updated_at !== LIVE.updated_at) { LIVE.state = s; LIVE.updated_at = r?.updated_at || null; drawLive(); } }
   catch { }
 }
@@ -90,17 +91,19 @@ function drawLive() {
           <button class="link xs" data-a="live-set-type" data-e="${j}" data-s="${k}">Type</button>
           <button class="link xs" data-a="live-tech" data-e="${j}" data-s="${k}">Techniques</button>
           <button class="link xs" data-a="live-set-del" data-e="${j}" data-s="${k}" style="color:var(--red)">Supprimer</button></div>` : "";
-      return `<div class="card mt8" style="padding:10px;${s.done ? "opacity:.75" : ""}">
+      const sn = s.note ? `<div class="xs mt4"><b>${esc(noteLabel(s.note.by))}</b> : ${esc(s.note.text)}</div>` : "";
+      return `<div class="card mt8" data-ds="${j}-${k}" style="padding:10px;${s.done ? "opacity:.75" : ""}">
         <div class="row" style="gap:6px;align-items:center">
+          ${C ? `<span data-drag="set" data-j="${j}" data-k="${k}" style="touch-action:none;cursor:grab;font-size:20px" aria-label="Glisser la série">⠿</span>` : ""}
           <span class="grow small"><b>Série ${k + 1}</b> · ${esc(setLabel(s))} ${type}${techs ? `<br>${techs}` : ""}${s.reps != null ? `<br><span class="xs muted">fait : ${s.reps} rép${s.load ? ` · ${fr(s.load, 1)} kg` : ""} · ${esc(who(s.by))}</span>` : ""}</span>
           <input class="inp" style="width:58px;padding:6px" inputmode="numeric" placeholder="reps" id="lr-${j}-${k}" value="${s.reps ?? ""}" aria-label="Répétitions">
           <input class="inp" style="width:66px;padding:6px" inputmode="decimal" placeholder="kg" id="lk-${j}-${k}" value="${s.load ?? ""}" aria-label="Charge (kg)">
           <button class="rpe-btn ${s.rpe == null ? "ph" : ""}" data-a="live-rpe" data-e="${j}" data-s="${k}" aria-label="RPE de la série">RPE ${s.rpe != null ? rpeTxt(s.rpe) : "–"}</button>
-          <button class="icon-btn ${s.done ? "on" : ""}" data-a="live-set" data-e="${j}" data-s="${k}" aria-label="Série faite" style="${s.done ? "background:var(--gradbtn);color:#fff;border:0" : ""}">✓</button></div>${sctl}</div>`;
+          <button class="icon-btn ${s.done ? "on" : ""}" data-a="live-set" data-e="${j}" data-s="${k}" aria-label="Série faite" style="${s.done ? "background:var(--gradbtn);color:#fff;border:0" : ""}">✓</button></div>${sn}<div class="row mt4" style="gap:12px"><button class="link xs" data-a="live-setnote" data-e="${j}" data-s="${k}">📝 ${s.note ? "Modifier la note" : "Note sur la série"}</button></div>${sctl}</div>`;
     }).join("");
     const notes = (ex.notes || []).map(n => `<div class="xs mt8"><b>${esc(noteLabel(n.by))}</b> · ${hm(n.at)}<br>${esc(n.text)}</div>`).join("");
-    return `<div class="card mt12">
-      <div class="row between" style="gap:8px"><b>${esc(ex.name)}</b><span class="xs muted">repos ${ex.rest} s ${ssTag}</span></div>
+    return `<div class="card mt12" data-dx="${j}">
+      <div class="row between" style="gap:8px"><span class="row" style="gap:4px;align-items:center">${C ? `<span data-drag="ex" data-j="${j}" style="touch-action:none;cursor:grab;padding:0 8px 0 0;font-size:22px" aria-label="Glisser pour réordonner">⠿</span>` : ""}<b>${esc(ex.name)}</b></span><span class="xs muted">repos ${ex.rest} s ${ssTag}</span></div>
       <p class="xs muted" style="margin:2px 0 0">${esc(E.musclesOf(ex.name).join(" · "))}</p>
       ${ex.note ? `<p class="xs muted" style="margin:4px 0 0">${esc(ex.note)}</p>` : ""}
       ${ctl}
@@ -305,3 +308,34 @@ export function liveBanner() {
   if (!LIVE_NOW) return `<button class="btn btn-line btn-sm mt12" data-a="live-self" style="width:100%">🔴 Partager ma séance en direct avec Thomas</button>`;
   return `<button class="card tap mt12" data-a="go" data-r="live" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;box-shadow:0 0 0 2px var(--red) inset"><span style="font-size:26px">🔴</span><span class="grow"><b>Séance en cours avec Thomas</b><br><span class="small muted">${esc(LIVE_NOW.title)} · touche pour la suivre et ajouter</span></span></button>`;
 }
+
+// Note sur une série : étiquetée « Note du coach » ou « Note du client » selon l'auteur
+actions["live-setnote"] = async (b, d) => {
+  const cur = LIVE.state?.exercises?.[+d.e]?.sets?.[+d.s]?.note?.text || "";
+  const t = prompt("Note sur cette série (gêne, sensation, consigne…)", cur); if (t == null) return;
+  try { await mutate(st => { const s = st.exercises[+d.e].sets[+d.s]; if (t.trim()) s.note = { by: me(), at: nowIso(), text: t.trim() }; else delete s.note; }); } catch (e) { fail(e); }
+  drawLive();
+};
+// Glisser-déposer (coach) : exercices et séries, par la poignée ⠿
+document.addEventListener("pointerdown", (e) => {
+  const h = e.target.closest?.("[data-drag]"); if (!h || !isCoach() || !LIVE?.state) return;
+  e.preventDefault();
+  DRAG = { kind: h.dataset.drag, j: +h.dataset.j, k: +(h.dataset.k ?? -1), to: null, el: h.closest("[data-dx],[data-ds]") };
+  DRAG.el?.classList.add("dragging");
+});
+document.addEventListener("pointermove", (e) => {
+  if (!DRAG) return;
+  const t = document.elementFromPoint(e.clientX, e.clientY)?.closest(DRAG.kind === "ex" ? "[data-dx]" : `[data-ds^="${DRAG.j}-"]`);
+  document.querySelectorAll(".drop-t").forEach(x => x.classList.remove("drop-t"));
+  if (t) { t.classList.add("drop-t"); DRAG.to = DRAG.kind === "ex" ? +t.dataset.dx : +t.dataset.ds.split("-")[1]; }
+});
+const endDrag = async () => {
+  if (!DRAG) return; const D = DRAG; DRAG = null;
+  document.querySelectorAll(".drop-t,.dragging").forEach(x => x.classList.remove("drop-t", "dragging"));
+  const from = D.kind === "ex" ? D.j : D.k;
+  if (D.to == null || D.to === from) return;
+  try { await mutate(st => { const arr = D.kind === "ex" ? st.exercises : st.exercises[D.j].sets; const [x] = arr.splice(from, 1); arr.splice(D.to, 0, x); }); } catch (e) { fail(e); }
+  drawLive();
+};
+document.addEventListener("pointerup", endDrag);
+document.addEventListener("pointercancel", endDrag);

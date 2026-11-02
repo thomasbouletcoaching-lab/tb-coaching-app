@@ -20,6 +20,7 @@ import "./views/coachprog.js";
 import "./views/account.js";
 import "./views/coachfood.js";
 import "./views/live.js";
+import "./views/vocal.js";
 import { pullLive } from "./views/live.js";
 import { pullCoachFood } from "./views/coachfood.js";
 import { cloud as cloudMod } from "./core.js";
