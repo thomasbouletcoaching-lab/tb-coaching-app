@@ -143,3 +143,22 @@ forms["account-reset"] = async (v) => {
   try { await C.resetPasswordEmail(v.email.trim()); toast("Lien envoyé par e-mail"); }
   catch (e) { toast("Envoi impossible : " + e.message); }
 };
+
+// Compte coach de Thomas : il s'entraîne depuis ce compte → on y reprend son programme perso (5 séances) et son carnet depuis son compte perso
+export async function restorePersonalProgram(email = "thomboulet@gmail.com") {
+  const c = await C_cloud(); if (!c) return false;
+  const ms = await c.members(), me = ms.find(m => (m.email || "").toLowerCase() === email);
+  if (!me) return false;
+  const md = (await c.memberData(me.id))?.data; if (!md?.tbRaw?.sessions?.length) return false;
+  const prog = convertTb(md.tbRaw, "main"); if (!prog) return false;
+  update(st => {
+    st.customPrograms = [...(st.customPrograms || []).filter(x => x.id !== prog.id), prog];
+    st.plan = tbPosition(prog, md.tbRaw.last || null); st.current = null;
+    const have = new Set((st.workouts || []).map(w => w.id));
+    st.workouts = [...(st.workouts || []), ...(md.workouts || []).filter(w => !have.has(w.id))].sort((a, b) => String(a.end).localeCompare(String(b.end)));
+    Object.entries(md.lifts || {}).forEach(([k, h]) => { if (!(st.lifts?.[k]?.length)) (st.lifts = st.lifts || {})[k] = h; });
+    if (md.profile && !st.profile) st.profile = md.profile;
+  });
+  return true;
+}
+const C_cloud = async () => (await import("../core.js")).cloud();
