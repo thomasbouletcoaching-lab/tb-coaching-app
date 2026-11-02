@@ -16,7 +16,9 @@ jobs:
         with:
           node-version: 22
       - name: Vérifier la syntaxe du JavaScript de l'app
-        run: node -e 'const s=require("fs").readFileSync("index.html","utf8");const all=[...s.matchAll(/<script>([\s\S]*?)<\/script>/g)];if(!all.length) throw new Error("aucun script");all.forEach(m=>new Function(m[1]));new Function(require("fs").readFileSync("sw.js","utf8"));console.log("syntaxe OK",all.length,"blocs")'
+        run: |
+          npx --yes esbuild@0.21.5 js/app.js --bundle --outfile=/tmp/app-check.js --format=esm --log-level=error
+          node -e 'new Function(require("fs").readFileSync("sw.js","utf8"));console.log("syntaxe OK")'
       - name: Installer les outils de test
         working-directory: tests
         run: npm install --no-audit --no-fund && npx playwright install --with-deps chromium
