@@ -85,6 +85,7 @@ function programBody(ns) {
     return `<button class="chip ${w === vw ? "on" : ""}" data-a="cy-week" data-v="${w}" style="${w === ns.week && w !== vw ? "box-shadow:0 0 0 2px var(--red) inset" : ""}">S${w}${all ? " ✓" : n ? ` ${n}/${p.s.length}` : ""}</button>`; }).join("");
   return `<div class="card grad mt12"><div class="lbl">🎯 Ton programme · cycle ${cyc}</div><h2 class="h2 mt4">${esc(p.name)}</h2>
       <p class="small mt8">Tu es en <b>semaine ${ns.week}</b> sur ${ns.weeks} · ${esc(ns.phase)}</p><div class="gauge mt8" style="background:rgba(255,255,255,.25)"><i style="width:${Math.round((ns.week - 1 + weekDone(ns.week) / p.s.length) / ns.weeks * 100)}%;background:#fff"></i></div></div>
+    ${(S().customPrograms || []).some(x => x.id === "tb-main") ? "" : `<button class="btn btn-line btn-sm mt8" style="width:100%" data-a="prog-restore">🔄 Restaurer mon programme TB my Coach</button>`}
     ${alerts.length ? `<div class="card mt12" style="box-shadow:0 0 0 2px var(--warn) inset"><div class="lbl">⚠️ Alertes blessure</div>${alerts.map(a => `<p class="small mt8" style="margin-bottom:0"><b>${esc(a.name)}</b> · ${a.count} fois en 3 semaines<br><span class="muted">${esc(a.last.note)}</span></p>`).join("")}<p class="xs muted mt8">Réduis la charge, change d'exercice (🔄 dans la séance) ou parles-en à Thomas. Si la douleur persiste, consulte un professionnel de santé.</p></div>` : ""}
     <h2 class="sec">🗓️ Mon cycle <small>touche une semaine</small></h2>
     <div class="chips">${chipsW}</div>
@@ -478,6 +479,16 @@ actions["chrono-ok"] = () => {
   clearInterval(CH.iv); const ex = S().current.exercises[CH.x], s = ex.sets[CH.s], sec = CH.el; CH = null;
   if (sec > 0) { s.reps = sec; if (!s.done) { s.done = true; startRest(ex.rest); } save(); buzz(18); }
   closeSheet(); rerender();
+};
+actions["prog-restore"] = async () => {
+  try {
+    const c = await cloud(); if (!c) return toast("Connecte-toi d'abord : Profil, puis Mon compte");
+    try { await c.ensureSession(); } catch { toast("Connecte-toi d'abord avec thomboulet@gmail.com (Profil, Mon compte)"); return go("account"); }
+    const { restoreMigrated } = await import("./account.js"), r = await restoreMigrated(true);
+    if (!r?.p) return toast("Aucun programme TB trouvé sur ce compte");
+    try { localStorage.setItem("cxs.progHeal", "2"); } catch { }
+    toast("Programme restauré : 5 séances, semaine " + (S().plan?.week || 1)); rerender();
+  } catch (e) { toast("Restauration impossible : " + e.message); }
 };
 actions["add-set"] = (b, d) => {
   const ex = S().current.exercises[+d.x];
