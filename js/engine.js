@@ -131,7 +131,9 @@ export function unitOf(name, kind) {
   if (/gainage|planche|plank|chaise contre|copenhagen|hollow|suspension|isom|L-sit|stretch|étirement|marche active|marche inclinée|vélo|rameur|corde à sauter|équilibre sur|tenu|porté|carry|farmers|spanish squat/i.test(name)) return "s";
   return "reps";
 }
-export const isBodyweight = (name) => { if (/lest/i.test(name)) return false; const x = exInfo(name); if (x?.eq) return ["Poids de corps", "Anneaux"].includes(x.eq); return BW.test(name); };
+export const isBodyweight = (name) => { if (/lest|assist/i.test(name)) return false; const x = exInfo(name); if (x?.eq) return ["Poids de corps", "Anneaux"].includes(x.eq); return BW.test(name); };
+// Exercice « assisté » (machine à dips/tractions assistée…) : la charge est l'AIDE, moins d'aide = progrès
+export const isAssisted = (name) => /assist/i.test(name || "");
 export function stepOf(name) { if (/lest/i.test(name)) return 1.25; if (/kettlebell/i.test(name)) return 4; if (/haltère/i.test(name)) return 2; return 2.5; }
 export const roundTo = (kg, step) => Math.max(0, Math.round(kg / step) * step);
 export const fmtKg = (kg) => (Math.round((kg || 0) * 100) / 100).toString().replace(".", ",");
@@ -237,7 +239,22 @@ export function snoozeStall(name, days = 21) { update(st => { st.stallSnooze = s
 export function lastPerformance(name) {
   const l = lastExercise(name); if (!l) return null;
   const s = l.ex.sets.filter(x => x.done && x.type !== "W");
+  if (isAssisted(name)) return s.length ? s.reduce((a, b) => ((b.kg || 0) < (a.kg || 0) || ((b.kg || 0) === (a.kg || 0) && b.reps > a.reps) ? b : a)) : null; // le moins d'aide, puis le plus de reps
   return s.length ? s.reduce((a, b) => (e1rm(b.kg, b.reps, b.rpe) > e1rm(a.kg, a.reps, a.rpe) ? b : a)) : null;
+}
+// Suggestion pour un exercice assisté : on ENLÈVE de l'aide quand c'est facile
+export function assistSuggestion(name, targetRpe = 8, hi = 10, step = 2.5) {
+  const l = lastExercise(name); if (!l) return null;
+  const work = l.ex.sets.filter(s => s.done && s.type !== "W" && s.kg != null);
+  if (!work.length) return null;
+  const avgRpe = work.reduce((a, s) => a + (s.rpe ?? s.trpe ?? 8), 0) / work.length, least = work.reduce((a, b) => ((b.kg || 0) < (a.kg || 0) ? b : a));
+  const allTop = work.every(s => s.reps >= hi);
+  let kg = least.kg, txt;
+  if (l.ex.sets.some(s => s.pain)) txt = "Douleur signalée la dernière fois : garde la même aide ou change d'exercice.";
+  else if (avgRpe >= targetRpe + 1) txt = `Plus dur que prévu (RPE ${fmtKg(avgRpe)} pour ${fmtKg(targetRpe)}) : garde ${fmtKg(kg)} kg d'aide, ou ajoute-en un peu.`;
+  else if (avgRpe <= targetRpe - 1 || allTop) { kg = Math.max(0, roundTo(least.kg - step, step)); txt = `Facile : retire de l'aide, passe à ${fmtKg(kg)} kg d'aide (moins d'aide = plus de force).`; }
+  else txt = `Dans la cible : garde ${fmtKg(kg)} kg d'aide et vise ${least.reps + 1} reps.`;
+  return { txt, kg, last: `${fmtKg(least.kg)} kg d'aide × ${least.reps} à RPE ${fmtKg(least.rpe ?? least.trpe ?? 8)}`, date: l.date };
 }
 // Suggestion pour la prochaine fois : compare le ressenti réel au ressenti prévu
 export function suggestion(name, targetRpe = 8, lo = 8, hi = 10, step = 2.5) {
@@ -267,7 +284,7 @@ export function buildSession(at = null) {
     const groups = parseScheme(scheme);
     const plan = row[5] && (Array.isArray(row[5].sets) || typeof row[5].sets === "number") ? weekPlan(row[5], week, p) : null;
     const unit = unitOf(name, kind), bw = isBodyweight(name) || unit === "s";
-    const e = bw ? 0 : currentE1rm(name), step = stepOf(name);
+    const e = bw || isAssisted(name) ? 0 : currentE1rm(name), step = stepOf(name);
     const prev = lastPerformance(name);
     const plannedTech = (row[5]?.tech) || [];
     const sets = [];
@@ -302,7 +319,8 @@ export function buildSession(at = null) {
       const top = sets[0].kg;
       [[.5, 8], [.7, 4], [.85, 2]].reverse().forEach(([f, r]) => sets.unshift({ g: -1, type: "W", kg: roundTo(top * f, step), reps: r, lo: r, hi: r, trpe: 5, rpe: null, pct: null, tech: [], note: "", done: false }));
     }
-    const sug = bw ? null : suggestion(name, groups.at(-1).rpe || 8, groups.at(-1).lo, groups.at(-1).hi, step);
+    const sug = bw ? null : isAssisted(name) ? assistSuggestion(name, groups.at(-1).rpe || 8, groups.at(-1).hi, step) : suggestion(name, groups.at(-1).rpe || 8, groups.at(-1).lo, groups.at(-1).hi, step);
+    if (isAssisted(name) && sug?.kg != null && prev) sets.forEach(x => { if (x.type !== "W" && x.kg === prev.kg) x.kg = sug.kg; });
     return { orig, name, kind, note: row[2] || "", ss: row[3] || null, tempo: plan?.tempo || row[4] || null, scheme, unit, bw, step, rest: (row[5]?.rest) || REST[kind] || 90, sets, e1: e, sug, myNote: "", off: !!plan && !plan.sets.length };
   }).filter(e => !e.off);
   return { id: Date.now(), programId: p.id, week, idx: ns.idx % p.s.length, cycle: ns.cycle, title: ns.title, phase: ns.phase, start: new Date().toISOString(), comeback, exercises };
@@ -311,11 +329,11 @@ export function freeSession(title = "Séance libre") {
   return { id: Date.now(), programId: null, free: true, week: S().plan?.week || 1, idx: null, title, phase: "Libre", start: new Date().toISOString(), comeback: false, exercises: [] };
 }
 export function blankExercise(name) {
-  const unit = unitOf(name, "X"), bw = isBodyweight(name) || unit === "s", e = bw ? 0 : currentE1rm(name), step = stepOf(name);
+  const unit = unitOf(name, "X"), bw = isBodyweight(name) || unit === "s", e = bw || isAssisted(name) ? 0 : currentE1rm(name), step = stepOf(name);
   const prev = lastPerformance(name);
-  const kg = bw ? null : prev?.kg ?? (e ? roundTo(loadFor(e, 8, 8), step) : null);
+  const kg = bw ? null : isAssisted(name) ? (assistSuggestion(name, 8, 12, step)?.kg ?? prev?.kg ?? null) : prev?.kg ?? (e ? roundTo(loadFor(e, 8, 8), step) : null);
   const sets = [0, 1, 2].map(() => ({ g: 0, type: "N", kg, reps: prev?.reps || 8, lo: 8, hi: 12, trpe: 8, rpe: null, pct: e && kg ? Math.round(kg / e * 100) : null, tech: [], note: "", done: false }));
-  return { orig: name, name, kind: "X", note: "", scheme: "3x8-12 RPE8", unit, bw, step, rest: 120, sets, e1: e, sug: bw ? null : suggestion(name, 8, 8, 12, step), myNote: "" };
+  return { orig: name, name, kind: "X", note: "", scheme: "3x8-12 RPE8", unit, bw, step, rest: 120, sets, e1: e, sug: bw ? null : isAssisted(name) ? assistSuggestion(name, 8, 12, step) : suggestion(name, 8, 8, 12, step), myNote: "" };
 }
 
 // Séance express (10, 20, 30 ou 45 min) : on garde les mouvements principaux, dans l'ordre du programme,
@@ -363,8 +381,8 @@ export function finishSession(cur) {
     cur.exercises.forEach(ex => {
       const done = ex.sets.filter(s => s.done && s.type !== "W");
       sets += done.length;
-      done.forEach(s => { if (s.kg && ex.unit === "reps") volume += s.kg * s.reps; });
-      if (ex.bw) return;
+      done.forEach(s => { if (s.kg && ex.unit === "reps" && !isAssisted(ex.name)) volume += s.kg * s.reps; });
+      if (ex.bw || isAssisted(ex.name)) return;
       const best = Math.max(0, ...done.filter(s => s.kg && s.reps && s.type !== "D").map(s => e1rm(s.kg, s.reps, s.rpe ?? s.trpe)));
       if (!best) return;
       const cur0 = currentE1rm(ex.name);
@@ -400,7 +418,7 @@ export function finishSession(cur) {
 // Corriger une séance faite : séries, charges, date ; ou la supprimer
 export function recomputeWorkout(w) {
   let volume = 0, sets = 0;
-  w.exercises.forEach(ex => { const done = ex.sets.filter(s => s.done && s.type !== "W"); sets += done.length; done.forEach(s => { if (s.kg && ex.unit === "reps") volume += s.kg * s.reps; }); });
+  w.exercises.forEach(ex => { const done = ex.sets.filter(s => s.done && s.type !== "W"); sets += done.length; done.forEach(s => { if (s.kg && ex.unit === "reps" && !isAssisted(ex.name)) volume += s.kg * s.reps; }); });
   w.volume = Math.round(volume); w.setsDone = sets; return w;
 }
 export function saveWorkout(w) { update(st => { const i = st.workouts.findIndex(x => x.id === w.id); if (i >= 0) st.workouts[i] = recomputeWorkout(w); st.workouts.sort((a, b) => a.end.localeCompare(b.end)); }); }
@@ -539,7 +557,7 @@ export function volumeStats(fromDate, toDate = today()) {
     let ton = 0, n = 0;
     w.exercises.forEach(ex => {
       const done = ex.sets.filter(s => s.done && s.type !== "W"); if (!done.length) return;
-      const t = done.reduce((a, s) => a + (ex.unit === "reps" && s.kg ? s.kg * s.reps : 0), 0);
+      const t = done.reduce((a, s) => a + (ex.unit === "reps" && s.kg && !isAssisted(ex.name) ? s.kg * s.reps : 0), 0);
       ton += t; n += done.length;
       const e = byExercise[ex.name] = byExercise[ex.name] || { sets: 0, ton: 0 }; e.sets += done.length; e.ton += t;
       musclesOf(ex.name).forEach((m, i) => { const v = byMuscle[m] = byMuscle[m] || { sets: 0, ton: 0 }; v.sets += done.length * (i === 0 ? 1 : .5); v.ton += i === 0 ? t : 0; });
