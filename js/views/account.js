@@ -91,7 +91,9 @@ export async function restoreMigrated() {
     const pos = tbPosition(prog, m.tbRaw.last || null);
     update(st => {
       st.customPrograms = [...(st.customPrograms || []).filter(x => x.id !== prog.id), prog];
-      if (!st.plan || !String(st.plan.programId || "").startsWith("tb-")) { st.plan = pos; st.current = null; }
+      // On remplace un plan vide ou un programme de la banque (onboarding), jamais le programme TB déjà en place ni un programme créé par le membre
+      const cur = st.plan?.programId, mine = (st.customPrograms || []).some(x => x.id === cur && x.id !== prog.id);
+      if (!st.plan || (cur !== prog.id && !mine)) { st.plan = pos; st.current = null; }
     });
     p = 1;
   }
