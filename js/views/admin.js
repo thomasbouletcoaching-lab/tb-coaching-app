@@ -248,7 +248,7 @@ function liveNowBlock() {
 }
 routes["admin-today"] = async () => {
   if (!(await guard("admin-today"))) return;
-  if (S().current?.mirror) update(st => { st.current = null; }); // séance d'un client restée ouverte
+  if (S().current?.mirror) { E.setHist(null); update(st => { st.current = null; }); } // séance d'un client restée ouverte
   try { LIVE_LIST = await (await cloud()).liveAll(); } catch { LIVE_LIST = []; }
   frame("admin-today", `${liveNowBlock()}${agendaBlock()}${todayBlock()}${todoBlock()}`, "Aujourd'hui");
 };

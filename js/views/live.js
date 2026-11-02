@@ -405,10 +405,11 @@ function enterMirror(id, state, stamp) {
   sessionStorage.removeItem("cxs.min");
   update(st => { st.current = { ...state.session, start: state.session.start || state.startedAt, mirror: { id } }; });
   MIRROR.quiet = false;
+  if (isCoach()) { E.setHist(null); cloud().then(c => c.memberData(id)).then(md => { if (MIRROR?.id === id && md?.data?.workouts) { E.setHist(md.data.workouts); if (R.route === "workout") rerender(); } }).catch(() => { }); }
   go("workout");
 }
 function leaveMirror(msg) {
-  clearInterval(MIRROR?.timer); clearTimeout(pushT); const id = MIRROR?.id; MIRROR = null;
+  clearInterval(MIRROR?.timer); clearTimeout(pushT); const id = MIRROR?.id; MIRROR = null; E.setHist(null);
   update(st => { st.current = null; });
   if (msg) toast(msg);
   if (isCoach()) go("member", id); else go("home");
@@ -474,7 +475,7 @@ actions.finish = async () => {
     return leaveMirror("Séance terminée");
   }
   const id = MIRROR.id; baseFinish();
-  if (!S().current) { clearInterval(MIRROR?.timer); MIRROR = null; try { const c = await cloud(); const r = await c.liveGet(id); await c.liveSet(id, { ...(r?.state || {}), ended: true, endedAt: nowIso() }); } catch { } LIVE_NOW = null; }
+  if (!S().current) { clearInterval(MIRROR?.timer); MIRROR = null; E.setHist(null); try { const c = await cloud(); const r = await c.liveGet(id); await c.liveSet(id, { ...(r?.state || {}), ended: true, endedAt: nowIso() }); } catch { } LIVE_NOW = null; }
 };
 actions.minimize = () => {
   if (MIRROR && S().current?.mirror && isCoach()) return leaveMirror();
