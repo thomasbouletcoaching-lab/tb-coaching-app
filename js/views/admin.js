@@ -66,7 +66,8 @@ function agendaRows(d) {
       out.push({ m, a, ip, name: first(m) });
     });
   });
-  try { const mine = E.agenda(d, d)[d]; if (mine && !["rest", "away"].includes(mine.st)) out.push({ me: true, a: { ...mine, time: mine.time || (mine.w?.[0] ? new Date(mine.w[0].start).toTimeString().slice(0, 5) : null) }, ip: !!S().current && d === today(), name: `${S().profile?.name || "Toi"} (toi)` }); } catch { }
+  // Le compte coach ne suit pas sa propre séance ici : ta séance perso est sur ton compte perso (membre)
+  if (false) try { const mine = E.agenda(d, d)[d]; if (mine && !["rest", "away"].includes(mine.st)) out.push({ me: true, a: { ...mine, time: mine.time || (mine.w?.[0] ? new Date(mine.w[0].start).toTimeString().slice(0, 5) : null) }, ip: !!S().current && d === today(), name: `${S().profile?.name || "Toi"} (toi)` }); } catch { }
   return out.sort((x, y) => (x.a.time || "99").localeCompare(y.a.time || "99") || x.name.localeCompare(y.name, "fr"));
 }
 const stLbl = (r) => r.ip ? ["⏱️ En cours", "ip"] : r.a.st === "done" ? ["✅ Faite", "dn"] : r.a.st === "missed" ? ["❌ Loupée", "ms"] : ["● Prévue", "pl"];
