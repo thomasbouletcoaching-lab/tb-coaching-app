@@ -334,6 +334,16 @@ actions["we-exdel"] = (b, d) => { if (!confirm("Retirer cet exercice de la séan
 actions["we-save"] = () => { weMove(); E.saveWorkout(wEdit); wEdit = null; closeSheet(); pushStats(); toast("Séance corrigée"); rerender(); };
 actions["w-del"] = (b, d) => { if (!confirm("Supprimer cette séance ? Ses séries seront effacées de ton historique.")) return; E.deleteWorkout(+d.id); wEdit = null; closeSheet(); pushStats(); toast("Séance supprimée"); rerender(); };
 actions["dur-change"] = () => durationSheet((min) => { update(st => st.current.target = min); rerender(); }, "Changer la durée");
+// Abandon : on s'est trompé de séance → rien n'est enregistré
+actions.abandon = () => {
+  const cur = S().current; if (!cur) return;
+  const done = cur.exercises.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0);
+  if (!confirm(done ? `Abandonner « ${cur.title} » ? ${done > 1 ? `Les ${done} séries déjà validées ne seront pas enregistrées.` : "La série déjà validée ne sera pas enregistrée."}` : `Abandonner « ${cur.title} » ?`)) return;
+  try { actions["rest-skip"]?.(); } catch { }
+  clearInterval(clockT); sessionStorage.removeItem("cxs.min");
+  update(st => { st.current = null; });
+  toast("Séance abandonnée"); go("home");
+};
 actions.resume = () => { sessionStorage.removeItem("cxs.min"); go("workout"); };
 actions.minimize = () => { sessionStorage.setItem("cxs.min", "1"); go("home"); };
 
@@ -342,7 +352,7 @@ routes.workout = async () => {
   await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
   sessionStorage.removeItem("cxs.min");
   const doneSets = cur.exercises.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0), all = cur.exercises.reduce((a, e) => a + e.sets.length, 0);
-  $app.innerHTML = `<header class="top"><div class="row1"><button class="icon-btn" data-a="minimize" aria-label="Réduire">${I.back}</button><h1 style="font-size:20px">${esc(cur.title)}</h1><button class="btn btn-red btn-sm" data-a="finish" style="width:auto">Terminer</button></div>
+  $app.innerHTML = `<header class="top"><div class="row1"><button class="icon-btn" data-a="minimize" aria-label="Réduire">${I.back}</button><h1 style="font-size:20px">${esc(cur.title)}</h1><button class="icon-btn" data-a="abandon" aria-label="Abandonner la séance" title="Abandonner la séance" style="font-size:18px">🗑️</button><button class="btn btn-red btn-sm" data-a="finish" style="width:auto">Terminer</button></div>
       <div class="sub">${cur.target ? `<button class="link" data-a="dur-change" style="color:inherit">⏳ <span id="clock">0:00</span></button>` : `⏱️ <span id="clock">0:00</span>`} · ${doneSets}/${all} séries${cur.free ? "" : ` · semaine ${cur.week} · ${esc(cur.phase)}`}</div>
       ${cur.target ? `<div class="tbar"><i id="tbar"></i></div><div class="xs" id="tpace" style="margin-top:4px"></div>` : ""}</header>
     <main class="page" style="padding-bottom:200px">
