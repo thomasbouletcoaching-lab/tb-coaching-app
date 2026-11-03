@@ -294,3 +294,32 @@ export async function liveAll() {
   const lim = Date.now() - 8 * 3600e3;
   return (data || []).filter(r => r.state && Object.keys(r.state).length && !r.state.ended && new Date(r.updated_at).getTime() > lim);
 }
+
+// Brouillons « Volume de la semaine » et seuils MV/MEV/MAV/MRV (table programme_drafts).
+// member_id = le membre concerné (soi-même pour son propre programme). Seul l'auteur lit et écrit ses brouillons ;
+// le membre lit en plus les seuils que son coach a réglés pour lui.
+export async function volDraftGet(memberId = null) {
+  if (!uid) await ensureSession();
+  const { data, error } = await sb.from("programme_drafts").select("name,status,data,updated_at").eq("owner", uid).eq("member_id", memberId || uid).eq("kind", "draft").maybeSingle();
+  if (error) throw error; return data || null;
+}
+export async function volDraftSet(memberId, name, data, status = "draft") {
+  if (!uid) await ensureSession();
+  const { error } = await sb.from("programme_drafts").upsert({ owner: uid, member_id: memberId || uid, kind: "draft", status, name, data, updated_at: new Date().toISOString() }, { onConflict: "owner,member_id,kind" });
+  if (error) throw error;
+}
+export async function volSeuilsGet(memberId = null) {
+  if (!uid) await ensureSession();
+  const m = memberId || uid;
+  const { data, error } = await sb.from("programme_drafts").select("owner,data,updated_at").eq("member_id", m).eq("kind", "seuils");
+  if (error) throw error;
+  const rows = data || [];
+  // Pour un membre : les seuils du coach priment sur les siens
+  const r = memberId ? rows.find(x => x.owner === uid) : (rows.find(x => x.owner !== uid) || rows.find(x => x.owner === uid));
+  return r?.data || null;
+}
+export async function volSeuilsSet(memberId, data) {
+  if (!uid) await ensureSession();
+  const { error } = await sb.from("programme_drafts").upsert({ owner: uid, member_id: memberId || uid, kind: "seuils", status: "publie", name: "Seuils de volume", data, updated_at: new Date().toISOString() }, { onConflict: "owner,member_id,kind" });
+  if (error) throw error;
+}

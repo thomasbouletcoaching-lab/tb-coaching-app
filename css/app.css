@@ -522,3 +522,27 @@ input,select,textarea{max-width:100%;min-width:0}
 @keyframes recpop{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
 @keyframes recbounce{50%{transform:translateY(-12px) scale(1.12)}}
 @media (prefers-reduced-motion:reduce){#rec-fx i{display:none}.tb-draw path{stroke-dashoffset:0;animation:none!important}}
+
+/* Volume de la semaine : jauges MV/MEV/MAV/MRV, compteurs de séries, répartition sur les jours */
+.vbar{position:relative;height:12px;border-radius:7px;background:var(--line);overflow:hidden;margin:6px 0 4px}
+.vbar.sm{height:8px}
+.vbar i{position:absolute;top:0;bottom:0}
+.vbar b{position:absolute;top:-1px;bottom:-1px;width:4px;margin-left:-2px;border-radius:2px;box-shadow:0 0 0 2px var(--paper)}
+.vg+.vg{border-top:1px solid var(--line);padding-top:10px}
+.vstep{display:flex;align-items:center;justify-content:space-between;gap:4px;border:1px solid var(--line);border-radius:10px;background:var(--input);min-height:42px;padding:0 4px}
+.vstep button{width:32px;height:32px;border-radius:8px;font-size:18px;font-weight:800;background:var(--btn2);color:inherit;border:0}
+.vstep b{min-width:22px;text-align:center}
+.vstep.sm{min-height:36px;padding:0 2px}
+.vstep.sm button{width:24px;height:28px;font-size:16px}
+.vdays{display:grid;gap:6px}
+.vday{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.vday .vstep{width:100%}
+.vtab{font-size:13px}
+.vtab-h,.vtab-r{display:grid;grid-template-columns:minmax(0,2.2fr) .7fr 1.2fr 1fr;gap:6px;align-items:start}
+.vtab-h{font-size:11.5px;color:var(--soft);font-weight:700;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.vtab-r{padding:8px 0;border-bottom:1px solid var(--line)}
+.vtab-r:last-child{border-bottom:0}
+.vtab-r .muted{font-size:11.5px}
+.vlm{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(5,minmax(0,1fr));gap:4px;align-items:center;font-size:12px}
+.vlm>span:not(.xs){text-align:center;color:var(--soft);font-weight:700}
+.vlm input{min-width:0;width:100%}

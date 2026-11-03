@@ -98,6 +98,7 @@ function programBody(ns) {
           ${se[2].map(e => `<div class="row between xs" style="padding:3px 0;gap:8px"><span class="grow muted">${esc(S().swaps[e[0]] || e[0])}</span><span style="white-space:nowrap">${esc(E.schemeFor(p, e, vw).replace(/x/i, "×"))}</span></div>`).join("")}
           ${blocked ? "" : isDone ? `<button class="link xs mt4" data-a="cy-do" data-w="${vw}" data-i="${i}">Refaire cette séance</button>` : `<button class="btn ${isNext ? "btn-red" : "btn-line"} btn-sm mt8" data-a="cy-do" data-w="${vw}" data-i="${i}">${cur ? "Reprendre ma séance en cours" : isNext ? "Commencer cette séance" : "Faire cette séance"}</button>`}</div>`; }).join("")}
       ${blocked ? `<button class="btn btn-red mt12" data-a="go" data-r="offers">🔓 Débloquer la semaine ${vw}</button>` : ""}</div>
+    <button class="btn btn-line btn-sm mt8" data-a="vol-mine" data-w="${vw}" style="width:100%">📊 Volume de la semaine par muscle</button>
     <button class="btn btn-line btn-sm mt8" data-a="free-session" style="width:100%">Séance libre (hors programme)</button>
 
     <h2 class="sec">📈 Ma surcharge progressive</h2>
@@ -830,6 +831,10 @@ routes.done = () => {
 // CRÉER SON PROGRAMME : séances, exercices, séries écrites une par une, règles de surcharge, cycle entier
 // =====================================================================
 let draft = null;
+// Accès au brouillon de l'éditeur pour l'écran « Volume de la semaine » (js/views/volume.js)
+export const builderDraft = () => draft;
+export function setBuilderDraft(p) { draft = p; }
+export const blankDraft = () => ({ id: "my-" + Date.now(), custom: true, name: "Mon programme", lvl: "Perso", split: "Perso", weeks: 8, deload: { every: 4 }, days: [true, false, true, false, true, false, false], s: [["Séance A", "Lundi", []]], prof: "", desc: "Programme créé par moi." });
 // Coach : ouvre l'éditeur complet du client (semaines, techniques, surcharge) sur le programme d'un membre
 export function openBuilderForMember(memberId, name, program) {
   const p = JSON.parse(JSON.stringify(program || { name: "Programme", s: [["Séance A", "Lundi", []]] }));
@@ -890,6 +895,7 @@ routes.builder = async () => {
         return `<div class="bd-ex"><div class="row" style="gap:6px;align-items:flex-start"><span class="num xs" style="width:18px;padding-top:3px">${ri + 1}</span><button class="grow" style="text-align:left" data-a="bd-edit" data-s="${si}" data-r="${ri}"><b class="small" style="color:var(--red)">${r[3] ? `[${esc(r[3])}] ` : ""}${esc(r[0])}</b><br><span class="xs">S1 : ${esc(E.setsTxt(E.weekPlan(x, 1, D).sets).replace(/x/g, "×") || "aucune série")}</span><br><span class="xs muted">${esc(rules)}</span></button>
           <div class="col" style="gap:4px"><button class="icon-btn sm" data-a="bd-rmv" data-s="${si}" data-r="${ri}" data-v="-1" aria-label="Monter" ${ri ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn sm" data-a="bd-rmv" data-s="${si}" data-r="${ri}" data-v="1" aria-label="Descendre" ${ri < se[2].length - 1 ? "" : "disabled style=\"opacity:.3\""}>↓</button></div></div></div>`; }).join("")}
       <button class="btn btn-line btn-sm mt12" data-a="bd-add" data-s="${si}" style="width:100%">+ Exercices</button></div>`).join("")}
+    <button class="btn btn-line mt12" style="width:100%" data-a="vol-open">🧮 Construire par volume hebdo (séries par muscle, MV → MRV)</button>
     <button class="btn btn-red mt12" style="width:100%" data-a="go" data-r="builder-weeks">📅 Écrire la séance semaine par semaine</button>
     <button class="btn btn-ghost mt12" data-a="bd-sadd">+ Ajouter une séance</button>
     <p class="xs muted mt12">Touche un exercice pour écrire ses séries, ses règles de surcharge et chaque semaine du cycle. Les charges en % se calculent sur ton 1RM estimé.</p>

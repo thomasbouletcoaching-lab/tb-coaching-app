@@ -26,7 +26,8 @@ hébergée **gratuitement** sur GitHub Pages.
   `onboarding` (questionnaire de démarrage), `push_subs` (abonnements aux notifications),
   `app_private` (secrets serveur, inaccessible depuis l'app),
   `coaches` (comptes coach), `subs` (formule de chaque inscrit libre : Gratuit, Premium, Coaching léger ; pas de ligne = client coaché, accès complet),
-  `app_flags` (inscriptions ouvertes ou non, prix affichés, paiement prêt).
+  `app_flags` (inscriptions ouvertes ou non, prix affichés, paiement prêt),
+  `programme_drafts` (brouillons « Volume de la semaine » et seuils MV/MEV/MAV/MRV par client ; seul l'auteur y a accès, le membre lit ses seuils).
 - Inscription libre : `self_start` crée le dossier personnel de l'inscrit (il en est le « coach ») ; en Coaching léger
   le dossier passe automatiquement chez le coach (déclencheur `subs_owner_sync`). Le coach active une formule à la main avec `coach_set_plan`.
 - Programme perso du client : stocké dans `carnet` (clé `pp` = ses séances, `pl-<séance>-<date>` = une séance faite).
@@ -83,3 +84,15 @@ en lieu sûr (Drive, iCloud), **jamais dans ce dépôt**.
 ## Revenir en arrière
 
 Onglet « Commits », puis choisir une version précédente : tout l'historique est conservé.
+
+## Volume de la semaine (programmer par volume hebdomadaire)
+
+- Dans l'éditeur de programme (coach ou client) : « 🧮 Construire par volume hebdo ».
+  1. **Exercices** : tout le travail de la semaine, en séries ou en tonnage visé, avec reps et intensité (RPE, % 1RM, kg ou lest).
+  2. **Volume** : séries par muscle et par faisceau (direct = 1, secondaire = 0,5) face aux repères MV / MEV / MAV / MRV,
+     tableau des mouvements de force (séries, charge, tonnage). Seuils réglables pour le programme ou, côté coach, pour le client.
+  3. **Jours** : répartition des séries sur les jours (proposition automatique facultative), contrôles non bloquants,
+     puis « Créer les séances du programme ».
+- Côté client, onglet Programme : « 📊 Volume de la semaine par muscle ».
+- Moteur : `js/volume.js` (pur, testé par `node --test tests/volume.test.mjs`) ; écran : `js/views/volume.js` ;
+  détail dans `docs/spec-volume-hebdo.md`.
