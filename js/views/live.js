@@ -456,13 +456,22 @@ async function mergeClientProgress() {
   try { await pushMirror(); } catch { }
   rerender();
 }
+// Client : arrête seulement le partage en direct et garde la séance sur le téléphone (elle ne disparaît pas).
+// Le partage repart à la prochaine ouverture de la séance (routes.workout).
+function detachMirror() {
+  clearInterval(MIRROR?.timer); clearTimeout(pushT); MIRROR = null; E.setHist(null);
+  update(st => { if (st.current) delete st.current.mirror; });
+}
 async function pollMirror() {
   if (!MIRROR || R.route !== "workout" || !S().current?.mirror) { clearInterval(MIRROR?.timer); return; }
   if (DRAG || document.querySelector(".sheet-wrap, input:focus, textarea:focus, select:focus")) return;
   try {
     const r = await (await cloud()).liveGet(MIRROR.id);
     if (!r?.state || r.state.ended) {
-      if (!isCoach() && S().current.exercises.some(e => e.sets.some(x => x.done))) { const cur = S().current; E.finishSession(cur); MIRROR = null; clearInterval(0); toast("Thomas a terminé la séance : elle est enregistrée"); return go("done"); }
+      if (!isCoach()) {
+        if (S().current.exercises.some(e => e.sets.some(x => x.done))) { const cur = S().current; E.finishSession(cur); MIRROR = null; clearInterval(0); toast("Thomas a terminé la séance : elle est enregistrée"); return go("done"); }
+        return detachMirror();
+      }
       return leaveMirror("Séance terminée");
     }
     if (isCoach()) await mergeClientProgress();
