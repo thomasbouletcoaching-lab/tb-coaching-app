@@ -253,7 +253,7 @@ routes["admin-today"] = async () => {
   // Séance terminée par le client sur son téléphone : sa copie serveur n'a plus de séance en cours et est plus récente → on la retire (et on la clôt)
   LIVE_LIST = LIVE_LIST.filter(r => {
     const s = A.sums?.[r.user_id], at = A.snapAt?.[r.user_id];
-    if (s && at && !s.inProgress && new Date(at) > new Date(r.updated_at) && Date.now() - new Date(r.updated_at) > 3 * 60000) {
+    if (s && at && !s.inProgress && s.session?.st === "done" && new Date(at) > new Date(r.updated_at) && Date.now() - new Date(r.updated_at) > 3 * 60000) {
       cloud().then(c => c.liveSet(r.user_id, { ...r.state, ended: true, endedAt: new Date().toISOString() })).catch(() => { });
       return false;
     }
