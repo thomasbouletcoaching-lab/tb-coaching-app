@@ -128,12 +128,27 @@ function bankList() {
     .filter(p => !BF.pub || (p.pub || ["Tous"]).includes(BF.pub)).filter(p => !BF.dur || (p.dur || 60) === BF.dur)
     .filter(p => !BF.days || p.days.filter(Boolean).length === BF.days).filter(p => !q || (p.name + " " + (p.prof || "") + " " + (p.cat || "")).toLowerCase().includes(q));
 }
+// Programmes que l'utilisateur a créés lui-même (pas celui du coach, ni ceux envoyés à un membre)
+const myOwnPrograms = () => (S().customPrograms || []).filter(p => p.id !== "tb-main" && !p.forMember);
+let bankView = null;
+actions["bank-view"] = (b, d) => { bankView = d.v; rerender(); window.scrollTo(0, 0); };
 function bankBody() {
-  const mine = S().customPrograms || [], l = bankList(), all = E.programs().filter(p => !p.custom && !p.lib);
+  const view = bankView || (myOwnPrograms().length ? "mine" : "bank");
+  const top = `<div class="mt12">${seg([["mine", "Mes programmes"], ["bank", "La banque"], ["done", "Historique"]], view, "bank-view")}</div>`;
+  if (view === "mine") return top + myProgramsBody();
+  if (view === "done") return top + doneProgramsBody();
+  return top + bankOnlyBody();
+}
+function myProgramsBody() {
+  const mine = myOwnPrograms();
+  return `<p class="small muted mt12">Les programmes que tu crées toi-même : tu les consultes, tu les modifies, tu les démarres quand tu veux.</p>
+    <button class="card tap mt8" data-a="go" data-r="builder" style="display:flex;align-items:center;gap:12px"><span style="font-size:28px">✏️</span><span class="grow"><b>Créer mon programme</b><br><span class="small muted">Tes séances, tes séries, ta progression${premium() ? "" : " · 1 programme en gratuit"}</span></span>${I.chev}</button>
+    ${mine.length ? mine.map(pg => progCard(pg, true)).join("") : `<div class="card mt12"><h3 class="h3">Ton premier programme</h3><p class="small muted mt4">Crée tes séances (exercices, séries, progression) puis assemble-les en programme. Tu peux aussi partir d'un programme de la banque : « Personnaliser » en fait une copie que tu modifies à ta façon.</p><button class="btn btn-line btn-sm mt8" data-a="bank-view" data-v="bank">Voir la banque</button></div>`}`;
+}
+function bankOnlyBody() {
+  const l = bankList(), all = E.programs().filter(p => !p.custom && !p.lib);
   const sel = (k, opts, lab) => `<label class="field"><span>${lab}</span><select data-c="bf" data-k="${k}">${opts.map(([v, t]) => `<option value="${v}" ${String(BF[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`;
   return `<p class="small muted mt12">${all.length} programmes de ${esc(CONFIG.coachName)}. Changer de programme repart en semaine 1 ; tes charges sont conservées.</p>
-    <button class="card tap mt8" data-a="go" data-r="builder" style="display:flex;align-items:center;gap:12px"><span style="font-size:28px">✏️</span><span class="grow"><b>Créer mon programme</b><br><span class="small muted">Tes séances, tes séries, ta progression</span></span>${I.chev}</button>
-    ${mine.length ? `<h2 class="sec">Mes programmes</h2>${mine.map(pg => progCard(pg, true)).join("")}` : ""}
     ${E.extra.programs.length ? `<h2 class="sec">Nouveaux programmes de Thomas</h2>${E.extra.programs.map(pg => progCard(pg)).join("")}` : ""}
     <h2 class="sec">🗂️ La banque</h2>
     <div class="catgrid">${BCATS.map(c => `<button class="chip ${BF.cat === c ? "on" : ""}" data-a="bf-cat" data-v="${esc(c)}">${BCAT_E[c]} ${esc(c)} <span class="muted xs">${all.filter(p => p.cat === c).length}</span></button>`).join("")}</div>
@@ -154,7 +169,7 @@ function progCard(pg, mine = false) {
   const open = programOpen(pg.id), cur = pg.id === S().plan?.programId;
   return `<div class="card ${cur ? "hl" : ""} mt8"><div class="row between"><span>${cur ? '<span class="tag r">En cours</span>' : ""}<span class="tag">${esc(pg.lvl || "Perso")}</span><span class="tag">${pg.days.filter(Boolean).length} j</span>${pg.dur ? `<span class="tag">⏱️ ${pg.dur} min</span>` : ""}${pg.cat ? `<span class="tag">${BCAT_E[pg.cat] || ""} ${esc(pg.cat)}</span>` : ""}</span>${open ? "" : `<span class="lock">🔒 Premium</span>`}</div>
     <h3 class="h3 mt8">${esc(pg.name)}</h3>${pg.prof ? `<p class="small muted mt4">${esc(pg.prof)}</p>` : ""}${pg.equip?.length ? `<p class="xs muted" style="margin:2px 0 0">Matériel : ${esc(pg.equip.join(", "))}</p>` : ""}<button class="link xs mt4" data-a="pg-see" data-id="${pg.id}">Voir les séances</button>
-    <div class="row mt8" style="gap:8px">${cur ? "" : open ? `<button class="btn btn-line btn-sm" data-a="set-program" data-id="${pg.id}">Choisir</button>` : `<button class="btn btn-line btn-sm" data-a="go" data-r="offers">Débloquer</button>`}${mine ? `<button class="btn btn-ghost btn-sm" data-a="go" data-r="builder" data-p="${pg.id}">Modifier</button>` : `<button class="btn btn-ghost btn-sm" data-a="bd-copy" data-id="${pg.id}">Personnaliser</button>`}</div></div>`;
+    <div class="row mt8" style="gap:8px">${cur ? "" : open ? `<button class="btn btn-line btn-sm" data-a="set-program" data-id="${pg.id}">${mine ? "Démarrer" : "Choisir"}</button>` : `<button class="btn btn-line btn-sm" data-a="go" data-r="offers">Débloquer</button>`}${mine ? `<button class="btn btn-ghost btn-sm" data-a="go" data-r="builder" data-p="${pg.id}">Modifier</button>` : `<button class="btn btn-ghost btn-sm" data-a="bd-copy" data-id="${pg.id}">Personnaliser</button>`}</div></div>`;
 }
 actions["pg-see"] = (b, d) => { const p = E.program(d.id); if (!p) return;
   sheet(`<h2 class="h2">${esc(p.name)}</h2>${p.desc ? `<p class="small muted mt4">${esc(p.desc)}</p>` : ""}${p.s.map(se => `<div class="card mt12"><div class="row between"><b>${esc(se[0])}</b><span class="xs muted">${esc(se[1] || "")}</span></div>${se[2].map(e => `<div class="row between xs" style="padding:3px 0;gap:8px"><span class="grow muted">${esc(e[0])}</span><span style="white-space:nowrap">${esc(E.schemeFor(p, e, 1).replace(/x/i, "×"))}</span></div>`).join("")}</div>`).join("")}
@@ -167,6 +182,51 @@ actions["set-program"] = (b, d) => {
   update(st => st.plan = { programId: d.id, startedAt: today(), week: 1, idx: 0, cycle: 1 });
   tab = "programme"; closeSheet(); toast("Programme changé"); pushStats(); routes.train();
 };
+
+// ---------- Historique des programmes faits : un « passage » = un programme suivi d'affilée ----------
+function programRuns() {
+  const ws = S().workouts.filter(w => !w.free && w.programId && w.end).slice().sort((x, y) => new Date(x.end) - new Date(y.end));
+  const runs = [];
+  ws.forEach(w => {
+    // Même programme et même cycle = même passage, sauf retour à la semaine 1 après avoir avancé (programme recommencé)
+    const r = runs.at(-1), restart = r && (w.week || 1) === 1 && Math.max(...r.ws.map(x => x.week || 1)) >= 2;
+    if (r && r.programId === w.programId && r.cycle === (w.cycle || 1) && !restart) { r.ws.push(w); r.last = w.end; }
+    else runs.push({ programId: w.programId, cycle: w.cycle || 1, ws: [w], first: w.start || w.end, last: w.end });
+  });
+  const pl = S().plan, curRun = runs.length && pl && runs.at(-1).programId === pl.programId && runs.at(-1).cycle === (pl.cycle || 1) ? runs.length - 1 : -1;
+  return runs.map((r, i) => {
+    const p = E.program(r.programId), weeks = p ? E.weeksOf(p) : null, wk = Math.max(...r.ws.map(w => w.week || 1));
+    return { ...r, i, p, name: p?.name || "Programme supprimé", weeks, wk, current: i === curRun, done: weeks != null && wk >= weeks,
+      sets: r.ws.reduce((a, w) => a + (w.setsDone || 0), 0), vol: r.ws.reduce((a, w) => a + (w.volume || 0), 0), recs: r.ws.reduce((a, w) => a + (w.records?.length || 0), 0) };
+  }).reverse();
+}
+const runDates = (r) => `${fmtDate(r.first, { day: "numeric", month: "short", year: "numeric" })} → ${fmtDate(r.last, { day: "numeric", month: "short", year: "numeric" })}`;
+function doneProgramsBody() {
+  const runs = programRuns();
+  if (!runs.length) return `<p class="empty mt12">Tes programmes terminés apparaîtront ici, avec tes séances et tes performances.</p>`;
+  return `<p class="small muted mt12">Chaque programme que tu as suivi, avec ce que tu as accompli. Touche-en un pour revoir les séances et tes charges.</p>
+    <div class="list mt8">${runs.map(r => `<button class="li" data-a="run-see" data-i="${r.i}"><span class="em">${r.current ? "▶️" : r.done ? "✅" : "⏸️"}</span><span class="grow"><b>${esc(r.name)}</b><br><span class="xs muted">${r.current ? "En cours · " : ""}${runDates(r)}</span><br><span class="xs muted">${r.ws.length} séance${r.ws.length > 1 ? "s" : ""} · ${fr((r.vol / 1000), 1)} t · semaine ${r.wk}${r.weeks ? "/" + r.weeks : ""}${r.recs ? ` · ${r.recs} record${r.recs > 1 ? "s" : ""}` : ""}</span></span>${I.chev}</button>`).join("")}</div>`;
+}
+actions["run-see"] = (b, d) => {
+  const r = programRuns().find(x => x.i === +d.i); if (!r) return;
+  // performances par exercice : meilleure série (e1RM) et évolution entre la première et la dernière séance où il apparaît
+  const ex = {};
+  r.ws.forEach(w => (w.exercises || []).forEach(e => {
+    const sets = (e.sets || []).filter(x => x.done && x.type !== "W" && x.kg && x.reps && e.unit === "reps");
+    if (!sets.length) return;
+    const top = sets.reduce((m, x) => e1rmOf(x) > e1rmOf(m) ? x : m), o = ex[e.name] = ex[e.name] || { first: null, best: null };
+    const v = { kg: top.kg, reps: top.reps, e: e1rmOf(top) };
+    if (!o.first) o.first = v; o.last = v; if (!o.best || v.e > o.best.e) o.best = v;
+  }));
+  const rows = Object.entries(ex).sort((a, b) => b[1].best.e - a[1].best.e);
+  const recs = r.ws.flatMap(w => (w.records || []).map(x => ({ n: x.name, v: Math.round(x.after) }))).reduce((m, x) => (m[x.n] = Math.max(m[x.n] || 0, x.v), m), {});
+  sheet(`<h2 class="h2">${esc(r.name)}</h2><p class="small muted mt4">${runDates(r)}${r.current ? " · en cours" : ""}</p>
+    <div class="card mt12"><div class="stat3"><div><b>${r.ws.length}</b><span>séance${r.ws.length > 1 ? "s" : ""}</span></div><div><b>${fr(r.vol / 1000, 1)} t</b><span>volume total</span></div><div><b>${fr(r.sets)}</b><span>séries</span></div></div></div>
+    ${rows.length ? `<h3 class="sec">Tes performances</h3><div class="card">${rows.slice(0, 15).map(([n, o]) => { const diff = Math.round(o.last.e - o.first.e); return `<div class="row between small" style="padding:6px 0;border-bottom:1px solid var(--line);gap:8px"><span class="grow">${esc(n)}<br><span class="xs muted">${diff && o.first !== o.last ? `${kgTxt(o.first.kg)} kg × ${o.first.reps} → ${kgTxt(o.last.kg)} kg × ${o.last.reps}` : "une seule séance"}</span></span><span style="white-space:nowrap;text-align:right"><b>${kgTxt(o.best.kg)} kg × ${o.best.reps}</b>${o.first !== o.last ? `<br><span class="xs ${diff >= 0 ? "" : "muted"}" style="color:${diff > 0 ? "var(--ok, #2f8f4e)" : "inherit"}">${diff > 0 ? "+" : ""}${diff} kg estimés</span>` : ""}</span></div>`; }).join("")}</div><p class="xs muted mt8">Meilleure série de chaque exercice. L'évolution compare la première et la dernière séance, en 1RM estimé.</p>` : ""}
+    ${Object.keys(recs).length ? `<h3 class="sec">Records battus</h3><div class="card">${Object.entries(recs).map(([n, v]) => `<div class="row between small"><span>🏆 ${esc(n)}</span><b>${v} kg</b></div>`).join("")}</div>` : ""}
+    <h3 class="sec">Séances</h3><div class="list">${r.ws.slice().reverse().map(w => `<button class="li" data-a="ag-day" data-v="${today(new Date(w.end))}"><span class="grow"><b>${esc(w.title)}</b><br><span class="xs muted">${fmtDate(w.end, { weekday: "short", day: "numeric", month: "short" })} · semaine ${w.week || 1} · ${w.setsDone || 0} séries · ${fr((w.volume || 0) / 1000, 1)} t</span></span></button>`).join("")}</div>`);
+};
+const e1rmOf = (x) => E.e1rm(x.kg, x.reps, x.rpe ?? x.trpe);
 
 function historyBody() {
   const ws = S().workouts.slice().reverse();
