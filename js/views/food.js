@@ -16,7 +16,7 @@ import { memosCard } from "./vocal.js";
 
 let tab = "journal", day = null, mode = "journal";
 const TABS = [["journal", "🍽️ Journal"], ["favoris", "⭐ Mes aliments"], ["plan", "📋 Mon plan"], ["semaine", "🗓️ Semaine type"], ["recettes", "👩‍🍳 Recettes"], ["batch", "🥡 Batch cooking"], ["complements", "💊 Compléments"], ["budget", "🛒 Courses et budget"]];
-const MODES = [["journal", "Journal"], ["explorer", "Explorer"], ["savoir", "Connaissances"]];
+const MODES = [["journal", "Journal"], ["depense", "Dépense"], ["explorer", "Explorer"], ["savoir", "Savoir"]];
 const D = () => day || today();
 const FREE_RECIPES = 10;
 const recipeOpen = (r) => premium() || r.mine || RC.RECIPES.indexOf(r) < FREE_RECIPES;
@@ -29,15 +29,15 @@ N.setDayKind((d) => { const a = E.agenda(d, d)[d]; return a && ["done", "planned
 
 routes.food = async () => {
   await Promise.all([N.loadModels(), E.loadPrograms()]); N.loadCiqual().catch(() => { });
-  // anciens onglets, déplacés : jeûne → Récupération, dépense et corps → Profil
+  // anciens onglets, déplacés : jeûne → Récupération, corps → Profil ; la dépense est de retour ici (Nutrition → Dépense)
   if (R.param === "jeune") return go("recup");
-  if (R.param === "depense") return go("moncorps");
   if (R.param === "corps") return go("body");
-  if (R.param === "explorer" || R.param === "savoir") mode = R.param;
+  if (R.param === "explorer" || R.param === "savoir" || R.param === "depense") mode = R.param;
   else if (R.param && TABS.some(t => t[0] === R.param)) { tab = R.param; mode = "journal"; }
   const t = N.dayTarget(D()), t0 = N.targets();
   let body;
-  if (mode === "explorer") body = exploreBody();
+  if (mode === "depense") { day = null; body = ML.balanceCard(lineChart) + burnBody(); }
+  else if (mode === "explorer") body = exploreBody();
   else if (mode === "savoir") body = await kbSection("nutri");
   else if (tab === "journal") body = journalBody(t);
   else if (tab === "favoris") body = favBody();
