@@ -596,9 +596,11 @@ actions["fast-start"] = (b, d) => {
 actions["fast-stop"] = () => { update(st => { st.fasts = [...(st.fasts || []), { ...st.fast, end: new Date().toISOString() }].slice(-60); st.fast = null; }); toast("Jeûne terminé. Bon appétit !"); rerender(); };
 
 // ---------- Dépense calorique ----------
+// Pas réellement faits : même champ que la routine de l'accueil (daily[jour].steps), qui alimente le NEAT
+const stepsCard = (d, b) => `<div class="card mt12"><div class="rt" style="margin:0"><span class="em">👣</span><div class="grow"><b>Pas faits</b><div class="small muted">${b.totalSteps ? `≈ ${fr(EN.stepsKcal(b.steps))} kcal dans ton NEAT` : `objectif ${fr(S().profile?.stepsGoal || 8000)}`}</div></div><input class="inp" inputmode="numeric" placeholder="pas" value="${S().daily?.[d]?.steps ?? ""}" data-c="routine" data-k="steps" data-d="${d}" aria-label="Nombre de pas réellement faits"></div><p class="xs muted" style="margin:8px 0 0">Reprends le chiffre de l'app Santé de ton téléphone en fin de journée. Sans saisie, seul le NEAT de base (ton mode de vie) est compté.</p></div>`;
 export function burnBody() {
   const d = D(), b = EN.breakdown(d), bn = EN.burnedNow(d), p = S().profile, t = N.targets();
-  if (!premium()) return `<div class="card mt12"><div class="lbl">🔥 Brûlées aujourd'hui</div><b class="num" style="font-size:34px">${fr(bn.now)} kcal</b><p class="small muted">à cette heure, sur environ ${fr(bn.total)} kcal prévues</p></div>
+  if (!premium()) return `<div class="card mt12"><div class="lbl">🔥 Brûlées aujourd'hui</div><b class="num" style="font-size:34px">${fr(bn.now)} kcal</b><p class="small muted">à cette heure, sur environ ${fr(bn.total)} kcal prévues</p></div>${stepsCard(d, b)}
     <div class="card mt12 locked" style="position:relative;min-height:240px"><h3 class="h3">Le calcul complet</h3><p class="small muted">Métabolisme de base, NEAT (pas et mouvements), EAT (séances et cardio), effet thermique des aliments, TDEE.</p>${lockVeil("Bâtisseur", "Le détail de ta dépense et l'ajout de ton cardio.")}</div>`;
   const stepTxt = b.activitySteps ? `${fr(b.steps)} pas hors activité (${fr(b.totalSteps)} au total, dont ${fr(b.activitySteps)} déjà comptés dans ton sport)` : `${fr(b.steps)} pas`;
   const rows = [["MB", "Métabolisme de base", b.bmr, `L'énergie pour vivre au repos : cœur, cerveau, organes (${EN.bmrMethod()}).`],
@@ -612,7 +614,7 @@ export function burnBody() {
   const sportMin = days.reduce((x, k) => x + (S().daily[k]?.cardio || []).reduce((y, c) => y + c.min, 0), 0);
   const wkKcal = days.reduce((x, k) => { const bb = EN.breakdown(k); return x + bb.eat; }, 0);
   const opts = ["Cardio", "Sport"].map(cat => `<optgroup label="${cat === "Cardio" ? "Cardio" : "Sports"}">${EN.CARDIO.map((c, i) => c[3] === cat ? `<option value="${i}">${c[0]}</option>` : "").join("")}</optgroup>`).join("");
-  return `<div class="card grad mt12"><div class="lbl">🔥 TDEE · dépense totale du jour</div><b class="num" style="font-size:40px">${fr(b.tdee)} kcal</b><p class="small" style="margin:4px 0 0">dont ${fr(bn.now)} kcal déjà brûlées à cette heure · mangé : ${fr(b.intake)} kcal</p><p class="small" style="margin:4px 0 0"><b>${b.intake - b.tdee > 0 ? "Surplus" : "Déficit"} estimé : ${fr(Math.abs(b.intake - b.tdee))} kcal</b></p></div>
+  return `<div class="card grad mt12"><div class="lbl">🔥 TDEE · dépense totale du jour</div><b class="num" style="font-size:40px">${fr(b.tdee)} kcal</b><p class="small" style="margin:4px 0 0">dont ${fr(bn.now)} kcal déjà brûlées à cette heure · mangé : ${fr(b.intake)} kcal</p><p class="small" style="margin:4px 0 0"><b>${b.intake - b.tdee > 0 ? "Surplus" : "Déficit"} estimé : ${fr(Math.abs(b.intake - b.tdee))} kcal</b></p></div>${stepsCard(d, b)}
     <div class="card mt12">${rows.map(([k, l, v, tx]) => `<div class="mt8"><div class="row between"><span><b>${k}</b> · <span class="small">${l}</span></span><b class="num">${fr(v)}</b></div><div class="gauge mt4"><i style="width:${Math.round(v / b.tdee * 100)}%"></i></div><p class="xs muted" style="margin:4px 0 0">${tx}</p></div>`).join("")}</div>
 
     <h2 class="sec">🏋️ Musculation du jour</h2>
