@@ -546,3 +546,12 @@ input,select,textarea{max-width:100%;min-width:0}
 .vlm{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(5,minmax(0,1fr));gap:4px;align-items:center;font-size:12px}
 .vlm>span:not(.xs){text-align:center;color:var(--soft);font-weight:700}
 .vlm input{min-width:0;width:100%}
+/* Split : fréquence par muscle (muscle × jour) */
+.vfreq{display:grid;gap:3px;align-items:center;font-size:12px}
+.vfreq .h{text-align:center;color:var(--soft);font-weight:700;font-size:11px}
+.vfreq .m{font-size:11.5px;line-height:1.2;overflow:hidden;text-overflow:ellipsis}
+.vfreq .c{text-align:center;border-radius:6px;min-height:24px;display:flex;align-items:center;justify-content:center;background:var(--line);font-weight:700;color:var(--soft)}
+.vfreq .c.p{background:#1E8F4E33;color:inherit}
+.vfreq .c.f{background:none}
+.vfreq .c.f.ok{color:#1E8F4E}
+.vfreq .c.f.lo{color:#E07B1F}

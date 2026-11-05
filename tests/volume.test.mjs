@@ -99,3 +99,38 @@ test("lecture d'un programme existant", () => {
   assert.equal(lines.length, 1); assert.equal(lines[0].sets, 3);
   assert.deepEqual(lines[0].split, { 0: 2, 3: 1 }); assert.deepEqual(lines[0].it, { t: "pct", v: 80 });
 });
+
+test("split : semaines types et jours prévus par muscle", () => {
+  const { days, plan } = V.applyPreset("ppl6");
+  assert.deepEqual(days, [true, true, true, true, true, true, false]);
+  assert.equal(V.splitName(plan, 0), "Push"); assert.equal(V.splitName(plan, 2), "Legs");
+  const bench = L("Développé couché barre", 8), squat = L("Squat barre", 6), trac = L("Traction lestée", 9);
+  assert.deepEqual(V.targetDays(bench, days, plan, musclesOf).days, [0, 3]);
+  assert.deepEqual(V.targetDays(squat, days, plan, musclesOf).days, [2, 5]);
+  const res = V.distributeBySplit([bench, squat, trac], days, plan, { musclesOf });
+  assert.deepEqual(res[0], { 0: 4, 3: 4 }); assert.deepEqual(res[1], { 2: 3, 5: 3 }); assert.deepEqual(res[2], { 1: 5, 4: 4 });
+});
+
+test("split : mouvement imposé sur un jour, faisceau choisi jour par jour", () => {
+  const days = [true, true, false, true, false, false, false];
+  const heavy = { ...L("Développé couché barre", 3), lbl: "lourd" }, vol = L("Développé couché barre", 6);
+  const plan = { 0: { t: "perso", f: ["Pecs-milieu", "Quadriceps"], pins: [heavy.id] }, 1: { t: "perso", f: ["Triceps", "Ischios", "Dos-épaisseur"], pins: [] }, 3: { t: "perso", f: ["Pecs-milieu"], pins: [] } };
+  const res = V.distributeBySplit([heavy, vol], days, plan, { musclesOf });
+  assert.deepEqual(res[0], { 0: 3 }, "la ligne imposée reste le lundi");
+  assert.deepEqual(res[1], { 0: 3, 3: 3 }, "le volume suit les jours du split");
+  const row = L("Traction lestée", 4); // Dos-largeur : pas au split → muscle Dos (épaisseur, mardi)
+  assert.deepEqual(V.targetDays(row, days, plan, musclesOf), { days: [1], why: "muscle" });
+  assert.equal(V.lineName(heavy), "Développé couché barre · lourd");
+});
+
+test("split : récupération, muscle oublié, exercice hors split", () => {
+  const days = [true, true, false, false, false, false, false];
+  const plan = { 0: { t: "perso", f: ["Quadriceps"], pins: [] }, 1: { t: "perso", f: ["Quadriceps", "Mollets"], pins: [] } };
+  const lines = [L("Squat barre", 8, { split: { 0: 4, 1: 4 } }), L("Élévations latérales", 6)];
+  const msgs = V.splitChecks(lines, days, plan, { musclesOf }).map(m => m.txt).join("\n");
+  assert.match(msgs, /Quadriceps : travaillé Lundi puis Mardi/);
+  assert.match(msgs, /Prévu au split mais aucun exercice ne le travaille : Mollets/);
+  assert.match(msgs, /Élévations latérales : aucun jour du split/);
+  const F = V.frequency(lines, days, plan, { musclesOf });
+  assert.equal(F.quad.freq, 2); assert.deepEqual(F.quad.planned, [0, 1]);
+});

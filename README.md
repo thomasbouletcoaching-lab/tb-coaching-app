@@ -91,7 +91,9 @@ Onglet « Commits », puis choisir une version précédente : tout l'historique 
   1. **Exercices** : tout le travail de la semaine, en séries ou en tonnage visé, avec reps et intensité (RPE, % 1RM, kg ou lest).
   2. **Volume** : séries par muscle et par faisceau (direct = 1, secondaire = 0,5) face aux repères MV / MEV / MAV / MRV,
      tableau des mouvements de force (séries, charge, tonnage). Seuils réglables pour le programme ou, côté coach, pour le client.
-  3. **Jours** : répartition des séries sur les jours (proposition automatique facultative), contrôles non bloquants,
+  3. **Split** : quel jour pour quel muscle ou faisceau (semaines types PPL, Upper/Lower, antérieure/postérieure…),
+     mouvements imposés par jour (ex. bench lourd le lundi), tableau de fréquence par muscle.
+  4. **Jours** : répartition des séries selon le split (ou proposition automatique), ajustable à la main, contrôles non bloquants,
      puis « Créer les séances du programme ».
 - Côté client, onglet Programme : « 📊 Volume de la semaine par muscle ».
 - Moteur : `js/volume.js` (pur, testé par `node --test tests/volume.test.mjs`) ; écran : `js/views/volume.js` ;

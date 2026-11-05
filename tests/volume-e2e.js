@@ -54,11 +54,32 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   ok(/Pectoral haut/.test(await txt('#app')) && /Pectoral milieu/.test(await txt('#app')), 'détail par faisceau');
   ok(/Développé couché barre/.test(await txt('.vtab')), 'tableau des mouvements de force');
 
+  // Variante : bench lourd + bench volume
+  await p.click('[data-a="vol-tab"][data-v="ex"]'); await p.waitForTimeout(200);
+  await p.click('[data-a="vol-dup"][data-l="0"]'); await p.waitForTimeout(300);
+  ok((await p.$$('[data-a="vol-del"]')).length === 4 && /Développé couché barre · lourd/.test(await txt('#app')) && /Développé couché barre · volume/.test(await txt('#app')), 'variante lourd + volume du même exercice');
+
+  // Split : semaine type, mouvement imposé, fréquence, répartition selon le split
+  await p.click('[data-a="vol-tab"][data-v="split"]'); await p.waitForTimeout(300);
+  await p.click('[data-a="vol-preset"][data-v="ul4"]'); await p.waitForTimeout(300);
+  ok((await p.$$('select[data-c="vol-st"]')).length === 4, 'semaine type Upper / Lower : 4 jours');
+  const heavyId = await p.$eval('[data-a="vol-pin"][data-d="0"] >> nth=0', el => el.dataset.v);
+  await p.click(`[data-a="vol-pin"][data-d="0"][data-v="${heavyId}"]`); await p.waitForTimeout(250);
+  await p.click('[data-a="vol-sf"][data-d="1"][data-v="Ischios"]'); await p.waitForTimeout(250);
+  ok(/Pectoraux/.test(await txt('.vfreq')) && /Quadriceps/.test(await txt('.vfreq')), 'tableau de fréquence par muscle');
+  await p.screenshot({ path: (process.env.SHOTS_DIR || require('os').tmpdir()) + '/volume-split.png', fullPage: true });
+  await p.click('[data-a="vol-bysplit"] >> nth=0'); await p.waitForTimeout(400);
+  ok(/Répartition|placées/.test(await txt('#app')), 'répartition selon le split, onglet Jours');
+  const sp = await p.$$eval('.tag', els => els.map(e => e.textContent).filter(t => /placées/.test(t)));
+  ok(sp.length === 4 && sp.every(t => { const [a, b] = t.match(/\d+/g); return a === b; }), 'split : toutes les séries placées (' + sp.join(', ') + ')');
+  const heavyDays = await p.$$eval('.card', cs => { const c = cs.find(x => /Développé couché barre · lourd/.test(x.textContent) && x.querySelector('[data-a="vol-split"]')); return c ? [...c.querySelectorAll('.vday')].filter(v => +v.querySelector('b').textContent > 0).map(v => v.textContent.trim().slice(0, 3)) : []; });
+  ok(heavyDays.length === 1 && heavyDays[0] === 'Lun', 'bench lourd imposé uniquement le lundi (' + heavyDays.join(',') + ')');
+
   // Répartition
   await p.click('[data-a="vol-tab"][data-v="jours"]'); await p.waitForTimeout(300);
   await p.click('[data-a="vol-auto"]'); await p.waitForTimeout(300);
   const tags = await p.$$eval('.tag', els => els.map(e => e.textContent).filter(t => /placées/.test(t)));
-  ok(tags.length === 3 && tags.every(t => { const [a, b] = t.match(/\d+/g); return a === b; }), 'proposition : toutes les séries placées (' + tags.join(', ') + ')');
+  ok(tags.length === 4 && tags.every(t => { const [a, b] = t.match(/\d+/g); return a === b; }), 'proposition : toutes les séries placées (' + tags.join(', ') + ')');
   await p.click('[data-a="vol-split"][data-l="1"][data-v="1"] >> nth=0'); await p.waitForTimeout(200);
   ok(/placées sur/.test(await txt('#app')), 'contrôle : séries en trop signalées sans bloquer');
   await p.click('[data-a="vol-split"][data-l="1"][data-v="-1"] >> nth=0'); await p.waitForTimeout(200);
@@ -67,11 +88,12 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   ok(/Séance A ·/.test(await p.$eval('input[data-c="bd-s"]', el => el.value)), 'séances créées dans l\'éditeur');
   ok(/Développé couché barre/.test(bd) && /Squat barre/.test(bd), 'exercices placés dans les séances');
   let saved = await p.evaluate(() => JSON.parse(localStorage.getItem('cxs.vol.self') || 'null'));
-  ok(saved?.lines?.length === 3, 'brouillon gardé sur le téléphone');
+  ok(saved?.lines?.length === 4 && Object.keys(saved.plan || {}).length === 4, 'brouillon (exercices + split) gardé sur le téléphone');
+  ok(/Séance A · Upper/.test(await p.$eval('input[data-c="bd-s"]', el => el.value)), 'séances nommées d\'après le split');
 
   // Rouvrir : le plan de volume revient
   await p.click('[data-a="vol-open"]'); await p.waitForTimeout(500);
-  ok((await p.$$('[data-a="vol-del"]')).length === 3, 'le plan de volume est conservé avec le programme');
+  ok((await p.$$('[data-a="vol-del"]')).length === 4, 'le plan de volume est conservé avec le programme');
   await p.screenshot({ path: (process.env.SHOTS_DIR || require('os').tmpdir()) + '/volume-ex.png' });
   await p.click('[data-a="vol-tab"][data-v="vol"]'); await p.waitForTimeout(300);
   await p.screenshot({ path: (process.env.SHOTS_DIR || require('os').tmpdir()) + '/volume-vol.png', fullPage: true });

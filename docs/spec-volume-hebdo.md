@@ -200,3 +200,16 @@ Dans les deux cas, le client voit son volume par muscle et son statut. Il ne voi
 - **Création des séances** : une séance par jour, force en premier. Les règles de surcharge déjà écrites pour un exercice (progression, repos, tempo, consigne) sont gardées. Le plan de volume est rangé dans le programme (`vplan`) et revient à la réouverture.
 - **Stockage** : téléphone (`cxs.vol.<membre>`) + Supabase `programme_drafts` (migration `supabase/migrations/2026-11-03_programme_drafts.sql`, déjà appliquée).
 - **Tests** : `node --test tests/volume.test.mjs` (moteur) et `node tests/volume-e2e.js` (écran).
+
+## 9. Split de la semaine (ajout du 5 novembre 2026)
+
+Onglet **3 · Split** (l'onglet Jours devient le 4) :
+- **Semaines types** : Full body 3 j, Push / Pull / Legs 3 j, Upper / Lower 4 j, Antérieure / Postérieure 4 j, Upper / Lower + PPL 5 j, PPL × 2 6 j.
+- **Par jour** : un modèle (Push, Pull, Legs, Upper, Lower, Chaîne antérieure, Chaîne postérieure, Full body, Personnalisé),
+  les muscles ou faisceaux du jour (ex. mardi : triceps, ischios, dos épaisseur), et les **mouvements imposés** (📌, ex. bench lourd le lundi).
+- **Variantes** : un même exercice peut avoir plusieurs lignes (⧉), par exemple « lourd » et « volume ».
+- **Répartir selon le split** : chaque ligne va sur ses jours imposés, sinon sur les jours qui contiennent son faisceau principal,
+  sinon son muscle principal, sinon un muscle secondaire ; séries partagées à parts égales (jours espacés s'il y a moins de séries que de jours).
+- **Fréquence par muscle** : tableau muscle × jour (aperçu de la répartition), fréquence hebdomadaire, alertes non bloquantes :
+  même muscle deux jours de suite (≥ 3 séries chaque fois), muscle prévu sans exercice, exercice hors split, tout le volume d'un muscle en une séance.
+- Les séances créées prennent le nom du split (« Séance A · Upper »). Le split est rangé avec le plan de volume du programme.

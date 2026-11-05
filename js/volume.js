@@ -101,12 +101,15 @@ export function statusOf(v, L) {
 
 // ---------- Une ligne du brouillon ----------
 // { n: nom, sets: séries/sem, lo, hi, it: { t: "rpe"|"pct"|"kg", v }, mode: "series"|"ton", ton: kg/sem,
-//   force: bool, bw: bool (poids de corps : la charge saisie est le lest), fx: faisceaux réglés, split: { 0: 4, 3: 4 } }
+//   force: bool, bw: bool (poids de corps : la charge saisie est le lest), fx: faisceaux réglés, split: { 0: 4, 3: 4 },
+//   id: identifiant (un même exercice peut avoir deux lignes, ex. bench lourd + bench volume), lbl: variante (« lourd »…) }
 const FORCE_RE = /^(squat|front squat|développé couché|développé militaire|soulevé de terre|deadlift|traction|dips|bench|overhead press|hip thrust barre|rowing barre)/i;
 export const isForceName = (n) => FORCE_RE.test(String(n || "").trim());
+export const newId = () => "l" + Math.random().toString(36).slice(2, 9);
+export const lineName = (l) => l.lbl ? `${l.n} · ${l.lbl}` : l.n;
 export function newLine(name, { bw = false } = {}) {
   const force = isForceName(name);
-  return { n: name, sets: 6, lo: force ? 5 : 8, hi: force ? 5 : 12, it: { t: "rpe", v: 8 }, mode: "series", ton: null, force, bw: !!bw, fx: null, split: {} };
+  return { id: newId(), lbl: "", n: name, sets: 6, lo: force ? 5 : 8, hi: force ? 5 : 12, it: { t: "rpe", v: 8 }, mode: "series", ton: null, force, bw: !!bw, fx: null, split: {} };
 }
 export const repsOf = (l) => Math.max(1, Math.round(((+l.lo || 1) + (+l.hi || +l.lo || 1)) / 2));
 const effR = (reps, rpe) => Math.min(reps + Math.max(0, 10 - (rpe || 8)), 15);
@@ -169,7 +172,7 @@ export function checks(lines, days, { musclesOf, ctx = {}, lm = landmarks() } = 
     } else if (v > 0 && v < L.mv) out.push({ lvl: "info", g: g.id, txt: `${g.n} : ${fmt(v)} séries, sous le volume de maintien (${L.mv}).` });
   });
   const on = (days || []).map((x, i) => x ? i : -1).filter(i => i >= 0);
-  lines.forEach(l => { const n = lineSets(l, ctx), p = placed(l); if (n && p !== n) out.push({ lvl: p > n ? "warn" : "info", txt: `${l.n} : ${p} série${p > 1 ? "s" : ""} placée${p > 1 ? "s" : ""} sur ${n}.` }); });
+  lines.forEach(l => { const n = lineSets(l, ctx), p = placed(l); if (n && p !== n) out.push({ lvl: p > n ? "warn" : "info", txt: `${lineName(l)} : ${p} série${p > 1 ? "s" : ""} placée${p > 1 ? "s" : ""} sur ${n}.` }); });
   on.forEach(d => {
     const Vd = computeVolume(lines, { musclesOf, ctx, day: d });
     GROUPS.forEach(g => { const v = round5(Vd.byG[g.id]); if (v > SESSION_CAP) out.push({ lvl: "warn", txt: `${DAYS[d]} : ${fmt(v)} séries de ${g.n} dans la même séance (plus de ${SESSION_CAP}).` }); });
@@ -231,7 +234,7 @@ export function toSessions(lines, days, { musclesOf, ctx = {} } = {}) {
     const rows = here.map(l => {
       const n = +l.split[d], it = l.it || {}, ch = chargeOf(l, ctx);
       const set = { t: "N", lo: +l.lo || 8, hi: +l.hi || +l.lo || 8, rpe: it.t === "rpe" ? +it.v || 8 : null, pct: it.t === "pct" ? +it.v || null : null, kg: it.t === "kg" ? (l.bw ? ch.lest ?? +it.v : +it.v) || null : null, tech: [] };
-      return [l.n, l.force ? "F" : faisceauxOf(l.n, musclesOf, l.fx).length > 1 ? "P" : "I", "", null, null, { sets: Array.from({ length: n }, () => ({ ...set, tech: [] })), rest: l.force ? 180 : 120 }];
+      return [l.n, l.force ? "F" : faisceauxOf(l.n, musclesOf, l.fx).length > 1 ? "P" : "I", l.lbl ? l.lbl[0].toUpperCase() + l.lbl.slice(1) : "", null, null, { sets: Array.from({ length: n }, () => ({ ...set, tech: [] })), rest: l.force ? 180 : 120 }];
     });
     out.push([`Séance ${String.fromCharCode(65 + out.length)} · ${focus.join(", ") || "Complète"}`, DAYS[d], rows]);
   });
@@ -259,4 +262,98 @@ export function fromProgram(p, { w = 1, weekPlan, dayIndex, bwOf = () => false }
     });
   });
   return [...byName.values()].filter(l => l.sets > 0);
+}
+
+// ---------- Split de la semaine : quel jour pour quel muscle, et quels mouvements imposés ----------
+// plan = { 0: { t: "push", f: [faisceaux], pins: [id de ligne] }, … } (index du jour, 0 = lundi)
+const PUSH = ["Pecs-haut", "Pecs-milieu", "Pecs-bas", "Épaules-avant", "Épaules-latéral", "Triceps"];
+const PULL = ["Dos-largeur", "Dos-épaisseur", "Épaules-arrière", "Biceps", "Trapèzes", "Avant-bras"];
+const LEGS = ["Quadriceps", "Ischios", "Fessiers", "Mollets", "Adducteurs", "Lombaires"];
+export const SPLIT_TPL = {
+  push: { n: "Push", f: PUSH },
+  pull: { n: "Pull", f: PULL },
+  legs: { n: "Legs", f: LEGS },
+  upper: { n: "Upper", f: [...PUSH, ...PULL] },
+  lower: { n: "Lower", f: [...LEGS, "Abdos"] },
+  ant: { n: "Chaîne antérieure", f: ["Pecs-haut", "Pecs-milieu", "Pecs-bas", "Épaules-avant", "Épaules-latéral", "Biceps", "Quadriceps", "Adducteurs", "Abdos"] },
+  post: { n: "Chaîne postérieure", f: ["Dos-largeur", "Dos-épaisseur", "Épaules-arrière", "Trapèzes", "Triceps", "Ischios", "Fessiers", "Lombaires", "Mollets"] },
+  full: { n: "Full body", f: [...FAISCEAUX] },
+  perso: { n: "Personnalisé", f: [] },
+};
+// Semaines types : un modèle par jour (null = repos)
+export const WEEK_PRESETS = {
+  fb3: { n: "Full body · 3 j", d: ["full", null, "full", null, "full", null, null] },
+  ppl3: { n: "Push / Pull / Legs · 3 j", d: ["push", null, "pull", null, "legs", null, null] },
+  ul4: { n: "Upper / Lower · 4 j", d: ["upper", "lower", null, "upper", "lower", null, null] },
+  ap4: { n: "Antérieure / Postérieure · 4 j", d: ["ant", "post", null, "ant", "post", null, null] },
+  ulppl5: { n: "Upper / Lower + PPL · 5 j", d: ["upper", "lower", null, "push", "pull", "legs", null] },
+  ppl6: { n: "Push / Pull / Legs × 2 · 6 j", d: ["push", "pull", "legs", "push", "pull", "legs", null] },
+};
+export function applyPreset(key) {
+  const P = WEEK_PRESETS[key]; if (!P) return null;
+  const plan = {}, days = P.d.map(Boolean);
+  P.d.forEach((t, d) => { if (t) plan[d] = { t, f: [...SPLIT_TPL[t].f], pins: [] }; });
+  return { days, plan };
+}
+export const dayFocus = (plan, d) => plan?.[d] || { t: "perso", f: [], pins: [] };
+export function splitName(plan, d) {
+  const p = plan?.[d]; if (!p) return "";
+  if (p.t && p.t !== "perso" && SPLIT_TPL[p.t]) {
+    const same = SPLIT_TPL[p.t].f.length === p.f.length && SPLIT_TPL[p.t].f.every(f => p.f.includes(f));
+    if (same) return SPLIT_TPL[p.t].n;
+  }
+  const gs = GROUPS.filter(g => g.f.some(f => p.f.includes(f)));
+  return gs.length > 3 ? `${gs.slice(0, 3).map(g => g.n).join(", ")}…` : gs.map(g => g.n).join(", ");
+}
+// Jours prévus pour une ligne : jours où elle est imposée, sinon jours dont le split contient son faisceau principal,
+// sinon son muscle principal (autre faisceau), sinon un de ses muscles secondaires.
+export function targetDays(l, days, plan, musclesOf) {
+  const on = (days || []).map((x, i) => x ? i : -1).filter(i => i >= 0);
+  const pinned = on.filter(d => plan?.[d]?.pins?.includes(l.id));
+  if (pinned.length) return { days: pinned, why: "imposé" };
+  const fx = faisceauxOf(l.n, musclesOf, l.fx); if (!fx.length) return { days: [], why: "aucun muscle" };
+  const f0 = fx[0].f, g0 = groupOf(f0);
+  let t = on.filter(d => plan?.[d]?.f?.includes(f0)); if (t.length) return { days: t, why: "faisceau" };
+  t = on.filter(d => g0 && plan?.[d]?.f?.some(f => g0.f.includes(f))); if (t.length) return { days: t, why: "muscle" };
+  t = on.filter(d => fx.slice(1).some(x => plan?.[d]?.f?.includes(x.f))); if (t.length) return { days: t, why: "secondaire" };
+  return { days: [], why: "hors split" };
+}
+// Répartit chaque ligne sur ses jours prévus, à parts égales. Moins de séries que de jours : on garde des jours espacés.
+// Une ligne imposée sur un jour n'est pas étalée ailleurs (ex. bench lourd le lundi).
+export function distributeBySplit(lines, days, plan, { musclesOf, ctx = {} } = {}) {
+  return lines.map(l => {
+    const n = lineSets(l, ctx), { days: t } = targetDays(l, days, plan, musclesOf), out = {};
+    if (!n || !t.length) return out;
+    let pick = t;
+    if (n < t.length) { pick = []; for (let j = 0; j < n; j++) pick.push(t[Math.floor(j * t.length / n)]); }
+    const base = Math.floor(n / pick.length); let rest = n - base * pick.length;
+    pick.forEach(d => { const s = base + (rest-- > 0 ? 1 : 0); if (s) out[d] = s; });
+    return out;
+  });
+}
+// Fréquence : pour chaque muscle, séries par jour (après répartition) et jours prévus au split
+export function frequency(lines, days, plan, { musclesOf, ctx = {} } = {}) {
+  const on = (days || []).map((x, i) => x ? i : -1).filter(i => i >= 0), out = {};
+  GROUPS.forEach(g => {
+    const per = {}, planned = on.filter(d => plan?.[d]?.f?.some(f => g.f.includes(f)));
+    on.forEach(d => { const v = computeVolume(lines, { musclesOf, ctx, day: d }).byG[g.id] || 0; if (v) per[d] = round5(v); });
+    const hit = Object.keys(per).map(Number);
+    if (planned.length || hit.length) out[g.id] = { per, planned, freq: hit.length };
+  });
+  return out;
+}
+const dist = (a, b) => { const x = Math.abs(a - b); return Math.min(x, 7 - x); };
+// Contrôles du split (jamais bloquants) : récupération, muscles oubliés, exercices hors split
+export function splitChecks(lines, days, plan, { musclesOf, ctx = {} } = {}) {
+  const out = [], empty = [], F = frequency(lines, days, plan, { musclesOf, ctx }), W = computeVolume(lines, { musclesOf, ctx }).byG;
+  Object.entries(F).forEach(([id, r]) => {
+    const g = groupById(id), hd = Object.entries(r.per).filter(([, v]) => v >= 3).map(([d]) => +d).sort((a, b) => a - b);
+    const pair = hd.flatMap((a, i) => hd.slice(i + 1).map(b => [a, b])).find(([a, b]) => dist(a, b) === 1);
+    if (pair) { const [a, b] = pair[1] - pair[0] === 1 ? pair : [pair[1], pair[0]]; out.push({ lvl: "warn", txt: `${g.n} : travaillé ${DAYS[a]} puis ${DAYS[b]} (3 séries ou plus chaque fois), moins de 48 h de récupération.` }); }
+    if (r.planned.length && !W[id]) empty.push(g.n);
+    if (r.freq === 1 && Object.values(r.per)[0] > SESSION_CAP) out.push({ lvl: "info", txt: `${g.n} : tout le volume en une seule séance. Deux jours par semaine répartissent mieux la fatigue.` });
+  });
+  if (empty.length) out.push({ lvl: "info", txt: `Prévu${empty.length > 1 ? "s" : ""} au split mais aucun exercice ne ${empty.length > 1 ? "les" : "le"} travaille : ${empty.join(", ")}.` });
+  lines.forEach(l => { if (lineSets(l, ctx) && !targetDays(l, days, plan, musclesOf).days.length) out.push({ lvl: "warn", txt: `${lineName(l)} : aucun jour du split ne contient son muscle. Ajoute-le à un jour ou impose l'exercice.` }); });
+  return out;
 }
