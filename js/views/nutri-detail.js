@@ -28,7 +28,7 @@ export function nutriCard(d) {
   // Balance Na/K : 0 = sel seul (rouge), 1 = équilibre (vert), 2 et plus = potassium largement au-dessus
   const pos = t.ratio == null ? null : Math.max(0, Math.min(100, Math.round(t.ratio / 2 * 100)));
   const balanceWord = { vert: "Équilibre bon : le potassium couvre le sodium", orange: "Sel en léger excès : surveille les plats salés et les produits transformés", rouge: "Le sel prend le dessus : rétention d'eau et crampes plus probables" };
-  const coverage = t.coverage != null && t.coverage < 1 ? `<p class="xs muted" style="margin:8px 0 0">Calculé sur ${Math.round(t.coverage * t.total)} aliment${t.total > 1 ? "s" : ""} sur ${t.total} avec la donnée.</p>` : "";
+  const coverage = t.coverage != null && t.coverage < 1 ? `<p class="xs muted" style="margin:8px 0 0">Calculé sur ${t.known} aliment${t.known > 1 ? "s" : ""} sur ${t.total} avec la donnée.</p>` : "";
   const micro = MICROS.map(m => {
     const v = t[m.code], pct = pctNrv(v, m.nrv);
     return `<div class="card" style="padding:8px"><span class="xs muted">${esc(m.label)}</span><br><b>${v == null ? "—" : dash(v, m.unit)}</b>${pct != null ? ` <span class="xs muted">· ${pct} %</span>` : ""}</div>`;
@@ -50,7 +50,8 @@ export function nutriCard(d) {
       <p class="xs muted" style="margin:0 0 8px"><b>Lecture.</b> « — » signifie une donnée absente, pas un zéro. Plus la couverture est basse, moins les totaux sont fiables.</p>
       <div class="xs mt8"><b>Micronutriments</b> <span class="muted">(% de l'apport de référence)</span></div>
       <div class="grid2 mt4" style="gap:6px">${micro}</div>
-    </div></details></div>`;
+    </div></details>
+    ${t.total ? `<button class="btn btn-line btn-sm mt12" data-a="food-tab" data-v="conseils" style="width:100%">💡 Quoi manger pour compléter ma journée</button>` : ""}</div>`;
 }
 
 // Ligne résumée (accueil alimentation) : sucres, sel, équilibre sodium / potassium

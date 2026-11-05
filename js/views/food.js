@@ -13,9 +13,10 @@ import { pushStats } from "../sync.js";
 import * as ML from "./meals.js";
 import * as SP from "./supps.js";
 import { memosCard } from "./vocal.js";
+import { adviceBody } from "./nutri-advice.js";
 
 let tab = "journal", day = null, mode = "journal";
-const TABS = [["journal", "🍽️ Journal"], ["favoris", "⭐ Mes aliments"], ["plan", "📋 Mon plan"], ["semaine", "🗓️ Semaine type"], ["recettes", "👩‍🍳 Recettes"], ["batch", "🥡 Batch cooking"], ["complements", "💊 Compléments"], ["budget", "🛒 Courses et budget"]];
+const TABS = [["journal", "🍽️ Journal"], ["favoris", "⭐ Mes aliments"], ["plan", "📋 Mon plan"], ["semaine", "🗓️ Semaine type"], ["conseils", "💡 Conseils"], ["recettes", "👩‍🍳 Recettes"], ["batch", "🥡 Batch cooking"], ["complements", "💊 Compléments"], ["budget", "🛒 Courses et budget"]];
 const MODES = [["journal", "Journal"], ["depense", "Dépense"], ["explorer", "Explorer"], ["savoir", "Savoir"]];
 const D = () => day || today();
 const FREE_RECIPES = 10;
@@ -23,6 +24,42 @@ const recipeOpen = (r) => premium() || r.mine || RC.RECIPES.indexOf(r) < FREE_RE
 const myRecipes = () => (S().myRecipes || []).map(r => { RC.registerIng(r.ingDef); return { ...r, mine: true, m: RC.macros(r.ing, r.portions) }; });
 const allRecipes = () => [...myRecipes(), ...RC.RECIPES];
 export const recipePool = () => allRecipes().filter(recipeOpen);
+// Poids d'une recette : plat cuit pesé s'il est connu, sinon somme des ingrédients ; une portion = poids / portions
+const recipeWeight = (r) => r.cookedG || Object.values(r.ing || {}).reduce((a, g) => a + (+g || 0), 0);
+const portionWeight = (r) => recipeWeight(r) / (r.portions || 1);
+// Ligne de journal pour « por » portions d'une recette (macros, fibres et micronutriments au prorata)
+export function recipeEntry(r, por, meal) {
+  const k = por / (r.portions || 1), tot = RC.macros(r.ing, 1), pw = portionWeight(r), x = N.recipeMicro(r.ing, k);
+  return { meal, label: N.recLabel(r.n, por), g: Math.round(pw * por), rid: r.id, rn: r.n, pw: +pw.toFixed(1), por: +por.toFixed(2),
+    kcal: Math.round(tot.kcal * k), p: +(tot.p * k).toFixed(1), c: +(tot.c * k).toFixed(1), f: +(tot.f * k).toFixed(1), ...(x.fib != null ? { fib: x.fib } : {}), ...(x.mic ? { mic: x.mic } : {}) };
+}
+// Choix de la quantité d'une recette : en portions ou en grammes. onOk(entrée) à la validation.
+function recipeQtyPanel(r, after, meal, onOk) {
+  document.querySelectorAll("#sheet .qty-pick").forEach(x => x.remove());
+  const pw = portionWeight(r); let mode = "por", q = 1;
+  const panel = document.createElement("div"); panel.className = "qty-pick card"; panel.style.cssText = "margin:4px 0 10px;padding:12px";
+  panel.innerHTML = `<div class="seg" style="margin:0 0 8px"><button type="button" data-md="por" class="on">Portions</button><button type="button" data-md="g">Grammes</button></div>
+    <div class="row" style="gap:8px"><input class="inp" inputmode="decimal" value="1" style="width:90px" aria-label="Quantité"><span class="small muted" data-u>portion</span><span class="grow small" data-v></span></div>
+    <div class="chips wrap mt8" data-ch></div><p class="xs muted" style="margin:6px 0 0">1 portion ≈ ${fr(Math.round(pw))} g (recette de ${r.portions} portion${r.portions > 1 ? "s" : ""}${r.cookedG ? ", plat cuit pesé" : ""})</p>
+    <button type="button" class="btn btn-red btn-sm mt8" style="width:100%" data-ok>Ajouter</button>`;
+  after.after(panel);
+  const inp = panel.querySelector("input"), v = panel.querySelector("[data-v]"), ch = panel.querySelector("[data-ch]");
+  const por = () => mode === "por" ? q : q / pw;
+  const chipsFor = () => { const l = mode === "por" ? [0.5, 1, 1.5, 2, 3] : [100, 150, 200, 250, 300, 400];
+    ch.innerHTML = l.map(x => `<button type="button" class="chip ${x === q ? "on" : ""}" data-q="${x}">${mode === "por" ? String(x).replace(".", ",") : x + " g"}</button>`).join("");
+    ch.querySelectorAll(".chip").forEach(c => c.addEventListener("click", (e) => { e.stopPropagation(); q = +c.dataset.q; inp.value = String(q).replace(".", ","); draw(); })); };
+  const draw = () => { if (!(q > 0)) { v.innerHTML = ""; return; } const e = recipeEntry(r, por(), meal);
+    v.innerHTML = `<b>${e.kcal} kcal</b> <span class="xs muted">· ${fr(e.p)} g P · ${mode === "por" ? fr(e.g) + " g" : fr(e.por, 2) + " portion" + (e.por > 1 ? "s" : "")}</span>`;
+    ch.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", +c.dataset.q === q)); };
+  panel.querySelectorAll("[data-md]").forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); if (b.dataset.md === mode) return;
+    const p0 = por(); mode = b.dataset.md; q = mode === "por" ? Math.round(p0 * 4) / 4 || 0.25 : Math.round(p0 * pw);
+    inp.value = String(q).replace(".", ","); panel.querySelector("[data-u]").textContent = mode === "por" ? "portion" : "g";
+    panel.querySelectorAll("[data-md]").forEach(x => x.classList.toggle("on", x === b)); chipsFor(); draw(); }));
+  inp.addEventListener("input", () => { q = num(inp.value) || 0; draw(); });
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); panel.querySelector("[data-ok]").click(); } });
+  panel.querySelector("[data-ok]").addEventListener("click", (e) => { e.stopPropagation(); if (!(q > 0)) return toast("Quantité invalide"); onOk(recipeEntry(r, por(), meal)); panel.remove(); });
+  chipsFor(); draw(); inp.select?.();
+}
 
 // Le jour d'entraînement ou de repos vient de l'agenda (séance faite ou prévue)
 N.setDayKind((d) => { const a = E.agenda(d, d)[d]; return a && ["done", "planned", "missed"].includes(a.st) ? "train" : "rest"; });
@@ -43,6 +80,7 @@ routes.food = async () => {
   else if (tab === "favoris") body = favBody();
   else if (tab === "plan") body = ML.planBody(t0);
   else if (tab === "semaine") body = weekBody(t0);
+  else if (tab === "conseils") { await N.loadCiqual(); await N.loadMicro(); body = journalDayNav() + adviceBody(D(), t); }
   else if (tab === "recettes") body = recipesBody();
   else if (tab === "batch") body = batchBody();
   else if (tab === "budget") body = ML.shopBody() + (premium() ? `<h2 class="sec">💶 Mes dépenses réelles</h2>` + budgetBody() : "");
@@ -209,6 +247,7 @@ function sugarSaltCard(d) {
 }
 
 // ---------- Journal ----------
+const journalDayNav = () => { const d = D(); return `<div class="row between mt12"><button class="icon-btn" data-a="food-day" data-v="-1" aria-label="Jour précédent">${I.back}</button><b class="h3" style="text-transform:capitalize">${d === today() ? "Aujourd'hui" : fmtDate(d)}</b><button class="icon-btn" data-a="food-day" data-v="1" aria-label="Jour suivant" style="transform:scaleX(-1);${d === today() ? "visibility:hidden" : ""}">${I.back}</button></div>`; };
 function journalBody(t) {
   const d = D(), log = N.dayLog(d), water = S().daily[d]?.water || 0;
   const fs = EN.fastState();
@@ -264,12 +303,22 @@ actions["afs-done"] = () => closeSheet();
 let EF = null; // { id, date, back, g }
 const efEntry = () => N.dayLog(EF.date).find(x => x.id === EF.id);
 const efBack = () => { const m = efEntry()?.meal; if (EF.back === "afs" && m) addFoodSheet(m); else { closeSheet(); rerender(); } };
+// Ancienne ligne « Recette (1 portion) » sans grammes : on la relie à sa recette pour pouvoir changer la quantité
+function upgradeRecipeEntry(e) {
+  const m = /^(.*) \((\d+(?:[.,]\d+)?) portions?\)$/.exec(e.label || ""), r = m && allRecipes().find(x => x.n === m[1]); if (!r) return false;
+  const por = parseFloat(m[2].replace(",", ".")), pw = portionWeight(r); if (!(pw > 0)) return false;
+  const x = N.recipeMicro(r.ing, por / (r.portions || 1));
+  update(st => { const y = (st.food[EF.date] || []).find(z => z.id === EF.id); if (y) Object.assign(y, { g: Math.round(pw * por), rid: r.id, rn: r.n, pw: +pw.toFixed(1), por, label: N.recLabel(r.n, por), ...(y.mic || !x.mic ? {} : { mic: x.mic }), ...(y.fib != null || x.fib == null ? {} : { fib: x.fib }) }); });
+  return true;
+}
 function editFoodSheet() {
-  const e = efEntry(); if (!e) return closeSheet();
+  let e = efEntry(); if (!e) return closeSheet();
+  if (!e.g && upgradeRecipeEntry(e)) e = efEntry();
   const g0 = e.g || null; EF.g = EF.g ?? g0;
   sheet(`<h2 class="h2">Modifier l'aliment</h2><p class="small" style="margin:0">${esc(e.label)}</p>
     ${g0 ? `<div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm" data-a="ef-step" data-v="-10" style="width:auto">−10</button><input id="ef-g" class="inp" inputmode="decimal" value="${EF.g}" style="width:90px;text-align:center" aria-label="Quantité en grammes"><span class="small muted">g</span><button class="btn btn-line btn-sm" data-a="ef-step" data-v="10" style="width:auto">+10</button></div>
-    <div class="chips wrap mt8">${[0.5, 0.75, 1, 1.5, 2].map(k => `<button class="chip" data-a="ef-k" data-k="${k}">×${k}</button>`).join("")}</div>
+    ${e.rid && e.pw ? `<div class="xs muted mt8">Portions de la recette (1 portion ≈ ${fr(Math.round(e.pw))} g)</div><div class="chips wrap mt4">${[0.5, 1, 1.5, 2, 3].map(k => `<button class="chip" data-a="ef-por" data-k="${k}">${String(k).replace(".", ",")} portion${k > 1 ? "s" : ""}</button>`).join("")}</div>`
+      : `<div class="chips wrap mt8">${[0.5, 0.75, 1, 1.5, 2].map(k => `<button class="chip" data-a="ef-k" data-k="${k}">×${k}</button>`).join("")}</div>`}
     <div id="ef-v" class="mt12 small"></div>` : `<p class="xs muted mt8">Cet élément n'a pas de quantité en grammes (repas ou recette). Tu peux le remplacer.</p>`}
     <button class="btn btn-red mt16" data-a="ef-save" style="width:100%">${g0 ? "Enregistrer la quantité" : "Fermer"}</button>
     <button class="btn btn-line mt8" data-a="ef-swap" style="width:100%">🔁 Remplacer par un autre aliment</button>
@@ -278,11 +327,12 @@ function editFoodSheet() {
 function efDraw() {
   const e = efEntry(), v = document.getElementById("ef-v"); if (!e || !v || !e.g) return;
   const k = (EF.g || 0) / e.g;
-  v.innerHTML = `<b>${Math.round(e.kcal * k)} kcal</b> <span class="xs muted">· P ${fr(e.p * k)} · G ${fr(e.c * k)} · L ${fr(e.f * k)} g (avant : ${e.kcal} kcal)</span>`;
+  v.innerHTML = `<b>${Math.round(e.kcal * k)} kcal</b> <span class="xs muted">· P ${fr(e.p * k)} · G ${fr(e.c * k)} · L ${fr(e.f * k)} g${e.rid && e.pw ? ` · ${fr((EF.g || 0) / e.pw, 2)} portion${(EF.g || 0) / e.pw > 1 ? "s" : ""}` : ""} (avant : ${e.kcal} kcal)</span>`;
 }
 actions["edit-food"] = (b, d) => { EF = { id: +d.id, date: d.d, back: d.back || "journal", g: null }; editFoodSheet(); };
 actions["ef-step"] = (b, d) => { EF.g = Math.max(1, Math.round((EF.g || 0) + +d.v)); const i = document.getElementById("ef-g"); if (i) i.value = EF.g; efDraw(); };
 actions["ef-k"] = (b, d) => { const e = efEntry(); EF.g = Math.round(e.g * +d.k); const i = document.getElementById("ef-g"); if (i) i.value = EF.g; efDraw(); };
+actions["ef-por"] = (b, d) => { const e = efEntry(); if (!e?.pw) return; EF.g = Math.round(e.pw * +d.k); const i = document.getElementById("ef-g"); if (i) i.value = EF.g; efDraw(); };
 actions["ef-save"] = () => { const e = efEntry(); if (e?.g && EF.g > 0 && EF.g !== e.g) { N.rescaleEntry(EF.id, EF.date, EF.g); toast("Quantité modifiée"); } efBack(); };
 actions["ef-del"] = () => { N.removeEntry(EF.id, EF.date); efBack(); };
 actions["ef-swap"] = () => {
@@ -337,7 +387,7 @@ function drawAfs(w = document.getElementById("sheet")) {
   } else if (afs.tab === "dishes") {
     const l = S().dishes; box.innerHTML = l.length ? `<div class="list">${l.map((d, i) => `<div class="li"><button class="grow" style="text-align:left" data-a="eat-dish" data-i="${i}"><b class="small">${esc(d.n)}</b><br><span class="xs muted">${fr(d.kcal)} kcal · ${fr(d.p)} g prot.${d.items ? ` · ${d.items.length} aliments` : ""}</span></button><button class="icon-btn" data-a="del-dish" data-i="${i}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>` : `<p class="empty small">Dans ton journal, touche « Enregistrer ce repas » : tu pourras le refaire en un geste.</p>`;
   } else {
-    const l = allRecipes().filter(recipeOpen); box.innerHTML = `<div class="list">${l.map(r => `<button class="li" data-a="eat-recipe" data-id="${r.id}"><span class="em">${r.e}</span><span class="grow"><b class="small">${esc(r.n)}</b><br><span class="xs muted">1 portion · ${r.m.kcal} kcal · ${r.m.p} g prot.</span></span>${I.plus.replace("<svg", '<svg width="20"')}</button>`).join("")}</div>${premium() ? "" : `<p class="xs muted mt8">${RC.RECIPES.length - FREE_RECIPES} recettes de plus avec Premium.</p>`}`;
+    const l = allRecipes().filter(recipeOpen); box.innerHTML = `<div class="list">${l.map(r => `<button class="li" data-a="eat-recipe" data-id="${r.id}"><span class="em">${r.e}</span><span class="grow"><b class="small">${esc(r.n)}</b><br><span class="xs muted">1 portion · ${r.m.kcal} kcal · ${r.m.p} g prot. · portions ou grammes</span></span>${I.plus.replace("<svg", '<svg width="20"')}</button>`).join("")}</div>${premium() ? "" : `<p class="xs muted mt8">${RC.RECIPES.length - FREE_RECIPES} recettes de plus avec Premium.</p>`}`;
   }
 }
 actions["add-food"] = (b, d) => addFoodSheet(d.m);
@@ -370,7 +420,11 @@ actions["pick-food"] = (b, d) => {
 };
 actions["eat-dish"] = (b, d) => { const di = S().dishes[+d.i]; addedToMeal({ label: di.n, g: null, kcal: Math.round(di.kcal), p: di.p, c: di.c, f: di.f }, "Repas ajouté"); };
 actions["del-dish"] = (b, d) => { if (!confirm("Supprimer ce repas enregistré ?")) return; update(st => st.dishes.splice(+d.i, 1)); drawAfs(); };
-actions["eat-recipe"] = (b, d) => { const r = allRecipes().find(x => x.id === d.id); addedToMeal({ label: `${r.n} (1 portion)`, g: null, ...r.m }); };
+actions["eat-recipe"] = async (b, d) => {
+  const r = allRecipes().find(x => x.id === d.id); if (!r) return;
+  await N.loadCiqual().catch(() => { }); await N.loadMicro();
+  recipeQtyPanel(r, b, afs.meal, (e) => { addedToMeal(e, `${r.n} ajouté`); b.style.opacity = ".55"; });
+};
 function gramsSheet(food, onAdd, meal = afs.meal) {
   let g = 100;
   const draw = (w) => { const e = N.entryFromFood(food, g, meal); w.querySelector("#gv").innerHTML = `<span class="num" style="font-size:34px">${e.kcal}</span><span class="small muted"> kcal · ${fr(e.p)} g prot. · ${fr(e.c)} g gluc. · ${fr(e.f)} g lip.</span>`; };
@@ -472,18 +526,20 @@ actions["rc-open"] = (b, d) => {
   const draw = (w) => {
     const f = por / r.portions;
     w.querySelector("#ring").innerHTML = Object.entries(r.ing).map(([k, g]) => `<li>${k === "oeuf" ? `${Math.max(1, Math.round(g * f / 55))} œuf(s)` : `${Math.round(g * f)} g ${esc(RC.ingLabel(k))}`}</li>`).join("");
-    w.querySelector("#rpor").textContent = por;
+    w.querySelector("#rpor").textContent = String(por).replace(".", ",");
+    const pw = portionWeight(r), lb = w.querySelector("#rc-eatl"); if (lb) lb.textContent = `Ajouter ${String(por).replace(".", ",")} portion${por > 1 ? "s" : ""} (≈ ${fr(Math.round(pw * por))} g) au journal`;
+    w.__por = por;
   };
   sheet(`<div class="row" style="gap:10px"><span style="font-size:40px">${r.e}</span><div><h2 class="h2">${esc(r.n)}</h2><p class="xs muted">${esc(r.cat)} · ${r.min} min${r.batch ? " · se conserve 3 à 4 jours" : ""}</p></div></div>
     <div class="stat3 mt12"><div><b>${r.m.kcal}</b><span>kcal</span></div><div><b>${r.m.p} g</b><span>protéines</span></div><div><b>${r.m.c} / ${r.m.f}</b><span>gluc. / lip.</span></div></div><p class="xs muted center">par portion · ${premium() ? `≈ ${eur(RC.costOf(r.ing, r.portions, S().prices))} la portion` : "💶 prix : Premium"}</p>
     <div class="row between mt12"><b>Ingrédients</b><div class="water"><button data-a="rc-por" data-v="-1">−</button><b id="rpor">1</b><button data-a="rc-por" data-v="1">+</button></div></div>
     <ul id="ring" class="small" style="padding-left:18px"></ul>
     <b>Préparation</b><ol class="small" style="padding-left:18px">${r.steps.map(s => `<li style="margin-bottom:6px">${esc(s)}</li>`).join("")}</ol>
-    <div class="lbl mt12">Ajouter 1 portion au journal</div><div class="chips wrap mt8">${N.MEALS.map(m => `<button class="chip" data-a="rc-eat" data-id="${r.id}" data-m="${m}">${m}</button>`).join("")}</div>
+    <div class="lbl mt12" id="rc-eatl">Ajouter 1 portion au journal</div><p class="xs muted" style="margin:2px 0 0">Choisis le nombre de portions avec − et + au-dessus des ingrédients.</p><div class="chips wrap mt8">${N.MEALS.map(m => `<button class="chip" data-a="rc-eat" data-id="${r.id}" data-m="${m}">${m}</button>`).join("")}</div>
     <div class="card soft mt12"><div class="lbl">⚖️ Plat entier pesé : ma part au poids</div><p class="xs muted" style="margin:4px 0 8px">Grosse préparation pour la famille ? Pèse le plat cuit en entier une fois, puis ta part : l'app calcule ta part des macros du plat entier.</p>
       <div class="grid2"><label class="field"><span>Plat cuit entier (g)</span><input id="rc-tot" inputmode="decimal" value="${r.cookedG ? fr(r.cookedG) : ""}" placeholder="ex. 3500"></label><label class="field"><span>Ma part (g)</span><input id="rc-part" inputmode="decimal" placeholder="ex. 300"></label></div>
       <div id="rc-calc" class="small mt8"></div><div class="chips wrap mt8">${N.MEALS.map(m => `<button class="chip" data-a="rc-eatg" data-id="${r.id}" data-m="${m}">${m}</button>`).join("")}</div></div>
-    <div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="bt-add" data-id="${r.id}">🥡 Ajouter au batch</button>${r.mine ? `<button class="btn btn-ghost btn-sm" data-a="rc-del" data-id="${r.id}" style="color:var(--red)">Supprimer</button>` : ""}</div>`, (w) => { draw(w); w.__draw = (n) => { por = Math.max(1, por + n); draw(w); }; });
+    <div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="bt-add" data-id="${r.id}">🥡 Ajouter au batch</button>${r.mine ? `<button class="btn btn-ghost btn-sm" data-a="rc-del" data-id="${r.id}" style="color:var(--red)">Supprimer</button>` : ""}</div>`, (w) => { draw(w); w.__draw = (n) => { por = Math.max(0.5, por + n / 2); draw(w); }; });
 };
 actions["rc-por"] = (b, d) => document.getElementById("sheet")?.__draw?.(+d.v);
 // Part au poids d'un plat entier : (ma part / poids cuit total) × macros de toute la recette
@@ -492,9 +548,14 @@ document.addEventListener("input", (e) => { if (!["rc-tot", "rc-part"].includes(
 actions["rc-eatg"] = (b, d) => {
   const r = allRecipes().find(x => x.id === d.id), x = partOf(r); if (!x) return toast("Indique le poids du plat entier et ta part");
   if (r.mine) update(st => { const m = (st.myRecipes || []).find(y => y.id === r.id); if (m) m.cookedG = x.tot; });
-  N.addEntry({ meal: d.m, label: `${r.n} (${fr(x.part)} g)`, g: x.part, kcal: x.kcal, p: x.p, c: x.c, f: x.f }); closeSheet(); toast(`Ajouté au ${d.m.toLowerCase()}`);
+  const k = x.part / x.tot, mx = N.recipeMicro(r.ing, k), pw = x.tot / (r.portions || 1);
+  N.addEntry({ meal: d.m, label: N.recLabel(r.n, +(k * r.portions).toFixed(2)), g: x.part, rid: r.id, rn: r.n, pw: +pw.toFixed(1), por: +(k * r.portions).toFixed(2), kcal: x.kcal, p: x.p, c: x.c, f: x.f, ...(mx.fib != null ? { fib: mx.fib } : {}), ...(mx.mic ? { mic: mx.mic } : {}) }); closeSheet(); toast(`Ajouté au ${d.m.toLowerCase()}`);
 };
-actions["rc-eat"] = (b, d) => { const r = allRecipes().find(x => x.id === d.id); N.addEntry({ meal: d.m, label: `${r.n} (1 portion)`, g: null, ...r.m }); closeSheet(); toast(`Ajouté au ${d.m.toLowerCase()}`); };
+actions["rc-eat"] = async (b, d) => {
+  const r = allRecipes().find(x => x.id === d.id), por = document.getElementById("sheet")?.__por || 1;
+  await N.loadCiqual().catch(() => { }); await N.loadMicro();
+  N.addEntry(recipeEntry(r, por, d.m)); closeSheet(); toast(`Ajouté au ${d.m.toLowerCase()}`);
+};
 actions["rc-del"] = (b, d) => { if (!confirm("Supprimer cette recette ?")) return; update(st => st.myRecipes = st.myRecipes.filter(r => r.id !== d.id)); closeSheet(); rerender(); };
 let newR = null, nrSave = null;
 export function openRecipeEditor(onSave) { nrSave = onSave; newR = { n: "", cat: "Plat", e: "🍽️", portions: 2, min: 20, ing: {}, steps: "" }; recipeForm(); }
@@ -526,7 +587,7 @@ actions["nr-pick"] = (b, d) => {
     w.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => { inp.value = c.dataset.g; }));
     w.querySelector("#nrback").addEventListener("click", recipeForm);
     w.querySelector("#nrok").addEventListener("click", () => { g = num(inp.value); if (!(g > 0)) return toast("Indique un poids");
-      const k = "c:" + N.norm(f.n).slice(0, 60); const def = [f.n.charAt(0).toLowerCase() + f.n.slice(1), f.kcal, f.p, f.c, f.f, f.cat || "Divers"];
+      const k = "c:" + N.norm(f.n).slice(0, 60); const m100 = N.microOf(f, 100), def = [f.n.charAt(0).toLowerCase() + f.n.slice(1), f.kcal, f.p, f.c, f.f, f.cat || "Divers", ...(m100 ? [m100] : [])];
       newR.ingDef = { ...(newR.ingDef || {}), [k]: def }; RC.registerIng({ [k]: def }); newR.ing[k] = (newR.ing[k] || 0) + g; recipeForm(); });
   }, { keep: true });
 };

@@ -1,5 +1,6 @@
 // Carburant : cibles, base Ciqual, plats types, plan alimentaire, journal.
 import { S, update, today } from "./store.js";
+import { ING as RING } from "./recipes.js";
 
 let CQ = null, MODELS = null, MIC = null, OFFDB = null;
 export async function loadModels() { if (!MODELS) MODELS = await (await fetch("data/nutrition-models.json")).json(); return MODELS; }
@@ -25,6 +26,35 @@ export function microOf(f, g) {
   const o = {}; MIC.keys.forEach((k, i) => { if (v[i] != null) o[k] = +(v[i] * g / 100).toFixed(3); }); return o;
 }
 const cqFind = (label) => CQI[label] || CQI[ING_CQ[label]] || null;
+export const foodByName = (n) => CQI[n] || null;
+// Ingrédients de la banque de recettes → aliment Ciqual (micronutriments et fibres)
+const RC_CQ = { riz: "Riz blanc, cuit, non salé", rizc: "Riz complet, cuit, non salé", pates: "Pâtes sèches standard, cuites, non salées", patesc: "Pâtes sèches, au blé complet, cuites, non salées",
+  pdt: "Pomme de terre, bouillie/cuite à l'eau", pdouce: "Patate douce, cuite", quinoa: "Quinoa, bouilli/cuit à l'eau, non salé", semoule: "Semoule de blé dur, cuite, non salée", avoine: "Flocon d'avoine",
+  pain: "Pain complet ou intégral (à la farine T150)", tortilla: "Tortilla souple (à garnir), à base de blé", wasa: "Pain grillé suédois au froment",
+  poulet: "Poulet, filet, sans peau, sauté/poêlé", dinde: "Dinde, escalope, sautée/poêlée", boeuf: "Boeuf, steak haché 5% MG, cuit", steak: "Boeuf, steak ou bifteck, grillé", jambon: "Jambon cuit, supérieur, découenné dégraissé",
+  saumon: "Saumon, cuit, sans précision (aliment moyen)", cabillaud: "Cabillaud, cuit, sans précision (aliment moyen)", thon: "Thon, au naturel, appertisé, égoutté", crevettes: "Crevette, cuite", sardines: "Sardine, à l'huile, appertisée, égouttée",
+  oeuf: "Oeuf, cru", blanc: "Oeuf, blanc (blanc d'oeuf), cuit", fb: "Fromage blanc nature, 0% MG", lait: "Lait demi-écrémé, UHT", mozza: "Mozzarella au lait de vache", feta: "Feta AOP", parmesan: "Parmesan",
+  tofu: "Tofu nature, préemballé", tempeh: "Tempeh", lentilles: "Lentille, bouillie/cuite à l'eau", pchiches: "Pois chiche, bouilli/cuit à l'eau", hrouges: "Haricot rouge, bouilli/cuit à l'eau",
+  soja: "Boisson au soja, nature, non enrichie, préemballée", legumes: "Légumes, mélange surgelé, crus", brocoli: "Brocoli, cuit", epinards: "Épinard, cuit", courgette: "Courgette, pulpe et peau, cuite",
+  poivron: "Poivron rouge, cru", tomate: "Tomate, crue", oignon: "Oignon, cru", hverts: "Haricot vert, cuit", salade: "Salade verte, crue, sans assaisonnement", carotte: "Carotte, crue",
+  avocat: "Avocat, pulpe, cru", banane: "Banane, pulpe, crue", pomme: "Pomme, pulpe et peau, crue", frouges: "Fruits rouges, crus (framboises, fraises, groseilles, cassis)", citron: "Citron, pulpe, cru",
+  amandes: "Amande, mondée, émondée ou blanchie", noix: "Noix, séchée, cerneaux", cacahuete: "Beurre de cacahuète ou Pâte d'arachide", huile: "Huile d'olive vierge extra", miel: "Miel",
+  choco: "Chocolat noir à 70% cacao minimum, extra, dégustation, tablette", coco: "Lait de coco ou Crème de coco", creme: "Crème de lait, 15 à 20% MG, légère, fluide, rayon frais",
+  houmous: "Houmous, préemballé", graines: "Chia, graine, séchée", compote: "Compote de pomme, allégée en sucres", curry: "Curry, poudre" };
+// Micronutriments et fibres d'une recette : ingrédients (g pour toute la recette) × part mangée (1 = recette entière)
+export function recipeMicro(ing, part = 1) {
+  const mic = {}; let fib = 0, nf = 0, n = 0;
+  for (const [k, g] of Object.entries(ing || {})) {
+    const def = RING[k]; let m = def?.[6] ? Object.fromEntries(Object.entries(def[6]).map(([x, v]) => [x, v * g / 100])) : null, f = null;
+    if (!m) { const name = RC_CQ[k] || (k.startsWith("c:") && def ? def[0].charAt(0).toUpperCase() + def[0].slice(1) : null); f = name ? CQI[name] : null; m = f ? microOf(f, g) : null; }
+    if (m) { n++; for (const [x, v] of Object.entries(m)) mic[x] = (mic[x] || 0) + v * part; }
+    if (f?.fib != null) { fib += f.fib * g / 100 * part; nf++; }
+  }
+  Object.keys(mic).forEach(x => { mic[x] = +mic[x].toFixed(3); });
+  return { mic: n ? mic : null, fib: nf ? +fib.toFixed(1) : null };
+}
+// Libellé d'une recette notée au journal : « Nom (1,5 portion) »
+export const recLabel = (n, por) => `${n} (${String(+(+por).toFixed(2)).replace(".", ",")} portion${por > 1 ? "s" : ""})`;
 export function microFor(label, g) { if (!g || !CQ) return null; const f = cqFind(label); return f ? microOf(f, g) : null; }
 export const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/œ/g, "oe").replace(/æ/g, "ae").replace(/['’‘`´,;.()\/-]+/g, " ").replace(/\s+/g, " ").trim();
 // Aliments courants absents de la table Ciqual (valeurs moyennes d'étiquettes)
@@ -332,7 +362,8 @@ export function sugarSalt(date = today()) {
 export function rescaleEntry(id, date, g) {
   update(st => { const e = (st.food[date] || []).find(x => x.id === id); if (!e?.g || !(g > 0)) return; const k = g / e.g;
     e.kcal = Math.round(e.kcal * k); ["p", "c", "f", "fib"].forEach(x => { if (e[x] != null) e[x] = +(e[x] * k).toFixed(1); });
-    if (e.mic) Object.keys(e.mic).forEach(x => { e.mic[x] = +(e.mic[x] * k).toFixed(3); }); e.g = g; });
+    if (e.mic) Object.keys(e.mic).forEach(x => { e.mic[x] = +(e.mic[x] * k).toFixed(3); }); e.g = g;
+    if (e.rid && e.pw) { e.por = +(g / e.pw).toFixed(2); e.label = recLabel(e.rn, e.por); } });
 }
 
 // ---------- Journal ----------
@@ -379,8 +410,8 @@ export async function lookupBarcode(code) {
   return { n: [j.product.product_name, j.product.brands].filter(Boolean).join(" · ") || "Produit scanné", kcal: Math.round(n["energy-kcal_100g"] || 0), p: n.proteins_100g || 0, c: n.carbohydrates_100g || 0, f: n.fat_100g || 0, fib: n.fiber_100g ?? null, ...microsOff(n) };
 }
 // Micronutriments Open Food Facts (pour 100 g), quand la marque les donne
-const OFF_MICRO = { na: ["sodium_100g", 1000], ca: ["calcium_100g", 1000], fe: ["iron_100g", 1000], mg: ["magnesium_100g", 1000], k: ["potassium_100g", 1000], zn: ["zinc_100g", 1000], vc: ["vitamin-c_100g", 1000], vd: ["vitamin-d_100g", 1e6], b12: ["vitamin-b12_100g", 1e6] };
-function microsOff(n) { const o = {}; for (const [k, [f, m]] of Object.entries(OFF_MICRO)) if (n[f] != null) o[k] = +(n[f] * m).toFixed(2); return Object.keys(o).length ? { mic: o } : {}; }
+const OFF_MICRO = { na: ["sodium_100g", 1000], ca: ["calcium_100g", 1000], fe: ["iron_100g", 1000], mg: ["magnesium_100g", 1000], k: ["potassium_100g", 1000], zn: ["zinc_100g", 1000], vc: ["vitamin-c_100g", 1000], vd: ["vitamin-d_100g", 1e6], b12: ["vitamin-b12_100g", 1e6], b9: ["vitamin-b9_100g", 1e6] };
+function microsOff(n) { const o = {}; for (const [k, [f, m]] of Object.entries(OFF_MICRO)) if (n[f] != null) o[k] = +(n[f] * m).toFixed(2); if (o.b9 == null && n.folates_100g != null) o.b9 = +(n.folates_100g * 1e6).toFixed(2); return Object.keys(o).length ? { mic: o } : {}; }
 // Produits de marque : d'abord la base hors connexion (43 000 produits vendus en France), puis Open Food Facts en ligne
 export async function searchBrands(q, n = 15) {
   await loadOffDb(); const terms = norm(q).split(" ").filter(t => t && !STOP.has(t)).map(stem); if (!terms.length) return [];
