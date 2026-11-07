@@ -103,11 +103,14 @@ function exploreBody() {
     <h2 class="sec">👩‍🍳 Recettes</h2>${recipesBody()}`;
 }
 
+// Valeurs affichées sous un aliment : la portion vendue quand on la connaît (fast-food, barre, paquet), sinon pour 100 g
+const perLine = (f) => f.ug ? `1 portion (${f.ug} g) · ${Math.round(f.kcal * f.ug / 100)} kcal · ${fr(f.p * f.ug / 100, 1)} g prot.` : `${f.kcal} kcal · ${fr(f.p, 1)} g prot.${f.fib != null ? ` · ${fr(f.fib, 1)} g fibres` : ""} / 100 g`;
+const favOf = (f) => ({ n: f.n, kcal: f.kcal, p: f.p, c: f.c, f: f.f, ...(f.fib != null ? { fib: f.fib } : {}), ...(f.ug ? { ug: f.ug } : {}) });
 // ---------- Mes aliments : favoris, achetés souvent, récents ----------
 function favBody() {
   const fav = S().favFoods || [], rec = (S().recentFoods || []).filter(f => !N.isFavFood(f.n)).slice(0, 15), mine = (S().myFoods || []).slice().sort((a, b) => (b.count || 0) - (a.count || 0)).slice(0, 30);
   const meal = mealNow();
-  const li = (f, src, i) => `<div class="li"><button class="grow" style="text-align:left" data-a="fav-pick" data-src="${src}" data-i="${i}"><span class="small"><b>${esc(f.n)}</b></span><br><span class="xs muted">${f.kcal != null ? `${f.kcal} kcal · ${fr(f.p, 1)} g prot. / 100 g` : f.eur ? `${String(f.eur).replace(".", ",")} € · ${esc(f.shop || "")}` : "Touche pour le trouver"}</span></button><button class="icon-btn" data-a="fav-pick" data-src="${src}" data-i="${i}" aria-label="Ajouter">${I.plus}</button></div>`;
+  const li = (f, src, i) => `<div class="li"><button class="grow" style="text-align:left" data-a="fav-pick" data-src="${src}" data-i="${i}"><span class="small"><b>${esc(f.n)}</b></span><br><span class="xs muted">${f.kcal != null ? perLine(f) : f.eur ? `${String(f.eur).replace(".", ",")} € · ${esc(f.shop || "")}` : "Touche pour le trouver"}</span></button><button class="icon-btn" data-a="fav-pick" data-src="${src}" data-i="${i}" aria-label="Ajouter">${I.plus}</button></div>`;
   return `<p class="small muted mt12">Touche un aliment pour l'ajouter au <b>${esc(meal.toLowerCase())}</b>. L'étoile ☆ dans la recherche le met ici.</p>
     <h2 class="sec">⭐ Favoris</h2>${fav.length ? `<div class="list">${fav.map((f, i) => li(f, "fav", i)).join("")}</div>` : `<p class="empty small">Aucun favori. Dans la recherche d'aliments, touche ☆ à côté d'un aliment.</p>`}
     ${mine.length ? `<h2 class="sec">🛒 Ceux que j'achète <small>tickets de caisse</small></h2><div class="list">${mine.map((f, i) => li(f, "mine", i)).join("")}</div>` : ""}
@@ -317,7 +320,8 @@ function editFoodSheet() {
   const g0 = e.g || null; EF.g = EF.g ?? g0;
   sheet(`<h2 class="h2">Modifier l'aliment</h2><p class="small" style="margin:0">${esc(e.label)}</p>
     ${g0 ? `<div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm" data-a="ef-step" data-v="-10" style="width:auto">−10</button><input id="ef-g" class="inp" inputmode="decimal" value="${EF.g}" style="width:90px;text-align:center" aria-label="Quantité en grammes"><span class="small muted">g</span><button class="btn btn-line btn-sm" data-a="ef-step" data-v="10" style="width:auto">+10</button></div>
-    ${e.rid && e.pw ? `<div class="xs muted mt8">Portions de la recette (1 portion ≈ ${fr(Math.round(e.pw))} g)</div><div class="chips wrap mt4">${[0.5, 1, 1.5, 2, 3].map(k => `<button class="chip" data-a="ef-por" data-k="${k}">${String(k).replace(".", ",")} portion${k > 1 ? "s" : ""}</button>`).join("")}</div>`
+    ${e.ug && !e.rid ? `<div class="xs muted mt8">Portions (1 portion = ${fr(e.ug)} g)</div><div class="chips wrap mt4">${[0.5, 1, 2, 3].map(k => `<button class="chip" data-a="ef-ug" data-k="${k}">${String(k).replace(".", ",")} portion${k > 1 ? "s" : ""}</button>`).join("")}</div>`
+      : e.rid && e.pw ? `<div class="xs muted mt8">Portions de la recette (1 portion ≈ ${fr(Math.round(e.pw))} g)</div><div class="chips wrap mt4">${[0.5, 1, 1.5, 2, 3].map(k => `<button class="chip" data-a="ef-por" data-k="${k}">${String(k).replace(".", ",")} portion${k > 1 ? "s" : ""}</button>`).join("")}</div>`
       : `<div class="chips wrap mt8">${[0.5, 0.75, 1, 1.5, 2].map(k => `<button class="chip" data-a="ef-k" data-k="${k}">×${k}</button>`).join("")}</div>`}
     <div id="ef-v" class="mt12 small"></div>` : `<p class="xs muted mt8">Cet élément n'a pas de quantité en grammes (repas ou recette). Tu peux le remplacer.</p>`}
     <button class="btn btn-red mt16" data-a="ef-save" style="width:100%">${g0 ? "Enregistrer la quantité" : "Fermer"}</button>
@@ -333,6 +337,7 @@ actions["edit-food"] = (b, d) => { EF = { id: +d.id, date: d.d, back: d.back || 
 actions["ef-step"] = (b, d) => { EF.g = Math.max(1, Math.round((EF.g || 0) + +d.v)); const i = document.getElementById("ef-g"); if (i) i.value = EF.g; efDraw(); };
 actions["ef-k"] = (b, d) => { const e = efEntry(); EF.g = Math.round(e.g * +d.k); const i = document.getElementById("ef-g"); if (i) i.value = EF.g; efDraw(); };
 actions["ef-por"] = (b, d) => { const e = efEntry(); if (!e?.pw) return; EF.g = Math.round(e.pw * +d.k); const i = document.getElementById("ef-g"); if (i) i.value = EF.g; efDraw(); };
+actions["ef-ug"] = (b, d) => { const e = efEntry(); if (!e?.ug) return; EF.g = Math.round(e.ug * +d.k); const i = document.getElementById("ef-g"); if (i) i.value = EF.g; efDraw(); };
 actions["ef-save"] = () => { const e = efEntry(); if (e?.g && EF.g > 0 && EF.g !== e.g) { N.rescaleEntry(EF.id, EF.date, EF.g); toast("Quantité modifiée"); } efBack(); };
 actions["ef-del"] = () => { N.removeEntry(EF.id, EF.date); efBack(); };
 actions["ef-swap"] = () => {
@@ -341,7 +346,7 @@ actions["ef-swap"] = () => {
     <div class="search mt12">${I.search}<input id="ef-q" placeholder="riz, poulet, skyr…" autocomplete="off" enterkeyhint="search"></div>
     <div id="ef-r" class="mt12"></div><button class="link xs mt12" data-a="ef-cancel">Annuler</button>`, (w) => {
     const inp = w.querySelector("#ef-q"), out = w.querySelector("#ef-r"); let ready = false, deb, list = [];
-    const li = (f, i) => `<div class="li"><button class="grow" style="text-align:left" data-a="ef-pick" data-i="${i}"><span class="small">${esc(f.n)}</span><br><span class="xs muted">${f.kcal} kcal · ${fr(f.p, 1)} g prot. / 100 g</span></button></div>`;
+    const li = (f, i) => `<div class="li"><button class="grow" style="text-align:left" data-a="ef-pick" data-i="${i}"><span class="small">${esc(f.n)}</span><br><span class="xs muted">${perLine(f)}</span></button></div>`;
     const quick = () => { list = [...(S().favFoods || []).slice(0, 8), ...(S().recentFoods || []).filter(f => !N.isFavFood(f.n)).slice(0, 8)]; window.__ef = list; out.innerHTML = list.length ? `<div class="list">${list.map(li).join("")}</div>` : `<p class="empty small">Tape le nom du nouvel aliment.</p>`; };
     const run = () => { const q = inp.value.trim(); if (!q) return quick(); if (!ready) { out.innerHTML = `<p class="empty small">Chargement des aliments…</p>`; return; }
       list = N.searchFoods(q); window.__ef = list; out.innerHTML = list.length ? `<div class="list">${list.map(li).join("")}</div>` : `<p class="empty small">Rien pour « ${esc(q)} ».</p>`;
@@ -353,7 +358,7 @@ actions["ef-swap"] = () => {
 actions["ef-cancel"] = () => editFoodSheet();
 actions["ef-pick"] = (b, d) => {
   const f = window.__ef[+d.i], e = efEntry(); if (!f || !e) return;
-  const g = e.g || 100; N.rememberFood({ ...f, g }); N.replaceEntry(EF.id, EF.date, N.entryFromFood(f, g, e.meal));
+  const g = e.g || f.ug || 100; N.rememberFood({ ...f, g }); N.replaceEntry(EF.id, EF.date, N.entryFromFood(f, g, e.meal));
   EF.g = null; toast(`Remplacé par ${f.n.split(",")[0]}`); editFoodSheet();
 };
 
@@ -368,14 +373,14 @@ function quickFoods(foodLi) {
 function drawAfs(w = document.getElementById("sheet")) {
   const box = w.querySelector("#afsb");
   w.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.v === afs.tab));
-  const foodLi = (f, src, i) => `<div class="li" data-li="${src}-${i}"><button class="grow" style="text-align:left" data-a="pick-food" data-src="${src}" data-i="${i}"><span class="small">${esc(f.n)}</span><br><span class="xs muted">${f.kcal} kcal · ${fr(f.p, 1)} g prot.${f.fib != null ? ` · ${fr(f.fib, 1)} g fibres` : ""} / 100 g</span></button><button class="icon-btn" data-a="fav-food" data-src="${src}" data-i="${i}" aria-label="Favori" style="color:${N.isFavFood(f.n) ? "var(--gold)" : "var(--soft)"}">${N.isFavFood(f.n) ? "★" : "☆"}</button></div>`;
+  const foodLi = (f, src, i) => `<div class="li" data-li="${src}-${i}"><button class="grow" style="text-align:left" data-a="pick-food" data-src="${src}" data-i="${i}"><span class="small">${esc(f.n)}</span><br><span class="xs muted">${perLine(f)}</span></button><button class="icon-btn" data-a="fav-food" data-src="${src}" data-i="${i}" aria-label="Favori" style="color:${N.isFavFood(f.n) ? "var(--gold)" : "var(--soft)"}">${N.isFavFood(f.n) ? "★" : "☆"}</button></div>`;
   if (afs.tab === "search") {
     box.innerHTML = `<div class="search">${I.search}<input id="fq" placeholder="riz, poulet, skyr…" autocomplete="off" enterkeyhint="search"></div>
       <button class="btn btn-line btn-sm mt8" data-a="scan" style="width:100%">${I.scan.replace("<svg", '<svg width="20"')} Scanner un code-barres</button><div id="fr" class="mt12">${quickFoods(foodLi)}</div>`;
     const inp = box.querySelector("#fq"), out = box.querySelector("#fr"); let ready = false, deb;
     if (afs.query) { inp.value = afs.query; afs.query = null; }
     const run = () => { const q = inp.value.trim(); if (!q) { out.innerHTML = quickFoods(foodLi); return; } if (!ready) { out.innerHTML = `<p class="empty small">Chargement des aliments…</p>`; return; } const r = N.searchFoods(q); window.__fr = r;
-      const draw = (off) => { out.innerHTML = (r.length ? `<div class="list">${r.map((f, i) => foodLi(f, "search", i)).join("")}</div>` : `<p class="empty small">Rien dans la table Ciqual pour « ${esc(q)} ».</p>`) + `<div class="lbl mt16">🏷️ Produits de marque</div>` + (off == null ? `<p class="xs muted mt4">Recherche dans Open Food Facts…</p>` : off.length ? `<div class="list mt4">${off.map((f, i) => foodLi(f, "search", r.length + i)).join("")}</div>` : `<p class="xs muted mt4">Aucun produit de marque (ou pas de connexion).</p>`); };
+      const draw = (off) => { out.innerHTML = (r.length ? `<div class="list">${r.map((f, i) => foodLi(f, "search", i)).join("")}</div>` : off?.length ? "" : `<p class="empty small">Rien dans la table Ciqual pour « ${esc(q)} ».</p>`) + `<div class="lbl mt16">🏷️ Marques, fast-food et restaurants</div>` + (off == null ? `<p class="xs muted mt4">Recherche dans Open Food Facts…</p>` : off.length ? `<div class="list mt4">${off.map((f, i) => foodLi(f, "search", r.length + i)).join("")}</div>` : `<p class="xs muted mt4">Aucun produit de marque ni plat de fast-food (ou pas de connexion).</p>`); };
       draw(null); N.searchBrands(q).then(off => { if (inp.value.trim() !== q) return; window.__fr = [...r, ...off]; draw(off); }); };
     inp.addEventListener("input", () => { clearTimeout(deb); deb = setTimeout(run, 140); });
     inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } });
@@ -393,16 +398,17 @@ function drawAfs(w = document.getElementById("sheet")) {
 actions["add-food"] = (b, d) => addFoodSheet(d.m);
 actions["afs-tab"] = (b, d) => { afs.tab = d.v; drawAfs(); };
 const srcList = (src) => src === "search" ? window.__fr : src === "fav" ? S().favFoods : S().recentFoods;
-actions["fav-food"] = (b, d) => { const f = srcList(d.src)[+d.i]; N.toggleFavFood({ n: f.n, kcal: f.kcal, p: f.p, c: f.c, f: f.f }); const on = N.isFavFood(f.n); b.textContent = on ? "★" : "☆"; b.style.color = on ? "var(--gold)" : "var(--soft)"; toast(on ? "Ajouté aux favoris" : "Retiré des favoris"); };
+actions["fav-food"] = (b, d) => { const f = srcList(d.src)[+d.i]; N.toggleFavFood(favOf(f)); const on = N.isFavFood(f.n); b.textContent = on ? "★" : "☆"; b.style.color = on ? "var(--gold)" : "var(--soft)"; toast(on ? "Ajouté aux favoris" : "Retiré des favoris"); };
 // Quantité choisie sur place, sous l'aliment touché : pas de nouvelle fenêtre
 actions["pick-food"] = (b, d) => {
   const food = srcList(d.src)[+d.i], li = b.closest(".li"); if (!food || !li) return;
   document.querySelectorAll("#sheet .qty-pick").forEach(x => x.remove());
   const last = (S().recentFoods || []).find(x => x.n === food.n)?.g;
-  let g = last || 100;
+  let g = last || food.ug || 100;
+  const pc = N.portionChips(food), chips = [...pc, ...[30, 50, 100, 150, 200, 250].filter(x => !pc.some(c => c[0] === x)).map(x => [x, `${x} g`])];
   const panel = document.createElement("div"); panel.className = "qty-pick card"; panel.style.cssText = "margin:4px 0 10px;padding:12px";
   panel.innerHTML = `<div class="row" style="gap:8px"><input class="inp" inputmode="decimal" value="${g}" style="width:90px" aria-label="Quantité en grammes"><span class="small muted">g</span><span class="grow small" data-v></span></div>
-    <div class="chips wrap mt8">${[30, 50, 100, 150, 200, 250].map(x => `<button class="chip" data-g="${x}">${x} g</button>`).join("")}</div>
+    <div class="chips wrap mt8">${chips.map(([x, l]) => `<button class="chip" data-g="${x}">${l}</button>`).join("")}</div>
     <button class="btn btn-red btn-sm mt8" style="width:100%" data-ok>Ajouter</button>`;
   li.after(panel);
   const inp = panel.querySelector("input"), v = panel.querySelector("[data-v]");
@@ -426,11 +432,12 @@ actions["eat-recipe"] = async (b, d) => {
   recipeQtyPanel(r, b, afs.meal, (e) => { addedToMeal(e, `${r.n} ajouté`); b.style.opacity = ".55"; });
 };
 function gramsSheet(food, onAdd, meal = afs.meal) {
-  let g = 100;
+  let g = food.ug || 100;
+  const pc = N.portionChips(food), chips = [...pc, ...[30, 50, 100, 150, 200, 250, 300].filter(x => !pc.some(c => c[0] === x)).map(x => [x, `${x} g`])];
   const draw = (w) => { const e = N.entryFromFood(food, g, meal); w.querySelector("#gv").innerHTML = `<span class="num" style="font-size:34px">${e.kcal}</span><span class="small muted"> kcal · ${fr(e.p)} g prot. · ${fr(e.c)} g gluc. · ${fr(e.f)} g lip.</span>`; };
   sheet(`<h2 class="h2">${esc(food.n)}</h2><div id="gv" class="mt12"></div>
-    <label class="field mt12"><span>Quantité (g ou ml)</span><input id="gq" inputmode="decimal" value="100"></label>
-    <div class="chips wrap mt12">${[30, 50, 100, 150, 200, 250, 300].map(x => `<button class="chip ${x === 100 ? "on" : ""}" data-g="${x}">${x} g</button>`).join("")}</div>
+    <label class="field mt12"><span>Quantité (g ou ml)</span><input id="gq" inputmode="decimal" value="${g}"></label>
+    <div class="chips wrap mt12">${chips.map(([x, l]) => `<button class="chip ${x === g ? "on" : ""}" data-g="${x}">${l}</button>`).join("")}</div>
     <label class="field mt12"><span>Heure</span><input id="gt" type="time" value="${afs.date === today() ? hhmm() : N.MEAL_TIMES[meal]}"></label>
     <button class="btn btn-red mt16" id="gadd">Ajouter à ${esc(meal.toLowerCase())}</button>`, (w) => {
     draw(w); const inp = w.querySelector("#gq");

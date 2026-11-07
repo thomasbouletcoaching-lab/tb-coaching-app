@@ -31,7 +31,7 @@ actions["fav-entry"] = (b, d) => {
   const e = (S().food[d.d] || []).find(x => x.id === +d.id);
   if (!e || !favable(e)) return toast("Quantité inconnue : impossible de l'ajouter aux favoris");
   const k = 100 / e.g, r1 = (v) => +(v * k).toFixed(1);
-  N.toggleFavFood({ n: e.label, kcal: Math.round(e.kcal * k), p: r1(e.p), c: r1(e.c), f: r1(e.f), ...(e.fib != null ? { fib: r1(e.fib) } : {}) });
+  N.toggleFavFood({ n: e.label, kcal: Math.round(e.kcal * k), p: r1(e.p), c: r1(e.c), f: r1(e.f), ...(e.fib != null ? { fib: r1(e.fib) } : {}), ...(e.ug ? { ug: e.ug } : {}) });
   const on = N.isFavFood(e.label); buzz(); toast(on ? "Ajouté aux aliments favoris" : "Retiré des favoris"); rerender();
 };
 export function mealCards(t, d) {

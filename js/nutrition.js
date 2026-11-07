@@ -16,8 +16,23 @@ let CQI = {};
 // Micronutriments Ciqual (pour 100 g), chargés à part
 export async function loadMicro() { if (!MIC) { try { MIC = await (await fetch("data/ciqual-micro.json")).json(); } catch { MIC = { keys: [], foods: [] }; } } return MIC; }
 // Produits de marque français les plus courants (Open Food Facts), disponibles hors connexion
-export async function loadOffDb() { if (!OFFDB) { try { const j = await (await fetch("data/off-fr.json")).json(); OFFDB = j.foods.map(f => ({ n: f[0] + (f[1] ? " · " + f[1] : ""), brand: f[1], cat: "Produits de marque", kcal: f[2], p: f[3], c: f[4], f: f[5], fib: f[6], code: f[7], off: true, k: norm(f[0] + " " + (f[1] || "")), a: (f[0] + " " + (f[1] || "")).toLowerCase(), mic: f[8] != null || f[9] != null ? { sug: f[8], na: f[9] } : undefined })); } catch { OFFDB = []; } } return OFFDB; }
+export async function loadOffDb() { if (!OFFDB) { try { const j = await (await fetch("data/off-fr.json")).json(); OFFDB = j.foods.map(f => ({ n: f[0] + (f[1] ? " · " + f[1] : ""), brand: f[1], cat: "Produits de marque", kcal: f[2], p: f[3], c: f[4], f: f[5], fib: f[6], code: f[7], off: true, k: norm(f[0] + " " + (f[1] || "")), a: (f[0] + " " + (f[1] || "")).toLowerCase(), mic: f[8] != null || f[9] != null ? { sug: f[8], na: f[9] } : undefined, ...(f[10] ? { ug: f[10] } : {}) })); } catch { OFFDB = []; } } return OFFDB; }
 export const offDb = () => OFFDB;
+// Fast-food et restaurants (McDonald's, Burger King, Quick, KFC, Five Guys, tacos…) : valeurs des enseignes, portion vendue
+let FFDB = null;
+const FF_CHAIN = /^(mc ?donald|burger king|quick|kfc|five guys)/i;
+const FF_ALIAS = { "McDonald's": "mcdo macdo mcdonalds", "Burger King": "bk burgerking", "O'Tacos": "otacos tacos french", "Tacos": "french tacos", "Five Guys": "fiveguys", "KFC": "kentucky" };
+export async function loadFastFood() { if (!FFDB) { try { const j = await (await fetch("data/fastfood.json")).json(); FFDB = j.foods.map(f => ({ n: f[0] + " · " + f[1], brand: f[1], cat: "Fast-food & restaurants", kcal: f[2], p: f[3], c: f[4], f: f[5], fib: f[6], ...(f[7] ? { ug: f[7] } : {}), ff: true, k: norm(f[0] + " " + f[1] + " " + (FF_ALIAS[f[1]] || "")), nk: norm(f[0]) })); } catch { FFDB = []; } } return FFDB; }
+export function searchFastFood(q, n = 15) {
+  if (!FFDB) return []; const terms = norm(q).split(" ").filter(t => t && !STOP.has(t)).map(stem); if (!terms.length) return [];
+  const res = [];
+  for (const f of FFDB) { if (!terms.every(t => f.k.startsWith(t) || f.k.includes(" " + t))) continue; const inName = terms.filter(t => f.nk.startsWith(t) || f.nk.includes(" " + t)).length; res.push([inName * 2 + (f.nk.startsWith(terms[0]) ? 2 : 0) + wordHits(q, f.k) * 2 - f.nk.length / 40, f]); }
+  return res.sort((a, b) => b[0] - a[0]).slice(0, n).map(x => (x[1]._s = x[0], x[1]));
+}
+// Mots de la recherche présents tels quels (sans couper le pluriel) : « twix » ne remonte pas « twist »
+const wordHits = (q, k) => { const w = " " + k + " "; return norm(q).split(" ").filter(t => t.length > 1 && (w.includes(" " + t + " ") || w.includes(" " + stem(t) + " "))).length; };
+// Portions proposées pour un aliment vendu à l'unité : [grammes, libellé]
+export function portionChips(f) { if (!f?.ug) return []; return [[0.5, "½ portion"], [1, "1 portion"], [2, "2 portions"]].map(([k, l]) => [Math.round(f.ug * k), `${l} (${Math.round(f.ug * k)} g)`]); }
 // Micronutriments d'une quantité d'aliment
 export function microOf(f, g) {
   if (!f || !g) return null;
@@ -389,7 +404,7 @@ export function replaceEntry(id, date, ne) { update(st => { const l = st.food[da
 export function removeEntry(id, date = today()) { update(st => { st.food[date] = (st.food[date] || []).filter(e => e.id !== id); }); }
 export function entryFromFood(f, g, meal) {
   const k = g / 100, mic = microOf(f, g);
-  return { meal, label: f.n, g, kcal: Math.round(f.kcal * k), p: +(f.p * k).toFixed(1), c: +(f.c * k).toFixed(1), f: +(f.f * k).toFixed(1), ...(f.fib != null ? { fib: +(f.fib * k).toFixed(1) } : {}), ...(mic ? { mic } : {}) };
+  return { meal, label: f.n, g, ...(f.ug ? { ug: f.ug } : {}), kcal: Math.round(f.kcal * k), p: +(f.p * k).toFixed(1), c: +(f.c * k).toFixed(1), f: +(f.f * k).toFixed(1), ...(f.fib != null ? { fib: +(f.fib * k).toFixed(1) } : {}), ...(mic ? { mic } : {}) };
 }
 // Micronutriments d'une journée : aliments notés (part des calories connue) + compléments pris
 export function dayMicros(date = today()) {
@@ -416,13 +431,15 @@ const OFF_MICRO = { na: ["sodium_100g", 1000], ca: ["calcium_100g", 1000], fe: [
 function microsOff(n) { const o = {}; for (const [k, [f, m]] of Object.entries(OFF_MICRO)) if (n[f] != null) o[k] = +(n[f] * m).toFixed(2); if (o.b9 == null && n.folates_100g != null) o.b9 = +(n.folates_100g * 1e6).toFixed(2); return Object.keys(o).length ? { mic: o } : {}; }
 // Produits de marque : d'abord la base hors connexion (43 000 produits vendus en France), puis Open Food Facts en ligne
 export async function searchBrands(q, n = 15) {
-  await loadOffDb(); const terms = norm(q).split(" ").filter(t => t && !STOP.has(t)).map(stem); if (!terms.length) return [];
+  await Promise.all([loadOffDb(), loadFastFood()]); const terms = norm(q).split(" ").filter(t => t && !STOP.has(t)).map(stem); if (!terms.length) return [];
+  const ff = searchFastFood(q, 15); // quand l'enseigne a sa fiche, on n'affiche pas les doublons d'Open Food Facts
   const res = [];
-  for (const f of OFFDB) { if (!terms.every(t => f.k.startsWith(t) || f.k.includes(" " + t))) continue; res.push([(f.k.startsWith(terms[0]) ? 3 : 0) + terms.join(" ").length / f.k.length * 3 - f.n.length / 60, f]); if (res.length > 600) break; }
-  const local = res.sort((a, b) => b[0] - a[0]).slice(0, n).map(x => x[1]);
+  for (const f of OFFDB) { if (!terms.every(t => f.k.startsWith(t) || f.k.includes(" " + t))) continue; if (ff.length && FF_CHAIN.test(f.brand || "")) continue; res.push([(f.k.startsWith(terms[0]) ? 3 : 0) + terms.join(" ").length / f.k.length * 3 + wordHits(q, f.k) * 2 - f.n.length / 60, f]); if (res.length > 600) break; }
+  // fast-food d'abord, sauf quand un produit de marque correspond mot pour mot et mieux
+  const local = [...ff, ...res.sort((a, b) => b[0] - a[0]).slice(0, n).map(x => x[1])].map((f, i) => [wordHits(q, f.k), i, f]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(x => x[2]);
   if (local.length >= 6) return local;
   const live = await searchOff(q).catch(() => []);
-  return [...local, ...live.filter(x => !local.some(l => l.code && l.code === x.code))].slice(0, n + 10);
+  return [...local, ...live.filter(x => !local.some(l => l.code && l.code === x.code))].slice(0, n + 25);
 }
 const offCache = new Map();
 const offItem = (p) => { const m = p.nutriments || {}, name = (p.product_name_fr || p.product_name || "").trim(), br = (Array.isArray(p.brands) ? p.brands[0] : String(p.brands || "").split(",")[0] || "").trim(); if (!name || m["energy-kcal_100g"] == null) return null;

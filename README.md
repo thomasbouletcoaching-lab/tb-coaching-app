@@ -60,6 +60,20 @@ hébergée **gratuitement** sur GitHub Pages.
   Accès : Plus (coach), Accueil et Compte (client).
 - Le contenu est dans `index.html`, module 66 (`TBP66`, `NM66`, `KB66`).
 
+## Base d'aliments (recherche Nutrition)
+
+| Fichier | Contenu | Mise à jour |
+|---|---|---|
+| `data/ciqual.json` | Table Ciqual (ANSES), aliments génériques pour 100 g | `python3 tools/ciqual.py` |
+| `data/off-fr.json` | Produits de marque vendus en France (Open Food Facts) : courses, bonbons, chocolats, biscuits, gâteaux, chips, apéritifs, barres, viennoiseries, glaces, sodas. Portion du paquet quand elle est connue | `python3 tools/off_snacks.py` |
+| `data/fastfood.json` | Fast-food et restaurants avec la portion vendue : McDonald's, Burger King, Quick (valeurs officielles), Five Guys (recomposé à partir du tableau officiel), French tacos et O'Tacos (analyses CLCV), KFC (Open Food Facts) | `tools/fastfood/build.py` |
+
+- Dans la recherche, ces plats apparaissent sous « Marques, fast-food et restaurants » avec « 1 portion (232 g) · 530 kcal ».
+  Le choix de la quantité propose ½, 1 ou 2 portions, ou des grammes.
+- Quand une enseigne a ses fiches officielles, les doublons d'Open Food Facts pour cette enseigne ne s'affichent pas.
+- Non couverts faute de valeurs officielles accessibles : Subway, Domino's, Pizza Hut, Starbucks, Taco Bell, Popeyes.
+  Pour ces enseignes, la recherche propose les aliments génériques Ciqual (pizza, kebab, sandwich) et les produits trouvés en ligne.
+
 ## Vidéos de la messagerie
 
 - Une seule série, 90 secondes maximum.
