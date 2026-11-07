@@ -24,6 +24,15 @@ export function journalMeals(t, d) {
   log.forEach(e => { if (!names.includes(e.meal)) names.push(e.meal); });
   return names.map(m => ({ meal: m, plan: plan.find(x => x.meal === m) || null, es: log.filter(e => e.meal === m) }));
 }
+// Aliment favori depuis une ligne du journal : possible seulement si la quantité est connue (valeurs ramenées à 100 g)
+const favable = (e) => !!(e.g > 0 && !e.rid && e.label);
+actions["fav-entry"] = (b, d) => {
+  const e = (S().food[d.d] || []).find(x => x.id === +d.id);
+  if (!e || !favable(e)) return toast("Quantité inconnue : impossible de l'ajouter aux favoris");
+  const k = 100 / e.g, r1 = (v) => +(v * k).toFixed(1);
+  N.toggleFavFood({ n: e.label, kcal: Math.round(e.kcal * k), p: r1(e.p), c: r1(e.c), f: r1(e.f), ...(e.fib != null ? { fib: r1(e.fib) } : {}) });
+  const on = N.isFavFood(e.label); buzz(); toast(on ? "Ajouté aux aliments favoris" : "Retiré des favoris"); rerender();
+};
 export function mealCards(t, d) {
   const skips = S().daily[d]?.skip || {};
   return journalMeals(t, d).map(({ meal, plan: x, es }) => {
@@ -31,7 +40,7 @@ export function mealCards(t, d) {
     const head = `<div class="row between"><div><b class="h3">${ICON[meal] || "🍽️"} ${esc(meal)}</b>${es.length ? `<div class="xs muted">${es[0].time || ""} · ${fr(k)} kcal · ${fr(es.reduce((a, e) => a + e.p, 0))} g prot.</div>` : x?.time ? `<div class="xs muted">prévu à ${x.time}</div>` : ""}</div><button class="btn ${es.length || skips[meal] ? "btn-line" : "btn-ghost"} btn-xs" data-a="add-food" data-m="${key}">+ Ajouter</button></div>`;
     if (es.length) return `<div class="card mt12">${head}
       <div class="row mt8" style="gap:8px"><span class="xs muted">🕐 Heure du repas</span><input type="time" class="inp" style="width:116px;font-size:16px;padding:4px 8px" value="${es[0].time || ""}" data-c="mtime" data-m="${key}" data-d="${d}" aria-label="Heure du repas"></div>
-      <div class="list mt8">${es.map(e => `<div class="li" style="gap:8px"><span class="grow small">${esc(e.label)}<br><span class="xs muted">${e.g ? fr(e.g) + " g · " : ""}${mac(e)}</span></span><button class="icon-btn" data-a="edit-food" data-id="${e.id}" data-d="${d}" aria-label="Modifier ou remplacer" style="color:var(--red)">✏️</button><button class="icon-btn" data-a="del-food" data-id="${e.id}" data-d="${d}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>
+      <div class="list mt8">${es.map(e => `<div class="li" style="gap:8px"><span class="grow small">${esc(e.label)}<br><span class="xs muted">${e.g ? fr(e.g) + " g · " : ""}${mac(e)}</span></span>${favable(e) ? `<button class="icon-btn" data-a="fav-entry" data-id="${e.id}" data-d="${d}" aria-label="Aliment favori" style="color:${N.isFavFood(e.label) ? "var(--gold)" : "var(--soft)"}">${N.isFavFood(e.label) ? "★" : "☆"}</button>` : ""}<button class="icon-btn" data-a="edit-food" data-id="${e.id}" data-d="${d}" aria-label="Modifier ou remplacer" style="color:var(--red)">✏️</button><button class="icon-btn" data-a="del-food" data-id="${e.id}" data-d="${d}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>
       <button class="link xs mt8" data-a="save-meal" data-m="${key}" data-d="${d}">⭐ Enregistrer ce repas pour le refaire</button></div>`;
     if (skips[meal]) return `<div class="card mt12">${head}<p class="small muted mt8" style="margin-bottom:0">Repas sauté. <button class="link small" data-a="meal-skip" data-m="${key}" data-d="${d}">Annuler</button></p></div>`;
     if (!x) return `<div class="card mt12">${head}<p class="xs muted mt8" style="margin-bottom:0">Rien de prévu : ajoute ce que tu as mangé.</p></div>`;
