@@ -393,11 +393,15 @@ document.addEventListener("pointercancel", endDrag);
 let MIRROR = null; // { id, stamp, timer, quiet, name }
 let pushT = null;
 const strip = (cur) => { const c = JSON.parse(JSON.stringify(cur)); delete c.mirror; return c; };
+// Un état « ended » ne concerne la séance courante que s'il a été posé APRÈS son démarrage.
+// Sinon c'est un reliquat d'une séance précédente : il ne doit ni bloquer la publication ni clôturer la nouvelle séance.
+const endedForCurrent = (state, cur) => !!state?.ended && !!state.endedAt && !!cur?.start && new Date(state.endedAt).getTime() >= new Date(cur.start).getTime();
 async function pushMirror() {
   const cur = S().current; if (!MIRROR || !cur?.mirror) return;
   try {
-    const c = await cloud(); const r = await c.liveGet(MIRROR.id), base = r?.state || {};
-    if (base.ended) return;
+    const c = await cloud(); const r = await c.liveGet(MIRROR.id); let base = r?.state || {};
+    if (endedForCurrent(base, cur)) return;
+    if (base.ended) base = {}; // reliquat d'une ancienne séance : on repart d'un état propre
     const st = { log: [], ...base, title: cur.title, startedAt: base.startedAt || cur.start || nowIso(), by: base.by || (isCoach() ? "coach" : "member"), ended: false, session: strip(cur) };
     MIRROR.stamp = await c.liveSet(MIRROR.id, st);
   } catch { }
@@ -461,6 +465,8 @@ async function pollMirror() {
   if (DRAG || document.querySelector(".sheet-wrap, input:focus, textarea:focus, select:focus")) return;
   try {
     const r = await (await cloud()).liveGet(MIRROR.id);
+    const cur0 = S().current;
+    if (r?.state?.ended && !endedForCurrent(r.state, cur0)) { await pushMirror(); return; } // état périmé d'une séance précédente : on l'ignore
     if (!r?.state || r.state.ended) {
       if (!isCoach() && S().current.exercises.some(e => e.sets.some(x => x.done))) { const cur = S().current; E.finishSession(cur); MIRROR = null; clearInterval(0); toast("Thomas a terminé la séance : elle est enregistrée"); return go("done"); }
       return leaveMirror("Séance terminée");
