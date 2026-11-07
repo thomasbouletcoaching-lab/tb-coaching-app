@@ -11,7 +11,7 @@ import { addFoodSheet, scanBarcode, recipePool } from "./food.js";
 const eur = (x) => `${(Math.round((x || 0) * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 const mac = (it) => `P ${fr(it.p, 1)} · G ${fr(it.c, 1)} · L ${fr(it.f, 1)} g${it.fib != null ? ` · F ${fr(it.fib, 1)} g` : ""} · ${Math.round(it.kcal)} kcal`;
 const sumM = (items) => items.reduce((a, i) => ({ kcal: a.kcal + (i.kcal || 0), p: a.p + (i.p || 0), c: a.c + (i.c || 0), f: a.f + (i.f || 0) }), { kcal: 0, p: 0, c: 0, f: 0 });
-const ICON = { "Petit-déjeuner": "🥣", "Déjeuner": "🍛", "Collation": "🍎", "Dîner": "🍲" };
+const ICON = { "Petit-déjeuner": "🥣", "Déjeuner": "🍛", "Collation": "🍎", "Dîner": "🍲", [N.OFFPLAN]: "🍪" };
 
 // =====================================================================
 // JOURNAL
@@ -22,6 +22,7 @@ export function journalMeals(t, d) {
   const names = [...plan.map(x => x.meal)];
   N.MEALS.forEach(m => { if (!names.includes(m) && (!plan.length || log.some(e => e.meal === m))) names.push(m); });
   log.forEach(e => { if (!names.includes(e.meal)) names.push(e.meal); });
+  if (!names.includes(N.OFFPLAN)) names.push(N.OFFPLAN); else names.push(names.splice(names.indexOf(N.OFFPLAN), 1)[0]);
   return names.map(m => ({ meal: m, plan: plan.find(x => x.meal === m) || null, es: log.filter(e => e.meal === m) }));
 }
 // Aliment favori depuis une ligne du journal : possible seulement si la quantité est connue (valeurs ramenées à 100 g)
@@ -43,7 +44,7 @@ export function mealCards(t, d) {
       <div class="list mt8">${es.map(e => `<div class="li" style="gap:8px"><span class="grow small">${esc(e.label)}<br><span class="xs muted">${e.g ? fr(e.g) + " g · " : ""}${mac(e)}</span></span>${favable(e) ? `<button class="icon-btn" data-a="fav-entry" data-id="${e.id}" data-d="${d}" aria-label="Aliment favori" style="color:${N.isFavFood(e.label) ? "var(--gold)" : "var(--soft)"}">${N.isFavFood(e.label) ? "★" : "☆"}</button>` : ""}<button class="icon-btn" data-a="edit-food" data-id="${e.id}" data-d="${d}" aria-label="Modifier ou remplacer" style="color:var(--red)">✏️</button><button class="icon-btn" data-a="del-food" data-id="${e.id}" data-d="${d}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>
       <button class="link xs mt8" data-a="save-meal" data-m="${key}" data-d="${d}">⭐ Enregistrer ce repas pour le refaire</button></div>`;
     if (skips[meal]) return `<div class="card mt12">${head}<p class="small muted mt8" style="margin-bottom:0">Repas sauté. <button class="link small" data-a="meal-skip" data-m="${key}" data-d="${d}">Annuler</button></p></div>`;
-    if (!x) return `<div class="card mt12">${head}<p class="xs muted mt8" style="margin-bottom:0">Rien de prévu : ajoute ce que tu as mangé.</p></div>`;
+    if (!x) return `<div class="card mt12">${head}<p class="xs muted mt8" style="margin-bottom:0">${meal === N.OFFPLAN ? "Grignotage, écart, resto : note ici ce qui n'était pas dans ton plan." : "Rien de prévu : ajoute ce que tu as mangé."}</p></div>`;
     const items = x.items || [], m = x.m || sumM(items), open = openMod[d + meal];
     return `<div class="card mt12">${head}
       <div class="mt8"><b>${esc(x.n)}</b> <span class="small muted">· ${fr(m.kcal)} kcal</span></div><p class="xs muted" style="margin:2px 0 6px">Ce repas : P ${fr(m.p)} g · G ${fr(m.c)} g · L ${fr(m.f)} g</p>

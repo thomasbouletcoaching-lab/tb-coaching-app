@@ -368,11 +368,13 @@ export function rescaleEntry(id, date, g) {
 
 // ---------- Journal ----------
 export const MEALS = ["Petit-déjeuner", "Déjeuner", "Collation", "Dîner"];
+// Carte du journal pour tout ce qui n'est pas dans le plan : grignotage, écart, resto
+export const OFFPLAN = "Hors programme";
 export function dayLog(date = today()) { return S().food[date] || []; }
 export function dayTotals(date = today()) {
   return dayLog(date).reduce((a, e) => ({ kcal: a.kcal + e.kcal, p: a.p + e.p, c: a.c + e.c, f: a.f + e.f, fib: a.fib + (e.fib || 0), fibN: a.fibN + (e.fib != null ? 1 : 0) }), { kcal: 0, p: 0, c: 0, f: 0, fib: 0, fibN: 0 });
 }
-export const MEAL_TIMES = { "Petit-déjeuner": "08:00", "Collation du matin": "10:30", "Déjeuner": "12:30", "Collation": "16:30", "Dîner": "19:30", "Collation du soir": "21:30" };
+export const MEAL_TIMES = { "Petit-déjeuner": "08:00", "Collation du matin": "10:30", "Déjeuner": "12:30", "Collation": "16:30", "Dîner": "19:30", "Collation du soir": "21:30", "Hors programme": "15:30" };
 export function addEntry(e, date = today()) {
   if (!e.mic && e.g) { const m = microFor(e.label, e.g); if (m) e = { ...e, mic: m }; }
   if (e.fib == null && e.g && CQ) { const f = cqFind(e.label); if (f?.fib != null) e = { ...e, fib: +(f.fib * e.g / 100).toFixed(1) }; }
