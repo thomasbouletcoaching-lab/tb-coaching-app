@@ -1,4 +1,5 @@
 -- =====================================================================
+-- APPLIQUÉE en production le 2026-11-08 (migration Supabase « securite_profils_20261108 »).
 -- 2026-11-08 · Sécurité : un membre ne peut plus se donner les droits coach
 -- ni changer lui-même sa formule.
 --

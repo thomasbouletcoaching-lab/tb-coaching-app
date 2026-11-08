@@ -6,6 +6,8 @@ Branche `feat/adherence-resultats`, une PR ouverte vers `main` (rien n'a été p
 
 En lisant le schéma Supabase, j'ai trouvé que **n'importe quel membre connecté peut se donner les droits coach** (colonne `is_coach` de `cxs_profiles` modifiable par lui-même) et donc **lire les dossiers de tous tes clients** (séances, repas, poids, et désormais anamnèse santé), ou s'attribuer une formule payante sans payer. Le correctif est prêt : `supabase/migrations/2026-11-08_securite_profils.sql` (aucune donnée modifiée, retour arrière fourni). Il faut l'appliquer **avant** de mettre en ligne cette PR, puisque la PR ajoute des données de santé dans le dossier.
 
+> ✅ **Appliqué le 8/11/2026 à 2 h 40** à ta demande (migration Supabase `securite_profils_20261108`). Vérifié dans une transaction annulée : un membre ne peut plus modifier `is_coach`, `tier` ni `tier_until` ; il peut toujours mettre à jour son profil, sa dernière visite et ses stats ; `cxs_set_tier` fonctionne toujours pour le coach. Avant application : un seul compte coach (thomasboulet.coaching@gmail.com), 15 invités, aucune donnée modifiée.
+
 ## Ce qui est fait
 
 ### Phase 1
@@ -39,6 +41,6 @@ En lisant le schéma Supabase, j'ai trouvé que **n'importe quel membre connect�
 
 ## Les 3 actions que tu dois faire toi-même
 
-1. **Appliquer le correctif de sécurité, aujourd'hui.** Supabase → SQL Editor : lancer les 2 vérifications en tête de `supabase/migrations/2026-11-08_securite_profils.sql` (seul ton compte doit avoir `is_coach = true`), puis exécuter le fichier. Ensuite, si tu veux l'envoi de photos, exécuter `2026-11-08_suivi_photos.sql`.
+1. ~~Appliquer le correctif de sécurité~~ ✅ fait. Reste, si tu veux l'envoi de photos au coach : relire et exécuter `2026-11-08_suivi_photos.sql`.
 2. **Relire et fusionner la PR** après avoir testé sur ton téléphone le parcours d'un nouveau compte (Défi → point de départ → bilan → rapport → candidature) et ton onglet Aujourd'hui. Décider pour l'essai Stripe de 7 jours (ci-dessus).
 3. **Envoyer ton audience dans le défi** : un post et une story « Défi 30 jours offert, avec ton rapport avant / après à la fin » avec le lien de l'app, et compléter ta politique de confidentialité (données de santé, témoignages) avant la diffusion.
