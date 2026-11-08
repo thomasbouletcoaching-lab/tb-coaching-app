@@ -474,6 +474,6 @@ function applyDossier() {
     const a = myAdherence(), from = S().trialStart || sinceStart() || today(), s = summaryBetween(from), an = S().anamnese;
     const r1 = (x) => x == null ? null : Math.round(x * 10) / 10;
     return { score: a.score, status: a.status, sessions: s.sessions, checkins: myCheckins().length, weight: r1(s.weight?.delta), waist: r1(s.waist?.delta), days: s.days,
-      defiDay: S().trialStart ? defiDay() : null, why: an?.motivation?.why || null, health: an?.flags?.length || 0, anam: !!an?.at };
+      defiDay: S().trialStart ? defiDay() : null, why: an?.motivation?.why || null, anam: !!an?.at }; // pas de donnée de santé dans la candidature (voir confidentialite.html)
   } catch { return null; }
 }
