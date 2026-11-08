@@ -112,3 +112,15 @@ Onglet « Commits », puis choisir une version précédente : tout l'historique 
 - Côté client, onglet Programme : « 📊 Volume de la semaine par muscle ».
 - Moteur : `js/volume.js` (pur, testé par `node --test tests/volume.test.mjs`) ; écran : `js/views/volume.js` ;
   détail dans `docs/spec-volume-hebdo.md`.
+
+## Business → Objectif (pilotage vers 10 000 €/mois)
+
+- Espace coach → Business → **Objectif** : encaissé du mois face à l'objectif, attendus et retards ; revenu récurrent
+  (cycles en cours + abonnements de l'app, estimation) et ce qu'il manque (places de cycle à remplir, puis abonnés) ;
+  nouveaux clients et appels nécessaires par mois ; cumul de l'année face aux seuils de TVA (37 500 € / 41 250 €)
+  et au plafond micro-entreprise (83 600 €), avec le mois de franchissement prévu ; demandes du site par source
+  et liste « À traiter » avec leur statut.
+- Réglages (Business → Réglages) : objectif par mois, places de cycle, prix du cycle par mois, % de renouvellement.
+- Source des demandes : ajouter `?src=reel-1rm`, `?src=bio`… aux liens vers le site.
+- Moteur : `js/objectif.js` (pur, testé par `node --test tests/objectif.test.mjs`), écran testé en rendu iPhone par `tests/objectif-e2e.js`.
+- Seuils légaux écrits dans `js/objectif.js` avec leurs sources : à revoir chaque janvier.
