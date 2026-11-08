@@ -2,7 +2,7 @@
 
 Objectif : t'aider à atteindre 10 000 €/mois. Tout est sur des branches, avec une PR par dépôt. Rien n'est sur `main`, rien n'est en prod, Stripe et les données clients n'ont pas été touchés.
 
-- App : branche `claude/objectif-10k` (PR dans `tb-coaching-app`)
+- App : branche `claude/objectif-10k`, PR https://github.com/thomasbouletcoaching-lab/tb-coaching-app/pull/4
 - Site : branche `claude/attribution-confiance`, PR https://github.com/thomasbouletcoaching-lab/site-thomasboulet.coaching/pull/1
 
 ## Ce qui est fait
