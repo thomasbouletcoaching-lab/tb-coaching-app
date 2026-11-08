@@ -2,7 +2,7 @@
 import { S, update, resetAll, exportJSON, importJSON, today } from "../store.js";
 import * as E from "../engine.js";
 import * as N from "../nutrition.js";
-import { CONFIG, offer, OFFERS, ALL_FREE } from "../config.js";
+import { CONFIG, offer, OFFERS, ALL_FREE, TRIAL_DAYS } from "../config.js";
 import { $app, esc, num, fr, toast, routes, R, actions, forms, changes, go, I, logo, markImg, header, tabbar, seg, sheet, closeSheet, lockVeil, premium, rank, expert, render, rerender, barChart, tier, trialLeft } from "../core.js";
 import { syncProfile } from "../sync.js";
 import { ONB_STEPS, resetOnboarding } from "./onboarding.js";
@@ -39,7 +39,7 @@ routes.profile = async () => {
   $app.innerHTML = header("Profil", "", { actions: acts, offers: false }) + `<main class="page">
     <div class="card mt12"><div class="row" style="gap:14px"><span class="avatar">${esc((p.name || "?")[0].toUpperCase())}</span><div class="grow"><b class="h2">${esc(p.name)}</b><div class="small muted">${esc(offer(tier()).name)}${trialLeft() > 0 ? " (essai)" : ""} · ${p.age} ans · ${p.height} cm · ${E.fmtKg(S().daily?.[today()]?.weight || p.weight)} kg</div></div></div>
       <div class="minis mt12"><div><div class="v">${ws.length}</div><div class="l">entraînements</div></div><div><div class="v">${recs}</div><div class="l">exercices suivis</div></div><div><div class="v">${E.streakWeeks()}</div><div class="l">semaines de série</div></div></div></div>
-    ${rank() < 1 ? `<button class="card tap grad mt12" data-a="go" data-r="offers" style="display:flex;gap:12px;align-items:center;text-align:left;width:100%"><span style="font-size:28px">🚀</span><span class="grow"><b>Passe au Bâtisseur</b><br><span class="small" style="opacity:.9">Charges calculées, plan alimentaire, stats complètes · 7 jours offerts</span></span>${I.chev}</button>` : ""}
+    ${rank() < 1 ? `<button class="card tap grad mt12" data-a="go" data-r="offers" style="display:flex;gap:12px;align-items:center;text-align:left;width:100%"><span style="font-size:28px">🚀</span><span class="grow"><b>Passe au Bâtisseur</b><br><span class="small" style="opacity:.9">Charges calculées, plan alimentaire, stats complètes · ${TRIAL_DAYS} jours offerts</span></span>${I.chev}</button>` : ""}
     <div class="card mt12"><div class="row between"><b>${st[2](cur[pStat])} <span class="small muted" style="font-weight:500">cette semaine</span></b><span class="xs muted">12 dernières semaines</span></div>
       <div class="mt8">${barChart(wk.map(w => ({ l: w.l.slice(0, 2), v: w[pStat] })), { fmt: (v) => pStat === "vol" ? (v >= 1000 ? fr(v / 1000, 1) + "t" : Math.round(v)) : pStat === "dur" ? (v >= 60 ? fr(v / 60, 1) + "h" : v) : v })}</div>
       <div class="chips mt8">${STATS.map(([k, l]) => `<button class="chip ${k === pStat ? "on" : ""}" data-a="p-stat" data-v="${k}">${l}</button>`).join("")}</div>
@@ -52,6 +52,15 @@ routes.profile = async () => {
       ${tile("home/month", I.cal, "Calendrier", "Jour, semaine, mois, année")}
       ${tile("moncorps", "🔥", "Mon corps", "Déficit, dépense, projection")}
       ${tile("train/saison", "🎯", "Objectifs et cycles", "Charges visées, blocs")}
+    </div>
+    <h2 class="sec">Suivi et résultats</h2>
+    <div class="tiles">
+      ${tile("regularite", "📈", "Ma régularité", "Score sur 14 jours")}
+      ${tile("bilans", "📝", "Mes bilans", "Chaque semaine, 1 minute")}
+      ${tile("compare", "📸", "Avant / après", "Comparer mes photos")}
+      ${tile("rapport", "📤", "Mon rapport", "À partager, témoignage")}
+      ${tile("anamnese", "🩺", "Mon point de départ", S().anamnese?.at ? "Santé, motivation" : "À compléter · 3 min")}
+      ${S().trialStart && !S().defi?.closed ? tile("defi", "🔥", "Défi 30 jours", "Mes étapes") : ""}
     </div>
     <h2 class="sec">Entraînements</h2>
     ${last.length ? `<div class="list">${last.map(w => `<button class="li" data-a="ag-day" data-v="${today(new Date(w.end))}"><span class="em">🏋️</span><span class="grow"><b>${esc(w.title)}</b><br><span class="xs muted">${new Date(w.end).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "short" })} · ${Math.round((new Date(w.end) - new Date(w.start)) / 6e4)} min · ${fr((w.volume || 0) / 1000, 1)} t</span></span>${I.chev}</button>`).join("")}</div>` : `<p class="empty small">Ta première séance apparaîtra ici.</p>`}

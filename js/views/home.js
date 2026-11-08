@@ -1,4 +1,8 @@
 import { S, update, today } from "../store.js";
+import { defiCard, adherenceCard } from "./suivi.js";
+import { checkinCard } from "./checkin.js";
+import { anamneseCard } from "./anamnese.js";
+import { defiOn, myAdherence } from "../progress.js";
 import { nutriLine, nutriLevel } from "./nutri-detail.js";
 import * as E from "../engine.js";
 import * as N from "../nutrition.js";
@@ -13,7 +17,7 @@ const restDayCard = () => `<div class="card"><div class="lbl">Jour de repos</div
 import { durationSheet } from "./train.js";
 import { seasonTimeline, goalsMini } from "./season.js";
 import { readiness } from "./recup.js";
-import { FREE_WEEKS } from "../config.js";
+import { FREE_WEEKS, TRIAL_DAYS } from "../config.js";
 import { gamCard } from "../quests.js";
 
 let homeTab = "today", homeDay = null;
@@ -98,7 +102,7 @@ function recoveryMini(d) {
   return `<button class="card tap" data-a="go" data-r="recup" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:28px">${r.icon}</span><span class="grow"><b>Récupération : ${esc(r.label)}</b><br><span class="small muted">${esc(r.short)}</span></span>${I.chev}</button>`;
 }
 function offersCard() {
-  return `<button class="card tap mt12" data-a="go" data-r="offers" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left;box-shadow:0 0 0 2px var(--red) inset"><span style="font-size:28px">🚀</span><span class="grow"><b>Accélère avec le Bâtisseur</b><br><span class="small muted">Charges calculées à chaque séance, plan alimentaire au gramme, stats complètes. 7 jours offerts.</span></span>${I.chev}</button>`;
+  return `<button class="card tap mt12" data-a="go" data-r="offers" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left;box-shadow:0 0 0 2px var(--red) inset"><span style="font-size:28px">🚀</span><span class="grow"><b>Accélère avec le Bâtisseur</b><br><span class="small muted">Charges calculées à chaque séance, plan alimentaire au gramme, stats complètes. ${TRIAL_DAYS} jours offerts.</span></span>${I.chev}</button>`;
 }
 function progressCard() {
   const ms = Object.entries(S().daily).filter(([, v]) => v.weight).sort().slice(-30).map(([k, v]) => ({ y: v.weight, l: k.slice(8, 10) + "/" + k.slice(5, 7) }));
@@ -152,6 +156,7 @@ routes.home = async () => {
     ${d !== today() ? `<p class="small muted center">${fmtDate(d)} · <a href="#" data-a="home-day" data-v="${today()}" class="link">revenir à aujourd'hui</a></p>` : ""}
     ${alerts.length ? `<div class="card" style="box-shadow:0 0 0 2px var(--warn) inset"><div class="lbl">⚠️ Alerte blessure</div><p class="mt8" style="margin-bottom:6px"><b>${esc(alerts[0].name)}</b> : ${esc(alerts[0].last.note)}</p><p class="small muted">Baisse la charge ou remplace l'exercice. Si la douleur persiste, parles-en à un professionnel de santé.</p><button class="btn btn-line btn-sm" data-a="go" data-r="chat">Prévenir Thomas</button></div>` : ""}
     ${d === today() && restDayOn() ? restDayCard() : ""}
+    ${d === today() ? await suiviCards() : ""}
     ${d === today() ? cycleCard(ns) : ""}
     ${trainingCard(d)}
     ${d === today() ? quickActions() : ""}
@@ -212,3 +217,12 @@ actions["free-session"] = async () => {
   await Promise.all([E.loadPrograms(), E.loadFiches()]);
   durationSheet((min) => { const s = E.freeSession(); s.target = min; update(st => st.current = s); sessionStorage.removeItem("cxs.min"); go("workout"); }, "Séance libre");
 };
+
+// Cartes de suivi en haut de l'accueil : défi en cours, bilan de la semaine (vendredi → dimanche), point de départ, régularité
+async function suiviCards() {
+  if (isCoach()) return "";
+  const defi = defiOn(), out = [defi ? await defiCard() : "", checkinCard()];
+  if (!defi) out.push(anamneseCard());
+  if (!defi && (myAdherence().age ?? 0) >= 3) out.push(adherenceCard());
+  return out.join("");
+}
