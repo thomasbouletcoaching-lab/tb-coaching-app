@@ -323,3 +323,18 @@ export async function volSeuilsSet(memberId, data) {
   const { error } = await sb.from("programme_drafts").upsert({ owner: uid, member_id: memberId || uid, kind: "seuils", status: "publie", name: "Seuils de volume", data, updated_at: new Date().toISOString() }, { onConflict: "owner,member_id,kind" });
   if (error) throw error;
 }
+
+// Photos de progrès partagées volontairement par le membre : dossier privé progress/<uid>/ du bucket « media ».
+// Droits : migration supabase/migrations/2026-11-08_suivi_photos.sql (le membre dépose et lit les siennes, le coach lit tout).
+export async function uploadProgressPhoto(blob, name) {
+  if (!uid) await ensureSession();
+  const path = `progress/${uid}/${name.replace(/[^\w.-]/g, "_")}`;
+  const { error } = await sb.storage.from("media").upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: true });
+  if (error) throw error; return path;
+}
+export async function progressPhotoUrls(paths) {
+  if (!paths?.length) return {};
+  const { data, error } = await sb.storage.from("media").createSignedUrls(paths, 3600);
+  if (error) throw error;
+  return Object.fromEntries((data || []).filter(x => x.signedUrl).map(x => [x.path, x.signedUrl]));
+}

@@ -10,6 +10,7 @@ import { readyList, ensureReady } from "./coach.js";
 import { libraryRows, refreshLibrary } from "../library.js";
 import { filterExercises, ficheSheet } from "./train.js";
 import { openRecipeEditor } from "./food.js";
+import { alerts as adhAlerts, STATUS } from "../adherence.js";
 
 // ---------- Données ----------
 const A = { members: null, sums: {}, threads: {}, at: 0, err: null, store: { todo: [], biz: null, notes: {}, handled: {} } };
@@ -38,6 +39,35 @@ const dotOf = (n) => n == null ? "n" : n <= 1 ? "g" : n <= 3 ? "o" : "r";
 const isClient = (m) => offer(m.tier).rank >= 3;
 const eur = (x) => `${(Math.round((x || 0) * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 const first = (m) => (m.name || m.email || "?").trim();
+// Régularité et alertes de décrochage, calculées depuis l'instantané envoyé par l'app du membre
+const adhOf = (m) => A.sums[m.id]?.adh || null;
+const ciExpected = (m) => isClient(m) || (A.sums[m.id]?.defi && A.sums[m.id].defi.day <= 30 && !A.sums[m.id].defi.closed);
+function memberAlerts(m) {
+  const s = A.sums[m.id] || {}, adh = s.adh;
+  return adhAlerts({ adh, today: today(), lastActive: lastAct(m) || (m.last_seen || "").slice(0, 10) || null, lastCheckin: s.lastCheckin, checkinExpected: !!adh && ciExpected(m), agenda: s.agenda || [], lastCi: s.ci, health: s.health ? { flags: s.health } : null });
+}
+const RELANCE = {
+  idle: "Salut {prénom}, je n'ai rien vu passer depuis quelques jours. Tout va bien ? Dis-moi ce qui coince et on ajuste ensemble 💪",
+  score: "Salut {prénom}, je vois que ces deux dernières semaines ont été compliquées, ça arrive à tout le monde. On cherche ensemble ce qui bloque ? Une seule chose à remettre en place cette semaine suffit.",
+  drop: "Salut {prénom}, ta semaine a été plus dure que la précédente. Qu'est-ce qui a changé ? On adapte le plan à ta vraie semaine plutôt que l'inverse.",
+  checkin: "Salut {prénom}, il me manque ton bilan de la semaine : 1 minute, il est déjà pré-rempli dans l'app (Coaching → Mon bilan). Avec lui je peux ajuster ton plan.",
+  missed: "Salut {prénom}, j'ai vu que deux séances ont sauté. On les déplace ou on allège la semaine ? Donne-moi tes créneaux réels.",
+  energy: "Salut {prénom}, ton bilan montre une semaine fatigante. On lève le pied sur l'intensité et on mise sur le sommeil cette semaine. Comment tu te sens aujourd'hui ?",
+  sleep: "Salut {prénom}, tes nuits sont courtes en ce moment. Cette semaine, on vise 30 minutes de sommeil en plus avant de pousser à la salle. Qu'est-ce qui t'empêche de te coucher plus tôt ?",
+  stress: "Salut {prénom}, gros stress en ce moment d'après ton bilan. On garde les séances courtes et efficaces cette semaine. Je suis là si tu veux en parler.",
+  mood: "Salut {prénom}, ton bilan montre une semaine difficile. Comment ça va vraiment ? On adapte ce qu'il faut.",
+  health: "Salut {prénom}, merci pour ton point de départ. Tu as signalé un point de santé : as-tu pu en parler à ton médecin ? En attendant, on garde des séances modérées.",
+};
+function decrochageBlock() {
+  const rows = (A.members || []).map(m => ({ m, adh: adhOf(m), al: memberAlerts(m) })).filter(x => x.al.some(a => a.level !== "info"));
+  const lv = (x) => x.al.filter(a => a.level === "risk").length * 10 + x.al.filter(a => a.level === "watch").length;
+  rows.sort((a, b) => lv(b) - lv(a) || (a.adh?.score ?? 100) - (b.adh?.score ?? 100));
+  if (!rows.length) return `<div class="card mt12"><b class="small">🟢 Personne ne décroche</b><p class="xs muted mt4" style="margin:0">Les alertes apparaissent ici dès qu'un membre glisse : inactivité, chute de régularité, bilan manquant, séances loupées, fatigue.</p></div>`;
+  return `<details class="fold" open data-fold="drop"><summary>🚨 Qui décroche <span class="cnt out">${rows.length}</span></summary><div class="fb"><div class="list">${rows.slice(0, 12).map(({ m, adh, al }) => { const st = adh ? STATUS[adh.status] : null;
+    return `<div class="li" style="flex-direction:column;align-items:stretch;gap:6px"><div class="row between"><a href="#/member/${m.id}" style="color:inherit;text-decoration:none"><b>${esc(first(m))}</b></a><span>${st ? `<span class="tag ${"st-" + st.tone}">${adh.score ?? "–"} · ${st.label}</span>` : `<span class="tag">pas de score</span>`}</span></div>
+      <span class="xs">${al.filter(a => a.level !== "info").slice(0, 3).map(a => `${a.level === "risk" ? "🔴" : "🟠"} ${esc(a.text)}`).join("<br>")}</span>
+      <div class="row" style="gap:6px"><button class="btn btn-red btn-xs grow" data-a="adm-relance" data-id="${m.id}" data-c="${al.find(a => a.level !== "info").code}">💬 Relancer</button><a class="btn btn-line btn-xs grow" href="#/member/${m.id}">📈 Suivi</a></div></div>`; }).join("")}</div></div></details>`;
+}
 
 // ---------- Mise en page commune ----------
 function frame(active, body, sub = "") {
@@ -128,6 +158,7 @@ function candBlock() {
   return `<details class="fold" ${UI.open.cand ? "open" : ""} data-fold="cand"><summary>📥 Candidatures <small>(${l.length} en cours)</small></summary><div class="fb">
     ${l.map(m => { const ap = m.onboarding.application; return `<div class="card mt8"><div class="row between"><b>${esc(first(m))}</b><span class="tag r">${esc(offer(ap.offer).name)}</span></div><p class="xs muted mt4">${ago(ap.at)}${ap.phone ? ` · <a href="tel:${esc(ap.phone)}">${esc(ap.phone)}</a>` : ""}</p>
       <p class="small mt8" style="margin-bottom:4px"><b>Objectif :</b> ${esc(ap.goal || "–")}</p><p class="small" style="margin:0 0 4px"><b>Frein :</b> ${esc(ap.obstacle || "–")}</p><p class="small" style="margin:0"><b>Temps :</b> ${esc(ap.time || "–")} · <b>Urgence :</b> ${esc(ap.urgency ?? "–")}/10</p>
+      ${ap.dossier?.score != null ? `<p class="xs mt8" style="margin:0">📈 Régularité <b>${ap.dossier.score}/100</b> · ${ap.dossier.sessions} séances · ${ap.dossier.checkins} bilans${ap.dossier.weight != null ? ` · ${ap.dossier.weight > 0 ? "+" : ""}${fr(ap.dossier.weight, 1)} kg` : ""}${ap.dossier.waist != null ? ` · taille ${ap.dossier.waist > 0 ? "+" : ""}${fr(ap.dossier.waist, 1)} cm` : ""}${ap.dossier.defiDay ? ` · défi jour ${ap.dossier.defiDay}` : ""}${ap.dossier.health ? ` · ⚠️ ${ap.dossier.health} point(s) santé` : ""}</p>${ap.dossier.why ? `<p class="xs muted mt4" style="margin:0">Pourquoi maintenant : ${esc(ap.dossier.why)}</p>` : ""}` : ""}
       <div class="row mt8" style="gap:6px"><a class="btn btn-red btn-xs grow" href="#/chat/${m.id}">💬 Écrire</a><button class="btn btn-line btn-xs grow" data-a="adm-tier" data-id="${m.id}">Activer la formule</button><button class="btn btn-ghost btn-xs" data-a="adm-cand-ok" data-id="${m.id}">Traitée</button></div></div>`; }).join("") || `<p class="xs muted">Aucune candidature en attente. Elles arrivent depuis « Offres » dans l'app.</p>`}</div></details>`;
 }
 actions["adm-cand-ok"] = async (b, d) => { const m = A.members.find(x => x.id === d.id); A.store.handled[m.id + ":" + m.onboarding.application.at] = today(); rerender(); await saveStore("handled"); };
@@ -158,6 +189,7 @@ function todayBlock() {
   const l = todoToday();
   return `<details class="fold" ${UI.open.todo2 ? "open" : ""} data-fold="todo2"><summary>À traiter aujourd'hui ${l.length ? `<span class="cnt">${l.length}</span>` : ""}</summary><div class="fb"><div class="list">${l.map(([e, t, r]) => `<button class="li" data-a="adm-go" data-r="${esc(r)}"><span class="em">${e}</span><span class="grow small">${esc(t)}</span>${I.chev}</button>`).join("") || `<p class="xs muted">Tout est à jour 🙌</p>`}</div></div></details>`;
 }
+actions["adm-relance"] = (b, d) => { const m = A.members.find(x => x.id === d.id); if (!m) return; window.__prefill = personalize(RELANCE[d.c] || RELANCE.idle, m); go("chat", m.id); };
 actions["adm-go"] = (b, d) => {
   if (d.r.startsWith("relance:")) { const m = A.members.find(x => x.id === d.r.slice(8)); window.__prefill = `Salut ${first(m)}, comment ça va ? Je n'ai pas vu passer ta semaine dans l'app. Dis-moi ce qui coince et on ajuste ensemble 💪`; return go("chat", m.id); }
   if (d.r === "todo") { UI.open.todo = true; return rerender(); }
@@ -195,12 +227,12 @@ forms["adm-bulk"] = async (v, f) => {
 function clientRow(m) {
   const th = A.threads[m.id] || {}, s = A.sums[m.id] || {}, la = lastAct(m), n = daysSince(la), s7 = s.s7 || {};
   const act = n == null ? `inscrit ${ago(m.created_at)}` : n === 0 ? "actif aujourd'hui" : n === 1 ? "actif hier" : `inactif depuis ${n} j`;
-  return `<div class="crow"><span class="dt ${dotOf(n)}"></span><button class="grow" style="text-align:left" data-a="go" data-r="member" data-p="${m.id}"><b>${esc(first(m))}</b>${th.unread ? ` <span class="pill-b">💬 ${th.unread}</span>` : ""}${th.bilan ? ` <span class="pill-b">Bilan</span>` : ""}${isClient(m) ? "" : ` <span class="tag">${esc(offer(m.tier).name)}</span>`}<br><span class="xs muted">${act} · ${s7.ex ?? 0} exo${(s7.ex ?? 0) > 1 ? "s" : ""} · nutri ${s7.nutri ?? 0}/7${s.program ? ` · ${esc(s.program.split("·")[0].trim())} S${s.week}` : ""}</span></button>${I.chev}<button class="icon-btn" data-a="adm-more" data-id="${m.id}" aria-label="Actions">•••</button></div>`;
+  return `<div class="crow"><span class="dt ${dotOf(n)}"></span><button class="grow" style="text-align:left" data-a="go" data-r="member" data-p="${m.id}"><b>${esc(first(m))}</b>${th.unread ? ` <span class="pill-b">💬 ${th.unread}</span>` : ""}${th.bilan ? ` <span class="pill-b">Bilan</span>` : ""}${adhOf(m)?.score != null ? ` <span class="tag ${"st-" + STATUS[adhOf(m).status].tone}">${adhOf(m).score}</span>` : ""}${isClient(m) ? "" : ` <span class="tag">${esc(offer(m.tier).name)}</span>`}<br><span class="xs muted">${act} · ${s7.ex ?? 0} exo${(s7.ex ?? 0) > 1 ? "s" : ""} · nutri ${s7.nutri ?? 0}/7${s.program ? ` · ${esc(s.program.split("·")[0].trim())} S${s.week}` : ""}</span></button>${I.chev}<button class="icon-btn" data-a="adm-more" data-id="${m.id}" aria-label="Actions">•••</button></div>`;
 }
 function clientsBlock() {
   const all = A.members || [], scope = UI.scope ?? (all.some(isClient) ? "clients" : "tous");
   const q = UI.q.toLowerCase(), list = all.filter(m => (scope === "tous" || isClient(m)) && (!q || first(m).toLowerCase().includes(q) || (m.email || "").toLowerCase().includes(q)));
-  const prio = (m) => (A.threads[m.id]?.unread ? 1000 : 0) + (A.threads[m.id]?.bilan ? 500 : 0) + (daysSince(lastAct(m) || m.last_seen) ?? 0);
+  const prio = (m) => (A.threads[m.id]?.unread ? 1000 : 0) + (A.threads[m.id]?.bilan ? 500 : 0) + (adhOf(m)?.status === "risk" ? 300 : adhOf(m)?.status === "watch" ? 100 : 0) + (daysSince(lastAct(m) || m.last_seen) ?? 0);
   list.sort(UI.sort === "az" ? (a, b) => first(a).localeCompare(first(b), "fr") : (a, b) => prio(b) - prio(a));
   const late = list.filter(m => (daysSince(lastAct(m) || m.last_seen) ?? 0) >= 4).length;
   return `<h2 class="h1 mt16" style="font-size:30px">${scope === "clients" ? "Mes clients" : "Tous les membres"} (${list.length})</h2>
@@ -259,7 +291,7 @@ routes["admin-today"] = async () => {
     }
     return true;
   });
-  frame("admin-today", `${liveNowBlock()}${agendaBlock()}${todayBlock()}${todoBlock()}`, "Aujourd'hui");
+  frame("admin-today", `${liveNowBlock()}${decrochageBlock()}${agendaBlock()}${todayBlock()}${todoBlock()}`, "Aujourd'hui");
 };
 
 routes.admin = async () => {

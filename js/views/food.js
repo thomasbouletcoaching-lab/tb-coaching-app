@@ -762,7 +762,7 @@ function measuresCard(ms, lastM, firstM) {
 }
 function photosCard(photos) {
   const VIEWS = [["face", "Face"], ["profil", "Profil"], ["dos", "Dos"], ["autre", "Autre"]];
-  return `<div class="card mt12 ${premium() ? "" : "locked"}" style="position:relative"><span class="lbl">📸 Photos de progrès</span>
+  return `<div class="card mt12 ${premium() ? "" : "locked"}" style="position:relative"><div class="row between"><span class="lbl">📸 Photos de progrès</span>${photos.length >= 2 ? `<a class="link small" href="#/compare">Avant / après →</a>` : ""}</div>
     <div class="grid2 mt8"><label class="field"><span>Date de la photo</span><input type="date" value="${phDate || today()}" max="${today()}" data-c="ph-date"></label><label class="field"><span>Vue</span><select data-c="ph-view">${VIEWS.map(([k, l]) => `<option value="${k}" ${k === phView ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
     <label class="btn btn-line btn-sm mt8" style="width:100%;cursor:pointer">+ Ajouter une photo<input type="file" accept="image/*" data-c="photo" hidden></label>
     <p class="xs muted mt8">Chaque photo garde sa date et se relie à ton poids et tes mesures de ce jour-là. Elles restent sur ce téléphone.</p>

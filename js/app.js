@@ -22,6 +22,10 @@ import "./views/account.js";
 import "./views/coachfood.js";
 import "./views/live.js";
 import "./views/vocal.js";
+import "./views/checkin.js";
+import "./views/anamnese.js";
+import "./views/suivi.js";
+import "./views/suivi-coach.js";
 import { pullLive } from "./views/live.js";
 import { pullCoachFood } from "./views/coachfood.js";
 import { cloud as cloudMod } from "./core.js";
@@ -35,7 +39,7 @@ window.addEventListener("hashchange", render);
   try { applyTheme(); } catch { }
   await Promise.all([E.loadPrograms(), N.loadModels()]).catch(() => { });
   if (S().profile && !S().trialStart) update(st => st.trialStart = today());
-  if (S().demoTier) update(st => st.demoTier = null); // plus de mode démo : essai de 7 jours seulement
+  if (S().demoTier) update(st => st.demoTier = null); // plus de mode démo : essai de TRIAL_DAYS jours (Défi 30 jours)
   render();
   refreshMe().then(() => { if (["home", "coach", "account"].includes(R.route) && !document.querySelector(".sheet-wrap, .composer, input:focus, textarea:focus")) render(); });
   setInterval(refreshMe, 60000);

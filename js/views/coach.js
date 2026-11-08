@@ -3,7 +3,11 @@ import { PUBLIC_OFFERS } from "../config.js";
 import { S, update, today, withState } from "../store.js";
 import * as N from "../nutrition.js";
 import * as E from "../engine.js";
-import { CONFIG, OFFERS, offer, COMPARE } from "../config.js";
+import { CONFIG, OFFERS, offer, COMPARE, TRIAL_DAYS } from "../config.js";
+import { adherenceCard, defiCard } from "./suivi.js";
+import { checkinCard } from "./checkin.js";
+import { memberSuivi } from "./suivi-coach.js";
+import { myAdherence, summaryBetween, checkins as myCheckins, defiDay, since as sinceStart } from "../progress.js";
 import { coachLogo, trialLeft, $app, esc, num, fr, buzz, toast, ago, routes, R, actions, forms, changes, go, I, header, tabbar, adminTabbar, seg, chips, sheet, closeSheet, badges, fmtDate, addDays, rerender, tier, rank, premium, isCoach, msgQuotaText, cloud, cloudNow, render, onLeave, canMsg } from "../core.js";
 import { refreshMe, syncProfile } from "../sync.js";
 import { fromCoach, libraryRows } from "../library.js";
@@ -19,12 +23,14 @@ routes.coach = async () => {
   $app.innerHTML = header("Coaching", esc(CONFIG.coachName), { actions: bubble, offers: false }) + `<main class="page">
     ${badges.msgs || badges.notifs ? `<button class="card tap mt12" data-a="${badges.msgs ? "coach-msg" : "notifs"}" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left;box-shadow:0 0 0 2px var(--red) inset"><span style="font-size:26px">🔔</span><span class="grow"><b>${badges.msgs ? `${badges.msgs} nouveau${badges.msgs > 1 ? "x" : ""} message${badges.msgs > 1 ? "s" : ""} de Thomas` : `${badges.notifs} notification${badges.notifs > 1 ? "s" : ""} de ton coach`}</b><br><span class="small muted">Touche pour lire</span></span>${I.chev}</button>`
       : `<p class="small muted mt12">${coached ? "Aucune nouvelle notification de ton coach." : "Les messages avec Thomas sont réservés aux personnes coachées."}</p>`}
+    ${await defiCard()}${adherenceCard()}${checkinCard()}
+    <div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="go" data-r="bilan">📝 Mon bilan</button><button class="btn btn-line btn-sm grow" data-a="go" data-r="bilans">Mes bilans</button><button class="btn btn-line btn-sm grow" data-a="go" data-r="rapport">📤 Rapport</button></div>
     <h2 class="sec">📋 Mon programme du coach</h2>
     ${progs.length || plans.length ? `${progs.map(r => { const id = "lib-" + r.id, on = curP === id; return `<div class="card"><div class="lbl">🏋️ Entraînement</div><b class="h3">${esc(r.name)}</b><p class="small muted mt4">${esc(r.data?.desc || "Écrit pour toi par Thomas.")}</p>${on ? `<span class="tag r">Programme suivi</span> <button class="link small" data-a="go" data-r="carnet">Ouvrir le carnet</button>` : `<button class="btn btn-red btn-sm mt8" data-a="coach-follow" data-id="${id}">Suivre ce programme</button>`}</div>`; }).join("")}
       ${plans.map(r => { const k = (r.data?.meals || []).flatMap(m => m.items || []).reduce((a, x) => a + (x.kcal || 0), 0); return `<div class="card"><div class="lbl">🍽️ Nutrition</div><b class="h3">${esc(r.name)}</b><p class="small muted mt4">${(r.data?.meals || []).length} repas · ${fr(k)} kcal par jour${r.data?.note ? " · " + esc(r.data.note) : ""}</p><button class="btn ${S().coachPlanId === r.id ? "btn-line" : "btn-red"} btn-sm mt8" data-a="coach-plan" data-id="${r.id}">${S().coachPlanId === r.id ? "✓ Plan appliqué · le réappliquer" : "Appliquer ce plan à mon journal"}</button></div>`; }).join("")}`
       : `<div class="card"><p class="small" style="margin:0">${coached ? "Thomas t'envoie ici ton programme d'entraînement et ton plan alimentaire, écrits pour toi. Ils apparaissent dès qu'il les a préparés." : "Avec le coaching personnalisé, Thomas écrit ton programme d'entraînement et ton plan alimentaire : ils arrivent ici, et il suit tes séances et ton journal."}</p>${coached ? "" : `<button class="btn btn-red btn-sm mt12" data-a="go" data-r="apply">Candidater au coaching</button>`}</div>`}
     <h2 class="sec">🎯 Ta formule <small>${esc(o.name)}</small></h2>
-    ${rank() >= 2 ? followUp() : `<button class="card tap" data-a="go" data-r="offers" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left"><span style="font-size:28px">🚀</span><span class="grow"><b>${premium() ? "Passer au coaching avec Thomas" : "Voir les offres"}</b><br><span class="small muted">${premium() ? "Programme et plan écrits pour toi, bilans, messages" : "Bâtisseur : 7 jours offerts, puis 14,99 €/mois"}</span></span>${I.chev}</button>`}
+    ${rank() >= 2 ? followUp() : `<button class="card tap" data-a="go" data-r="offers" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left"><span style="font-size:28px">🚀</span><span class="grow"><b>${premium() ? "Passer au coaching avec Thomas" : "Voir les offres"}</b><br><span class="small muted">${premium() ? "Programme et plan écrits pour toi, bilans, messages" : `Bâtisseur : ${TRIAL_DAYS} jours offerts, puis 14,99 €/mois`}</span></span>${I.chev}</button>`}
     ${rank() >= 2 ? `<button class="card tap mt12" data-a="go" data-r="offers" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left"><span class="grow"><b>Toutes les offres</b><br><span class="small muted">Comparer et changer de formule</span></span>${I.chev}</button>` : ""}
   </main>${tabbar("coach")}`;
 };
@@ -42,20 +48,20 @@ function followUp() {
 // ---------- Offres et démo ----------
 routes.offers = () => {
   const cur = S().me?.tier || "free";
-  $app.innerHTML = header("Les offres", "7 jours d'essai, sans engagement", { back: "__hist", offers: false }) + `<main class="page">
+  $app.innerHTML = header("Les offres", `${TRIAL_DAYS} jours d'essai, sans engagement`, { back: "__hist", offers: false }) + `<main class="page">
     <h2 class="sec" style="margin-top:8px">Ce qui accélère vraiment tes progrès</h2>
     <div class="list">${[["🎯", "Des charges calculées à chaque séance", "Fini le hasard : l'app te dit quoi soulever selon ton RPE, et détecte tes plateaux avant qu'ils durent."],
       ["🍽️", "Un plan alimentaire au gramme", "Ton plan selon ton profil, tes jours d'entraînement et de repos, tes courses et ton budget."],
       ["📈", "Toutes tes données, lisibles", "Tonnage, records, mensurations, projections : tu vois si tu avances, semaine après semaine."],
       ["🧑‍🏫", "Le coaching : quelqu'un qui ajuste pour toi", "Thomas écrit ton programme et ton plan, lit tes séances, répond à tes messages."]].map(([e, t, d]) => `<div class="li"><span class="em">${e}</span><span class="grow small"><b>${t}</b><br><span class="xs muted">${d}</span></span></div>`).join("")}</div>
-    ${trialLeft() > 0 ? `<div class="card grad"><b>🎁 Ton essai : encore ${trialLeft()} jour${trialLeft() > 1 ? "s" : ""}</b><p class="small mt4" style="margin:0">Pendant 7 jours, tout Bâtisseur est ouvert. Ensuite tu gardes le Gratuit, ou tu continues avec Bâtisseur.</p></div>` : `<div class="card grad"><b>🎁 7 jours d'essai de l'app complète</b><p class="small mt4" style="margin:0">Chaque nouveau compte essaie Bâtisseur gratuitement pendant 7 jours.</p></div>`}
+    ${trialLeft() > 0 ? `<div class="card grad"><b>🎁 Ton essai : encore ${trialLeft()} jour${trialLeft() > 1 ? "s" : ""}</b><p class="small mt4" style="margin:0">Pendant ${TRIAL_DAYS} jours, tout Bâtisseur est ouvert. Ensuite tu gardes le Gratuit, ou tu continues avec Bâtisseur.</p></div>` : `<div class="card grad"><b>🎁 ${TRIAL_DAYS} jours d'essai de l'app complète</b><p class="small mt4" style="margin:0">Chaque nouveau compte essaie Bâtisseur gratuitement pendant ${TRIAL_DAYS} jours.</p></div>`}
     <h2 class="sec">Comparer</h2>
     <div class="card" style="padding:6px"><table class="cmp"><thead><tr><th></th><th>Gratuit</th><th>Bâtis&shy;seur</th><th>Coa&shy;ching</th></tr></thead><tbody>${COMPARE.map(r => `<tr><td>${esc(r[0])}</td>${r.filter((_, i) => i !== 3).slice(1).map(c => `<td class="${c === "–" ? "muted" : ""}">${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
     ${PUBLIC_OFFERS.map(o => `<div class="offer ${o.id === cur ? "cur" : ""} mt16">${o.id === cur ? `<span class="ribbon">Ta formule</span>` : o.ribbon ? `<span class="ribbon">${esc(o.ribbon)}</span>` : ""}
       <div class="row between" style="align-items:flex-end"><div><div class="h2">${esc(o.name)}</div><div class="small muted">${esc(o.tagline)}</div></div><div class="price" style="text-align:right;white-space:nowrap">${esc(o.price)}<small>${esc(o.per)}</small></div></div>
       ${o.alt ? `<div class="small red mt4" style="text-align:right">${esc(o.alt)}</div>` : ""}${o.was ? `<div class="small mt4" style="text-align:right"><span class="muted">au lieu de <s>${esc(o.was)}</s></span></div>` : ""}
       <ul>${o.feats.map(f => `<li>${I.check}<span>${esc(f)}</span></li>`).join("")}<li>${I.check}<span>${esc(o.msgs)}</span></li></ul>
-      ${o.id === "free" || o.id === cur ? "" : `<button class="btn btn-red" data-a="choose" data-v="${o.id}">${o.rank >= 2 ? "Candidater au coaching" : trialLeft() > 0 ? "Continuer avec le Bâtisseur" : "Essayer 7 jours gratuitement"}</button>`}
+      ${o.id === "free" || o.id === cur ? "" : `<button class="btn btn-red" data-a="choose" data-v="${o.id}">${o.rank >= 2 ? "Candidater au coaching" : trialLeft() > 0 ? "Continuer avec le Bâtisseur" : `Essayer ${TRIAL_DAYS} jours gratuitement`}</button>`}
     </div>`).join("")}
     <p class="xs muted mt16">Sans engagement, résiliable à tout moment. Les formules de suivi démarrent après un appel de 15 minutes pour vérifier que je peux vraiment t'aider.</p>
   </main>${tabbar("coach")}`;
@@ -72,12 +78,15 @@ function chooseOffer(id) {
     sheet(`<h2 class="h1">Bâtisseur</h2><p class="mt12">Le paiement en ligne ouvre très bientôt. En attendant, écris-moi : je t'active la formule Bâtisseur moi-même.</p><button class="btn btn-red mt12" data-a="prefill" data-t="Bonjour Thomas, je veux passer à la formule Bâtisseur.">Écrire à Thomas</button>`);
     return;
   }
-  AP.i = 0; AP.a = { offer: id }; go("apply");
+  const m = S().anamnese?.motivation, h = S().anamnese?.history;
+  startApply(id, { goal: m?.proud || "", obstacle: h?.stopped || "" });
 }
 actions.prefill = (b, d) => { closeSheet(); window.__prefill = d.t; go("chat"); };
 
 // ---------- Candidature ----------
 const AP = { i: 0, a: {} };
+// Ouvre la candidature (depuis les offres, le Défi 30 jours…) avec des réponses déjà connues
+export function startApply(offerId = "avance", prefill = {}) { AP.i = 0; AP.a = { offer: offerId, ...prefill }; go("apply"); }
 const AQ = [
   { id: "goal", q: "🎯 Ton objectif précis dans 12 semaines ?", type: "text", ph: "Ex. perdre 6 kg, ou passer de 100 à 120 kg au squat" },
   { id: "obstacle", q: "Qu'est-ce qui t'a fait abandonner ou stagner les fois précédentes ?", type: "text", ph: "Sois honnête, c'est entre nous" },
@@ -102,11 +111,14 @@ forms["ap-phone"] = (v) => { AP.a.phone = v.v.trim(); AP.i++; routes.apply(); };
 function calendlyUrl(a) {
   const u = new URL(CONFIG.calendly);
   u.searchParams.set("name", S().profile?.name || ""); u.searchParams.set("email", S().profile?.email || "");
-  u.searchParams.set("a1", `Offre : ${offer(a.offer).name}\nObjectif : ${a.goal}\nFrein : ${a.obstacle}\nTemps : ${a.time} · Urgence : ${a.urgency}/10`);
+  const d = a.dossier || {};
+  u.searchParams.set("a1", `Offre : ${offer(a.offer).name}\nObjectif : ${a.goal}\nFrein : ${a.obstacle}\nTemps : ${a.time} · Urgence : ${a.urgency}/10`
+    + (d.score != null ? `\nRégularité : ${d.score}/100 · ${d.sessions} séances · ${d.checkins} bilans${d.weight != null ? ` · poids ${d.weight > 0 ? "+" : ""}${String(d.weight).replace(".", ",")} kg` : ""}${d.waist != null ? ` · taille ${d.waist > 0 ? "+" : ""}${String(d.waist).replace(".", ",")} cm` : ""}${d.defiDay ? ` · défi jour ${d.defiDay}` : ""}` : "")
+    + (d.why ? `\nPourquoi maintenant : ${d.why}` : ""));
   return u.toString();
 }
 function applyDone() {
-  const a = { ...AP.a, at: new Date().toISOString() };
+  const a = { ...AP.a, at: new Date().toISOString(), dossier: applyDossier() };
   update(st => { st.application = a; st.synced = false; });
   syncProfile();
   $app.innerHTML = `<section class="convo" style="justify-content:center">
@@ -253,7 +265,8 @@ forms.send = async (v, form) => {
 };
 
 // ---------- Bilan ----------
-actions.checkin = () => {
+actions.checkin = () => go("bilan");
+actions["checkin-old"] = () => {
   sheet(`<h2 class="h1">📝 Mon bilan</h2><form data-f="checkin" class="stack mt12">
     <div class="grid2"><label class="field"><span>Poids moyen (kg)</span><input name="poids" inputmode="decimal" value="${E.fmtKg(S().profile.weight)}"></label><label class="field"><span>Séances faites</span><input name="seances" inputmode="numeric" value="${E.workoutsThisWeek().length}"></label></div>
     <div class="grid3">${[["energie", "Énergie /10"], ["sommeil", "Sommeil /10"], ["faim", "Faim /10"]].map(([k, l]) => `<label class="field"><span>${l}</span><input name="${k}" inputmode="numeric"></label>`).join("")}</div>
@@ -317,9 +330,9 @@ routes.member = async () => {
   if (!window.__members) { try { window.__members = await c.members(); } catch { } }
   const m = (window.__members || []).find(x => x.id === R.param); if (!m) return go("admin");
   const o = m.onboarding || {}, ap = o.application, st = m.stats || {};
-  if (mbr.id !== m.id) Object.assign(mbr, { id: m.id, tab: "jour", day: null, data: null });
+  if (mbr.id !== m.id) Object.assign(mbr, { id: m.id, tab: "suivi", day: null, data: null });
   if (!mbr.data) { $app.innerHTML = header(esc(m.name || "Membre"), "", { back: "admin" }) + `<main class="page"><p class="empty">Chargement de ses données…</p></main>`; await Promise.all([E.loadPrograms(), N.loadModels()]); try { mbr.data = (await c.memberData(m.id)) || { data: null }; } catch (e) { mbr.data = { data: null, err: e.message }; } }
-  const tabs = [["jour", "☀️ Journée"], ["seances", "🏋️ Séances"], ["agenda", "🗓️ Agenda"], ["corps", "⚖️ Corps"], ["profil", "👤 Profil"]];
+  const tabs = [["suivi", "📈 Suivi"], ["jour", "☀️ Journée"], ["seances", "🏋️ Séances"], ["agenda", "🗓️ Agenda"], ["corps", "⚖️ Corps"], ["profil", "👤 Profil"]];
   const D = mbr.data.data;
   const cur = D?.current?.exercises?.length ? D.current : null, curDone = cur ? cur.exercises.reduce((a, e) => a + e.sets.filter(x => x.done).length, 0) : 0, curTot = cur ? cur.exercises.reduce((a, e) => a + e.sets.filter(x => x.type !== "W").length, 0) : 0;
   const liveBan = cur ? `<button class="card" data-a="go" data-r="live" data-p="${esc(m.id)}" style="width:100%;text-align:left;margin-bottom:10px;box-shadow:0 0 0 2px var(--red) inset"><div class="row between"><span><b>🔴 Séance en direct</b><br><span class="small">${esc(cur.title || "Séance")} · ${curDone} séries faites${curTot ? ` / ${curTot}` : ""}</span></span><span class="btn btn-red btn-sm">Ouvrir ▶</span></div></button>` : "";
@@ -329,7 +342,7 @@ routes.member = async () => {
     <div class="mt12">${chips(tabs, mbr.tab, "mb-tab")}</div>
     ${D ? `<p class="xs muted mt4">Données mises à jour ${ago(mbr.data.updated_at)}</p>` : ""}`;
   if (mbr.tab !== "profil") {
-    const body = !D ? `<p class="empty small">${mbr.data.err ? esc(mbr.data.err) : "Pas encore de données : elles arrivent la prochaine fois que ce membre ouvre l'app (version à jour)."}</p>` : withState(D, () => mbr.tab === "jour" ? memberDay(D) : mbr.tab === "seances" ? memberSessions(D) : mbr.tab === "agenda" ? memberAgenda(D) : memberBody(D));
+    const body = !D ? `<p class="empty small">${mbr.data.err ? esc(mbr.data.err) : "Pas encore de données : elles arrivent la prochaine fois que ce membre ouvre l'app (version à jour)."}</p>` : withState(D, () => mbr.tab === "suivi" ? memberSuivi(D, m) : mbr.tab === "jour" ? memberDay(D) : mbr.tab === "seances" ? memberSessions(D) : mbr.tab === "agenda" ? memberAgenda(D) : memberBody(D));
     $app.innerHTML = header(esc(m.name || "Membre"), esc(D?.plan ? `${(E.program(D.plan.programId)?.name || "").split("·")[0]} · semaine ${D.plan.week}` : m.email || ""), { back: "admin", actions: `<button class="pill" data-a="go" data-r="member-prog" data-p="${esc(m.id)}">📋 Programme</button>` }) + `<main class="page">${top}${body}</main>${adminTabbar("admin")}`;
     return;
   }
@@ -454,3 +467,13 @@ actions["pd-send"] = async () => {
   try { const c = await cloud(); await c.libraryAdd("plan", `Plan alimentaire · ${m.name || "client"}`, { meals: plDraft.meals, note, for: m.id }); await c.notify("🍽️ Ton plan alimentaire", "Thomas t'a envoyé ton plan. Ouvre l'onglet Coaching pour l'appliquer.", m.id).catch(() => { }); closeSheet(); toast("Plan envoyé"); }
   catch (e) { toast("Envoi impossible : " + (e.message || "serveur indisponible")); }
 };
+
+// Dossier joint à la candidature : régularité, résultats depuis le début, motivation (le membre n'a rien à réécrire)
+function applyDossier() {
+  try {
+    const a = myAdherence(), from = S().trialStart || sinceStart() || today(), s = summaryBetween(from), an = S().anamnese;
+    const r1 = (x) => x == null ? null : Math.round(x * 10) / 10;
+    return { score: a.score, status: a.status, sessions: s.sessions, checkins: myCheckins().length, weight: r1(s.weight?.delta), waist: r1(s.waist?.delta), days: s.days,
+      defiDay: S().trialStart ? defiDay() : null, why: an?.motivation?.why || null, anam: !!an?.at }; // pas de donnée de santé dans la candidature (voir confidentialite.html)
+  } catch { return null; }
+}

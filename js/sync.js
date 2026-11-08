@@ -4,6 +4,7 @@ import * as E from "./engine.js";
 import * as N from "./nutrition.js";
 import { cloud, badges, isCoach, addDays } from "./core.js";
 import { nutriRow } from "./nutri-totals.js";
+import { myAdherence, lastCheckin, defiDay } from "./progress.js";
 
 export async function syncProfile() {
   const c = await cloud(); if (!c || !S().profile) return;
@@ -39,7 +40,9 @@ const keep = (obj, days) => { const cut = new Date(Date.now() - days * 864e5).to
 export function snapshot() {
   const st = S(), t = today();
   const lifts = Object.fromEntries(Object.entries(st.lifts || {}).map(([k, h]) => [k, h.slice(-25)]));
-  const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, skips: st.skips, swaps: st.swaps, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin } };
+  const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, skips: st.skips, swaps: st.swaps, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin },
+    // Suivi : bilans, anamnèse, témoignage, photos envoyées volontairement, essai
+    checkins: (st.checkins || []).slice(-26), anamnese: st.anamnese || null, testimonial: st.testimonial || null, sharedPhotos: st.sharedPhotos || [], trialStart: st.trialStart || null, defi: st.defi || null, profileCreatedAt: st.profile?.createdAt || null };
   let ag = null, ns = null; try { ag = E.agenda(t, t)[t]; ns = E.nextSession(); } catch { }
   const tot = N.dayTotals(t), D = st.daily[t] || {}, lw = st.workouts.at(-1);
   const summary = { today: t, session: ag ? { st: ag.st, title: ag.title } : null, inProgress: st.current ? { title: st.current.title, start: st.current.start, done: st.current.exercises.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0) } : null,
@@ -54,6 +57,14 @@ export function snapshot() {
     const acts = [lw?.end?.slice(0, 10), ...Object.keys(st.food || {}).filter(k => (st.food[k] || []).length), ...Object.keys(st.daily || {}).filter(k => Object.keys(st.daily[k] || {}).length)].filter(Boolean).sort();
     summary.s7 = { workouts: w7.length, ex: w7.reduce((a, w) => a + w.exercises.filter(e => e.sets.some(s => s.done)).length, 0), nutri: days7.filter(k => (st.food?.[k] || []).length).length };
     summary.lastActive = acts.at(-1) || null;
+    try { const a = myAdherence(t), lc = lastCheckin();
+      summary.adh = { score: a.score, status: a.status, trend: a.trend, week: a.week, prev: a.prevWeek, age: a.age };
+      summary.lastCheckin = lc?.d || null;
+      summary.ci = lc ? { d: lc.d, energy: lc.energy, sleepH: lc.sleepH, stress: lc.stress, mood: lc.mood, weight: lc.weight } : null;
+      summary.health = st.anamnese?.flags || null; summary.anam = !!st.anamnese?.at;
+      summary.defi = st.trialStart ? { day: defiDay(t), closed: !!st.defi?.closed } : null;
+      summary.testi = st.testimonial?.ok ? { at: st.testimonial.at, photos: st.testimonial.photos } : null;
+    } catch { }
     summary.alerts = [...E.stalls().map(x => `Plateau ${x.name} (${x.weeks} sem.)`), ...E.injuryAlerts().map(a => `Douleur ${a.name}`)].slice(0, 6);
   } catch { }
   return { data, summary };
