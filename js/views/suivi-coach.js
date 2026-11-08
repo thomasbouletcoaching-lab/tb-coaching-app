@@ -21,7 +21,7 @@ export function memberSuivi(D, m) {
   const parts = Object.keys(WEIGHTS).map(k => [k, a.parts[k]]).filter(([, p]) => p);
   setTimeout(hydratePhotos, 0);
   return `
-    <div class="card mt12" style="display:flex;gap:14px;align-items:center">${scoreRing(a.score, 84)}<div class="grow"><span class="tag ${st.tone === "g" ? "g" : st.tone === "r" ? "r" : ""}">${st.label}</span>
+    <div class="card mt12" style="display:flex;gap:14px;align-items:center">${scoreRing(a.score, 84)}<div class="grow"><span class="tag ${"st-" + st.tone}">${st.label}</span>
       <p class="xs muted mt4" style="margin:0">${a.trend != null ? `Cette semaine ${a.week} · la précédente ${a.prevWeek} (${a.trend > 0 ? "+" : ""}${a.trend})` : "Tendance après 2 semaines"}${S().trialStart && defiDay() <= 37 ? ` · défi jour ${defiDay()}` : ""}</p>
       <p class="xs mt4" style="margin:0">${parts.map(([k, p]) => `${LABELS[k]} ${Math.round(p.pct * 100)} %`).join(" · ")}</p></div></div>
     ${al.length ? `<div class="list mt12">${al.map(x => `<div class="li"><span class="em">${x.level === "risk" ? "🔴" : x.level === "watch" ? "🟠" : "🔵"}</span><span class="grow small">${esc(x.text)}</span></div>`).join("")}</div>` : `<p class="small muted mt8">✅ Aucune alerte.</p>`}

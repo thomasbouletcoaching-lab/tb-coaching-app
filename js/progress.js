@@ -65,7 +65,7 @@ export function defiDay(t = today()) { const s = S().trialStart; return s ? Math
 export function defiOn() { const d = defiDay(); return d != null && !S().me?.isCoach && d <= DEFI_DAYS + 7 && !(S().me?.tier && S().me.tier !== "free") && !S().defi?.closed; }
 // Étapes : id, jour où elle s'ouvre, titre, sous-titre, faite ?, route
 export function defiSteps(photosStart = !!S().defi?.photos) {
-  const s = S().trialStart || today(), ci = checkins().map(c => c.d), wk = (n) => ci.some(d => d >= addDays(s, 7 * (n - 1)) && d <= addDays(s, 7 * n + 2));
+  const s = S().trialStart || today(), ci = checkins().map(c => c.d), wk = (n) => ci.some(d => d >= addDays(s, 7 * n - 4) && d <= addDays(s, 7 * n + 2)); // bilan n : jours 7n−3 à 7n+3, sans chevauchement
   const hasMeasure = (S().measures || []).some(m => m.waistNav != null || m.hips != null || m.chest != null);
   return [
     { id: "anam", day: 1, t: "Mon point de départ", s: "Santé, historique, motivation : 3 minutes", ok: !!S().anamnese?.at, r: "anamnese" },

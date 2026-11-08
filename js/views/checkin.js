@@ -47,7 +47,7 @@ routes.bilan = async () => {
     <form data-f="bilan" class="stack mt12" id="bilan-form">
       <div class="grid2"><label class="field"><span>Poids moyen de la semaine (kg)</span><input name="weight" inputmode="decimal" value="${fmt(v.weight)}" placeholder="${fmt(prev?.weight) || "ex. 82,4"}"></label>
         <label class="field"><span>Sommeil moyen (heures / nuit)</span><input name="sleepH" inputmode="decimal" value="${fmt(v.sleepH)}" placeholder="ex. 7"></label></div>
-      <details class="fold" ${cur?.measures && Object.keys(cur.measures).length ? "open" : ""}><summary>📏 Mensurations <small class="muted">facultatif · conseillé toutes les 2 semaines</small></summary><div class="fb">
+      <details class="fold" ${cur?.measures && Object.keys(cur.measures).length ? "open" : ""}><summary>📏 Mensurations <small>facultatif</small></summary><div class="fb">
         <div class="grid2">${CI_MEASURES.map(([k, l]) => `<label class="field"><span>${l} (cm)</span><input name="m_${k}" inputmode="decimal" value="${fmt(cur?.measures?.[k])}" placeholder="${fmt(lastM[k])}"></label>`).join("")}</div>
         <p class="xs muted mt8" style="margin-bottom:0">Le matin, à jeun, au même endroit. Les chiffres gris sont tes dernières mesures.</p></div></details>
       <div class="card"><div class="lbl">🙂 Ma semaine en un mot</div><div class="moods mt8" role="radiogroup">${MOODS.map(([n, e, l]) => `<label><input type="radio" name="mood" value="${n}" ${+v.mood === n ? "checked" : ""}><span><b>${e}</b>${l}</span></label>`).join("")}</div></div>
@@ -99,7 +99,7 @@ function done(ci, sent) {
   $app.innerHTML = `<section class="convo" style="justify-content:center"><div style="font-size:54px">✅</div>
     <h1 class="q">Bilan enregistré${sent ? " et envoyé à Thomas" : ""}.</h1>
     <p class="q-sub">${sent ? "Il te répond avec tes ajustements." : "Il compte dans ta régularité et dans ton rapport de progression."}</p>
-    <div class="card mt16"><div class="row between"><b>Régularité sur 14 jours</b><span class="tag ${st.tone === "g" ? "g" : st.tone === "r" ? "r" : ""}">${st.label}</span></div><div class="num mt4" style="font-size:34px">${adh.score ?? "–"}<small class="muted" style="font-size:16px"> / 100</small></div></div>
+    <div class="card mt16"><div class="row between"><b>Régularité sur 14 jours</b><span class="tag ${"st-" + st.tone}">${st.label}</span></div><div class="num mt4" style="font-size:34px">${adh.score ?? "–"}<small class="muted" style="font-size:16px"> / 100</small></div></div>
     ${prev ? `<div class="list mt12"><div class="li"><b class="small grow">Depuis ton bilan du ${fmtDate(prev.d, { day: "numeric", month: "long" })}</b></div>${diff("weight", "Poids moyen (kg)")}${diff("energy", "Énergie /10", 0, 1)}${diff("sleepH", "Sommeil (h)", 1, 1)}${diff("stress", "Stress /10", 0, -1)}</div>` : ""}
     <div class="stack mt24">${defiOn() ? `<button class="btn btn-red" data-a="go" data-r="defi">Retour à mon défi · jour ${defiDay()}</button>` : `<button class="btn btn-red" data-a="go" data-r="regularite">Voir ma régularité</button>`}<button class="btn btn-line" data-a="go" data-r="home">Accueil</button></div></section>`;
 }

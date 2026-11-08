@@ -11,7 +11,7 @@ import { startApply } from "./coach.js";
 const pct = (x) => Math.round((x || 0) * 100);
 const VIEWS = [["face", "Face"], ["profil", "Profil"], ["dos", "Dos"], ["autre", "Autre"]];
 const isBody = (p) => !["repas", "ticket"].includes(p.view);
-const toneTag = (st) => `<span class="tag ${st.tone === "g" ? "g" : st.tone === "r" ? "r" : ""}">${st.label}</span>`;
+const toneTag = (st) => `<span class="tag ${"st-" + st.tone}">${st.label}</span>`;
 
 // Anneau de score (SVG)
 export function scoreRing(score, size = 112) {
