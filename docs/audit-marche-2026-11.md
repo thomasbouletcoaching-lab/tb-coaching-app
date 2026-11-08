@@ -80,7 +80,7 @@ Si la TVA s'applique (au-delà de 41 250 €/an) et que les prix affichés reste
 
 Pour garder 10 places de cycle pleines, sur des cycles de 3 mois, il faut en moyenne **3,3 nouveaux clients par mois** si personne ne renouvelle (10 ÷ 3). Chaque renouvellement réduit ce besoin.
 
-Le nombre d'appels nécessaires = nouveaux clients ÷ ton taux de signature. **Hypothèse d'exemple** : si 1 appel sur 3 signe, il faut 10 appels par mois. Je n'ai trouvé aucune statistique fiable sur ce taux en France ; le tableau de bord le calcule à partir de tes vraies candidatures (statuts « appel prévu » → « client »).
+Le nombre d'appels nécessaires = nouveaux clients ÷ ton taux de signature. **Hypothèse d'exemple** : si 1 appel sur 3 signe, il faut 10 appels par mois. Je n'ai trouvé aucune statistique fiable sur ce taux en France ; le tableau de bord le calcule à partir de tes vraies candidatures (clients ÷ demandes passées en « client » ou « pas pour moi » après l'appel).
 
 ## 5. Ce qui bloque la vente aujourd'hui (constats)
 
@@ -89,7 +89,7 @@ Le nombre d'appels nécessaires = nouveaux clients ÷ ton taux de signature. **H
 | M1 | Pas de preuve sociale en ligne : « Ils l'ont fait » est vide, pas de vidéo de présentation | `site/produits.js` : `RESULTATS = []`, `SITE.vsl = ""` | Fort : un prix 3,6× la médiane [5] sans preuve |
 | M2 | Prix différents site / app (Premium 9,99 € vs Bâtisseur 14,99 € ; léger 89 € vs 59/99 €) | `site/produits.js`, `app/js/config.js` | Fort : perte de confiance au moment de payer |
 | M3 | Impossible de savoir quel Reel ou quel mot-clé amène les candidatures : le site n'enregistre pas la source | `site/site.js` : `data` = origine, demande, page | Fort : tu ne peux pas doubler ce qui marche |
-| M4 | Aucun suivi du CA face aux seuils TVA / micro ni de l'objectif mensuel | Espace coach : contrats et paiements, pas de jauge | Moyen : risque fiscal non vu venir |
+| M4 | Aucun suivi du CA face aux seuils TVA / micro ni de l'objectif mensuel | Business : CA du mois et de l'année, objectif annuel, mais ni objectif mensuel, ni seuils TVA / micro | Moyen : risque fiscal non vu venir |
 | M5 | Carte professionnelle cachée dans les mentions légales | `site/mentions-legales.html` | Moyen : argument de confiance gratuit non utilisé |
 | M6 | Le nom « Charpente » est encore partout (site, CGV) alors que tu veux le changer | `site/produits.js`, `coaching.html` | Faible tant que le nouveau nom n'est pas choisi |
 | M7 | Offre fondateur (790 €, 10 places, jusqu'au 31/12/2026) prévue mais non configurée : le code existe (`site.js`), pas les réglages ni le bloc HTML | `site/site.js`, `produits.js` | À décider : voir DECISIONS.md |
