@@ -54,12 +54,15 @@ async function run(role, steps, pre) {
   p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
   p.on('console', m => { if (m.type() === 'error' && !/WebSocket|Failed to load resource|realtime/i.test(m.text())) errs.push('CONSOLE ' + m.text()); });
   p.on('dialog', d => d.accept(d.type() === 'prompt' ? (sc.prompt || '') : undefined));
-  await p.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ body: UMD, contentType: 'application/javascript' }));
+  // L'app importe createClient en module ESM (/+esm) ; le bundle UMD est ré-exporté ici.
+  await p.route('https://cdn.jsdelivr.net/**', r => r.fulfill({
+    body: /\/\+esm$/.test(r.request().url()) ? UMD + '\nexport const createClient = supabase.createClient;' : UMD,
+    contentType: 'application/javascript' }));
   await p.route('https://fonts.googleapis.com/**', r => r.fulfill({ body: '', contentType: 'text/css' }));
   await p.route(`https://${REF}.supabase.co/**`, async r => { const u = new URL(r.request().url()); let body = null; try { body = r.request().postDataJSON(); } catch (e) {}
     sc.lastBody = body; const out = sc.handle(r.request().method(), u.pathname + u.search, Array.isArray(body) ? body[0] : body, r.request().headers()['accept']);
     await r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(out) }); });
-  await p.addInitScript(([k, v]) => { localStorage.setItem(k, v); }, [`sb-${REF}-auth-token`, JSON.stringify(sc.session)]);
+  await p.addInitScript(([k, v]) => { localStorage.setItem(k, v); }, ["cxs.auth", JSON.stringify(sc.session)]);
   if (sc.clock) await p.clock.install({ time: new Date(sc.clock) });
   await p.goto(BASE, { waitUntil: 'load' });
   await p.waitForTimeout(1500);
