@@ -392,12 +392,17 @@ document.addEventListener("pointercancel", endDrag);
 // =====================================================================
 let MIRROR = null; // { id, stamp, timer, quiet, name }
 let pushT = null;
+// Fin enregistrée sur le serveur qui concerne une séance PRÉCÉDENTE (pas celle ouverte maintenant)
+const oldEnd = (st, cur) => !!(st?.ended && cur && (!st.session || (st.session.id && cur.id && st.session.id !== cur.id) || (st.endedAt && cur.start && new Date(st.endedAt) < new Date(cur.start))));
 const strip = (cur) => { const c = JSON.parse(JSON.stringify(cur)); delete c.mirror; return c; };
 async function pushMirror() {
   const cur = S().current; if (!MIRROR || !cur?.mirror) return;
   try {
-    const c = await cloud(); const r = await c.liveGet(MIRROR.id), base = r?.state || {};
-    if (base.ended) return;
+    const c = await cloud(); const r = await c.liveGet(MIRROR.id); let base = r?.state || {};
+    if (base.ended) {
+      if (!oldEnd(base, cur)) return; // cette séance-ci a été terminée (par le coach) : on n'y touche plus
+      base = { log: [{ at: nowIso(), by: isCoach() ? "coach" : "member", text: "Séance lancée" }] }; // fin d'une séance précédente : on repart d'un état neuf
+    }
     const st = { log: [], ...base, title: cur.title, startedAt: base.startedAt || cur.start || nowIso(), by: base.by || (isCoach() ? "coach" : "member"), ended: false, session: strip(cur) };
     MIRROR.stamp = await c.liveSet(MIRROR.id, st);
   } catch { }
@@ -461,6 +466,7 @@ async function pollMirror() {
   if (DRAG || document.querySelector(".sheet-wrap, input:focus, textarea:focus, select:focus")) return;
   try {
     const r = await (await cloud()).liveGet(MIRROR.id);
+    if (!r?.state || oldEnd(r.state, S().current)) { if (!isCoach()) { await pushMirror(); return; } } // l'état serveur date d'une séance précédente : on publie la séance en cours au lieu de la fermer
     if (!r?.state || r.state.ended) {
       if (!isCoach() && S().current.exercises.some(e => e.sets.some(x => x.done))) { const cur = S().current; E.finishSession(cur); MIRROR = null; clearInterval(0); toast("Thomas a terminé la séance : elle est enregistrée"); return go("done"); }
       return leaveMirror("Séance terminée");
