@@ -191,6 +191,16 @@ export async function storeSet(key, value) {
   const { error } = await sb.from("cxs_coach_store").upsert({ key, value, updated_at: new Date().toISOString() });
   if (error) throw error;
 }
+// Demandes arrivées par le site (candidatures, calculateur, guides) : table « leads », lisible par le coach uniquement
+export async function leads(days = 365) {
+  const since = new Date(Date.now() - days * 864e5).toISOString();
+  const { data, error } = await sb.from("leads").select("id,created_at,name,email,phone,status,data").gte("created_at", since).order("created_at", { ascending: false }).limit(1000);
+  if (error) throw error; return data || [];
+}
+export async function leadSetStatus(id, status) {
+  const { error } = await sb.from("leads").update({ status }).eq("id", id);
+  if (error) throw error;
+}
 export async function libraryAll() {
   const { data, error } = await sb.from("cxs_library").select("id,kind,name,data,updated_at").order("id", { ascending: true }).limit(2000);
   if (error) throw error; return data || [];

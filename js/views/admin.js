@@ -10,6 +10,7 @@ import { readyList, ensureReady } from "./coach.js";
 import { libraryRows, refreshLibrary } from "../library.js";
 import { filterExercises, ficheSheet } from "./train.js";
 import { openRecipeEditor } from "./food.js";
+import * as OBJ from "../objectif.js";
 
 // ---------- Données ----------
 const A = { members: null, sums: {}, threads: {}, at: 0, err: null, store: { todo: [], biz: null, notes: {}, handled: {} } };
@@ -305,6 +306,8 @@ routes["admin-biz"] = async () => {
         <div class="mt8">${barChart(byM.map((v, i) => ({ v, l: "JFMAMJJASOND"[i] })), { fmt: (x) => Math.round(x), hi: y === t.slice(0, 4) ? new Date().getMonth() : -1 })}</div>
         <table class="qtab"><tr><th>Trimestre</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th></tr><tr><td>CA à déclarer</td>${Q.map(q => `<td>${eur(q)}</td>`).join("")}</tr>${rate ? `<tr><td>Cotisations (${fr(rate, 1)} %)</td>${Q.map(q => `<td>${eur(q * rate / 100)}</td>`).join("")}</tr>` : ""}</table>
         <p class="xs muted mt8" style="margin-bottom:0">En micro-entreprise, tu déclares le CA encaissé (date de paiement), chaque mois ou chaque trimestre selon ton choix à l'URSSAF.${rate ? "" : " Renseigne ton taux de cotisations dans Réglages pour voir l'estimation."}</p></div>` + acquisitionCard();
+  } else if (bizTab === "obj") {
+    body = await objectifBody();
   } else if (bizTab === "enc") {
     const l = P.slice().sort((a, b) => b.d.localeCompare(a.d));
     body = `<button class="btn btn-red btn-sm mt12" data-a="pay-new" style="width:100%">+ Ajouter un encaissement</button>
@@ -322,10 +325,67 @@ routes["admin-biz"] = async () => {
     body = `<form data-f="biz-set" class="card mt12"><label class="field"><span>Taux de cotisations sociales (%)</span><input name="rate" inputmode="decimal" value="${s.rate ?? ""}" placeholder="vérifie ton taux sur autoentrepreneur.urssaf.fr"></label>
       <label class="field mt8"><span>Déclaration</span><select name="freq"><option value="mois" ${s.freq === "mois" ? "selected" : ""}>Mensuelle</option><option value="trimestre" ${s.freq !== "mois" ? "selected" : ""}>Trimestrielle</option></select></label>
       <label class="field mt8"><span>Objectif de CA annuel (€)</span><input name="goal" inputmode="decimal" value="${s.goal ?? ""}"></label>
+      <div class="lbl mt16">Objectif mensuel</div>
+      <div class="grid2 mt8"><label class="field"><span>Objectif par mois (€)</span><input name="goalMonth" inputmode="decimal" value="${s.goalMonth ?? ""}" placeholder="${OBJ.DEFAUTS.objectifMois}"></label><label class="field"><span>Places de cycle en même temps</span><input name="places" inputmode="numeric" value="${s.places ?? ""}" placeholder="${OBJ.DEFAUTS.places}"></label></div>
+      <div class="grid2 mt8"><label class="field"><span>Prix du cycle par mois (€)</span><input name="cyclePrice" inputmode="decimal" value="${s.cyclePrice ?? ""}" placeholder="${OBJ.DEFAUTS.prixCycleMois}"></label><label class="field"><span>Clients qui renouvellent (%)</span><input name="renew" inputmode="decimal" value="${s.renew ?? ""}" placeholder="0"></label></div>
       <button class="btn btn-red btn-sm mt12" style="width:100%">Enregistrer</button></form>
       <p class="xs muted mt8">Ces données restent dans ton espace coach, sur le serveur : tu les retrouves sur tous tes appareils. Je ne suis pas expert-comptable : vérifie toujours tes taux auprès de l'URSSAF.</p>`;
   }
-  frame("admin-biz", `<h1 class="h1 mt8">Business</h1><div class="chips wrap mt8">${[["dash", "Tableau de bord"], ["enc", "Encaissements"], ["cyc", "Cycles clients"], ["set", "Réglages"]].map(([k, l]) => `<button class="chip ${bizTab === k ? "on" : ""}" data-a="biz-tab" data-v="${k}">${l}</button>`).join("")}</div>${body}`);
+  frame("admin-biz", `<h1 class="h1 mt8">Business</h1><div class="chips wrap mt8">${[["dash", "Tableau de bord"], ["obj", "Objectif"], ["enc", "Encaissements"], ["cyc", "Cycles clients"], ["set", "Réglages"]].map(([k, l]) => `<button class="chip ${bizTab === k ? "on" : ""}" data-a="biz-tab" data-v="${k}">${l}</button>`).join("")}</div>${body}`);
+};
+// ---------- Objectif : CA du mois face à l'objectif, seuils de l'année, plan, entonnoir des demandes du site ----------
+const LEADS = { list: null, err: null, at: 0 };
+async function loadLeads(force = false) {
+  if (!force && LEADS.list && Date.now() - LEADS.at < 60000) return;
+  const c = await cloud(); if (!c?.leads) { LEADS.err = "Pas de connexion au serveur."; return; }
+  try { LEADS.list = await c.leads(365); LEADS.err = null; LEADS.at = Date.now(); } catch (e) { LEADS.err = e.message; LEADS.list = LEADS.list || []; }
+}
+const SRC_NOM = { "reel-1rm": "Reel · mot-clé 1RM", "reel-cycle": "Reel · mot-clé CYCLE", bio: "Lien en bio", instagram: "Instagram", site: "Site (sans source)", inconnue: "Inconnue", manychat: "DM automatique" };
+const srcNom = (k) => SRC_NOM[k] || k;
+const moisNom = (m) => fmtDate(m + "-01", { month: "long", year: "numeric" });
+async function objectifBody() {
+  await loadLeads();
+  const t = today(), s = B().settings || {}, P = B().payments;
+  const objectif = num(s.goalMonth) || OBJ.DEFAUTS.objectifMois, places = num(s.places) || OBJ.DEFAUTS.places, prixCycle = num(s.cyclePrice) || OBJ.DEFAUTS.prixCycleMois;
+  const mois = OBJ.etatMois(P, t), cyc = OBJ.revenuCycles(B().cycles, t);
+  // Abonnements vendus dans l'app (hors coaching suivi en cycle, hors accès offerts avec date de fin) : estimation
+  const ms = A.members || [], abo = ms.filter(m => ["premium", "essentiel"].includes(m.tier) && !(m.tier_until && m.tier_until >= t));
+  const app = Math.round(abo.reduce((a, m) => a + priceOf(m.tier), 0) * 100) / 100;
+  const pl = OBJ.plan({ objectif, cycles: cyc, app, places, prixCycleMois: prixCycle, formules: [{ id: "suivi", nom: offer("suivi").name, prix: priceOf("suivi") }, { id: "premium", nom: offer("premium").name, prix: priceOf("premium") }] });
+  const ent = OBJ.entonnoir(LEADS.list || [], t, 90), sa = OBJ.seuilsAnnee(P, t);
+  const acq = OBJ.besoinAcquisition({ places, dureeMois: 3, renouvellement: (num(s.renew) || 0) / 100, signature: ent.signature });
+  const pctMois = Math.min(100, Math.round(mois.encaisse / objectif * 100));
+  const g = (pct, warn) => `<div class="gauge mt8"><i style="width:${Math.max(0, Math.min(100, pct))}%${warn ? ";background:var(--warn)" : ""}"></i></div>`;
+  const aTraiter = (LEADS.list || []).filter(l => ["nouveau", "contacté", "appel prévu"].includes(l.status || "nouveau")).slice(0, 15);
+  return `<div class="card mt12" id="obj-mois"><div class="row between"><b class="h3">🎯 ${fmtDate(t, { month: "long" })}</b><span class="small">${eur(mois.encaisse)} / ${eur(objectif)}</span></div>${g(pctMois)}
+      <p class="small mt8" style="margin:0">${pctMois}% de l'objectif encaissé.${mois.aVenir ? ` Encore <b>${eur(mois.aVenir)}</b> attendus ce mois (${mois.nAVenir}).` : ""}${mois.nRetard ? ` <b style="color:var(--warn)">${eur(mois.retard)} en retard (${mois.nRetard}) : à relancer.</b>` : ""}</p></div>
+    <div class="card mt12" id="obj-plan"><b class="h3">🧮 Ce qui tourne chaque mois</b>
+      <div class="kpis mt8"><div class="kpi"><b>${cyc.n}/${places}</b><span>places de cycle occupées · ${eur(cyc.parMois)}/mois</span></div><div class="kpi"><b>${eur(app)}</b><span>abonnements de l'app (${abo.length}), estimation</span></div></div>
+      ${g(pl.pct)}<p class="small mt8" style="margin:0">${pl.manque ? `Il manque <b>${eur(pl.manque)}</b> de revenu récurrent pour ${eur(objectif)}/mois.` : `Ton revenu récurrent couvre l'objectif. 💪`}</p>
+      ${pl.manque ? `<ul class="small mt8" style="margin:0;padding-left:18px">${pl.placesUtiles ? `<li>Remplir <b>${pl.placesUtiles} place${pl.placesUtiles > 1 ? "s" : ""}</b> de cycle : +${eur(pl.apportPlaces)}/mois.</li>` : ""}
+        ${pl.reste ? pl.complements.map(f => `<li>Puis ${pl.placesUtiles ? "" : "il faut "}<b>${f.n}</b> abonné${f.n > 1 ? "s" : ""} ${esc(f.nom)} (${eur(f.prix)}/mois)</li>`).join(`<li style="list-style:none;margin-left:-18px" class="xs muted">ou</li>`) : ""}</ul>` : ""}
+      ${pl.capaciteSuffit ? "" : `<p class="xs mt8" style="margin:0;color:var(--warn)">Même avec tes ${places} places pleines à ${eur(prixCycle)}, le plafond est de ${eur(pl.capaciteMax)}/mois : l'objectif passe forcément par des offres qui ne prennent pas ton temps à l'unité.</p>`}</div>
+    <div class="card mt12" id="obj-acq"><b class="h3">📞 Pour garder ${places} places pleines</b>
+      <p class="small mt8" style="margin:0">Cycles de 3 mois${num(s.renew) ? ` et ${fr(num(s.renew))}% de renouvellements` : ""} : <b>${fr(acq.nouveaux, 1)} nouveau${acq.nouveaux > 1 ? "x" : ""} client${acq.nouveaux > 1 ? "s" : ""} par mois</b>${acq.appels ? `, soit environ <b>${acq.appels} appels</b> au taux de signature mesuré (${Math.round(ent.signature * 100)}%).` : "."}</p>
+      ${acq.appels ? "" : `<p class="xs muted mt4" style="margin:0">Taux de signature pas encore mesurable : après chaque appel, passe la demande en « client » ou « pas pour moi » ci-dessous.</p>`}</div>
+    <div class="card mt12" id="obj-seuils"><b class="h3">⚖️ Seuils ${sa.annee}</b><p class="xs muted mt4" style="margin:0">Encaissé depuis janvier : <b>${eur(sa.cumul)}</b> · rythme ${eur(sa.rythme.parMois)}/mois (${esc(sa.rythme.base)}) · projection fin d'année ${eur(sa.projectionAnnee)}</p>
+      ${sa.seuils.map(x => `<div class="mt12"><div class="row between small"><b>${esc(x.label)}</b><span>${eur(x.montant)}</span></div>${g(x.pct, x.statut !== "ok")}
+        <p class="xs mt4" style="margin:0;${x.statut === "ok" ? "" : "color:var(--warn)"}">${x.statut === "depasse" ? "Dépassé. " : x.prevu ? `Au rythme actuel : franchi en ${moisNom(x.prevu)}. ` : `${fr(x.pct, 1)}% atteint. `}<span class="muted">${esc(x.effet)}</span></p></div>`).join("")}
+      <p class="xs muted mt12" style="margin-bottom:0">Seuils 2026 pour les prestations de services, sources : <a href="https://www.economie.gouv.fr/node/34776" target="_blank" rel="noopener">economie.gouv.fr</a>, <a href="https://www.maxcompta.com/blogs/actualites/seuils-tva-franchise-base-2026-independants" target="_blank" rel="noopener">seuils de TVA 2026</a>. Je ne suis pas expert-comptable : fais valider le passage à la TVA par un professionnel avant de l'atteindre.</p></div>
+    <div class="card mt12" id="obj-src"><b class="h3">📣 Demandes du site (90 jours) : ${ent.total}</b>
+      ${LEADS.err ? `<p class="xs mt4" style="margin:0;color:var(--warn)">Demandes indisponibles : ${esc(LEADS.err)}</p>` : ""}
+      ${ent.total ? `<div class="mt8">${ent.sources.map(x => `<div class="li" style="gap:8px;min-height:0;padding:6px 0"><span class="small grow">${esc(srcNom(x.source))}</span><span class="small muted">${x.n} demande${x.n > 1 ? "s" : ""}</span><b class="small" style="min-width:64px;text-align:right">${x.clients} client${x.clients > 1 ? "s" : ""}</b></div>`).join("")}</div>
+        <p class="xs muted mt8" style="margin:0">${OBJ.STATUTS.map(st => `${st} : ${ent.parStatut[st]}`).join(" · ")}</p>` : `<p class="small muted mt4" style="margin:0">Aucune demande sur 90 jours.</p>`}
+      <p class="xs muted mt8" style="margin:0">Pour savoir quel contenu amène des clients, ajoute <b>?src=</b> à tes liens : <code>…/coaching.html?src=reel-1rm</code>, <code>?src=bio</code>.</p></div>
+    <div class="card mt12" id="obj-leads" style="padding:4px 12px"><div class="li"><b class="grow">À traiter (${aTraiter.length})</b><button class="icon-btn sm" data-a="obj-leads-refresh" aria-label="Actualiser les demandes">↻</button></div>
+      ${aTraiter.map(l => { const d = l.data || {}; return `<div class="li" style="flex-wrap:wrap;gap:6px"><div class="grow" style="min-width:60%"><b class="small">${esc(l.name || "–")}</b> <span class="tag">${esc(d.demande || "demande")}</span><br><span class="xs muted">${ago(l.created_at)} · ${esc(srcNom(OBJ.sourceDe(l)))}${d.goal ? ` · ${esc(d.goal)}` : ""}</span><br>${l.email ? `<a class="xs" href="mailto:${esc(l.email)}">${esc(l.email)}</a>` : ""}${l.phone ? ` · <a class="xs" href="tel:${esc(l.phone)}">${esc(l.phone)}</a>` : ""}</div>
+        <select class="inp" data-c="obj-lead-st" data-id="${esc(String(l.id))}" aria-label="Statut de la demande" style="width:auto;min-height:44px">${OBJ.STATUTS.map(st => `<option ${st === (l.status || "nouveau") ? "selected" : ""}>${st}</option>`).join("")}</select></div>`; }).join("") || `<p class="empty small">Rien à traiter.</p>`}</div>`;
+}
+actions["obj-leads-refresh"] = async () => { toast("Actualisation…"); await loadLeads(true); rerender(); };
+changes["obj-lead-st"] = async (el) => {
+  const l = (LEADS.list || []).find(x => String(x.id) === el.dataset.id), c = await cloud(); if (!l || !c) return;
+  const before = l.status; l.status = el.value;
+  try { await c.leadSetStatus(l.id, el.value); toast(`${l.name || "Demande"} : ${el.value}`); rerender(); } catch (e) { l.status = before; toast("Impossible : " + e.message); rerender(); }
 };
 actions["biz-tab"] = (b, d) => { bizTab = d.v; rerender(); };
 actions["biz-y"] = (b, d) => { bizYear += +d.v; rerender(); };
@@ -373,7 +433,12 @@ actions["cyc-pay"] = async (b, d) => {
   toast(`${n} encaissement${n > 1 ? "s" : ""} prévu${n > 1 ? "s" : ""} ajouté${n > 1 ? "s" : ""}`); rerender(); await saveStore("biz");
 };
 actions["cyc-del"] = async (b, d) => { if (!confirm("Supprimer ce cycle ?")) return; B().cycles = B().cycles.filter(x => x.id !== +d.id); rerender(); await saveStore("biz"); };
-forms["biz-set"] = async (v) => { B().settings = { rate: num(v.rate) || null, freq: v.freq, goal: num(v.goal) || null }; toast("Réglages enregistrés"); rerender(); await saveStore("biz"); };
+forms["biz-set"] = async (v) => {
+  const pct = (x) => { const n = num(x); return n >= 0 && n <= 100 && String(x).trim() !== "" ? n : null; };
+  B().settings = { ...B().settings, rate: num(v.rate) || null, freq: v.freq, goal: num(v.goal) || null,
+    goalMonth: num(v.goalMonth) || null, places: Math.round(num(v.places)) || null, cyclePrice: num(v.cyclePrice) || null, renew: pct(v.renew) };
+  toast("Réglages enregistrés"); rerender(); await saveStore("biz");
+};
 
 // =====================================================================
 // ABONNÉS

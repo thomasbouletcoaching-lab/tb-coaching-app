@@ -20,7 +20,7 @@ jobs:
           npx --yes esbuild@0.21.5 js/app.js --bundle --outfile=/tmp/app-check.js --format=esm --log-level=error
           node -e 'new Function(require("fs").readFileSync("sw.js","utf8"));console.log("syntaxe OK")'
       - name: Tester le moteur « Volume de la semaine »
-        run: node --test tests/volume.test.mjs
+        run: node --test tests/volume.test.mjs tests/objectif.test.mjs
       - name: Installer les outils de test
         working-directory: tests
         run: npm install --no-audit --no-fund && npx playwright install --with-deps chromium
@@ -29,6 +29,7 @@ jobs:
           python3 -m http.server 8765 >/dev/null 2>&1 &
           sleep 2
           node tests/volume-e2e.js
+          node tests/objectif-e2e.js
           node tests/run.js
         env:
           BASE_URL: http://localhost:8765/
