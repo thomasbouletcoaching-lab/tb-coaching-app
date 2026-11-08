@@ -39,3 +39,15 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 | T1 | Calculs (score, statut, alertes, résumé du rapport) dans un module **pur** `js/adherence.js`, sans accès au DOM ni au stockage, testé par `node --test`. | Même approche que `js/volume.js` ; testable en CI. |
 | T2 | Tests de bout en bout Playwright en **iPhone 390 × 844, tactile** (`tests/adherence-e2e.js`), Supabase simulé, données fictives. Ajoutés à la CI. | Règle « teste tout en rendu mobile ». |
 | T3 | Version du service worker incrémentée pour que les téléphones prennent la nouvelle version. | Procédure du README. |
+
+## Constats et choix faits pendant la construction
+
+| # | Décision | Pourquoi |
+|---|---|---|
+| C1 | Les membres dont l'essai de 7 jours avait expiré mais qui ont moins de 30 jours d'ancienneté retrouvent l'app complète jusqu'au jour 30. | Conséquence directe du passage à 30 jours (l'essai est calculé à partir de `trialStart`) ; un cadeau plutôt qu'un bug, cohérent avec le défi. |
+| C2 | Le bilan d'une semaine se corrige au lieu de se dupliquer (un bilan par semaine du lundi au dimanche). Dans le défi, le bilan n compte s'il est fait entre les jours 7n−3 et 7n+3. | Évite qu'un même bilan valide deux étapes. |
+| C3 | La carte « Ton bilan de la semaine » apparaît sur l'Accueil du vendredi au dimanche, en plus du rappel push du dimanche déjà en place. | Fenêtre où le bilan a du sens, sans encombrer le reste de la semaine. |
+| C4 | Les alertes de décrochage d'un membre resté sur une ancienne version de l'app (sans score dans son instantané) ne sont pas inventées : on garde l'ancien « relancer après 4 jours ». | Pas de faux positif. |
+| C5 | La suite de tests historique `tests/run.js` échoue déjà sur `main` (CI rouge depuis au moins le 7/11, avant ce travail). Je ne l'ai pas réparée ; les nouveaux tests passent avant elle dans la CI pour que leur résultat soit lisible. | Hors périmètre, et la corriger sans toi risquait de masquer un vrai problème. |
+| C6 | Une autre PR ouverte par une session précédente (`claude/relaxed-brown-5tl5pb`, « Audit web sourcé et correction du harnais E2E ») touche aux tests : conflit possible sur `tests/`, à fusionner l'une après l'autre. | Information pour la fusion. |
+| C7 | Plusieurs modules existants (`js/views/live.js`, `account.js`, `coachprog.js`…) manquent à la liste hors ligne de `sw.js` : constat, non corrigé. J'y ai ajouté les 6 nouveaux modules. | Hors périmètre ; signalé dans REPORT.md. |

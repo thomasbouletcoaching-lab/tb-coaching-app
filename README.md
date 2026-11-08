@@ -112,3 +112,14 @@ Onglet « Commits », puis choisir une version précédente : tout l'historique 
 - Côté client, onglet Programme : « 📊 Volume de la semaine par muscle ».
 - Moteur : `js/volume.js` (pur, testé par `node --test tests/volume.test.mjs`) ; écran : `js/views/volume.js` ;
   détail dans `docs/spec-volume-hebdo.md`.
+
+## Suivi et résultats (novembre 2026)
+
+- **Défi 30 jours** (`#/defi`) : l'essai dure `TRIAL_DAYS` = 30 jours, guidé par étapes (point de départ, mesures, photos, 4 bilans, rapport) et se termine sur la candidature au coaching, avec les résultats joints.
+- **Bilan de la semaine** (`#/bilan`, historique `#/bilans`) : pré-rempli (poids moyen, sommeil, séances), mensurations facultatives, moral, énergie, sommeil, stress, faim, suivi du plan. Stocké dans `S().checkins` et envoyé en message à Thomas pour les coachés.
+- **Point de départ / anamnèse** (`#/anamnese`) : santé (inspirée du PAR-Q+, reformulée), gênes, historique, mode de vie, motivation ; consentement explicite.
+- **Régularité** (`#/regularite`) : score sur 14 jours (séances 40 %, repas 25 %, routine 15 %, bilans 20 %), statut et tendance. Moteur pur `js/adherence.js`, testé par `node --test tests/adherence.test.mjs`.
+- **Avant / après** (`#/compare`) et **rapport partageable** (`#/rapport`) : image PNG générée sur le téléphone, témoignage avec accord horodaté et retrait possible.
+- **Espace coach** : bloc « Qui décroche » (Aujourd'hui) avec message de relance pré-rempli, score dans la liste des clients, onglet « 📈 Suivi » dans chaque dossier, dossier joint aux candidatures.
+- Migrations à relire puis appliquer : `supabase/migrations/2026-11-08_securite_profils.sql` (**urgent**), puis `2026-11-08_suivi_photos.sql` (envoi de photos au coach).
+- Test mobile : `node tests/adherence-e2e.js` (iPhone 390×844).

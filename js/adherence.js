@@ -11,7 +11,7 @@ export const STATUS = {
   new: { label: "Nouveau", tone: "n", hint: "Pas encore assez de jours pour juger." },
   ok: { label: "Sur la bonne voie", tone: "g", hint: "Régularité solide, continue." },
   watch: { label: "À surveiller", tone: "o", hint: "Ça glisse un peu : un petit ajustement suffit." },
-  risk: { label: "Décroche", tone: "r", hint: "Il faut agir cette semaine." },
+  risk: { label: "Décroche", tone: "r", hint: "On repart cette semaine : une seule chose à remettre en place suffit." },
 };
 
 const MS = 864e5;
