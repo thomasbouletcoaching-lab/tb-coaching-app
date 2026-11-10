@@ -654,3 +654,8 @@ a.card{text-decoration:none;color:inherit}
 .stjauge b{position:absolute;top:0;bottom:0;width:2px;background:var(--paper)}
 .mpbar i.st-bon{background:var(--good)}.mpbar i.st-moyen{background:var(--warn)}.mpbar i.st-bas{background:#D8542B}
 .stzones{display:flex}.stzones span{text-align:center;white-space:nowrap}
+
+/* Récupération : feu du jour */
+.feupuce{flex:none;display:inline-block;width:26px;height:26px;border-radius:50%;background:var(--soft)}
+.feupuce.vert{background:var(--good)}.feupuce.orange{background:var(--warn)}.feupuce.rouge{background:#D8542B}
+.card.feu.vert{box-shadow:0 0 0 1.5px var(--good) inset}.card.feu.orange{box-shadow:0 0 0 1.5px var(--warn) inset}.card.feu.rouge{box-shadow:0 0 0 1.5px #D8542B inset}

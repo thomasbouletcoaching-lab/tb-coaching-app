@@ -6,6 +6,7 @@ import { cloud, badges, isCoach, addDays } from "./core.js";
 import { nutriRow } from "./nutri-totals.js";
 import { myAdherence, lastCheckin, defiDay } from "./progress.js";
 import { pourCoach } from "./programme.js";
+import { resume as recupResume } from "./recuperation.js";
 
 export async function syncProfile() {
   const c = await cloud(); if (!c || !S().profile) return;
@@ -67,6 +68,8 @@ export function snapshot() {
       summary.testi = st.testimonial?.ok ? { at: st.testimonial.at, photos: st.testimonial.photos } : null;
     } catch { }
     summary.alerts = [...E.stalls().map(x => `Plateau ${x.name} (${x.weeks} sem.)`), ...E.injuryAlerts().map(a => `Douleur ${a.name}`)].slice(0, 6);
+    const rc = recupResume(st.daily, t, { decharge: st.decharge }); // feu du jour (Premium) : seulement si le membre fait ses check-ins
+    if (rc) { summary.recup = rc; if (rc.rouges >= 3) summary.alerts = [...summary.alerts, `Fatigue : ${rc.rouges} jours rouges sur ${rc.sur}`].slice(0, 6); }
   } catch { }
   return { data, summary };
 }

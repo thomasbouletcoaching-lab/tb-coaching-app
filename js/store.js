@@ -42,6 +42,8 @@ const blank = () => ({
   programme: null,        // questionnaire « Mon programme sur mesure » { v, at, answers, prefs }
   monplan: null,          // proposition du générateur { at, progAt, seed, prop, adopte, ajust }
   montee: null,           // montée progressive { cible, palier, depuis }
+  decharge: null,         // semaine de décharge choisie { debut, fin }
+  dechargeRefus: null,    // date du dernier refus de la proposition de décharge
   semaine: null,          // « Ma semaine » : { reglages, fixe, variable, revues }
 });
 

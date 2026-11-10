@@ -6,9 +6,11 @@ import * as E from "../engine.js";
 import * as EN from "../energy.js";
 import { $app, esc, num, fr, toast, routes, actions, forms, changes, I, header, tabbar, barChart, addDays, rerender, fmtDate } from "../core.js";
 import { fastBody } from "./food.js";
+import { fatigueBlock } from "./fatigue.js";
+import { premium } from "../core.js";
 
 const D = (d) => S().daily[d] || {};
-const FEEL = [["energy", "⚡ Énergie", "à plat", "en forme"], ["well", "🙂 Bien-être", "mal", "très bien"], ["stress", "😮‍💨 Stress", "calme", "très stressé"], ["crave", "🍫 Envies de craquer", "aucune", "très fortes"], ["sat", "🍽️ Satiété", "affamé", "rassasié"]];
+const FEEL = [["energy", "⚡ Énergie", "à plat", "en forme"], ["well", "🙂 Bien-être", "mal", "très bien"], ["stress", "😮‍💨 Stress", "calme", "très stressé"], ["crave", "🍫 Envies de craquer", "aucune", "très fortes"], ["sat", "🍽️ Satiété", "affamé", "rassasié"], ["sore", "💪 Courbatures", "aucune", "très fortes"], ["motiv", "🔥 Motivation", "à plat", "à fond"]];
 
 // Glycogène : estimation simple à partir des glucides des dernières 24 h, du jeûne et de la séance de la veille
 export function glycogen(d = today()) {
@@ -72,9 +74,10 @@ routes.recup = () => {
   $app.innerHTML = header("Récupération", d === today() ? "Sommeil, énergie, jeûne" : fmtDate(d)) + `<main class="page">
     <div class="row between mt12"><button class="icon-btn" data-a="r-day" data-v="-1" aria-label="Jour précédent">${I.back}</button><b class="h3">${d === today() ? "Aujourd'hui" : fmtDate(d)}</b><button class="icon-btn" data-a="r-day" data-v="1" aria-label="Jour suivant" ${d >= today() ? "disabled" : ""} style="transform:rotate(180deg)">${I.back}</button></div>
 
-    <div class="card mt8 ${r.score >= 3 ? "grad" : ""}"><div class="lbl" ${r.score >= 3 ? 'style="color:inherit;opacity:.85"' : ""}>🏋️ Pour ta séance du jour</div>
+    ${d === today() ? fatigueBlock(r.tips) : ""}
+    ${premium() && d === today() ? "" : `<div class="card mt8 ${r.score >= 3 ? "grad" : ""}"><div class="lbl" ${r.score >= 3 ? 'style="color:inherit;opacity:.85"' : ""}>🏋️ Pour ta séance du jour</div>
       <b class="h2 mt4" style="display:block">${r.icon} ${esc(r.text)}</b>
-      ${r.tips.map(t => `<p class="small mt8" style="margin-bottom:0">• ${esc(t)}</p>`).join("")}</div>
+      ${r.tips.map(t => `<p class="small mt8" style="margin-bottom:0">• ${esc(t)}</p>`).join("")}</div>`}
 
     <h2 class="sec">😴 Sommeil</h2>
     <div class="card"><form data-f="sleep" class="grid2"><label class="field"><span>Heures dormies</span><input name="h" inputmode="decimal" value="${x.sleep != null ? String(x.sleep).replace(".", ",") : ""}" placeholder="ex. 7,5"></label>

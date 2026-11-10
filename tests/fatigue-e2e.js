@@ -1,0 +1,178 @@
+// Test de bout en bout de la récupération et de la fatigue nerveuse : check-in, feu du jour, séance allégée, décharge, rappel de coucher.
+// iPhone 390×844 tactile, Supabase simulé, données fictives. Lancement : servir la racine sur BASE_URL, puis `node tests/fatigue-e2e.js`.
+const { chromium } = require('playwright');
+const fs = require('fs');
+const BASE = process.env.BASE_URL || 'http://localhost:8765/';
+const SHOTS = process.env.SHOTS_DIR || null;
+let fails = 0, passed = 0;
+const ok = (c, msg) => { if (c) { passed++; console.log('  ✓', msg); } else { fails++; console.log('  ✗', msg); } };
+const SB_NONE = `const chain = () => new Proxy(function () {}, { get: (t, k) => k === "then" ? (res) => res({ data: null, error: null }) : chain(), apply: () => chain() });
+export function createClient() { return { auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signOut: async () => ({}) }, from: () => chain(), rpc: () => chain(), channel: () => chain(), removeChannel() {}, storage: { from: () => chain() } }; }`;
+const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+const T = iso(new Date()), dow = (d) => (new Date(d + 'T12:00:00').getDay() + 6) % 7;
+const add = (d, n) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + n); return iso(x); };
+const sched = (extra = {}) => ({ days: Array.from({ length: 7 }, (_, i) => extra[i] || (i % 2 === 0 || i === dow(T) ? { on: true, time: '18:30', dur: 60, place: 'Salle' } : { on: false })) });
+const mkState = (extra = {}) => ({ profile: { name: 'Karim', email: 'karim@exemple.fr', level: 'regular', goal: 'muscle', weight: 80, sex: 'm', age: 30, height: 178, days: 3, place: 'bigGym', startProgram: 'tb-rep3', records: {}, createdAt: T, sessionMin: 60 }, trialStart: T, synced: false, plan: { programId: 'tb-rep3', startedAt: add(T, -2), week: 1, idx: 0, cycle: 1 }, schedule: sched(), ...extra });
+const feuxRouges = (n) => Object.fromEntries(Array.from({ length: n }, (_, k) => [add(T, -k), { sleep: 5, feel: { energy: 3, stress: 8, sore: 8, motiv: 2 }, feu: 'rouge' }]));
+const seance = (d, rpe, trpe) => ({ id: d, title: 'S', start: d + 'T17:00:00.000Z', end: d + 'T18:00:00.000Z', exercises: [{ name: 'Squat barre', unit: 'reps', kind: 'F', rest: 180, sets: Array.from({ length: 5 }, () => ({ type: 'N', kg: 100, reps: 5, lo: 5, trpe, rpe, done: true })) }, { name: 'Développé couché', unit: 'reps', kind: 'P', rest: 120, sets: Array.from({ length: 4 }, () => ({ type: 'N', kg: 80, reps: 5, lo: 5, trpe, rpe, done: true })) }] });
+
+async function page(b, { state, url = '#/recup', tier = 'premium', dark = false, date = null }) {
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, serviceWorkers: 'block', colorScheme: dark ? 'dark' : 'light' });
+  const p = await ctx.newPage(); const errs = [];
+  p.on('pageerror', e => errs.push(e.message));
+  p.on('dialog', d => d.accept());
+  await p.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ body: SB_NONE, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' } }));
+  await p.route('https://fonts.googleapis.com/**', r => r.fulfill({ body: '', contentType: 'text/css' }));
+  const st = mkState(state); if (tier !== 'free') st.me = { tier, isCoach: false }; else st.trialStart = '2026-01-01';
+  await p.addInitScript((s) => { if (!localStorage.getItem('cxs.v1')) localStorage.setItem('cxs.v1', s); }, JSON.stringify(st));
+  if (date) await p.addInitScript((d) => { const R = Date, off = new R(d).getTime() - R.now(); window.Date = class extends R { constructor(...a) { if (a.length) super(...a); else super(R.now() + off); } static now() { return R.now() + off; } }; }, date);
+  await p.goto(BASE + 'index.html' + url, { waitUntil: 'load' }); await p.waitForTimeout(1600);
+  return { p, ctx, errs };
+}
+const txt = async (p, sel = '#app') => ((await p.textContent(sel)) || '').replace(/\s+/g, ' ');
+const shot = async (p, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await p.screenshot({ path: `${SHOTS}/${name}.png` }); } };
+const S = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('cxs.v1')));
+const overflow = (p) => p.evaluate(() => [...document.querySelectorAll('#app *')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > innerWidth + 1 && !e.closest('.chips,.hscroll,.modes,svg,pre'); }).map(e => e.className || e.tagName).slice(0, 5));
+const tap = async (p, sel) => { await p.click(sel); await p.waitForTimeout(600); };
+const pick = async (p, name, v) => p.check(`#sheet input[name="${name}"][value="${v}"]`, { force: true });
+const checkin = async (p, v) => { await tap(p, '[data-a="fc-open"]'); for (const [k, x] of Object.entries(v)) await pick(p, k, x); await tap(p, '#sheet form button'); await p.waitForTimeout(400); };
+const travail = (s) => (s?.exercises || []).reduce((t, ex) => t + ex.sets.filter(x => x.type !== 'W').length, 0);
+const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.filter(x => x.type !== 'W').map(x => x.trpe || 0)));
+
+(async () => {
+  const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
+
+  console.log('Gratuit : aperçu verrouillé, l\'onglet existant reste');
+  const g = await page(b, { tier: 'free' });
+  ok(await g.p.locator('.veil').count() === 1 && /Fatigue nerveuse/.test(await txt(g.p)), 'carte « Fatigue nerveuse » verrouillée');
+  ok(/Pour ta séance du jour/.test(await txt(g.p)) && await g.p.locator('[data-a="fc-open"]').count() === 0, 'le conseil existant reste, aucun check-in Premium');
+  ok(/Courbatures/.test(await txt(g.p)) && /Motivation/.test(await txt(g.p)), 'les curseurs du ressenti incluent courbatures et motivation');
+  ok(g.errs.length === 0, 'aucune erreur JavaScript' + (g.errs.length ? ' (' + g.errs.slice(0, 3).join(' | ') + ')' : ''));
+  await g.ctx.close();
+
+  console.log('Premium : check-in de 10 secondes, feu vert');
+  const a = await page(b, {});
+  let t = await txt(a.p);
+  ok(/Ton feu du jour/.test(t) && /Faire mon check-in \(10 secondes\)/.test(t) && !/Pour ta séance du jour/.test(t), 'bloc « feu du jour » (l\'ancien conseil est intégré, pas dupliqué)');
+  ok(/Sans check-in, je me base seulement sur tes séances/.test(t), 'sans check-in : le feu est annoncé moins précis');
+  await tap(a.p, '[data-a="fc-open"]');
+  ok(/Check-in du jour/.test(await txt(a.p, '#sheet')) && await a.p.locator('#sheet input[type="radio"]').count() >= 25, 'feuille : sommeil et quatre échelles à toucher');
+  await pick(a.p, 'sleep', 8); await tap(a.p, '#sheet form button');
+  ok(/Trois lignes au moins|trois lignes au moins/i.test(await txt(a.p, 'body')) && await a.p.locator('#sheet').count() === 1, 'moins de trois réponses : message clair, feuille gardée');
+  await pick(a.p, 'sleepQ', 4); for (const [k, v] of [['energy', 8], ['stress', 2], ['sore', 2], ['motiv', 8]]) await pick(a.p, k, v);
+  await tap(a.p, '#sheet form button'); await a.p.waitForTimeout(500);
+  t = await txt(a.p);
+  ok(await a.p.locator('.card.feu.vert').count() === 1 && /Vert/.test(t) && /Séance comme prévue/.test(t), 'feu vert affiché');
+  const s1 = await S(a.p), x = s1.daily[T];
+  ok(x.feu === 'vert' && x.sleep === 8 && x.sleepQ === 4 && x.feel.energy === 8 && x.feel.stress === 2 && x.feel.sore === 2 && x.feel.motiv === 8, 'réponses enregistrées dans le journal du jour');
+  ok(/Fatigue nerveuse/.test(t) && /faible/.test(t) && /Pas encore assez de séances/.test(t), 'fatigue nerveuse faible, sans recul annoncé honnêtement');
+  ok(/Modifier mon check-in/.test(t) && !/Sans check-in/.test(t), 'le bouton devient « Modifier mon check-in »');
+  ok((await overflow(a.p)).length === 0, 'rien ne dépasse de l\'écran');
+  await shot(a.p, '01-vert');
+  ok(a.errs.length === 0, 'aucune erreur JavaScript' + (a.errs.length ? ' (' + a.errs.slice(0, 3).join(' | ') + ')' : ''));
+  await a.ctx.close();
+
+  console.log('Feu rouge et accueil');
+  const r = await page(b, { url: '#/home' });
+  ok(/Check-in du jour/.test(await txt(r.p)) && await r.p.locator('[data-a="fc-open"]').count() === 1, 'accueil : carte « Check-in du jour »');
+  await tap(r.p, '[data-a="fc-open"]');
+  for (const [k, v] of [['sleep', 5], ['sleepQ', 2], ['energy', 4], ['stress', 8], ['sore', 8], ['motiv', 2]]) await pick(r.p, k, v);
+  await tap(r.p, '#sheet form button'); await r.p.waitForTimeout(500);
+  ok(/Feu rouge/.test(await txt(r.p)), 'accueil : « Feu rouge » après le check-in');
+  await tap(r.p, '.card.tap[data-r="recup"]'); await r.p.waitForTimeout(500);
+  t = await txt(r.p);
+  ok(await r.p.locator('.card.feu.rouge').count() === 1 && /repos actif/.test(t) && /Nuit courte \(5 h\)/.test(t), 'feu rouge : repos actif conseillé, raisons concrètes');
+  ok(!/paresse|honte|raté|nul/i.test(t), 'ton positif, jamais culpabilisant');
+  await shot(r.p, '02-rouge');
+  await r.ctx.close();
+
+  console.log('Séance allégée au démarrage (feu orange)');
+  const o = await page(b, { state: { daily: { [T]: { sleep: 6.5, sleepQ: 3, feel: { energy: 6, stress: 6, sore: 6, motiv: 6 } } } }, url: '#/home' });
+  const base = await o.p.evaluate(async () => { const E = await import('./js/engine.js'); await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]); const s = E.buildSession(); return { n: s.exercises.reduce((t, ex) => t + ex.sets.filter(x => x.type !== 'W').length, 0), rpe: Math.max(...s.exercises.flatMap(ex => ex.sets.filter(x => x.type !== 'W').map(x => x.trpe || 0))) }; });
+  await tap(o.p, '[data-a="start"]');
+  t = await txt(o.p, '#sheet');
+  ok(/Ton feu du jour : orange/.test(t) && /Version allégée/.test(t) && /Telle que prévue/.test(t), 'au démarrage : le feu orange propose une version allégée, sans l\'imposer');
+  ok(await o.p.locator('#sheet [data-a="fa-pick"].chip.on').first().textContent().then(x => /allégée/.test(x)), 'la version allégée est préselectionnée');
+  await shot(o.p, '03-demarrage-orange');
+  await o.p.evaluate(() => document.querySelector('#sheet [data-a="dur-go"]').click()); await o.p.waitForTimeout(900);
+  const cur = (await S(o.p)).current;
+  ok(cur && cur.allege === 'orange' && travail(cur) < base.n, `séance allégée : ${travail(cur)} séries au lieu de ${base.n}`);
+  ok(rpeMax(cur) <= 7.5 && /séries au lieu de/.test(cur.allegeNote), 'effort plafonné à RPE 7,5 : ' + cur.allegeNote);
+  ok(cur.exercises.every(ex => ex.sets.filter(x => x.type !== 'W').length >= Math.min(2, 2)), 'au moins 2 séries par exercice');
+  ok(o.errs.length === 0, 'aucune erreur JavaScript' + (o.errs.length ? ' (' + o.errs.slice(0, 3).join(' | ') + ')' : ''));
+  await o.ctx.close();
+  const q = await page(b, { state: { daily: { [T]: { sleep: 6.5, sleepQ: 3, feel: { energy: 6, stress: 6, sore: 6, motiv: 6 } } } }, url: '#/home' });
+  await tap(q.p, '[data-a="start"]'); await tap(q.p, '#sheet [data-a="fa-pick"][data-v="0"]');
+  await q.p.evaluate(() => document.querySelector('#sheet [data-a="dur-go"]').click()); await q.p.waitForTimeout(900);
+  const cur2 = (await S(q.p)).current;
+  ok(cur2 && !cur2.allege && travail(cur2) === base.n, '« Telle que prévue » : la séance reste complète (' + travail(cur2) + ' séries)');
+  await q.ctx.close();
+
+  console.log('Sans check-in : la charge des séances compte');
+  const hist = [9, 16, 23, 30].map(k => seance(add(T, -k), 8, 8)), chargee = [0, 1, 2, 3, 4, 6].map(k => seance(add(T, -k), 9.5, 8));
+  const c = await page(b, { state: { workouts: [...hist, ...chargee], lifts: { 'Squat barre': [{ d: add(T, -40), e1rm: 130 }, { d: add(T, -20), e1rm: 135 }, { d: add(T, -12), e1rm: 134 }, { d: add(T, -1), e1rm: 125 }] } } });
+  t = await txt(c.p);
+  ok(/Fatigue nerveuse/.test(t) && /élevée/.test(t) && /fois ta moyenne/.test(t), 'fatigue nerveuse élevée détectée à partir des séances seules');
+  ok(await c.p.locator('.card.feu.orange, .card.feu.rouge').count() === 1, 'le feu n\'est pas vert malgré l\'absence de check-in');
+  ok(/baissent de \d+ %/.test(t) || /effort ressenti dépasse/.test(t), 'raison concrète : performance en baisse ou effort supérieur au prévu');
+  await shot(c.p, '04-fatigue-elevee');
+  await c.ctx.close();
+
+  console.log('Plusieurs jours rouges : semaine de décharge');
+  const d = await page(b, { state: { daily: feuxRouges(3) }, url: '#/home' });
+  ok(/Une semaine de décharge \?/.test(await txt(d.p)) && /3 jours rouges sur 3/.test(await txt(d.p)), 'accueil : proposition de décharge après 3 jours rouges');
+  await tap(d.p, '.card.tap[data-r="recup"]'); await d.p.waitForTimeout(500);
+  ok(/Une semaine de décharge \?/.test(await txt(d.p)) && /C'est toi qui décides/.test(await txt(d.p)), 'onglet Récupération : la proposition laisse le choix');
+  await tap(d.p, '[data-a="fc-decharge-non"]');
+  const s2 = await S(d.p); ok(s2.dechargeRefus === T && !s2.decharge, 'refus enregistré, aucune décharge lancée');
+  ok(!/Une semaine de décharge \?/.test(await txt(d.p)), 'la proposition disparaît après un refus');
+  await d.ctx.close();
+  const e = await page(b, { state: { daily: feuxRouges(3) } });
+  await tap(e.p, '[data-a="fc-decharge-oui"]');
+  const s3 = await S(e.p); const fin = add(T, 6);
+  ok(s3.decharge && s3.decharge.debut === T && s3.decharge.fin === fin, 'décharge de 7 jours : du ' + T + ' au ' + fin);
+  ok(/Semaine de décharge en cours/.test(await txt(e.p)) && /Arrêter la décharge/.test(await txt(e.p)), 'bandeau de décharge avec bouton pour l\'arrêter');
+  await e.p.evaluate(() => { location.hash = '#/home'; }); await e.p.waitForTimeout(800);
+  ok(/Semaine de décharge/.test(await txt(e.p)), 'accueil : rappel de la décharge en cours');
+  const base2 = await e.p.evaluate(async () => { const E = await import('./js/engine.js'); await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]); const s = E.buildSession(); return s.exercises.reduce((t, ex) => t + ex.sets.filter(x => x.type !== 'W').length, 0); });
+  await tap(e.p, '[data-a="start"]');
+  ok(/Semaine de décharge/.test(await txt(e.p, '#sheet')) && /RPE 6,5/.test(await txt(e.p, '#sheet')), 'au démarrage : la décharge allège les séances');
+  await e.p.evaluate(() => document.querySelector('#sheet [data-a="dur-go"]').click()); await e.p.waitForTimeout(900);
+  const cur3 = (await S(e.p)).current;
+  ok(cur3.allege === 'decharge' && travail(cur3) < base2 && rpeMax(cur3) <= 6.5, `décharge : ${travail(cur3)} séries au lieu de ${base2}, effort ≤ RPE 6,5`);
+  await e.ctx.close();
+  const f = await page(b, { state: { daily: feuxRouges(3), decharge: { debut: T, fin: add(T, 6) } } });
+  await tap(f.p, '[data-a="fc-decharge-stop"]');
+  ok(!(await S(f.p)).decharge, 'décharge arrêtée en un geste');
+  await f.ctx.close();
+
+  console.log('Rappel de coucher lié à la séance du lendemain');
+  const dem = add(T, 1), prog = { v: 1, at: '2026-11-10T10:00:00.000Z', answers: {}, prefs: {} };
+  const days = {}; days[dow(dem)] = { on: true, time: '06:30', dur: 60, place: 'Salle' };
+  const n = await page(b, { state: { schedule: sched(Object.fromEntries(Array.from({ length: 7 }, (_, i) => [i, i === dow(dem) ? { on: true, time: '06:30', dur: 60, place: 'Salle' } : { on: false }]))) }, date: T + 'T19:00:00' });
+  t = await txt(n.p);
+  ok(/Ce soir/.test(t) && /Demain, séance à 06:30/.test(t) && /couche-toi avant 21:15/.test(t), 'séance demain à 6 h 30 : lève-toi à 5 h 15, couche-toi avant 21 h 15');
+  await shot(n.p, '05-rappel-coucher');
+  await n.ctx.close();
+  const m = await page(b, { date: T + 'T10:00:00' });
+  ok(!/Ce soir/.test(await txt(m.p)), 'le matin : pas de rappel de coucher');
+  await m.ctx.close();
+
+  console.log('Pour le coach, thème sombre');
+  const k = await page(b, { state: { daily: feuxRouges(3) }, url: '#/home', dark: true });
+  const sn = await k.p.evaluate(async () => (await import('./js/sync.js')).snapshot().summary);
+  ok(sn.recup && sn.recup.feu === 'rouge' && sn.recup.rouges === 3 && sn.recup.sur === 3, 'instantané : dernier feu et jours rouges');
+  ok(sn.alerts.some(x => /Fatigue : 3 jours rouges sur 3/.test(x)), 'alerte coach : « Fatigue : 3 jours rouges sur 3 »');
+  const sans = await page(b, { url: '#/home' });
+  const sn2 = await sans.p.evaluate(async () => (await import('./js/sync.js')).snapshot().summary);
+  ok(!sn2.recup && !(sn2.alerts || []).some(x => /Fatigue/.test(x)), 'sans check-in : rien d\'envoyé au coach');
+  await tap(k.p, '.card.tap[data-r="recup"]'); await k.p.waitForTimeout(500);
+  ok((await overflow(k.p)).length === 0, 'sombre : rien ne dépasse');
+  await shot(k.p, '06-sombre');
+  ok(k.errs.length === 0 && sans.errs.length === 0, 'aucune erreur JavaScript');
+  await k.ctx.close(); await sans.ctx.close();
+
+  await b.close();
+  console.log(`\n${passed} vérifications réussies, ${fails} échec(s).`);
+  process.exit(fails ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(1); });
