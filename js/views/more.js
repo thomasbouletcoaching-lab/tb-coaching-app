@@ -59,6 +59,7 @@ routes.profile = async () => {
       ${tile("bilans", "📝", "Mes bilans", "Chaque semaine, 1 minute")}
       ${tile("compare", "📸", "Avant / après", "Comparer mes photos")}
       ${tile("rapport", "📤", "Mon rapport", "À partager, témoignage")}
+      ${tile("monprofil", "🧭", "Mon profil", "Ce qui te ressemble, plans de secours")}
       ${tile("semaine", "🗓️", "Ma semaine", premium() ? "Séances calées dans ta vie" : "Bâtisseur · agenda et replanification")}
       ${tile("monprogramme", "🧩", "Mon programme sur mesure", S().programme?.answers ? "Réponses enregistrées · modifiable" : "10 questions · 2 min")}
       ${tile("anamnese", "🩺", "Mon point de départ", S().anamnese?.at ? "Santé, motivation" : "À compléter · 3 min")}

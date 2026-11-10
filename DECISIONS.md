@@ -85,3 +85,10 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 | C39 | Les données du check-in vont au coach avec le journal `daily` (déjà partagé), plus `summary.recup` et une alerte à 3 jours rouges sur 5. | Le coach doit pouvoir intervenir sur un membre épuisé ; rien de nouveau pour qui ne fait pas de check-in. |
 | C40 | La décharge planifiée du moteur de programmes n'est pas modifiée ; l'écran l'indique et rappelle la cadence par niveau. | Évite de toucher aux programmes en cours. |
 | C41 | Le rappel de coucher est affiché dans l'app le soir (pas de notification push). | Aucune infrastructure serveur à toucher. |
+| C42 | Les profils sont gratuits et montrés au membre, formulés en positif (« Reprise durable » et non « yoyo »). | Décision du 10/11 ; le parcours de reprise ne doit jamais être payant. |
+| C43 | Un profil ne change que des réglages (plancher, séance courte, plans de secours) : jamais les données, jamais une fonction. | Un profil est une lecture, pas une décision prise à la place de la personne. |
+| C44 | « Reprise durable » remplace « Reprise en douceur » au lieu de s'y ajouter. | Une personne qui a plusieurs arrêts a besoin du parcours complet, pas d'une étiquette de plus. |
+| C45 | « On reprend » apparaît après deux séances manquées sur 14 jours, disparaît dès qu'une séance est faite, et n'impose rien (un bouton). | Spec §9.5 point 4 ; reprendre ne doit jamais être une punition. |
+| C46 | Le total des séances est au plus haut vu et ne recule jamais. | Spec §9.5 point 5 : les séries et l'historique ne repartent pas de zéro. |
+| C47 | Le coach ne reçoit que les identifiants de profils, jamais les zones ni les notes de santé. | Données de santé : même règle que le reste de l'app. |
+| C48 | Les profils « zappeur », « sur-motivé », « voyageur », « sédentaire de bureau » ne sont pas encore détectés. | Ils demandent un historique (changements de programme, charges) ou des questions que la spec n'a pas encore tranchées ; mieux vaut les ajouter que les inventer. |

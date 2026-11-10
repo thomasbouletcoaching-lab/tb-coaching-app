@@ -37,6 +37,8 @@ jobs:
         run: node --test tests/soutenabilite.test.mjs
       - name: Tester la récupération et la fatigue nerveuse (feu du jour, décharge, séance allégée)
         run: node --test tests/recuperation.test.mjs
+      - name: Tester la détection des profils et le parcours reprise durable
+        run: node --test tests/profils.test.mjs
       - name: Installer les outils de test
         working-directory: tests
         run: npm install --no-audit --no-fund && npx playwright install --with-deps chromium
@@ -53,6 +55,7 @@ jobs:
           node tests/semaine-e2e.js
           node tests/soutenabilite-e2e.js
           node tests/fatigue-e2e.js
+          node tests/profils-e2e.js
           node tests/run.js
         env:
           BASE_URL: http://localhost:8765/
