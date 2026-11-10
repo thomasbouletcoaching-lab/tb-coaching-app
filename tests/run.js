@@ -369,14 +369,14 @@ const T = {
     ok((await txt(p, '#tabs')).replace(/ /g, '') === 'AccueilSemaineEntraînementCarnetNutritionCompte', 'barre du bas : Accueil, Semaine, Entraînement, Carnet, Nutrition, Compte');
     ok(!(await p.isVisible('#msgfab')), 'messagerie avec le coach masquée');
     ok(!(await p.$('[data-act="tdy-go"][data-v="msg"]')) && (await txt(p, '#app')).includes('🔒 Écrire à Thomas'), 'Accueil : messages avec Thomas sous cadenas');
-    await p.click('#solo88c button'); await p.waitForTimeout(300); await p.click('#cf106 a[href="coaching.html"]'); await p.waitForTimeout(300);
+    await p.click('#solo88c button'); await p.waitForTimeout(300); await p.click('#cf106 a[href$="coaching.html"]'); await p.waitForTimeout(300);
     ok(!!(await p.$('#ca109 #ca-goal')), 'Candidater : formulaire dans l\'app (plus de page externe)');
     await p.fill('#ca-goal', 'Perdre 8 kg et reprendre la muscu'); await p.check('#ca-ok'); await p.click('[data-act="ca109s"]'); await p.waitForTimeout(500);
     ok(sc.db.log.some(l => /^POST \/rest\/v1\/leads/.test(l)) && (await txt(p, '#ca109')).includes('Candidature envoyée'), 'candidature envoyée dans les candidatures du coach');
     await p.click('#ca109 .cs85p [data-act="ca109x"]'); await p.waitForTimeout(200);
     await p.click('#solo88c button'); await p.waitForTimeout(300);
     ok((await txt(p, '#cf106')).includes('Ce que tu débloques par rapport à ta formule Gratuit'), 'vitrine du coaching : ce que débloque le coaching');
-    ok(!!(await p.$('#cf106 a[href="coaching.html"]')), 'vitrine : bouton Candidater');
+    ok(!!(await p.$('#cf106 a[href$="coaching.html"]')), 'vitrine : bouton Candidater');
     await p.click('#cf106 .cs85p [data-act="cf106x"]'); await p.waitForTimeout(200);
     await p.click('#tabs [data-v="tr110"]'); await p.waitForTimeout(400);
     ok(await p.evaluate(() => !coach()) && (await txt(p, '#app h2')).includes('Entraînement'), 'Entraînement : vue client, pas les outils du coach');

@@ -56,6 +56,11 @@ jobs:
           node tests/soutenabilite-e2e.js
           node tests/fatigue-e2e.js
           node tests/profils-e2e.js
-          node tests/run.js
         env:
           BASE_URL: http://localhost:8765/
+      - name: Tests de l'ancienne interface (coach/)
+        run: |
+          (curl -sf http://localhost:8765/ >/dev/null || (python3 -m http.server 8765 >/dev/null 2>&1 & sleep 2))
+          node tests/run.js
+        env:
+          BASE_URL: http://localhost:8765/coach/
