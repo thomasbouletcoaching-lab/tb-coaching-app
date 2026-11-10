@@ -129,11 +129,11 @@ export const minutesLigne = (l) => l.n * (EXEC_S + l.rest) / 60;
 export const minutesSeance = (items) => minutesIndice(items);
 
 // ---------- Répartition des patterns sur les séances, avec récupération ----------
-const dist = (a, b) => { const d = Math.abs(a - b); return Math.min(d, 7 - d); };
+export const dist = (a, b) => { const d = Math.abs(a - b); return Math.min(d, 7 - d); };
 function ecartMini(dows) { if (dows.length < 2) return 7; const s = [...dows].sort((x, y) => x - y); let m = 7; for (let i = 0; i < s.length; i++) m = Math.min(m, (s[(i + 1) % s.length] - s[i] + 7) % 7 || 7); return m; }
 function combinaisons(arr, k) { if (k === 0) return [[]]; if (arr.length < k) return []; const [x, ...r] = arr; return [...combinaisons(r, k - 1).map(c => [x, ...c]), ...combinaisons(r, k)]; }
 // Écart minimal (jours) exigé entre deux séances d'un même pattern : 3 pour une charnière lourde (72 h), 2 sinon (48 h)
-const ecartExige = (code, lourd) => code === "CH" && lourd ? 3 : 2;
+export const ecartExige = (code, lourd) => code === "CH" && lourd ? 3 : 2;
 
 export function generer(prog, opts = {}) {
   const a = prog?.answers || {}, seed = opts.seed || 0, rows = opts.rows || exercices();

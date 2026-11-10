@@ -28,6 +28,7 @@ import "./views/suivi.js";
 import "./views/suivi-coach.js";
 import "./views/programme.js";
 import "./views/monplan.js";
+import "./views/semaine.js";
 import { pullLive } from "./views/live.js";
 import { pullCoachFood } from "./views/coachfood.js";
 import { cloud as cloudMod } from "./core.js";

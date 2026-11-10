@@ -95,6 +95,7 @@ actions["ag-day"] = (b, d) => {
     html += `<div class="card mt12"><div class="lbl">${a.st === "missed" ? "❌ Séance loupée" : "🏋️ Prévue"}${a.time ? ` · ${a.time}` : ""}</div><b class="h3">${esc(a.title)}</b>${slotTxt(a) ? `<p class="small muted mt4" style="margin-bottom:0">${esc(slotTxt(a))}</p>` : ""}
       ${k === t ? `<button class="btn btn-red mt12" data-a="start">Commencer maintenant</button>` : ""}
       ${a.st === "missed" ? `<p class="small muted mt8">Tu peux la rattraper : déplace-la à un autre jour.</p>` : ""}</div>
+      <button class="btn btn-line btn-sm mt8" style="width:100%" data-a="jnp" data-v="${k}">🙅 Je ne peux pas</button>
       <h3 class="sec">${a.st === "missed" ? "Rattraper le" : "Décaler au"}</h3>
       <div class="chips wrap">${quick.map(x => `<button class="chip" data-a="mv-day" data-v="${x}">${fmtDate(x, { weekday: "short", day: "numeric" })}</button>`).join("")}</div>
       <form data-f="ag-move" data-f0="${k}" class="mt12"><div class="grid2"><label class="field"><span>Ou une autre date</span><input type="date" name="to" min="${t}" max="${addDays(t, 120)}" value="${k >= t ? k : t}" required></label><label class="field"><span>Heure</span><input type="time" name="time" value="${a.time || ""}"></label></div>
@@ -170,7 +171,7 @@ actions["ics-export"] = async () => {
   const ev = Object.entries(ag).filter(([, a]) => a.st === "planned").map(([k, a]) => {
     const [h, m] = String(a.time || "18:00").split(":").map(Number), dur = +a.dur || 60, st = new Date(`${k}T${pad(h)}:${pad(m || 0)}:00`), en = new Date(st.getTime() + dur * 60000);
     const f = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
-    return `BEGIN:VEVENT\r\nUID:${k}-${h}${m}@tbmycoach\r\nDTSTAMP:${now}\r\nDTSTART:${f(st)}\r\nDTEND:${f(en)}\r\nSUMMARY:${icsEsc("🏋️ " + (a.title || "Séance"))}\r\n${a.place ? `LOCATION:${icsEsc(a.place)}\r\n` : ""}END:VEVENT`;
+    return `BEGIN:VEVENT\r\nUID:${k}-${h}${m}@tbmycoach\r\nDTSTAMP:${now}\r\nDTSTART:${f(st)}\r\nDTEND:${f(en)}\r\nSUMMARY:${icsEsc("🏋️ " + (a.title || "Séance"))}\r\n${a.place ? `LOCATION:${icsEsc(a.place)}\r\n` : ""}BEGIN:VALARM\r\nTRIGGER:-PT30M\r\nACTION:DISPLAY\r\nDESCRIPTION:${icsEsc("Séance dans 30 minutes")}\r\nEND:VALARM\r\nEND:VEVENT`;
   });
   if (!ev.length) return toast("Aucune séance prévue à exporter");
   const txt = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//TB my Coach//FR\r\nCALSCALE:GREGORIAN\r\n${ev.join("\r\n")}\r\nEND:VCALENDAR\r\n`;

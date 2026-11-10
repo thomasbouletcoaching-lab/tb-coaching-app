@@ -40,6 +40,7 @@ routes.monplan = async () => {
     <h2 class="sec">Tes séances</h2>${p.sessions.map((s, si) => seance(s, si)).join("")}
     <h2 class="sec">Est-ce que ça tient ?</h2><div class="card" style="padding:4px 14px">${p.controles.map(c => `<div class="li" style="gap:10px;padding:12px 0"><span>${c.niveau === "ok" ? "✅" : c.niveau === "alerte" ? "⚠️" : "ℹ️"}</span><span class="grow small">${esc(c.texte)}</span></div>`).join("")}${p.avertissements.map(w => `<div class="li" style="gap:10px;padding:12px 0"><span>⚠️</span><span class="grow small">${esc(w)}</span></div>`).join("")}</div>
     ${p.suggestions.length ? `<h2 class="sec">À côté des séances</h2><div class="card small">${p.suggestions.map(t => `<p style="margin:0 0 8px">• ${esc(t)}</p>`).join("")}</div>` : ""}
+    <div class="card mt12"><b class="small">📅 Caler ces séances dans ta semaine</b><p class="xs muted mt4" style="margin:0 0 8px">Ajoute ce qui revient chaque semaine (travail, enfants, trajets) : je cherche les créneaux libres, avec ta récupération et ton sommeil.</p><button class="btn btn-line btn-sm" data-a="go" data-r="semaine">Ouvrir Ma semaine</button></div>
     <div class="stack mt12"><button class="btn btn-line" data-a="mp-autre">🔀 Autre variante</button><button class="btn btn-ghost" data-a="go" data-r="monprogramme">Modifier mes réponses</button></div>
   </main><div class="dock"><button class="btn btn-red" data-a="mp-adopter">${mp.adopte ? "Adopter cette version" : "Adopter ce programme"}</button></div>`;
 };
