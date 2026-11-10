@@ -33,32 +33,48 @@ export function recipeEntry(r, por, meal) {
   return { meal, label: N.recLabel(r.n, por), g: Math.round(pw * por), rid: r.id, rn: r.n, pw: +pw.toFixed(1), por: +por.toFixed(2),
     kcal: Math.round(tot.kcal * k), p: +(tot.p * k).toFixed(1), c: +(tot.c * k).toFixed(1), f: +(tot.f * k).toFixed(1), ...(x.fib != null ? { fib: x.fib } : {}), ...(x.mic ? { mic: x.mic } : {}) };
 }
-// Choix de la quantité d'une recette : en portions ou en grammes. onOk(entrée) à la validation.
+// Ligne de journal pour une fraction de la recette entière (n/d) : mêmes macros que « n/d × portions »
+export function recipeFracEntry(r, n, d, meal) {
+  return { ...recipeEntry(r, RC.fracVal(n, d) * (r.portions || 1), meal), label: RC.fracLabel(r.n, n, d), fr: [n, d] };
+}
+// Choix de la quantité d'une recette : en portions, en grammes ou en fraction de la recette entière. onOk(entrée) à la validation.
 function recipeQtyPanel(r, after, meal, onOk) {
   document.querySelectorAll("#sheet .qty-pick").forEach(x => x.remove());
-  const pw = portionWeight(r); let mode = "por", q = 1;
+  const pw = portionWeight(r); let mode = "por", q = 1, fn = 1, fd = 4;
   const panel = document.createElement("div"); panel.className = "qty-pick card"; panel.style.cssText = "margin:4px 0 10px;padding:12px";
-  panel.innerHTML = `<div class="seg" style="margin:0 0 8px"><button type="button" data-md="por" class="on">Portions</button><button type="button" data-md="g">Grammes</button></div>
-    <div class="row" style="gap:8px"><input class="inp" inputmode="decimal" value="1" style="width:90px" aria-label="Quantité"><span class="small muted" data-u>portion</span><span class="grow small" data-v></span></div>
-    <div class="chips wrap mt8" data-ch></div><p class="xs muted" style="margin:6px 0 0">1 portion ≈ ${fr(Math.round(pw))} g (recette de ${r.portions} portion${r.portions > 1 ? "s" : ""}${r.cookedG ? ", plat cuit pesé" : ""})</p>
+  panel.innerHTML = `<div class="seg" style="margin:0 0 8px"><button type="button" data-md="por" class="on">Portions</button><button type="button" data-md="g">Grammes</button><button type="button" data-md="fr">Fraction</button></div>
+    <div class="row" data-q style="gap:8px"><input class="inp" data-i inputmode="decimal" value="1" style="width:90px" aria-label="Quantité"><span class="small muted" data-u>portion</span></div>
+    <div class="row" data-f style="gap:8px;display:none"><input class="inp" data-fn inputmode="numeric" value="1" style="width:64px;text-align:center" aria-label="Numérateur"><b>/</b><input class="inp" data-fd inputmode="numeric" value="4" style="width:64px;text-align:center" aria-label="Dénominateur"><span class="small muted">de la recette entière</span></div>
+    <div class="small mt8" data-v></div>
+    <div class="chips wrap mt8" data-ch></div><p class="xs muted" style="margin:6px 0 0" data-h></p>
     <button type="button" class="btn btn-red btn-sm mt8" style="width:100%" data-ok>Ajouter</button>`;
   after.after(panel);
-  const inp = panel.querySelector("input"), v = panel.querySelector("[data-v]"), ch = panel.querySelector("[data-ch]");
-  const por = () => mode === "por" ? q : q / pw;
-  const chipsFor = () => { const l = mode === "por" ? [0.5, 1, 1.5, 2, 3] : [100, 150, 200, 250, 300, 400];
-    ch.innerHTML = l.map(x => `<button type="button" class="chip ${x === q ? "on" : ""}" data-q="${x}">${mode === "por" ? String(x).replace(".", ",") : x + " g"}</button>`).join("");
-    ch.querySelectorAll(".chip").forEach(c => c.addEventListener("click", (e) => { e.stopPropagation(); q = +c.dataset.q; inp.value = String(q).replace(".", ","); draw(); })); };
-  const draw = () => { if (!(q > 0)) { v.innerHTML = ""; return; } const e = recipeEntry(r, por(), meal);
-    v.innerHTML = `<b>${e.kcal} kcal</b> <span class="xs muted">· ${fr(e.p)} g P · ${mode === "por" ? fr(e.g) + " g" : fr(e.por, 2) + " portion" + (e.por > 1 ? "s" : "")}</span>`;
-    ch.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", +c.dataset.q === q)); };
+  const inp = panel.querySelector("[data-i]"), inN = panel.querySelector("[data-fn]"), inD = panel.querySelector("[data-fd]"), v = panel.querySelector("[data-v]"), ch = panel.querySelector("[data-ch]"), hint = panel.querySelector("[data-h]");
+  const valid = () => mode === "fr" ? fn > 0 && fd > 0 : q > 0;
+  const por = () => mode === "fr" ? RC.fracVal(fn, fd) * (r.portions || 1) : mode === "por" ? q : q / pw;
+  const entry = () => mode === "fr" ? recipeFracEntry(r, fn, fd, meal) : recipeEntry(r, por(), meal);
+  const setHint = () => { hint.textContent = mode === "fr" ? `Recette entière ≈ ${fr(Math.round(recipeWeight(r)))} g. Les calories viennent des ingrédients : la cuisson ne les change pas.` : `1 portion ≈ ${fr(Math.round(pw))} g (recette de ${r.portions} portion${r.portions > 1 ? "s" : ""}${r.cookedG ? ", plat cuit pesé" : ""})`; };
+  const chipsFor = () => {
+    if (mode === "fr") ch.innerHTML = RC.FRACS.map(([n, d]) => `<button type="button" class="chip ${n === fn && d === fd ? "on" : ""}" data-n="${n}" data-d="${d}">${n}/${d}</button>`).join("");
+    else { const l = mode === "por" ? [0.5, 1, 1.5, 2, 3] : [100, 150, 200, 250, 300, 400]; ch.innerHTML = l.map(x => `<button type="button" class="chip ${x === q ? "on" : ""}" data-q="${x}">${mode === "por" ? String(x).replace(".", ",") : x + " g"}</button>`).join(""); }
+    ch.querySelectorAll(".chip").forEach(c => c.addEventListener("click", (e) => { e.stopPropagation();
+      if (mode === "fr") { fn = +c.dataset.n; fd = +c.dataset.d; inN.value = fn; inD.value = fd; } else { q = +c.dataset.q; inp.value = String(q).replace(".", ","); }
+      draw(); })); };
+  const draw = () => { if (!valid()) { v.innerHTML = ""; return; } const e = entry();
+    v.innerHTML = `<b>${e.kcal} kcal</b> <span class="xs muted">· ${fr(e.p)} g P · ${mode === "g" ? fr(e.por, 2) + " portion" + (e.por > 1 ? "s" : "") : fr(e.g) + " g"}</span>`;
+    ch.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", mode === "fr" ? +c.dataset.n === fn && +c.dataset.d === fd : +c.dataset.q === q)); };
   panel.querySelectorAll("[data-md]").forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); if (b.dataset.md === mode) return;
-    const p0 = por(); mode = b.dataset.md; q = mode === "por" ? Math.round(p0 * 4) / 4 || 0.25 : Math.round(p0 * pw);
-    inp.value = String(q).replace(".", ","); panel.querySelector("[data-u]").textContent = mode === "por" ? "portion" : "g";
-    panel.querySelectorAll("[data-md]").forEach(x => x.classList.toggle("on", x === b)); chipsFor(); draw(); }));
+    const p0 = valid() ? por() : 0; mode = b.dataset.md;
+    if (mode === "fr") { const t = RC.toFrac(p0 / (r.portions || 1)); if (t) [fn, fd] = t; inN.value = fn; inD.value = fd; }
+    else { q = mode === "por" ? Math.round(p0 * 4) / 4 || 0.25 : Math.round(p0 * pw); inp.value = String(q).replace(".", ","); panel.querySelector("[data-u]").textContent = mode === "por" ? "portion" : "g"; }
+    panel.querySelector("[data-q]").style.display = mode === "fr" ? "none" : ""; panel.querySelector("[data-f]").style.display = mode === "fr" ? "" : "none";
+    panel.querySelectorAll("[data-md]").forEach(x => x.classList.toggle("on", x === b)); setHint(); chipsFor(); draw(); }));
   inp.addEventListener("input", () => { q = num(inp.value) || 0; draw(); });
-  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); panel.querySelector("[data-ok]").click(); } });
-  panel.querySelector("[data-ok]").addEventListener("click", (e) => { e.stopPropagation(); if (!(q > 0)) return toast("Quantité invalide"); onOk(recipeEntry(r, por(), meal)); panel.remove(); });
-  chipsFor(); draw(); inp.select?.();
+  inN.addEventListener("input", () => { fn = Math.floor(num(inN.value)) || 0; draw(); });
+  inD.addEventListener("input", () => { fd = Math.floor(num(inD.value)) || 0; draw(); });
+  [inp, inN, inD].forEach(i => i.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); panel.querySelector("[data-ok]").click(); } }));
+  panel.querySelector("[data-ok]").addEventListener("click", (e) => { e.stopPropagation(); if (!valid()) return toast("Quantité invalide"); onOk(entry()); panel.remove(); });
+  setHint(); chipsFor(); draw(); inp.select?.();
 }
 
 // Le jour d'entraînement ou de repos vient de l'agenda (séance faite ou prévue)
@@ -543,12 +559,31 @@ actions["rc-open"] = (b, d) => {
     <ul id="ring" class="small" style="padding-left:18px"></ul>
     <b>Préparation</b><ol class="small" style="padding-left:18px">${r.steps.map(s => `<li style="margin-bottom:6px">${esc(s)}</li>`).join("")}</ol>
     <div class="lbl mt12" id="rc-eatl">Ajouter 1 portion au journal</div><p class="xs muted" style="margin:2px 0 0">Choisis le nombre de portions avec − et + au-dessus des ingrédients.</p><div class="chips wrap mt8">${N.MEALS.map(m => `<button class="chip" data-a="rc-eat" data-id="${r.id}" data-m="${m}">${m}</button>`).join("")}</div>
+    <div class="card soft mt12"><div class="lbl">🍰 Ma part de la recette entière</div><p class="xs muted" style="margin:4px 0 8px">Cru ou cuit, les calories ne changent pas : indique simplement la fraction du plat que tu as mangée.</p>
+      <div class="chips wrap">${RC.FRACS.map(([n, d]) => `<button class="chip" data-a="rc-fr" data-n="${n}" data-d="${d}">${n}/${d}</button>`).join("")}</div>
+      <div class="row mt8" style="gap:8px"><input id="rcf-n" class="inp" inputmode="numeric" value="1" style="width:64px;text-align:center" aria-label="Numérateur"><b>/</b><input id="rcf-d" class="inp" inputmode="numeric" value="4" style="width:64px;text-align:center" aria-label="Dénominateur"><span class="small muted">de la recette</span></div>
+      <div id="rcf-calc" class="small mt8"></div><div class="chips wrap mt8">${N.MEALS.map(m => `<button class="chip" data-a="rc-eatf" data-id="${r.id}" data-m="${m}">${m}</button>`).join("")}</div></div>
     <div class="card soft mt12"><div class="lbl">⚖️ Plat entier pesé : ma part au poids</div><p class="xs muted" style="margin:4px 0 8px">Grosse préparation pour la famille ? Pèse le plat cuit en entier une fois, puis ta part : l'app calcule ta part des macros du plat entier.</p>
       <div class="grid2"><label class="field"><span>Plat cuit entier (g)</span><input id="rc-tot" inputmode="decimal" value="${r.cookedG ? fr(r.cookedG) : ""}" placeholder="ex. 3500"></label><label class="field"><span>Ma part (g)</span><input id="rc-part" inputmode="decimal" placeholder="ex. 300"></label></div>
       <div id="rc-calc" class="small mt8"></div><div class="chips wrap mt8">${N.MEALS.map(m => `<button class="chip" data-a="rc-eatg" data-id="${r.id}" data-m="${m}">${m}</button>`).join("")}</div></div>
-    <div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="bt-add" data-id="${r.id}">🥡 Ajouter au batch</button>${r.mine ? `<button class="btn btn-ghost btn-sm" data-a="rc-del" data-id="${r.id}" style="color:var(--red)">Supprimer</button>` : ""}</div>`, (w) => { draw(w); w.__draw = (n) => { por = Math.max(0.5, por + n / 2); draw(w); }; });
+    <div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="bt-add" data-id="${r.id}">🥡 Ajouter au batch</button>${r.mine ? `<button class="btn btn-ghost btn-sm" data-a="rc-del" data-id="${r.id}" style="color:var(--red)">Supprimer</button>` : ""}</div>`, (w) => { draw(w); rcfDraw(r); w.__draw = (n) => { por = Math.max(0.5, por + n / 2); draw(w); }; });
 };
 actions["rc-por"] = (b, d) => document.getElementById("sheet")?.__draw?.(+d.v);
+// Part en fraction de la recette entière : n/d × macros de toute la recette
+const rcfVals = () => ({ n: Math.floor(num(document.getElementById("rcf-n")?.value)) || 0, d: Math.floor(num(document.getElementById("rcf-d")?.value)) || 0 });
+function rcfDraw(r) {
+  const box = document.getElementById("rcf-calc"); if (!box) return; const { n, d } = rcfVals();
+  if (!(n > 0 && d > 0)) { box.innerHTML = ""; return; }
+  const e = recipeFracEntry(r, n, d, null);
+  box.innerHTML = `Ta part : <b>${fr(e.kcal)} kcal</b> · P ${fr(e.p)} g · G ${fr(e.c)} g · L ${fr(e.f)} g <span class="xs muted">(≈ ${fr(e.g)} g, ${fr(Math.round(n / d * 100))} % du plat)</span>`;
+}
+actions["rc-fr"] = (b, d) => { const n = document.getElementById("rcf-n"), m = document.getElementById("rcf-d"); if (n) n.value = d.n; if (m) m.value = d.d; const r = allRecipes().find(x => x.id === document.querySelector('[data-a="rc-eatf"]')?.dataset.id); if (r) rcfDraw(r); };
+actions["rc-eatf"] = async (b, d) => {
+  const r = allRecipes().find(x => x.id === d.id), { n, d: den } = rcfVals(); if (!r || !(n > 0 && den > 0)) return toast("Indique la fraction mangée");
+  await N.loadCiqual().catch(() => { }); await N.loadMicro();
+  N.addEntry(recipeFracEntry(r, n, den, d.m)); closeSheet(); toast(`Ajouté au ${d.m.toLowerCase()}`);
+};
+document.addEventListener("input", (e) => { if (!["rcf-n", "rcf-d"].includes(e.target.id)) return; const id = document.querySelector('[data-a="rc-eatf"]')?.dataset.id, r = allRecipes().find(x => x.id === id); if (r) rcfDraw(r); });
 // Part au poids d'un plat entier : (ma part / poids cuit total) × macros de toute la recette
 const partOf = (r) => { const tot = num(document.getElementById("rc-tot")?.value), part = num(document.getElementById("rc-part")?.value); if (!(tot > 0 && part > 0)) return null; const k = part / tot * r.portions; return { tot, part, kcal: Math.round(r.m.kcal * k), p: +(r.m.p * k).toFixed(1), c: +(r.m.c * k).toFixed(1), f: +(r.m.f * k).toFixed(1) }; };
 document.addEventListener("input", (e) => { if (!["rc-tot", "rc-part"].includes(e.target.id)) return; const id = document.querySelector('[data-a="rc-eatg"]')?.dataset.id, r = allRecipes().find(x => x.id === id), box = document.getElementById("rc-calc"); if (!r || !box) return; const x = partOf(r); box.innerHTML = x ? `Ta part : <b>${fr(x.kcal)} kcal</b> · P ${fr(x.p)} g · G ${fr(x.c)} g · L ${fr(x.f)} g <span class="xs muted">(${fr(Math.round(x.part / x.tot * 100))} % du plat)</span>` : ""; });
