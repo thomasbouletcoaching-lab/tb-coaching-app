@@ -56,6 +56,7 @@ jobs:
           node tests/soutenabilite-e2e.js
           node tests/fatigue-e2e.js
           node tests/profils-e2e.js
+          node tests/onboarding-sur-mesure-e2e.js
         env:
           BASE_URL: http://localhost:8765/
       - name: Tests de l'ancienne interface (coach/)
