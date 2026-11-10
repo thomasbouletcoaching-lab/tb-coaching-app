@@ -588,3 +588,19 @@ input,select,textarea{max-width:100%;min-width:0}
 :root[data-theme="dark"] .tag.st-o{color:#F2C94C} :root[data-theme="dark"] .tag.st-r{color:#FF8A73}
 a.btn{text-decoration:none}
 a.card{text-decoration:none;color:inherit}
+
+/* Bibliothèque « 8 patterns » : pastilles des patterns (mêmes couleurs en clair et en sombre, texte blanc lisible sur chacune) */
+.pat{flex:none;display:inline-grid;place-items:center;min-width:34px;height:24px;padding:0 7px;border-radius:12px;font-size:12px;font-weight:800;letter-spacing:.03em;color:#fff;background:var(--soft);line-height:1}
+.pat.PH{background:#C0392B}.pat.PV{background:#B85C00}.pat.TH{background:#1F5FBF}.pat.TV{background:#0B7C86}
+.pat.SG{background:#1E7F43}.pat.SH{background:#5F7A0A}.pat.CH{background:#7A3FC4}.pat.FG{background:#B02A7A}
+.pat.nul{background:var(--btn2);color:var(--soft);border:1px solid var(--line);font-weight:700}
+.pat.sec2{opacity:.72}
+.patzone{margin:12px 2px 6px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.patgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.patgrid button{display:flex;align-items:center;gap:8px;min-height:52px;text-align:left;padding:8px 10px;border-radius:16px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font-size:13.5px;line-height:1.2}
+.patgrid button b{flex:1;min-width:0;font-weight:700}
+.patgrid button .n{color:var(--soft);font-weight:700;font-variant-numeric:tabular-nums}
+.patgrid button.on{border-color:var(--red);box-shadow:0 0 0 1.5px var(--red) inset;background:var(--tint)}
+.nerf{flex:none;display:inline-flex;gap:3px;vertical-align:middle}
+.nerf i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.nerf i.on{background:var(--ink)}

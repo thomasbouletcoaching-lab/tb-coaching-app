@@ -44,6 +44,7 @@ Ancienne app coach : coach/index.html (monolithe)        │ webhooks
 | `js/volume.js` | Moteur pur « Volume de la semaine » (testé par `node --test`) |
 | `js/quests.js` | Quêtes, séries et trophées |
 | `js/library.js` | Bibliothèque partagée par le coach (`cxs_library`) |
+| `js/exercices.js`, `js/views/bibliotheque.js` | Bibliothèque d'exercices classée selon les 8 patterns (`cxs_exercices`, version embarquée `data/exercices.json`) : voir `docs/bibliotheque-exercices.md` |
 | `js/views/*.js` | Écrans (voir § 4) |
 | `data/*.json` | Programmes, fiches d'exercices, aliments (Ciqual, Open Food Facts, fast-food) |
 | `supabase/functions/` | Sources des Edge Functions `billing` et `stripe-webhook` |

@@ -11,6 +11,7 @@ import { libraryRows, refreshLibrary } from "../library.js";
 import { filterExercises, ficheSheet } from "./train.js";
 import { openRecipeEditor } from "./food.js";
 import { alerts as adhAlerts, STATUS } from "../adherence.js";
+import { loadBibliotheque, bibliothequeBody, mountBibliotheque } from "./bibliotheque.js";
 
 // ---------- Données ----------
 const A = { members: null, sums: {}, threads: {}, at: 0, err: null, store: { todo: [], biz: null, notes: {}, handled: {} } };
@@ -81,7 +82,7 @@ async function guard(active) {
   else load().then(() => { });
   return true;
 }
-actions["adm-refresh"] = async () => { toast("Actualisation…"); await Promise.all([load(true), refreshLibrary()]); rerender(); };
+actions["adm-refresh"] = async () => { toast("Actualisation…"); await Promise.all([load(true), refreshLibrary(), loadBibliotheque(true)]); rerender(); };
 
 // =====================================================================
 // MES CLIENTS
@@ -443,7 +444,7 @@ let dbTab = "food", dbQ = "", dbCat = "", dbMus = "";
 const LIB = (k) => libraryRows().filter(r => r.kind === k);
 routes["admin-db"] = async () => {
   if (!(await guard("admin-db"))) return;
-  await Promise.all([N.loadCiqual(), E.loadPrograms(), E.loadFiches(), E.loadLib()]);
+  await Promise.all([N.loadCiqual(), E.loadPrograms(), E.loadFiches(), E.loadLib(), loadBibliotheque()]);
   let body = "";
   if (dbTab === "food") {
     const CQ = N.ciqual() || [], cats = {}; CQ.forEach(f => { cats[f.cat] = (cats[f.cat] || 0) + 1; });
@@ -466,6 +467,8 @@ routes["admin-db"] = async () => {
       <div class="mt8">${chips([["", "Tous les muscles"], ...E.MUSCLES.map(m => [m, m])], dbMus, "db-mus")}</div>
       <p class="xs muted mt8">${l.length} exercices · ${Object.keys(E.extra.videos).length + Object.values(E.extra.exercises).filter(x => x.video).length} avec vidéo. Touche un exercice pour ajouter ta vidéo.</p>
       <div class="card" style="padding:4px 12px">${l.slice(0, 200).map(n => `<button class="li" data-a="exo-edit" data-n="${esc(n)}"><span class="grow small"><b>${esc(n)}</b>${E.videoOf(n) ? " 🎥" : ""}${E.extra.exercises[n] ? ` <span class="tag r">perso</span>` : ""}<br><span class="xs muted">${esc(E.musclesOf(n).join(" · "))} · ${esc(E.equipOf(n))}</span></span>${I.chev}</button>`).join("")}</div>`;
+  } else if (dbTab === "pat") {
+    body = bibliothequeBody();
   } else {
     const libP = E.extra.programs, bank = E.programs().filter(p => !p.custom && !p.lib);
     body = `<button class="btn btn-red btn-sm mt12" data-a="prog-new2" style="width:auto">+ Nouveau programme</button>
@@ -473,8 +476,9 @@ routes["admin-db"] = async () => {
       ${(S().customPrograms || []).length ? `<h2 class="sec">Mes programmes perso</h2>${S().customPrograms.map(p => `<div class="card mt8 row between"><b class="small grow">${esc(p.name)}</b><button class="btn btn-line btn-xs" data-a="prog-pub" data-id="${p.id}" style="width:auto">📤 Publier</button></div>`).join("")}` : ""}
       <h2 class="sec">La banque <small>${bank.length} programmes</small></h2>${bank.map(p => `<div class="card mt8"><div class="row between"><b class="small grow">${esc(p.name)}</b><span class="tag">${esc(p.lvl || "")}</span></div><p class="xs muted mt4">${p.s.length} séances · ${E.weeksOf(p)} semaines${p.src ? ` · ${esc(p.src)}` : ""}</p><button class="btn btn-line btn-xs mt8" data-a="bd-copy" data-id="${p.id}">Créer une version à partir de celui-ci</button></div>`).join("")}`;
   }
-  frame("admin-db", `<h1 class="h1 mt8">Base de données</h1><div class="chips wrap mt8">${[["food", "Aliments"], ["recipe", "Repas & plats"], ["ex", "Exercices & vidéos"], ["prog", "Programmes"]].map(([k, l]) => `<button class="chip ${dbTab === k ? "on" : ""}" data-a="db-tab" data-v="${k}">${l}</button>`).join("")}</div>${body}`);
+  frame("admin-db", `<h1 class="h1 mt8">Base de données</h1><div class="chips wrap mt8">${[["food", "Aliments"], ["recipe", "Repas & plats"], ["ex", "Exercices & vidéos"], ["pat", "8 patterns"], ["prog", "Programmes"]].map(([k, l]) => `<button class="chip ${dbTab === k ? "on" : ""}" data-a="db-tab" data-v="${k}">${l}</button>`).join("")}</div>${body}`);
   const i = document.getElementById("db-q"); i?.addEventListener("input", () => { dbQ = i.value; clearTimeout(i._t); i._t = setTimeout(() => rerender(), 250); });
+  mountBibliotheque();
 };
 actions["db-tab"] = (b, d) => { dbTab = d.v; dbQ = ""; dbCat = ""; rerender(false); };
 actions["db-cat"] = (b, d) => { dbCat = d.v; rerender(); };
