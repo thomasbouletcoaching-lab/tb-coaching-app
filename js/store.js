@@ -39,6 +39,7 @@ const blank = () => ({
   receipts: [],           // tickets de caisse { id, d, shop, amount }
   prices: {},             // prix personnels { ingrédient: €/kg }
   crises: [],             // « Je craque » : notes { d, note }
+  programme: null,        // questionnaire « Mon programme sur mesure » { v, at, answers, prefs }
 });
 
 let state;

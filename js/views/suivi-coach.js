@@ -8,6 +8,7 @@ import { myAdherence, myAlerts, checkins, summaryBetween, defiDay, since } from 
 import { HEALTH } from "./anamnese.js";
 import { checkinText } from "./checkin.js";
 import { scoreRing } from "./suivi.js";
+import { resume } from "../programme.js";
 
 const ZL = { epaule: "Épaule", coude: "Coude", poignet: "Poignet", nuque: "Nuque", lombaires: "Bas du dos", hanche: "Hanche", genou: "Genou", cheville: "Cheville" };
 const YL = { 0: "Jamais vraiment", 1: "Moins d'1 an", 3: "1 à 3 ans", 5: "Plus de 3 ans" };
@@ -39,6 +40,9 @@ export function memberSuivi(D, m) {
       <p style="margin:0 0 6px"><b>Historique :</b> ${YL[an.history?.years] || "–"}${an.history?.tried?.length ? ` · a essayé : ${an.history.tried.join(", ")}` : ""}</p>${an.history?.worked ? `<p style="margin:0 0 6px"><b>A marché :</b> ${esc(an.history.worked)}</p>` : ""}${an.history?.stopped ? `<p style="margin:0 0 6px"><b>L'a fait arrêter :</b> ${esc(an.history.stopped)}</p>` : ""}
       <p class="xs muted" style="margin:0">Sommeil ${an.life?.sleep ?? "–"} h · stress ${an.life?.stress ?? "–"}/10 · ${esc(an.life?.schedule || "rythme ?")} · enfants ${an.life?.kids == null ? "?" : an.life.kids ? "oui" : "non"} · alcool ${esc(an.life?.alcohol || "?")} · tabac ${an.life?.smoke == null ? "?" : an.life.smoke ? "oui" : "non"} · rempli le ${fmtDate(an.at.slice(0, 10), { day: "numeric", month: "short" })}</p></div>`
       : `<p class="small muted">Pas encore remplie. Le membre la voit sur son accueil et dans le Défi 30 jours.</p>`}
+    <h2 class="sec">🧩 Programme sur mesure</h2>
+    ${S().programme?.answers ? `<div class="card small">${resume(S().programme).map(([k, v]) => `<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line);gap:12px;align-items:flex-start"><span class="muted" style="flex:none">${esc(k)}</span><span style="text-align:right">${esc(v)}</span></div>`).join("")}<p class="xs muted mt8" style="margin:0">Rempli le ${fmtDate(S().programme.at.slice(0, 10), { day: "numeric", month: "long" })}.${an?.consent ? "" : " Gênes non partagées : pas de consentement dans « Mon point de départ »."}</p></div>`
+      : `<p class="small muted">Pas encore rempli. Le membre le trouve dans Profil › Mon programme sur mesure.</p>`}
     <h2 class="sec">💬 Témoignage</h2>
     ${t?.ok ? `<div class="card small"><p style="margin:0">« ${esc(t.quote)} »</p><p class="xs muted mt8" style="margin:0">Accord du ${fmtDate(t.at.slice(0, 10), { day: "numeric", month: "long", year: "numeric" })} · ${t.anon === "anonyme" ? "anonyme" : t.anon === "initiale" ? "initiale seulement" : "prénom"} · ${t.photos ? "photos autorisées" : "sans photos"}${t.summary ? ` · ${t.summary.days} j, ${t.summary.weight != null ? `${t.summary.weight > 0 ? "+" : ""}${fr(t.summary.weight, 1)} kg, ` : ""}${t.summary.sessions} séances` : ""}</p></div>`
       : t?.revokedAt ? `<p class="small muted">Accord retiré le ${fmtDate(t.revokedAt.slice(0, 10), { day: "numeric", month: "long" })} : ne plus utiliser.</p>` : `<p class="small muted">Pas de témoignage autorisé.</p>`}

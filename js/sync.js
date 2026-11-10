@@ -5,6 +5,7 @@ import * as N from "./nutrition.js";
 import { cloud, badges, isCoach, addDays } from "./core.js";
 import { nutriRow } from "./nutri-totals.js";
 import { myAdherence, lastCheckin, defiDay } from "./progress.js";
+import { pourCoach } from "./programme.js";
 
 export async function syncProfile() {
   const c = await cloud(); if (!c || !S().profile) return;
@@ -42,7 +43,7 @@ export function snapshot() {
   const lifts = Object.fromEntries(Object.entries(st.lifts || {}).map(([k, h]) => [k, h.slice(-25)]));
   const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, skips: st.skips, swaps: st.swaps, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin },
     // Suivi : bilans, anamnèse, témoignage, photos envoyées volontairement, essai
-    checkins: (st.checkins || []).slice(-26), anamnese: st.anamnese || null, testimonial: st.testimonial || null, sharedPhotos: st.sharedPhotos || [], trialStart: st.trialStart || null, defi: st.defi || null, profileCreatedAt: st.profile?.createdAt || null };
+    checkins: (st.checkins || []).slice(-26), anamnese: st.anamnese || null, programme: pourCoach(st.programme, !!st.anamnese?.consent), testimonial: st.testimonial || null, sharedPhotos: st.sharedPhotos || [], trialStart: st.trialStart || null, defi: st.defi || null, profileCreatedAt: st.profile?.createdAt || null };
   let ag = null, ns = null; try { ag = E.agenda(t, t)[t]; ns = E.nextSession(); } catch { }
   const tot = N.dayTotals(t), D = st.daily[t] || {}, lw = st.workouts.at(-1);
   const summary = { today: t, session: ag ? { st: ag.st, title: ag.title } : null, inProgress: st.current ? { title: st.current.title, start: st.current.start, done: st.current.exercises.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0) } : null,
