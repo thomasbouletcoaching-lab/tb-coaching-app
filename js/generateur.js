@@ -8,6 +8,7 @@
 // Les seuils sont des points de départ (spec Notion, §3.1 et §4) : ils sont réunis en haut de ce fichier pour être ajustés.
 import { PATTERNS, PATTERN, exercices, CATEGORIES } from "./exercices.js";
 import { contraintes, joursRetenus, ecartSeances } from "./programme.js";
+import { indiceSeance, chargeSemaine, enchainementsLourds, allegee, EXEC_S, ECHAUFFEMENT_MIN, minutes as minutesIndice } from "./indice.js";
 
 export const VERSION = 1;
 const ORDRE = PATTERNS.map(p => p.code);
@@ -18,7 +19,6 @@ export const DOW = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi",
 export const SERIES = { debutant: { cible: 4, max: 6 }, regulier: { cible: 8, max: 10 }, avance: { cible: 10, max: 14 }, peuDeTemps: { cible: 4, max: 5 } };
 export const MIN_SERIES = 3;
 const TEMPS_RESTREINT_MIN = 120; // moins de 2 h d'entraînement par semaine : minimum utile
-const ECHAUFFEMENT_MIN = 8, EXEC_S = 40;
 const REPOS = { F: 180, P: 120, I: 75, C: 60, M: 30 };
 // Jours d'entraînement proposés par défaut (l'agenda personnel viendra à l'étape 5)
 const JOURS = { 1: [0], 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 3, 4, 5], 6: [0, 1, 2, 3, 4, 5] };
@@ -126,7 +126,7 @@ export function ligne(e, n, a = {}, pf = profil(a, 3)) {
   return { slug: e.slug, nom: e.nom, pattern: e.pattern_principal, couche: e.couche, categorie: e.categorie, kind, n, lo, hi, rpe, rest: REPOS[kind], unite: sec || kind === "M" ? "s" : "reps", nerveux: e.cout_nerveux, note: e.note || "" };
 }
 export const minutesLigne = (l) => l.n * (EXEC_S + l.rest) / 60;
-export const minutesSeance = (items) => Math.round(ECHAUFFEMENT_MIN + items.reduce((t, l) => t + minutesLigne(l), 0));
+export const minutesSeance = (items) => minutesIndice(items);
 
 // ---------- Répartition des patterns sur les séances, avec récupération ----------
 const dist = (a, b) => { const d = Math.abs(a - b); return Math.min(d, 7 - d); };
@@ -205,7 +205,7 @@ export function generer(prog, opts = {}) {
       if (!dups) break;
       s.items = s.items.filter(x => x !== dups); sPat[dups.pattern] = sPat[dups.pattern].filter(i => sessions[i] !== s); s.patterns = s.patterns.filter(c => c !== dups.pattern);
     }
-    if (minutes(s) > tMax) avert.push(`« ${s.titre} » dépasse ${tMax} min même réduite : ${minutes(s)} min. Une version plus courte sera proposée à l'étape suivante.`);
+    if (minutes(s) > tMax) avert.push(`« ${s.titre} » dépasse ${tMax} min même réduite : ${minutes(s)} min. Touche « Version courte » pour une version qui tient.`);
   }
 
   // 5. Isolation (couche 2) puis modules (couche 3), seulement s'il reste du temps
@@ -241,13 +241,23 @@ export function generer(prog, opts = {}) {
   const rangType = (l) => l.kind === "M" ? 0 : l.couche === "squelette" ? 1 : l.couche === "module" ? 2 : 3;
   sessions.forEach(s => { s.items = s.items.map(({ _rang, ...l }) => l).sort((x, y) => rangType(x) - rangType(y) || (rangType(x) === 1 ? (y.nerveux - x.nerveux) || ORDRE.indexOf(x.pattern) - ORDRE.indexOf(y.pattern) : 0)); s.minutes = minutes(s); });
 
+  // 7. Indice de difficulté : jamais deux séances « très exigeantes » à moins de 48 h (spec §5.3) ; on allège la seconde
+  const cote = (s) => { s.indice = indiceSeance(s.items); };
+  sessions.forEach(cote);
+  for (let tour = 0, g = 40; enchainementsLourds(sessions).length && g-- > 0; tour++) {
+    const lourdes = enchainementsLourds(sessions).map(([, b]) => sessions.find(s => s.titre === b)), s = lourdes[0];
+    const l = s.items.filter(x => x.couche === "squelette" && x.n > 2).sort((x, y) => y.nerveux - x.nerveux || y.n - x.n)[0] || s.items.filter(x => x.n > 1 && x.couche !== "squelette")[0];
+    if (!l) break;
+    l.n--; s.minutes = minutes(s); cote(s);
+  }
   const prop = {
-    v: VERSION, seed, n, style: a.style || "any", structure: st.type, sessions: sessions.map(s => ({ titre: s.titre, dow: s.dow, type: s.type, items: s.items, minutes: s.minutes })),
+    v: VERSION, seed, n, style: a.style || "any", structure: st.type, sessions: sessions.map(s => ({ titre: s.titre, dow: s.dow, type: s.type, items: s.items, minutes: s.minutes, indice: s.indice })),
     jours: DOW.map((_, i) => sessions.some(s => s.dow === i)), semaine: null, iso: cat, avertissements: avert, suggestions, profil: pf,
     semaines: 12, decharge: pf.niveau === "debutant" ? 6 : 4,
     voulu: +a.daysWanted || n, tenable: +a.daysReal || n,
   };
   prop.semaine = Object.fromEntries(ORDRE.map(c => [c, { sets: totalSeries(prop, c), cible: sp[c].sets, why: sp[c].why, absent: manquants.includes(c) }]));
+  prop.charge = chargeSemaine(prop.sessions.map(s => s.indice));
   prop.controles = controles(prop, a);
   return prop;
 }
@@ -301,6 +311,9 @@ export function controles(prop, a = {}) {
   if (mal.length) push("alerte", `Récupération courte entre deux séances du même pattern : ${mal.join(", ")}.`); else push("ok", "Au moins 48 h entre deux séances du même pattern (72 h pour une charnière lourde).");
   const tMax = +a.sessionMin || 60, long = prop.sessions.filter(s => s.minutes > tMax * 1.1);
   if (long.length) push("alerte", `${long.length} séance${long.length > 1 ? "s" : ""} au-dessus de ${tMax} min.`); else push("ok", `Chaque séance tient en ${tMax} min ou moins (de ${Math.min(...prop.sessions.map(s => s.minutes))} à ${Math.max(...prop.sessions.map(s => s.minutes))} min).`);
+  const lourds = enchainementsLourds(prop.sessions.map(s => ({ ...s, indice: s.indice || indiceSeance(s.items) })));
+  if (lourds.length) push("alerte", `Deux séances « très exigeantes » de suite : ${lourds.map(x => x.join(" puis ")).join(" ; ")}.`);
+  else if (prop.sessions.length > 1) push("ok", "Pas deux séances très exigeantes de suite.");
   if (prop.voulu > prop.tenable) push("info", `Tu aimerais ${prop.voulu} séances mais en tiens ${prop.tenable} : le programme est construit sur ${prop.n}. On en ajoutera quand la régularité sera prouvée.`);
   if (prop.profil.sousCapacite) push("info", "Départ volontairement un peu en dessous de ta capacité : on vise la régularité d'abord, puis on monte.");
   return out;
@@ -311,7 +324,8 @@ export function remplacerLigne(prop, prog, si, li, slug, rows = exercices()) {
   const e = rows.find(r => r.slug === slug), l = prop.sessions[si]?.items[li]; if (!e || !l) return prop;
   const a = prog?.answers || {}, copie = JSON.parse(JSON.stringify(prop)), cible = copie.sessions[si];
   cible.items[li] = { ...ligne(e, l.n, a, profil(a, prop.n)), n: l.n };
-  cible.minutes = minutesSeance(cible.items);
+  cible.minutes = minutesSeance(cible.items); cible.indice = indiceSeance(cible.items);
+  copie.charge = chargeSemaine(copie.sessions.map(s => s.indice || indiceSeance(s.items)));
   copie.semaine = Object.fromEntries(ORDRE.map(c => [c, { ...prop.semaine[c], sets: totalSeries(copie, c) }]));
   copie.controles = controles(copie, a);
   return copie;
@@ -322,6 +336,15 @@ export function alternativesLigne(prop, prog, si, li, alternativesFn) {
   const deja = new Set(prop.sessions[si].items.map(x => x.slug));
   return alternativesFn(l.slug, prog).filter(e => !deja.has(e.slug));
 }
+
+// ---------- Version allégée d'une séance (20, 30 ou 45 min) : garde le squelette, retire l'isolation puis des séries ----------
+export const CIBLES_ALLEGEES = [20, 30, 45];
+export function allegeeSeance(prop, si, cible) {
+  const s = prop.sessions[si]; if (!s) return null;
+  const prioritaires = ORDRE.filter(c => prop.semaine[c]?.why?.some(w => /priorité|point faible/.test(w)));
+  return allegee(s.items, cible, { prioritaires });
+}
+export const ciblesPour = (minutesSeance) => CIBLES_ALLEGEES.filter(c => c < minutesSeance);
 
 // ---------- Vers le format de programme du moteur de séances ----------
 const PROG_DEF = { load: "auto", step: 2.5, every: 1, addSet: null, reps: null };
