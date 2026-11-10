@@ -130,6 +130,14 @@ export function cheapProteins(mine = {}) {
   return Object.entries(ING).filter(([, v]) => v[2] >= 8).map(([k, v]) => ({ k, label: v[0], eur: priceOf(k, mine) * 100 / v[2] / 10 })).sort((a, b) => a.eur - b.eur);
 }
 
+// ---------- Fraction de la recette entière (1/4, 1/6, 2/5…) ----------
+// Les macros viennent des ingrédients : la cuisson change le poids (eau), pas les calories. On compte donc une part du total.
+export const FRACS = [[1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 8]];
+export const fracVal = (n, d) => (n > 0 && d > 0 ? n / d : 0);
+export const fracLabel = (nom, n, d) => `${nom} (${n}/${d} de la recette)`;
+// Plus petite fraction simple (dénominateur ≤ 12) égale à k, ou null
+export function toFrac(k) { if (!(k > 0)) return null; for (let d = 1; d <= 12; d++) { const n = Math.round(k * d); if (n >= 1 && Math.abs(n / d - k) < 0.006) return [n, d]; } return null; }
+
 // Recettes ajoutées par le coach (bibliothèque partagée)
 export function setCoachRecipes(list) {
   for (let i = RECIPES.length - 1; i >= 0; i--) if (RECIPES[i].coach) RECIPES.splice(i, 1);

@@ -378,7 +378,7 @@ export function rescaleEntry(id, date, g) {
   update(st => { const e = (st.food[date] || []).find(x => x.id === id); if (!e?.g || !(g > 0)) return; const k = g / e.g;
     e.kcal = Math.round(e.kcal * k); ["p", "c", "f", "fib"].forEach(x => { if (e[x] != null) e[x] = +(e[x] * k).toFixed(1); });
     if (e.mic) Object.keys(e.mic).forEach(x => { e.mic[x] = +(e.mic[x] * k).toFixed(3); }); e.g = g;
-    if (e.rid && e.pw) { e.por = +(g / e.pw).toFixed(2); e.label = recLabel(e.rn, e.por); } });
+    if (e.rid && e.pw) { e.por = +(g / e.pw).toFixed(2); delete e.fr; e.label = recLabel(e.rn, e.por); } });
 }
 
 // ---------- Journal ----------
