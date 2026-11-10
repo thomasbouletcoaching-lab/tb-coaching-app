@@ -8,20 +8,20 @@ import * as W from "../semaine.js";
 import { $app, esc, toast, routes, actions, forms, changes, go, I, header, sheet, closeSheet, rerender, premium, lockVeil, isCoach, fmtDate, buzz, R } from "../core.js";
 import { lignesDuMoteur, indiceDuMoteur } from "./indice-ui.js";
 
-const sem = () => W.normaliser(S().semaine);
+export const sem = () => W.normaliser(S().semaine);
 const touche = (fn) => update(st => { const s = W.normaliser(st.semaine); fn(s); st.semaine = s; });
 const now = () => { const d = new Date(); return { date: today(), min: d.getHours() * 60 + d.getMinutes() }; };
 const T0 = 6 * 60, T1 = 23 * 60;
 let cible = null; // lundi de la semaine affichée
 
-async function charger() { await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib(), X.loadExercices()]); }
-const lundiCourant = () => W.lundiDe(today());
-const lundiProchain = () => W.addJ(lundiCourant(), 7);
+export async function charger() { await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib(), X.loadExercices()]); }
+export const lundiCourant = () => W.lundiDe(today());
+export const lundiProchain = () => W.addJ(lundiCourant(), 7);
 // Le dimanche, on regarde déjà la semaine suivante
 const lundiParDefaut = () => W.dowOf(today()) === 6 ? lundiProchain() : lundiCourant();
 
 // ---------- Séances du programme suivi, vues par le planificateur ----------
-const lieuDefaut = () => ["home", "bodyweight"].includes(S().profile?.place) ? "Maison" : "Salle";
+export const lieuDefaut = () => ["home", "bodyweight"].includes(S().profile?.place) ? "Maison" : "Salle";
 function patternsDe(p, se, w) {
   try {
     const par = {};
@@ -167,13 +167,23 @@ actions["sm-replacer"] = async () => {
   const plan = W.planifier(sem(), lundi, liste, { busy: S().busy || [], dates, now: n, courant, fixes: dejaFaites(W.addJ(dates[0] || t, -3)) });
   apercu(plan, liste, { lundi, semaineType: false });
 };
-actions["sm-type"] = async () => {
-  await charger();
-  const seances = seancesCycle(); if (!seances.length) return toast("Choisis d'abord un programme.");
+// Semaine type pour k séances par semaine (montée progressive : le palier en cours), à partir du fixe seulement
+export function planType(k = null) {
+  let seances = seancesCycle(); if (!seances.length) return null;
+  if (k && k < seances.length) seances = seances.slice(0, k);
   const lundi = lundiCourant(), sc = E.schedule(), actifs = sc ? sc.days.map((d, i) => d.on ? i : -1).filter(i => i >= 0) : [];
   const courant = Object.fromEntries(seances.map((_, i) => [i, actifs[i] != null ? W.addJ(lundi, actifs[i]) : null]).filter(([, d]) => d));
-  const plan = W.planifier({ ...sem(), variable: [] }, lundi, seances, { cyclique: true, courant });
-  apercu(plan, seances, { lundi, semaineType: true });
+  return { plan: W.planifier({ ...sem(), variable: [] }, lundi, seances, { cyclique: true, courant }), seances, lundi };
+}
+export async function appliquerSemaineType(k) {
+  await charger(); const r = planType(k); if (!r) return null;
+  if (r.plan.affectations.length) update(st => { st.schedule = W.versSchedule(r.plan, st.schedule); });
+  return r.plan;
+}
+actions["sm-type"] = async () => {
+  await charger();
+  const r = planType(S().montee?.palier || null); if (!r) return toast("Choisis d'abord un programme.");
+  apercu(r.plan, r.seances, { lundi: r.lundi, semaineType: true });
 };
 function apercu(plan, seances, { lundi, semaineType }) {
   const c = W.controles(plan, sem(), seances);

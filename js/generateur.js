@@ -8,6 +8,7 @@
 // Les seuils sont des points de départ (spec Notion, §3.1 et §4) : ils sont réunis en haut de ce fichier pour être ajustés.
 import { PATTERNS, PATTERN, exercices, CATEGORIES } from "./exercices.js";
 import { contraintes, joursRetenus, ecartSeances } from "./programme.js";
+import { controlesObjectif } from "./soutenabilite.js";
 import { indiceSeance, chargeSemaine, enchainementsLourds, allegee, EXEC_S, ECHAUFFEMENT_MIN, minutes as minutesIndice } from "./indice.js";
 
 export const VERSION = 1;
@@ -316,6 +317,7 @@ export function controles(prop, a = {}) {
   else if (prop.sessions.length > 1) push("ok", "Pas deux séances très exigeantes de suite.");
   if (prop.voulu > prop.tenable) push("info", `Tu aimerais ${prop.voulu} séances mais en tiens ${prop.tenable} : le programme est construit sur ${prop.n}. On en ajoutera quand la régularité sera prouvée.`);
   if (prop.profil.sousCapacite) push("info", "Départ volontairement un peu en dessous de ta capacité : on vise la régularité d'abord, puis on monte.");
+  controlesObjectif(prop, a).forEach(c => push(c.niveau, c.texte));
   return out;
 }
 
