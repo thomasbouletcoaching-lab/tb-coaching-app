@@ -27,6 +27,8 @@ jobs:
         run: node --test tests/exercices.test.mjs
       - name: Tester le questionnaire « Mon programme sur mesure »
         run: node --test tests/programme.test.mjs
+      - name: Tester le générateur de programme
+        run: node --test tests/generateur.test.mjs
       - name: Installer les outils de test
         working-directory: tests
         run: npm install --no-audit --no-fund && npx playwright install --with-deps chromium
@@ -38,6 +40,7 @@ jobs:
           node tests/adherence-e2e.js
           node tests/exercices-e2e.js
           node tests/programme-e2e.js
+          node tests/monplan-e2e.js
           node tests/run.js
         env:
           BASE_URL: http://localhost:8765/

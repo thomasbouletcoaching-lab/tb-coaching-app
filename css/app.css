@@ -604,3 +604,15 @@ a.card{text-decoration:none;color:inherit}
 .nerf{flex:none;display:inline-flex;gap:3px;vertical-align:middle}
 .nerf i{width:7px;height:7px;border-radius:50%;background:var(--line)}
 .nerf i.on{background:var(--ink)}
+
+/* Mon programme proposé : cases du squelette, barres de volume, grille de la semaine */
+.mpcase{display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:16px;border:1px solid var(--line);background:var(--paper);min-height:64px}
+.mpcase.absent{opacity:.7;border-style:dashed}
+.mpcase .pat{margin-top:2px}
+.mpbar{height:6px;border-radius:3px;background:var(--line);margin:6px 0 4px;overflow:hidden}
+.mpbar i{display:block;height:100%;border-radius:3px;background:var(--soft)}
+.mpbar i.PH,.mpc.PH{background:#C0392B}.mpbar i.PV,.mpc.PV{background:#B85C00}.mpbar i.TH,.mpc.TH{background:#1F5FBF}.mpbar i.TV,.mpc.TV{background:#0B7C86}
+.mpbar i.SG,.mpc.SG{background:#1E7F43}.mpbar i.SH,.mpc.SH{background:#5F7A0A}.mpbar i.CH,.mpc.CH{background:#7A3FC4}.mpbar i.FG,.mpc.FG{background:#B02A7A}
+.mpgrid{display:grid;grid-template-columns:40px repeat(7,1fr);gap:6px;align-items:center;justify-items:center}
+.mpgrid b{font-weight:700}
+.mpc{display:block;width:100%;height:24px;border-radius:7px;background:var(--line)}
