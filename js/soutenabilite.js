@@ -157,7 +157,7 @@ export function controlesObjectif(prop, a = {}) {
     if (n >= 5) push("info", "Cinq séances ou plus en déficit calorique : surveille ta récupération.");
     push("info", "Associe-le à un léger déficit calorique (onglet Nutrition) : c'est lui qui fait perdre du gras.");
   } else if (g === "health") {
-    push("ok", "Santé : les 8 mouvements de base, un volume modéré, avec du cardio facile en complément.");
+    push("ok", "Santé : les 8 catégories de mouvements, un volume modéré, avec du cardio facile en complément.");
   } else if (g === "sport") {
     const mod = prop.sessions.some(s => s.items.some(l => l.couche === "module" && ["unilateral", "rotation"].includes(l.categorie)));
     push(mod ? "ok" : "info", mod ? "Sport : du travail sur une jambe et en anti-rotation est inclus." : "Sport : ajoute du travail sur une jambe (fentes, step-up) quand tu as du temps.");
