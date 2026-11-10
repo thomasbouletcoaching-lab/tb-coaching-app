@@ -110,7 +110,8 @@ routes.plan = () => {
     ${lay.map((l, i) => `<div class="card ${i === 0 ? "hl" : ""}" style="padding:14px 16px"><span class="tag ${i === 0 ? "r" : ""}">${E.DAY_NAMES[l.dow]}</span>${i === 0 ? '<span class="tag r">Première séance</span>' : ""}<div class="h3 mt4">${esc(l.s[0])}</div><div class="small muted">${l.s[2].length} exercices</div></div>`).join("")}
     <h2 class="sec">💡 Pourquoi ce plan marche</h2><div class="card"><p style="margin:0">${esc(p.why)}</p></div>
     <h2 class="sec">🔥 Ton carburant</h2><div class="card"><div class="row between"><b class="h2">${t.kcal} kcal</b><span class="small muted">${esc(t.model.name)}</span></div><p class="small muted mt8" style="margin:0">${t.prot} g de protéines · ${t.carbs} g de glucides · ${t.fat} g de lipides par jour</p></div>
-  </main><div class="dock"><button class="btn btn-red" data-a="go" data-r="home">C'est parti</button></div>`;
+    ${S().programme?.answers ? "" : `<div class="card mt16" id="ob-sur-mesure"><b>🧩 Un programme encore plus à toi ?</b><p class="small muted mt4" style="margin:4px 0 10px">10 questions, 2 minutes : ton objectif, ton matériel, tes gênes et les séances que tu tiens vraiment. On construit alors ta semaine sur les 8 catégories de mouvements. Tu peux aussi le faire plus tard.</p><button class="btn btn-line btn-sm" style="width:100%" data-a="go" data-r="monprogramme">Répondre maintenant</button></div>`}
+  </main><div class="dock"><button class="btn btn-red" data-a="go" data-r="home">${S().programme?.answers ? "C'est parti" : "Plus tard, c'est parti"}</button></div>`;
 };
 
 actions["ob-start"] = () => { OB.i = 0; OB.echo = null; routes.onboarding(); };
