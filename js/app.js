@@ -31,6 +31,7 @@ import "./views/monplan.js";
 import "./views/semaine.js";
 import "./views/soutenabilite.js";
 import "./views/fatigue.js";
+import "./views/profil.js";
 import { pullLive } from "./views/live.js";
 import { pullCoachFood } from "./views/coachfood.js";
 import { cloud as cloudMod } from "./core.js";

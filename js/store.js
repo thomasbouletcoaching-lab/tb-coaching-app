@@ -44,6 +44,7 @@ const blank = () => ({
   montee: null,           // montée progressive { cible, palier, depuis }
   decharge: null,         // semaine de décharge choisie { debut, fin }
   dechargeRefus: null,    // date du dernier refus de la proposition de décharge
+  profil: null,           // profils : { total (max vu), siAlors: [{si, alors}] }
   semaine: null,          // « Ma semaine » : { reglages, fixe, variable, revues }
 });
 

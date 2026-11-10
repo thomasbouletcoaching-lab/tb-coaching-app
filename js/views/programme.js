@@ -45,7 +45,7 @@ function intro() {
   $app.innerHTML = header("Mon programme sur mesure", "", { back: "train" }) + `<main class="page">
     <div class="card"><h2 class="h2">${done ? "Tes réponses sont enregistrées" : "Un programme qui tient dans ta vie"}</h2>
       <p class="small muted mt8">Dix questions, deux minutes : ton objectif, ton matériel, le nombre de séances que tu tiens vraiment et les zones à ménager. Tout reste sur ton téléphone.</p>
-      ${done ? `<button class="btn btn-red mt12" data-a="go" data-r="monplan">Voir mon programme proposé</button><button class="btn btn-line mt8" data-a="pq-start">Modifier mes réponses</button>` : `<button class="btn btn-red mt12" data-a="pq-start">Commencer</button>`}</div>
+      ${done ? `<button class="btn btn-red mt12" data-a="go" data-r="monprofil">Voir mon profil</button><button class="btn btn-line mt8" data-a="go" data-r="monplan">Voir mon programme proposé</button><button class="btn btn-line mt8" data-a="pq-start">Modifier mes réponses</button>` : `<button class="btn btn-red mt12" data-a="pq-start">Commencer</button>`}</div>
     ${done ? `<h2 class="sec">Ce que je sais de toi</h2><div class="card">${recap()}</div>` : ""}
     <h2 class="sec">Pour aller plus loin <small>Bâtisseur</small></h2>
     <div class="card ${pr ? "" : "locked"}" style="position:relative;min-height:${pr ? "0" : "200px"}"><p class="small" style="margin:0">Priorités et points faibles, anatomie (squat, cheville, épaule), historique de tes arrêts, contexte de vie et <b>tes exercices favoris</b> : ceux que tu adores passent en premier, ceux que tu détestes ne reviennent plus.</p>
@@ -74,7 +74,7 @@ function fin() {
       <p class="small muted mt8">${P.ecartSeances(Q.a) > 0 ? `Tu aimerais ${Q.a.daysWanted} séances mais en tiens ${Q.a.daysReal} : on construira ton programme sur ${Q.a.daysReal}, et on en ajoutera quand la régularité sera là.` : "Ces réponses sont enregistrées."} Je te propose maintenant un programme à partir de ces réponses : tu le vois, tu peux remplacer des exercices, et tu ne l'adoptes que si tu le veux.</p></div>
     <h2 class="sec">Ce que je sais de toi</h2><div class="card">${recap()}</div>
     ${premium() ? "" : `<div class="card mt12"><p class="small" style="margin:0">Avec le Bâtisseur : priorités, anatomie, historique et exercices favoris.</p><button class="btn btn-line btn-sm mt8" data-a="go" data-r="offers">Voir les offres</button></div>`}
-    <div class="stack mt12"><button class="btn btn-red" data-a="go" data-r="monplan">Voir mon programme proposé</button><button class="btn btn-line" data-a="pq-start">Modifier mes réponses</button><button class="btn btn-ghost" data-a="go" data-r="train">Retour à l'entraînement</button></div></main>`;
+    <div class="stack mt12"><button class="btn btn-red" data-a="go" data-r="monprofil">Voir mon profil</button><button class="btn btn-line" data-a="go" data-r="monplan">Voir mon programme proposé</button><button class="btn btn-line" data-a="pq-start">Modifier mes réponses</button><button class="btn btn-ghost" data-a="go" data-r="train">Retour à l'entraînement</button></div></main>`;
 }
 
 const advance = (val) => { const s = stepsNow()[Q.i]; if (s) Q.a[s.id] = val; Q.i++; buzz(); routes.monprogramme(); };
