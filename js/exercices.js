@@ -21,7 +21,7 @@ export const CATEGORIES = {
   mollets: "Mollets", abdos: "Abdos", avant_bras: "Avant-bras",
   unilateral: "Unilatéral", portes: "Portés", rotation: "Rotation / anti-rotation", cardio: "Cardio", mobilite: "Mobilité",
 };
-export const MATERIEL = [["salle_complete", "Salle complète"], ["salle_basique", "Salle basique"], ["halteres_maison", "Haltères maison"], ["poids_du_corps", "Poids du corps"], ["barre_traction", "Barre de traction"]];
+export const MATERIEL = [["salle_complete", "Salle complète"], ["salle_basique", "Salle basique"], ["halteres_maison", "Haltères maison"], ["poids_du_corps", "Poids du corps"], ["barre_traction", "Barre de traction"], ["elastique", "Élastique"]];
 export const NIVEAUX = [["debutant", "Débutant"], ["intermediaire", "Intermédiaire"], ["avance", "Avancé"]];
 export const ZONES = [["epaule", "Épaule"], ["coude", "Coude"], ["poignet", "Poignet"], ["bas_du_dos", "Bas du dos"], ["genou", "Genou"], ["hanche", "Hanche"], ["cheville", "Cheville"]];
 export const label = (liste, v) => (liste.find(x => x[0] === v) || [v, v])[1];

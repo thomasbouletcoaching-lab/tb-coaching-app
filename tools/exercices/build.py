@@ -18,7 +18,7 @@ FICHES = json.loads((ROOT / "data/fiches.json").read_text(encoding="utf-8"))["ex
 
 # Matériel : on note le MINIMUM nécessaire, la liste des lieux possibles en découle.
 #   C = salle complète (machines spécialisées) ; B = salle basique (type Basic-Fit : machines courantes, poulies, haltères, barres, Smith)
-#   H = maison avec haltères, banc et petit matériel (élastique, ballon) ; P = poids du corps ; T = barre de traction
+#   H = maison avec haltères, banc et petit matériel (ballon) ; E = élastique seul ; P = poids du corps ; T = barre de traction
 LIEUX = {
     "C": ["salle_complete"],
     "B": ["salle_complete", "salle_basique"],
@@ -26,6 +26,7 @@ LIEUX = {
     "P": ["salle_complete", "salle_basique", "halteres_maison", "poids_du_corps"],
     "T": ["salle_complete", "salle_basique", "barre_traction"],
     "CT": ["salle_complete", "barre_traction"],  # anneaux accrochés à une barre
+    "E": ["elastique"],  # élastique seul : un membre qui n'a que cela ne voit que ces exercices
 }
 NIV = {"D": "debutant", "I": "intermediaire", "A": "avance"}
 ZONES = {"ep": "epaule", "co": "coude", "po": "poignet", "dos": "bas_du_dos", "ge": "genou", "ha": "hanche", "ch": "cheville"}
@@ -220,6 +221,8 @@ def rows():
         if not f and nom not in NOUVEAUX:
             errs.append(f"nom absent de data/fiches.json : {nom}")
             return
+        if mat == "H" and ("élastique" in nom.lower() or nom == "Band pull-apart"):
+            mat = "E"  # les exercices à l'élastique ont leur propre option de matériel
         mus, fam = (f.get("mus") or [], f["fam"]) if f else NOUVEAUX[nom]
         out.append({
             "slug": slug(nom), "nom": nom, "pattern_principal": pp, "pattern_secondaire": ps, "couche": couche, "categorie": cat,

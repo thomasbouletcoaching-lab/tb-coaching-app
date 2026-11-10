@@ -17,7 +17,7 @@ create table if not exists public.cxs_exercices (
                                                'unilateral','portes','rotation','cardio','mobilite')),
   muscles            text[] not null default '{}',
   materiel           text[] not null default '{}'
-                     check (materiel <@ array['salle_complete','salle_basique','halteres_maison','poids_du_corps','barre_traction']::text[]),
+                     check (materiel <@ array['salle_complete','salle_basique','halteres_maison','poids_du_corps','barre_traction','elastique']::text[]),
   niveau             text not null default 'debutant' check (niveau in ('debutant','intermediaire','avance')),
   cout_nerveux       smallint not null default 1 check (cout_nerveux between 1 and 3),
   variantes          text[] not null default '{}',    -- slugs des variantes liées (même pattern)

@@ -127,3 +127,10 @@ test("filtre de la vue : pattern (principal ou secondaire), couche, matériel, r
   const n = X.compterParPattern();
   assert.equal(Object.values(n).reduce((a, b) => a + b, 0), DATA.filter(e => e.couche === "squelette").length);
 });
+
+test("élastiques : une option à part, réservée aux exercices qui ne demandent que cela", () => {
+  const el = X.filtrer({ materiel: "elastique" });
+  assert.ok(el.length >= 5 && el.every(e => e.materiel.includes("elastique")));
+  assert.ok(DATA.filter(e => /élastique/i.test(e.nom)).every(e => e.materiel.includes("elastique") || e.materiel.includes("barre_traction")), "un exercice élastique hors option élastique");
+  assert.ok(!X.filtrer({ materiel: "halteres_maison" }).some(e => e.materiel.length === 1 && e.materiel[0] === "elastique"));
+});
