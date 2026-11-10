@@ -359,7 +359,7 @@ export function versProgramme(prop, { id, name = "Mon programme sur mesure" } = 
     id: id || "gen-" + Date.now(), custom: true, name, lvl, split: prop.structure === "full" ? "Corps entier" : prop.sessions.map(x => x.titre.replace(/ [ABC]$/, "")).filter((x, i, t) => t.indexOf(x) === i).join(" / "),
     weeks: prop.semaines, deload: { every: prop.decharge }, days: prop.jours, s, prof: "",
     desc: `${prop.n} séance${prop.n > 1 ? "s" : ""} par semaine, bâties sur les 8 patterns, adaptées à ton matériel et à tes gênes.`,
-    why: "Chaque semaine couvre les huit mouvements de base (poussées, tirages, squats, charnière, flexion de genou) pour un physique équilibré, avec des séances qui tiennent dans ton temps et laissent le temps de récupérer.",
+    why: "Chaque semaine couvre les huit catégories de mouvements (poussées, tirages, squats, charnière, flexion de genou) pour un physique équilibré, avec des séances qui tiennent dans ton temps et laissent le temps de récupérer.",
     gen: { v: VERSION, seed: prop.seed, at: new Date().toISOString() },
   };
 }

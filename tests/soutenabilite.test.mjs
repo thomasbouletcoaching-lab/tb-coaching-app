@@ -146,7 +146,7 @@ test("force : message exact de la spec quand le mouvement visé n'est fait qu'un
 test("objectifs : muscle, perte de gras, santé, sport, reprise", () => {
   assert.ok(S.controlesObjectif(G.generer(prog({ goal: "muscle", priorities: ["pecs"] })), { goal: "muscle" }).some(x => /volume renforcé sur PH/.test(x.texte)));
   const fat = objectif({ goal: "fat" }); assert.ok(fat.some(x => /squelette est gardé/.test(x.texte)) && fat.some(x => /déficit calorique/.test(x.texte)));
-  assert.ok(objectif({ goal: "health" }).some(x => /8 mouvements de base/.test(x.texte)));
+  assert.ok(objectif({ goal: "health" }).some(x => /8 catégories de mouvements/.test(x.texte)));
   assert.ok(objectif({ goal: "sport" }).some(x => /Sport/.test(x.texte)));
   assert.ok(objectif({ goal: "restart", level: "comeback", daysWanted: 3, daysReal: 3, style: "any" }).some(x => x.niveau === "ok" && /Reprise/.test(x.texte)));
   assert.ok(objectif({ goal: "fat" }).length <= 3, "trois messages au plus");
