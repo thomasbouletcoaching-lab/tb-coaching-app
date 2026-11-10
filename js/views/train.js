@@ -1,4 +1,6 @@
 // Entraînement : programme et cycle, banque, programme perso, carnet de séance, stats, records, simulateur, fiches.
+import { tagMoteur, indiceDuMoteur, feuilleIndice } from "./indice-ui.js";
+import * as XO from "../exercices.js";
 import { S, update, save, today } from "../store.js";
 import { tbLogo, medalHtml, celebrate, recLabel, gradeOf, weightLike } from "../fx.js";
 import * as E from "../engine.js";
@@ -20,7 +22,7 @@ const mainOf = (t) => t === "banque" ? "banque" : t === "stats" ? "stats" : "min
 // =====================================================================
 routes.train = async () => {
   if (draft?.forMember) draft = null;
-  await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
+  await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib(), XO.loadExercices()]);
   if (R.param && TABS.some(t => t[0] === R.param)) tab = R.param;
   if (tab === "historique") { carnetTab = "faites"; carnetMain = "seances"; return go("carnet"); }
   const ns = E.nextSession();
@@ -94,7 +96,7 @@ function programBody(ns) {
       ${vw !== ns.week ? `<button class="btn btn-line btn-xs" data-a="cy-place" data-v="${vw}">Me placer ici</button>` : ""}</div>
       ${p.s.map((se, i) => { const isNext = vw === ns.week && i === ns.idx % p.s.length, isDone = done.has(i);
         return `<div class="mt12" style="border-top:1px solid var(--line);padding-top:12px${isNext ? ";box-shadow:inset 3px 0 0 var(--red);padding-left:10px" : ""}">
-          <div class="row between"><b>${isDone ? "✅ " : isNext ? "👉 " : ""}${esc(se[0])}</b><span class="xs muted">${esc(se[1] || "")}</span></div>
+          <div class="row between"><b>${isDone ? "✅ " : isNext ? "👉 " : ""}${esc(se[0])}</b><span class="xs muted">${esc(se[1] || "")}</span></div>${tagMoteur(p, se, vw)}
           ${se[2].map(e => `<div class="row between xs" style="padding:3px 0;gap:8px"><span class="grow muted">${esc(S().swaps[e[0]] || e[0])}</span><span style="white-space:nowrap">${esc(E.schemeFor(p, e, vw).replace(/x/i, "×"))}</span></div>`).join("")}
           ${blocked ? "" : isDone ? `<button class="link xs mt4" data-a="cy-do" data-w="${vw}" data-i="${i}">Refaire cette séance</button>` : `<button class="btn ${isNext ? "btn-red" : "btn-line"} btn-sm mt8" data-a="cy-do" data-w="${vw}" data-i="${i}">${cur ? "Reprendre ma séance en cours" : isNext ? "Commencer cette séance" : "Faire cette séance"}</button>`}</div>`; }).join("")}
       ${blocked ? `<button class="btn btn-red mt12" data-a="go" data-r="offers">🔓 Débloquer la semaine ${vw}</button>` : ""}</div>
@@ -1167,3 +1169,6 @@ actions["ex-hist"] = (b, d) => {
     ${best?.s ? `<div class="card soft mt8"><b class="small">🏆 Meilleure série estimée</b><p class="small" style="margin:4px 0 0">${fr(best.s.kg)} kg × ${best.s.reps}${best.s.rpe != null ? ` @${String(best.s.rpe).replace(".", ",")}` : ""} · 1RM estimé ${fr(best.v)} kg · ${fmtDate(best.d.slice(0, 10))}</p></div>` : ""}
     ${rows.length ? `<div class="list mt8">${rows.slice(0, 25).map(r => `<div class="li" style="align-items:flex-start"><span class="grow small"><b>${fmtDate(r.d.slice(0, 10))}</b> <span class="xs muted">· ${esc(r.title || "")}</span><br>${r.sets.map(s => `${s.kg ? fr(s.kg) + " kg × " : ""}${s.reps ?? "–"}${s.rpe != null ? ` @${String(s.rpe).replace(".", ",")}` : ""}`).join(" · ")}</span></div>`).join("")}</div>` : `<p class="empty small mt8">Pas encore de séance enregistrée sur cet exercice.</p>`}`);
 };
+
+// « En savoir plus » sur l'indice d'une séance du programme suivi
+actions["idx-info"] = (b, d) => { const p = E.program(d.p), se = p?.s.find(x => x[0] === d.s), ind = p && se ? indiceDuMoteur(p, se, +d.w) : null; if (ind) feuilleIndice(ind, se[0]); };

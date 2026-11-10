@@ -616,3 +616,13 @@ a.card{text-decoration:none;color:inherit}
 .mpgrid{display:grid;grid-template-columns:40px repeat(7,1fr);gap:6px;align-items:center;justify-items:center}
 .mpgrid b{font-weight:700}
 .mpc{display:block;width:100%;height:24px;border-radius:7px;background:var(--line)}
+
+/* Indice de difficulté de la séance : quatre barres et le niveau */
+.idx{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;line-height:1.2}
+.idx b{font-weight:700}
+.idxbars{display:inline-flex;align-items:flex-end;gap:2px;height:14px}
+.idxbars i{display:block;width:5px;border-radius:2px;background:var(--line)}
+.idxbars i:nth-child(1){height:6px}.idxbars i:nth-child(2){height:9px}.idxbars i:nth-child(3){height:12px}.idxbars i:nth-child(4){height:14px}
+.idxbars i.on{background:var(--good)}
+.idxbars i.on.n2{background:#7FA52A}.idxbars i.on.n3{background:var(--warn)}.idxbars i.on.n4{background:#D8542B}
+.idxinfo{margin-left:2px;min-width:28px;min-height:28px;border-radius:14px;color:var(--soft);font-size:15px}

@@ -1,14 +1,17 @@
 // Écran « Mon programme proposé » (créateur de programme, étape 3) : le squelette des 8 patterns, la semaine, les séances,
 // le bouton « remplacer » et les contrôles. Une PROPOSITION : elle ne remplace jamais le programme en cours sans accord.
 import { S, update, today } from "../store.js";
-import { $app, esc, toast, routes, actions, go, I, header, buzz, sheet, closeSheet } from "../core.js";
+import { $app, esc, toast, routes, actions, go, I, header, buzz, sheet, closeSheet, isCoach } from "../core.js";
 import * as X from "../exercices.js";
 import * as P from "../programme.js";
 import * as G from "../generateur.js";
 import { pushStats } from "../sync.js";
+import * as IX from "../indice.js";
+import { pastilleIndice, feuilleIndice } from "./indice-ui.js";
 
 const PAT = (c, cls = "") => `<span class="pat ${c} ${cls}" title="${esc(X.PATTERN[c]?.nom || c)}">${c}</span>`;
 const LABEL_CAT = (c) => X.CATEGORIES[c] || c;
+const indiceDe = (s) => s.indice || IX.indiceSeance(s.items);
 
 // La proposition est gardée sur le téléphone ; elle est refaite si les réponses ont changé depuis
 function courante(force = false, seed = null) {
@@ -55,8 +58,9 @@ function grille(p) {
 const serie = (l) => `${l.n} × ${l.lo}${l.hi !== l.lo ? "-" + l.hi : ""}${l.unite === "s" ? " s" : ""}${l.rpe ? ` · RPE ${l.rpe}` : ""}`;
 function seance(s, si) {
   const pats = [...new Set(s.items.filter(l => l.couche === "squelette").map(l => l.pattern))];
-  return `<div class="card mt8"><div class="row between" style="gap:8px"><div><b class="h3">${esc(s.titre)}</b><div class="xs muted">${G.DOW[s.dow]} · ${s.minutes} min</div></div><div class="row" style="gap:4px;flex-wrap:wrap;justify-content:flex-end">${pats.map(c => PAT(c)).join("")}</div></div>
-    <div class="mt8">${s.items.map((l, li) => `<div class="li" style="padding:10px 0;gap:8px">${l.pattern ? PAT(l.pattern) : `<span class="pat nul">${l.couche === "isolation" ? "ISO" : "MOD"}</span>`}<span class="grow small"><b>${esc(l.nom)}</b><br><span class="xs muted">${esc(serie(l))}</span></span><button class="icon-btn sm" data-a="mp-remplacer" data-s="${si}" data-i="${li}" aria-label="Remplacer ${esc(l.nom)}">🔄</button></div>`).join("")}</div></div>`;
+  return `<div class="card mt8"><div class="row between" style="gap:8px"><div><b class="h3">${esc(s.titre)}</b><div class="xs muted">${G.DOW[s.dow]}</div><div class="mt4">${pastilleIndice(indiceDe(s), { info: { a: "mp-indice", d: `data-s="${si}"` } })}</div></div><div class="row" style="gap:4px;flex-wrap:wrap;justify-content:flex-end">${pats.map(c => PAT(c)).join("")}</div></div>
+    <div class="mt8">${s.items.map((l, li) => `<div class="li" style="padding:10px 0;gap:8px">${l.pattern ? PAT(l.pattern) : `<span class="pat nul">${l.couche === "isolation" ? "ISO" : "MOD"}</span>`}<span class="grow small"><b>${esc(l.nom)}</b><br><span class="xs muted">${esc(serie(l))}</span></span><button class="icon-btn sm" data-a="mp-remplacer" data-s="${si}" data-i="${li}" aria-label="Remplacer ${esc(l.nom)}">🔄</button></div>`).join("")}</div>
+    ${G.ciblesPour(s.minutes).length ? `<button class="btn btn-line btn-sm mt8" style="width:100%" data-a="mp-courte" data-s="${si}">⚡ Version courte (${G.ciblesPour(s.minutes).join(", ")} min)</button>` : ""}</div>`;
 }
 
 actions["mp-remplacer"] = (b, d) => {
@@ -85,3 +89,19 @@ actions["mp-adopter"] = () => {
   });
   buzz(); toast("C'est parti avec ton programme"); pushStats(); go("train", "programme");
 };
+
+actions["mp-indice"] = (b, d) => { const p = S().monplan?.prop, s = p?.sessions[+d.s]; if (s) feuilleIndice(indiceDe(s), s.titre); };
+// Version courte : on garde le squelette, on retire l'isolation puis des séries. Consultation seulement : la séance du programme ne change pas.
+const courte = (si, cible) => {
+  const p = S().monplan?.prop, s = p?.sessions[si]; if (!s) return;
+  const cibles = G.ciblesPour(s.minutes), c = cibles.includes(cible) ? cible : cibles.at(-1), a = G.allegeeSeance(p, si, c), n = (x) => x.series ? x.series.length : x.n;
+  sheet(`<h2 class="h2">Version courte</h2><p class="small muted">${esc(s.titre)} · de ${s.minutes} à <b>${a.minutes} min</b>. Utile quand le temps manque : tu gardes les mouvements de base.</p>
+    <div class="chips mt8">${cibles.map(x => `<button class="chip ${x === c ? "on" : ""}" data-a="mp-courte-set" data-s="${si}" data-c="${x}">${x} min</button>`).join("")}</div>
+    <div class="mt8">${pastilleIndice(a.indice)}</div>
+    <div class="card mt12" style="padding:4px 14px">${a.items.map(l => `<div class="li" style="padding:10px 0;gap:8px">${l.pattern ? `<span class="pat ${l.pattern}">${l.pattern}</span>` : ""}<span class="grow small"><b>${esc(l.nom)}</b></span><span class="xs muted" style="white-space:nowrap">${n(l)} × ${l.series ? l.series[0].lo : l.lo}${(l.series ? l.series[0].hi : l.hi) !== (l.series ? l.series[0].lo : l.lo) ? "-" + (l.series ? l.series[0].hi : l.hi) : ""}</span></div>`).join("")}</div>
+    ${a.retire.length ? `<p class="xs muted mt8">Retiré : ${a.retire.map(esc).join(", ")}.</p>` : ""}
+    ${a.tient ? "" : `<p class="xs mt8" style="color:var(--warn)">Même réduite, cette séance dépasse un peu ${c} min.</p>`}
+    <p class="xs muted mt8">Au moment de commencer une séance, « Séance express » fait la même chose à la volée.</p>`, null, { keep: !!document.getElementById("sheet") });
+};
+actions["mp-courte"] = (b, d) => courte(+d.s, null);
+actions["mp-courte-set"] = (b, d) => courte(+d.s, +d.c);
