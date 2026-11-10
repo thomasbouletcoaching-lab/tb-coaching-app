@@ -8,6 +8,7 @@ import * as G from "../generateur.js";
 import { pushStats } from "../sync.js";
 import * as IX from "../indice.js";
 import { pastilleIndice, feuilleIndice } from "./indice-ui.js";
+import { carteSoutenabilite } from "./soutenabilite.js";
 
 const PAT = (c, cls = "") => `<span class="pat ${c} ${cls}" title="${esc(X.PATTERN[c]?.nom || c)}">${c}</span>`;
 const LABEL_CAT = (c) => X.CATEGORIES[c] || c;
@@ -17,9 +18,11 @@ const indiceDe = (s) => s.indice || IX.indiceSeance(s.items);
 function courante(force = false, seed = null) {
   const prog = S().programme, mp = S().monplan;
   if (!prog?.answers) return null;
-  if (!force && mp?.prop && mp.progAt === prog.at && mp.prop.v === G.VERSION) return mp;
-  const sd = seed != null ? seed : (mp?.seed || 0), prop = G.generer(prog, { seed: sd });
-  update(st => { st.monplan = { at: new Date().toISOString(), progAt: prog.at, seed: sd, prop, adopte: mp?.adopte || null }; });
+  const aj = mp?.ajust || null; // version « tenable » choisie : { daysWanted, daysReal, sessionMin }
+  if (!force && mp?.prop && mp.progAt === prog.at && mp.prop.v === G.VERSION && JSON.stringify(mp.prop.ajust || null) === JSON.stringify(aj)) return mp;
+  const sd = seed != null ? seed : (mp?.seed || 0), prop = G.generer(aj ? { ...prog, answers: { ...prog.answers, ...aj } } : prog, { seed: sd });
+  if (aj) prop.ajust = aj;
+  update(st => { st.monplan = { at: new Date().toISOString(), progAt: prog.at, seed: sd, prop, adopte: mp?.adopte || null, ajust: aj }; });
   return S().monplan;
 }
 
@@ -39,6 +42,7 @@ routes.monplan = async () => {
     <h2 class="sec">Ta semaine</h2>${grille(p)}
     <h2 class="sec">Tes séances</h2>${p.sessions.map((s, si) => seance(s, si)).join("")}
     <h2 class="sec">Est-ce que ça tient ?</h2><div class="card" style="padding:4px 14px">${p.controles.map(c => `<div class="li" style="gap:10px;padding:12px 0"><span>${c.niveau === "ok" ? "✅" : c.niveau === "alerte" ? "⚠️" : "ℹ️"}</span><span class="grow small">${esc(c.texte)}</span></div>`).join("")}${p.avertissements.map(w => `<div class="li" style="gap:10px;padding:12px 0"><span>⚠️</span><span class="grow small">${esc(w)}</span></div>`).join("")}</div>
+    ${carteSoutenabilite(p, S().programme)}
     ${p.suggestions.length ? `<h2 class="sec">À côté des séances</h2><div class="card small">${p.suggestions.map(t => `<p style="margin:0 0 8px">• ${esc(t)}</p>`).join("")}</div>` : ""}
     <div class="card mt12"><b class="small">📅 Caler ces séances dans ta semaine</b><p class="xs muted mt4" style="margin:0 0 8px">Ajoute ce qui revient chaque semaine (travail, enfants, trajets) : je cherche les créneaux libres, avec ta récupération et ton sommeil.</p><button class="btn btn-line btn-sm" data-a="go" data-r="semaine">Ouvrir Ma semaine</button></div>
     <div class="stack mt12"><button class="btn btn-line" data-a="mp-autre">🔀 Autre variante</button><button class="btn btn-ghost" data-a="go" data-r="monprogramme">Modifier mes réponses</button></div>

@@ -40,7 +40,9 @@ const blank = () => ({
   prices: {},             // prix personnels { ingrédient: €/kg }
   crises: [],             // « Je craque » : notes { d, note }
   programme: null,        // questionnaire « Mon programme sur mesure » { v, at, answers, prefs }
-  monplan: null,          // proposition du générateur { at, progAt, seed, prop, adopte }
+  monplan: null,          // proposition du générateur { at, progAt, seed, prop, adopte, ajust }
+  montee: null,           // montée progressive { cible, palier, depuis }
+  semaine: null,          // « Ma semaine » : { reglages, fixe, variable, revues }
 });
 
 let state;
