@@ -145,6 +145,7 @@ function bankBody() {
 function myProgramsBody() {
   const mine = myOwnPrograms();
   return `<p class="small muted mt12">Les programmes que tu crées toi-même : tu les consultes, tu les modifies, tu les démarres quand tu veux.</p>
+    <button class="card tap mt12" data-a="go" data-r="${S().programme?.answers ? "monplan" : "monprogramme"}" style="display:flex;align-items:center;gap:12px"><span style="font-size:28px">🧩</span><span class="grow"><b>Programme sur mesure</b><br><span class="small muted">${S().programme?.answers ? "Voir ma proposition, construite sur les 8 mouvements de base" : "10 questions : on te construit un programme sur les 8 mouvements de base"}</span></span><span class="muted">›</span></button>
     <button class="card tap mt8" data-a="go" data-r="builder" style="display:flex;align-items:center;gap:12px"><span style="font-size:28px">✏️</span><span class="grow"><b>Créer mon programme</b><br><span class="small muted">Tes séances, tes séries, ta progression${premium() ? "" : " · 1 programme en gratuit"}</span></span>${I.chev}</button>
     ${mine.length ? mine.map(pg => progCard(pg, true)).join("") : `<div class="card mt12"><h3 class="h3">Ton premier programme</h3><p class="small muted mt4">Crée tes séances (exercices, séries, progression) puis assemble-les en programme. Tu peux aussi partir d'un programme de la banque : « Personnaliser » en fait une copie que tu modifies à ta façon.</p><button class="btn btn-line btn-sm mt8" data-a="bank-view" data-v="bank">Voir la banque</button></div>`}`;
 }
