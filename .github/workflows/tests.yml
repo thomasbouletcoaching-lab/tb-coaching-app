@@ -31,6 +31,8 @@ jobs:
         run: node --test tests/generateur.test.mjs
       - name: Tester l'indice de difficulté de la séance
         run: node --test tests/indice.test.mjs
+      - name: Tester l'agenda « Ma semaine » (créneaux, récupération, imprévus)
+        run: node --test tests/semaine.test.mjs
       - name: Installer les outils de test
         working-directory: tests
         run: npm install --no-audit --no-fund && npx playwright install --with-deps chromium
@@ -44,6 +46,7 @@ jobs:
           node tests/programme-e2e.js
           node tests/monplan-e2e.js
           node tests/indice-e2e.js
+          node tests/semaine-e2e.js
           node tests/run.js
         env:
           BASE_URL: http://localhost:8765/

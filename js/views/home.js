@@ -1,6 +1,7 @@
 import { S, update, today } from "../store.js";
 import { defiCard, adherenceCard } from "./suivi.js";
 import { checkinCard } from "./checkin.js";
+import { revueCard } from "./semaine.js";
 import { anamneseCard } from "./anamnese.js";
 import { defiOn, myAdherence } from "../progress.js";
 import { nutriLine, nutriLevel } from "./nutri-detail.js";
@@ -222,6 +223,7 @@ actions["free-session"] = async () => {
 async function suiviCards() {
   if (isCoach()) return "";
   const defi = defiOn(), out = [defi ? await defiCard() : "", checkinCard()];
+  out.push(revueCard());
   if (!defi) out.push(anamneseCard());
   if (!defi && (myAdherence().age ?? 0) >= 3) out.push(adherenceCard());
   return out.join("");

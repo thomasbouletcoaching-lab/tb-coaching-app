@@ -626,3 +626,20 @@ a.card{text-decoration:none;color:inherit}
 .idxbars i.on{background:var(--good)}
 .idxbars i.on.n2{background:#7FA52A}.idxbars i.on.n3{background:var(--warn)}.idxbars i.on.n4{background:#D8542B}
 .idxinfo{margin-left:2px;min-width:28px;min-height:28px;border-radius:14px;color:var(--soft);font-size:15px}
+
+/* Ma semaine : grille horaire de 6 h à 23 h, une ligne par jour */
+.swgrid{display:flex;flex-direction:column;gap:4px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:10px 10px 6px}
+.swrow{display:grid;grid-template-columns:34px 1fr;gap:8px;align-items:center;border-radius:10px;padding:2px 0}
+.swrow.today{background:var(--tint)}
+.swday{display:flex;flex-direction:column;align-items:center;line-height:1.1;font-size:13px}
+.swtrack{position:relative;height:22px;border-radius:6px;background:var(--line);overflow:hidden}
+.swseg{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--soft);opacity:.85}
+.swseg.sw-nuit{background:#1b2a41;opacity:.28}
+.swseg.sw-travail,.swkey.sw-travail{background:#5b6b86}.swseg.sw-famille,.swkey.sw-famille{background:#2f9e6b}.swseg.sw-trajet,.swkey.sw-trajet{background:#9aa6b2}
+.swseg.sw-repas{background:#d69e2e}.swseg.sw-sport{background:#0b7c86}.swseg.sw-engagement{background:#7a3fc4}.swseg.sw-autre,.swkey.sw-autre{background:#8a96a3}
+.swseg.sw-seance,.swkey.sw-seance{background:var(--red);opacity:1;box-shadow:0 0 0 1.5px var(--paper) inset}.swseg.sw-fait{background:var(--good);opacity:1}
+.swdot{position:absolute;left:50%;top:5px;width:12px;height:12px;border-radius:50%;background:var(--red)}
+.swkey{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.swaxis{display:grid;grid-template-columns:34px 1fr;gap:8px;margin-top:2px}
+.swaxis>div{position:relative;height:14px}
+.swaxis>div>span{position:absolute;transform:translateX(-50%);font-size:11px;color:var(--soft);white-space:nowrap}
