@@ -204,6 +204,15 @@ export async function libraryUpdate(id, fields) {
   if (error) throw error;
 }
 export async function libraryDel(id) { const { error } = await sb.from("cxs_library").delete().eq("id", id); if (error) throw error; }
+// Bibliothèque d'exercices classée par pattern (table cxs_exercices). Le membre ne reçoit que les exercices actifs (RLS).
+export async function exercicesAll() {
+  const { data, error } = await sb.from("cxs_exercices").select("id,slug,nom,pattern_principal,pattern_secondaire,couche,categorie,muscles,materiel,niveau,cout_nerveux,variantes,contre_indications,video_url,note,actif").order("nom", { ascending: true }).limit(2000);
+  if (error) throw error; return data || [];
+}
+export async function exerciceUpdate(id, fields) {
+  const { error } = await sb.from("cxs_exercices").update({ ...fields, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+}
 export async function lastMessages() {
   // Fil de chaque membre, TB et CalXsthenos réunis (fonction réservée au coach)
   const { data, error } = await sb.rpc("cxs_inbox").order("created_at", { ascending: false }).limit(2000);

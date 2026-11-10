@@ -23,6 +23,8 @@ jobs:
         run: node --test tests/volume.test.mjs
       - name: Tester le moteur de régularité (score, alertes, rapport)
         run: node --test tests/adherence.test.mjs
+      - name: Tester la bibliothèque d'exercices par pattern (données, filtres, alternatives)
+        run: node --test tests/exercices.test.mjs
       - name: Installer les outils de test
         working-directory: tests
         run: npm install --no-audit --no-fund && npx playwright install --with-deps chromium
@@ -32,6 +34,7 @@ jobs:
           sleep 2
           node tests/volume-e2e.js
           node tests/adherence-e2e.js
+          node tests/exercices-e2e.js
           node tests/run.js
         env:
           BASE_URL: http://localhost:8765/
