@@ -37,6 +37,8 @@ jobs:
         run: node --test tests/soutenabilite.test.mjs
       - name: Tester la récupération et la fatigue nerveuse (feu du jour, décharge, séance allégée)
         run: node --test tests/recuperation.test.mjs
+      - name: Tester l'atelier Créer mon programme
+        run: node --test tests/atelier.test.mjs
       - name: Tester la détection des profils et le parcours reprise durable
         run: node --test tests/profils.test.mjs
       - name: Installer les outils de test
@@ -57,6 +59,7 @@ jobs:
           node tests/fatigue-e2e.js
           node tests/profils-e2e.js
           node tests/onboarding-sur-mesure-e2e.js
+          node tests/atelier-e2e.js
         env:
           BASE_URL: http://localhost:8765/
       - name: Tests de l'ancienne interface (coach/)

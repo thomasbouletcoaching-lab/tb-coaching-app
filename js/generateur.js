@@ -356,8 +356,9 @@ export const ciblesPour = (minutesSeance) => CIBLES_ALLEGEES.filter(c => c < min
 // ---------- Vers le format de programme du moteur de séances ----------
 const PROG_DEF = { load: "auto", step: 2.5, every: 1, addSet: null, reps: null };
 export function versProgramme(prop, { id, name = "Mon programme sur mesure" } = {}) {
-  const s = prop.sessions.map((se, k) => [`Séance ${String.fromCharCode(65 + k)} · ${se.titre}`, DOW[se.dow], se.items.map(l => [l.nom, l.kind, l.note || "", null, null, {
-    sets: Array.from({ length: l.n }, () => ({ t: "N", lo: l.lo, hi: l.hi, rpe: l.rpe, pct: null, kg: null, tech: [] })), rest: l.rest, prog: { ...PROG_DEF },
+  const s = prop.sessions.map((se, k) => [`Séance ${String.fromCharCode(65 + k)} · ${se.titre}`, DOW[se.dow], se.items.map(l => [l.nom, l.kind, l.note || "", l.ss || null, null, {
+    sets: Array.from({ length: l.n }, () => ({ t: "N", lo: l.lo, hi: l.hi, rpe: l.rpe, pct: null, kg: null, tech: [] })), rest: l.rest,
+    prog: l.focus ? { ...PROG_DEF, addSet: { every: 2, max: l.n + 2 } } : { ...PROG_DEF }, // focus : une série de plus toutes les 2 semaines
   }])]);
   const lvl = { debutant: "Débutant", regulier: "Intermédiaire", avance: "Avancé" }[prop.profil.niveau];
   return {
