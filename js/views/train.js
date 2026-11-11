@@ -25,7 +25,8 @@ const mainOf = (t) => t === "banque" ? "banque" : t === "stats" ? "stats" : "min
 routes.train = async () => {
   if (draft?.forMember) draft = null;
   await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib(), XO.loadExercices()]);
-  if (R.param && TABS.some(t => t[0] === R.param)) tab = R.param;
+  if (R.param === "mesprogrammes") { tab = "banque"; bankView = "mine"; history.replaceState(null, "", "#/train/banque"); R.param = "banque"; }
+  else if (R.param && TABS.some(t => t[0] === R.param)) tab = R.param;
   if (tab === "historique") { carnetTab = "faites"; carnetMain = "seances"; return go("carnet"); }
   const ns = E.nextSession();
   let body = "";

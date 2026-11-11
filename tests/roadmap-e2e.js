@@ -57,6 +57,7 @@ const goal = (kg, jours) => ({ id: 77, name: 'Développé couché barre', kg, re
   await tap(a.p, '[data-a="rm-freq"][data-v="2"]');
   // adopter
   await tap(a.p, '[data-a="rm-adopter"]'); await a.p.waitForTimeout(800);
+  ok(await a.p.evaluate(() => /Roadmap ·/.test(document.body.innerText) && /Démarrer/.test(document.body.innerText)), 'après création : Mes programmes affiche la roadmap avec Démarrer');
   let st = await S(a.p); const pg0 = (st.customPrograms || []).find(p => p.id === 'road-77');
   ok(!!pg0 && st.plan.programId === 'tb-rep3', 'programme enregistré dans Mes programmes sans remplacer le programme en cours');
   await a.p.evaluate(() => { location.hash = '#/roadmap/77'; }); await a.p.waitForTimeout(800);

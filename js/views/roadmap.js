@@ -89,7 +89,7 @@ actions["rm-adopter"] = () => {
   const id = "road-" + g.id;
   if (S().plan?.programId === id && !confirm("Cette roadmap est ton programme en cours. La mettre à jour avec tes nouveaux réglages ?")) return;
   enregistrer(g, road);
-  buzz(); toast("Roadmap enregistrée dans Mes programmes"); pushStats(); go("train", "programme");
+  buzz(); toast("Roadmap enregistrée dans Mes programmes"); pushStats(); go("train", "mesprogrammes");
 };
 actions["rm-demarrer"] = () => {
   const g = goalOf(); if (!g) return;
