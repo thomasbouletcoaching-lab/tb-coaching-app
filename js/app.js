@@ -29,6 +29,7 @@ import "./views/suivi-coach.js";
 import "./views/programme.js";
 import "./views/monplan.js";
 import "./views/atelier.js";
+import "./views/roadmap.js";
 import "./views/semaine.js";
 import "./views/soutenabilite.js";
 import "./views/fatigue.js";
