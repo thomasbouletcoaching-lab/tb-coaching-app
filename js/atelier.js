@@ -179,3 +179,32 @@ export function vers(d, { id = "atelier", name } = {}) {
   delete p.gen; return p;
 }
 export const nbExercices = (d) => d.sessions.reduce((t, s) => t + s.items.length, 0);
+
+// ---------- Plusieurs exercices d'un coup, jours par catégorie, déplacement entre séances ----------
+// Ajoute plusieurs exercices à la même séance ; nFn(e, brouillon) donne le nombre de séries de chacun.
+export function ajouterPlusieurs(d, si, slugs, nFn = () => 3) {
+  let c = d; for (const s of slugs) { const e = exercice(s); if (e) c = ajouter(c, si, e, nFn(e, c)); } return c;
+}
+// Envoie un exercice dans une autre séance (en fin de séance) ; un superset est délié
+export function deplacerVers(d, si, li, si2) {
+  if (si === si2 || !d.sessions[si]?.items[li] || !d.sessions[si2]) return d;
+  const l = clone(d.sessions[si].items[li]), c = retirer(d, si, li); l.ss = null; c.sessions[si2].items.push(l); return c;
+}
+// Jours où une catégorie est travaillée : choisis par la personne, sinon ceux où elle a déjà des séries
+export function joursPattern(d, code) {
+  const dows = d.sessions.map(s => s.dow), choisis = (d.patJours?.[code] || []).filter(x => dows.includes(x));
+  return choisis.length ? choisis : d.sessions.filter(s => s.items.some(l => l.couche === "squelette" && l.pattern === code)).map(s => s.dow);
+}
+export const joursChoisis = (d, code) => (d.patJours?.[code] || []).filter(x => d.sessions.some(s => s.dow === x));
+// Ajoute ou retire un jour à une catégorie. Retirer un jour y déplace ses exercices de cette catégorie vers le premier jour restant.
+export function basculerJourPattern(d, code, dow) {
+  if (!d.sessions.some(s => s.dow === dow)) return d;
+  const cur = joursChoisis(d, code).length ? joursChoisis(d, code) : joursPattern(d, code);
+  const on = cur.includes(dow), next = (on ? cur.filter(x => x !== dow) : [...cur, dow]).sort((a, b) => a - b);
+  let c = clone(d); c.patJours = { ...(c.patJours || {}), [code]: next };
+  if (on && next.length) {
+    const si = c.sessions.findIndex(s => s.dow === dow), si2 = c.sessions.findIndex(s => s.dow === next[0]);
+    for (let li = c.sessions[si].items.length - 1; li >= 0; li--) { const l = c.sessions[si].items[li]; if (l.couche === "squelette" && l.pattern === code) c = deplacerVers(c, si, li, si2); }
+  }
+  return c;
+}
