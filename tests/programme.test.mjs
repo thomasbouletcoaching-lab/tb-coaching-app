@@ -50,9 +50,10 @@ test("contraintes : matériel, zones et exercices détestés", () => {
 test("alternativesPour : respecte matériel, gênes et détestés ; les favoris passent en premier", () => {
   const maison = prog({ materiel: ["poids_du_corps"], zones: [] }, { "pompes-sur-les-genoux": "love" });
   const l = P.alternativesPour("Développé couché barre", maison);
-  assert.deepEqual(l.map(e => e.slug), ["pompes-sur-les-genoux", "pompes"]);
+  assert.equal(l[0].slug, "pompes-sur-les-genoux", "le favori passe en premier");
+  assert.ok(l.some(e => e.slug === "pompes") && l.every(e => e.materiel.includes("poids_du_corps")), "toutes les variantes au poids du corps de la famille");
   assert.deepEqual(P.alternativesPour("Développé couché barre", prog({ materiel: ["poids_du_corps"], zones: ["poignet"] })), [], "les pompes gênent le poignet : rien à proposer sans matériel");
-  assert.deepEqual(P.alternativesPour("Développé couché barre", prog({ materiel: ["poids_du_corps"] }, { pompes: "hate" })).map(e => e.slug), ["pompes-sur-les-genoux"]);
+  assert.deepEqual(P.alternativesPour("Développé couché barre", prog({ materiel: ["poids_du_corps"] }, { pompes: "hate" })).map(e => e.slug).filter(x => x === "pompes").length, 0);
   assert.ok(P.alternativesPour("Développé couché barre", prog({ materiel: ["salle_basique"] }, { "chest-press-machine": "hate" })).every(e => e.slug !== "chest-press-machine"));
   assert.equal(P.alternativesPour("Développé couché barre", prog({ materiel: ["salle_basique"] }, { "chest-press-machine": "love" }))[0].slug, "chest-press-machine");
 });

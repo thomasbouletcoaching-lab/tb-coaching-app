@@ -10,8 +10,8 @@ const codes = X.PATTERNS.map(p => p.code), ids = (l) => l.map(x => x[0]);
 const reset = () => X.setExercices(JSON.parse(JSON.stringify(DATA)));
 reset();
 
-test("taille : entre 80 et 120 exercices, slugs et noms uniques", () => {
-  assert.ok(DATA.length >= 80 && DATA.length <= 120, `${DATA.length} exercices`);
+test("taille : tous les exercices des fiches (480 à 500), slugs et noms uniques", () => {
+  assert.ok(DATA.length >= 480 && DATA.length <= 500, `${DATA.length} exercices`);
   assert.equal(new Set(DATA.map(e => e.slug)).size, DATA.length);
   assert.equal(new Set(DATA.map(e => e.nom)).size, DATA.length);
 });
@@ -57,10 +57,10 @@ test("flexion de genou à la maison : au moins 4 solutions au poids du corps", (
   assert.ok(l.some(e => e.niveau === "debutant"));
 });
 
-test("isolation : les 7 catégories ; modules : les 5 catégories", () => {
+test("isolation : 14 catégories ; modules : 7 catégories", () => {
   const cats = (c) => new Set(DATA.filter(e => e.couche === c).map(e => e.categorie));
-  assert.deepEqual([...cats("isolation")].sort(), ["abdos", "avant_bras", "biceps", "deltoides_posterieurs", "elevations_laterales", "mollets", "triceps"]);
-  assert.deepEqual([...cats("module")].sort(), ["cardio", "mobilite", "portes", "rotation", "unilateral"]);
+  assert.deepEqual([...cats("isolation")].sort(), ["abdos", "adducteurs", "avant_bras", "biceps", "coiffe", "deltoides_posterieurs", "elevations_laterales", "epaules_avant", "fessiers", "mollets", "pectoraux", "quadriceps", "trapezes", "triceps"]);
+  assert.deepEqual([...cats("module")].sort(), ["cardio", "mobilite", "portes", "puissance", "rotation", "skills", "unilateral"]);
 });
 
 test("variantes liées : elles existent, partagent le même pattern et sont réciproques", () => {
@@ -133,4 +133,20 @@ test("élastiques : une option à part, réservée aux exercices qui ne demanden
   assert.ok(el.length >= 5 && el.every(e => e.materiel.includes("elastique")));
   assert.ok(DATA.filter(e => /élastique/i.test(e.nom)).every(e => e.materiel.includes("elastique") || e.materiel.includes("barre_traction")), "un exercice élastique hors option élastique");
   assert.ok(!X.filtrer({ materiel: "halteres_maison" }).some(e => e.materiel.length === 1 && e.materiel[0] === "elastique"));
+});
+
+test("couverture : tous les exercices des fiches sont classés, et les exercices rois sont tous présents", () => {
+  const fiches = JSON.parse(readFileSync(new URL("../data/fiches.json", import.meta.url), "utf8")).ex;
+  const noms = new Set(DATA.map(e => e.nom));
+  const manquants = Object.keys(fiches).filter(n => !noms.has(n));
+  assert.deepEqual(manquants, [], "exercices des fiches sans catégorie");
+  for (const s of X.ROIS) assert.ok(X.exercice(s), `exercice roi absent : ${s}`);
+  for (const n of ["Squat barre", "Développé militaire barre (OHP)", "Développé militaire haltères", "Soulevé de terre roumain barre", "Soulevé de terre roumain haltères", "Soulevé de terre sumo", "Leg press"])
+    assert.ok(noms.has(n), n);
+});
+
+test("fusion : le serveur fait foi, les exercices qu'il ne connaît pas encore viennent de la version embarquée", () => {
+  const serveur = [{ slug: "a", nom: "A", actif: false }], embarque = [{ slug: "a", nom: "A", actif: true }, { slug: "b", nom: "B", actif: true }];
+  const f = X.fusion(serveur, embarque);
+  assert.deepEqual(f.map(e => [e.slug, e.actif]), [["a", false], ["b", true]]);
 });

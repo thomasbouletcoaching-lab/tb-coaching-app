@@ -235,14 +235,117 @@ def rows():
         for (nom, ps, mat, niv, cn, ci, note) in l: add(nom, None, ps, "isolation", cat, mat, niv, cn, ci, note)
     for cat, l in MODULES.items():
         for (nom, ps, mat, niv, cn, ci, note) in l: add(nom, None, ps, "module", cat, mat, niv, cn, ci, note)
+    auto(out, {r["nom"] for r in out})
     slugs = [r["slug"] for r in out]
     for s in {s for s in slugs if slugs.count(s) > 1}: errs.append(f"doublon : {s}")
     if errs: sys.exit("\n".join(errs))
     # Variantes liées : même pattern (ou même catégorie hors squelette) et même famille de fiche
     key = lambda r: (r["pattern_principal"] or r["categorie"], r["_fam"])
     for r in out: r["variantes"] = [o["slug"] for o in out if o is not r and key(o) == key(r)]
-    for r in out: del r["_fam"]
+    for r in out: del r["_fam"]; pass
     return out
+
+# ---------------------------------------------------------------------------------------------------------------
+# Classement automatique de TOUS les exercices des fiches qui ne sont pas dans les listes ci-dessus.
+# Les catégories sont fixes, les exercices non : chaque exercice des fiches doit pouvoir sortir dans un programme.
+# Règles : famille de fiche -> pattern (ou catégorie d'isolation / de module), matériel d'après l'équipement de la fiche,
+# niveau et coût nerveux d'après le mot-clé du nom. Les 120 premiers (classés à la main) ne sont jamais modifiés.
+# ---------------------------------------------------------------------------------------------------------------
+BARRE_TRACTION = re.compile(r"traction|muscle-up|suspension|toes to bar|front lever|back lever|skin the cat|drapeau|dragon flag|suspendu|L-sit \(parallèles\)|Pull-up|Scapular pull", re.I)
+SPECIAL = re.compile(r"pendulum|belt squat|V-squat|reverse hyper|hack squat inversé|donkey|glute-ham|Jefferson|Presse horizontale|Safety bar|trap bar|traîneau|prowler", re.I)
+AVANCE = re.compile(r"lesté|Larsen|Spoto|déficit|anneaux|archer|claquées|pistol|shrimp|muscle-up|snatch|à un bras|pseudo|planche|board press|pin press|élastiques\)|avec élastiques|Anderson|handstand|équilibre libre|front lever|back lever|drapeau|dragon|Swiss|prise arrachée|Épaulé|typewriter|L-sit|Skin|Reverse Nordic|Sissy|Bradford|Jefferson|Kroc|Meadows|Pendlay|JM press|Tate|Cuban|haltères neutre", re.I)
+DEBUT = re.compile(r"machine|poulie|élastique|genoux|assisté|goblet|poids de corps|haltères|Chest|Leg (press|extension|curl)|Crunch|Gainage|Planche|Cat-camel|Bird dog|pont|Pompes$|Squat haltères|Fentes", re.I)
+TECH = re.compile(r"pause|tempo|Spoto|Larsen|déficit|sécurités|planches|blocs|avec élastiques|prise arrachée|Anderson|pin press|board press|Swiss|claquées|archer|pseudo|à un bras|négatifs|explosi|lockout|départ bras tendus|jambes tendues|1 bras|Zercher|Safety|Landmine|landmine", re.I)
+
+def _mat(nom, eq):
+    if re.search(r"élastique", nom, re.I) or eq == "Élastique": return "E"
+    if BARRE_TRACTION.search(nom): return "T"
+    if eq in ("Poids de corps", "Autre") and re.search(r"^Dips|Straight bar dips|Dips buste|Dips (lestés|pause|négatifs)", nom): return "B"
+    if eq == "Anneaux": return "T"
+    if eq == "Trap bar": return "C"
+    if eq in ("Machine", "Smith", "Poulie", "Barre", "Landmine"): return "C" if SPECIAL.search(nom) else "B"
+    if eq in ("Haltères", "Kettlebell", "Lest"): return "H"
+    if eq == "Autre": return "H" if re.search(r"ballon|médecine|step|disque", nom, re.I) else "B"
+    return "P"
+
+def _niv(nom, eq):
+    if AVANCE.search(nom): return "A"
+    if eq in ("Barre", "Trap bar") or re.search(r"pause|tempo|Smith|Zercher|sumo|Rack pull|Safety|Z-press|Push press|Thruster|kettlebell|unilatéral|Bulgarian|Fentes bulgares|Step-up|Fentes croisées|Dips|Kettlebell", nom, re.I): return "I"
+    if DEBUT.search(nom) or eq in ("Machine", "Poulie", "Élastique", "Haltères"): return "D"
+    return "I"
+
+def _cn(nom, eq, niv, couche):
+    if couche != "squelette": return 1
+    if eq in ("Barre", "Trap bar") and re.search(r"squat|soulev|militaire|couché|Rowing|Rack|Push press|Good morning|Épaulé|Développé", nom, re.I): return 3
+    if eq in ("Barre", "Trap bar", "Smith", "Landmine", "Haltères", "Kettlebell", "Lest") : return 2
+    return 2 if niv == "A" else 1
+
+# famille -> (pattern, couche, catégorie) ; None = règle spéciale dans _classe
+FAM = {
+    "squat": ("SG", "squelette", None), "presse": ("SG", "squelette", None), "squat_bw": ("SG", "squelette", None),
+    "bench": ("PH", "squelette", None), "incline": ("PH", "squelette", None), "dips": ("PH", "squelette", None),
+    "ohp": ("PV", "squelette", None), "row": ("TH", "squelette", None), "vpull": ("TV", "squelette", None), "pullover": ("TV", "squelette", None),
+    "hinge": ("CH", "squelette", None), "bridge": None, "swing": None, "back_ext": ("CH", "squelette", None), "knee_flex": ("FG", "squelette", None),
+    "unilateral": None, "knee_ext": (None, "isolation", "quadriceps"), "hip_abd": None,
+    "fly": (None, "isolation", "pectoraux"), "triceps": (None, "isolation", "triceps"), "curl": (None, "isolation", "biceps"),
+    "forearm": (None, "isolation", "avant_bras"), "lateral": (None, "isolation", "elevations_laterales"), "rear": (None, "isolation", "deltoides_posterieurs"),
+    "cuff": (None, "isolation", "coiffe"), "front_raise": (None, "isolation", "epaules_avant"), "shrug": (None, "isolation", "trapezes"),
+    "calf": (None, "isolation", "mollets"), "abs_flex": (None, "isolation", "abdos"), "anti": (None, "isolation", "abdos"),
+    "rotation": (None, "module", "rotation"), "carry": (None, "module", "portes"), "mob": (None, "module", "mobilite"), "cond": (None, "module", "cardio"),
+    "muscleup": (None, "module", "skills"), "skill": (None, "module", "skills"),
+}
+
+def _classe(nom, fam):
+    """(pattern, secondaire, couche, catégorie)"""
+    if fam == "presse": return ("SH" if re.search(r"inversé", nom) else "SG", None, "squelette", None)
+    if fam == "squat": return ("SH" if re.search(r"Anderson|sumo", nom) else "SG", "PV" if re.search(r"Thruster", nom) else None, "squelette", None)
+    if fam == "incline": return ("PH", "PV", "squelette", None)
+    if fam == "bridge":
+        if re.search(r"Kickback", nom): return (None, None, "isolation", "fessiers")
+        return ("CH", None, "squelette", None)
+    if fam == "swing":
+        if re.search(r"swing|pull-through", nom): return ("CH", None, "squelette", None)
+        return (None, None, "module", "puissance")
+    if fam == "unilateral":
+        if re.search(r"arrière|croisées|curtsy|marchées", nom): return ("SH", None, "squelette", None)
+        return ("SG", None, "squelette", None)
+    if fam == "hip_abd":
+        return (None, None, "isolation", "adducteurs" if re.search(r"Adduction|Copenhagen", nom) else "fessiers")
+    if fam == "anti" and re.search(r"rotation", nom, re.I): return (None, None, "module", "rotation")
+    if fam == "shrug" and re.search(r"cou", nom, re.I): return (None, None, "isolation", "trapezes")
+    p, c, k = FAM[fam]
+    return (p, None, c, k)
+
+def auto(out, deja):
+    ci_famille = {}
+    from collections import Counter, defaultdict
+    cnt = defaultdict(Counter)
+    for r in out: cnt[r["_fam"]][tuple(r["contre_indications"])] += 1
+    for fam, c in cnt.items(): ci_famille[fam] = list(c.most_common(1)[0][0])
+    CI_DEF = {"knee_ext": ["genou"], "hip_abd": [], "swing": ["bas_du_dos"], "fly": ["epaule"], "shrug": [], "cuff": [], "front_raise": ["epaule"],
+              "muscleup": ["epaule", "coude"], "skill": ["epaule", "poignet"], "pullover": ["epaule"], "unilateral": ["genou"], "mob": [], "cond": []}
+    for nom, f in FICHES.items():
+        if nom in deja: continue
+        fam = f["fam"]
+        if fam not in FAM: continue
+        pp, ps, couche, cat = _classe(nom, fam)
+        eq = f.get("eq") or ""
+        mat = _mat(nom, eq); niv = _niv(nom, eq)
+        ci = list(ci_famille.get(fam, CI_DEF.get(fam, [])))
+        if fam in ("squat", "presse", "squat_bw", "unilateral", "knee_ext") and "genou" not in ci: ci.append("genou")
+        if re.search(r"sauté|saut |box jump|Burpees|Sprints", nom, re.I) and "cheville" not in ci: ci.append("cheville")
+        if re.match(r"Pompes|Planche|Gainage|Body saw|Mountain|Burpees", nom) and "poignet" not in ci: ci.append("poignet")
+        if re.match(r"Pompes|Dips|Straight bar dips", nom) and "epaule" not in ci: ci.append("epaule")
+        if fam == "dips" and "coude" not in ci: ci.append("coude")
+        if fam == "hinge" and eq in ("Barre", "Trap bar") and "bas_du_dos" not in ci: ci.append("bas_du_dos")
+        if re.search(r"Jefferson|Good morning", nom) and "bas_du_dos" not in ci: ci.append("bas_du_dos")
+        if fam == "forearm" and "poignet" not in ci: ci.append("poignet")
+        out.append({
+            "slug": slug(nom), "nom": nom, "pattern_principal": pp, "pattern_secondaire": ps, "couche": couche, "categorie": cat,
+            "muscles": f.get("mus") or [], "materiel": LIEUX[mat], "niveau": NIV[niv], "cout_nerveux": _cn(nom, eq, niv, couche), "variantes": [],
+            "contre_indications": sorted(set(ci)), "video_url": None, "note": None, "actif": True, "_fam": fam,
+            "_auto": True,
+        })
 
 
 def q(v):
@@ -253,11 +356,17 @@ def q(v):
     return "'" + str(v).replace("'", "''") + "'"
 
 
+CATS_SQL = ['biceps', 'triceps', 'elevations_laterales', 'deltoides_posterieurs', 'mollets', 'abdos', 'avant_bras', 'pectoraux', 'quadriceps', 'fessiers', 'adducteurs', 'trapezes', 'epaules_avant', 'coiffe',
+            'unilateral', 'portes', 'rotation', 'cardio', 'mobilite', 'puissance', 'skills']
 COLS = ["slug", "nom", "pattern_principal", "pattern_secondaire", "couche", "categorie", "muscles", "materiel", "niveau", "cout_nerveux", "variantes", "contre_indications", "video_url", "note", "actif"]
 
 if __name__ == "__main__":
     R = rows()
-    (ROOT / "data/exercices.json").write_text(json.dumps({"v": 1, "ex": R}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    auto_slugs = {r["slug"] for r in R if r.pop("_auto", False)}
+    (ROOT / "data/exercices.json").write_text(json.dumps({"v": 2, "ex": R}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    def inserts(lst):
+        return ",\n".join("  (" + ", ".join(q(r[c]) for c in COLS) + ")" for r in lst)
+    base = [r for r in R if r["slug"] not in auto_slugs]
     sql = [
         "-- Bibliothèque de départ : exercices classés selon les 8 patterns.",
         "-- Fichier généré par tools/exercices/build.py : ne pas le modifier à la main.",
@@ -265,11 +374,31 @@ if __name__ == "__main__":
         "-- donc les réglages faits ensuite par le coach (vidéo, actif) ne sont jamais écrasés.",
         "",
         f"insert into public.cxs_exercices ({', '.join(COLS)}) values",
-        ",\n".join("  (" + ", ".join(q(r[c]) for c in COLS) + ")" for r in R),
+        inserts(base),
         "on conflict (slug) do nothing;",
         "",
     ]
     (ROOT / "supabase/migrations/2026-11-10_cxs_exercices_seed.sql").write_text("\n".join(sql), encoding="utf-8")
+    cats = ", ".join(f"'{c}'" for c in CATS_SQL)
+    sql2 = [
+        "-- Bibliothèque complète : tous les exercices des fiches sont rattachés à une catégorie (squelette, isolation ou module).",
+        "-- Fichier généré par tools/exercices/build.py : ne pas le modifier à la main.",
+        "-- 1) élargit la liste des catégories d'isolation et de modules autorisées (aucune ligne existante n'est touchée) ;",
+        "-- 2) ajoute les exercices manquants. Sans danger à relancer : un slug déjà présent n'est ni modifié ni dupliqué.",
+        "",
+        "alter table public.cxs_exercices drop constraint if exists cxs_exercices_categorie_check;",
+        f"alter table public.cxs_exercices add constraint cxs_exercices_categorie_check check (categorie is null or categorie in ({cats}));",
+        "",
+        f"insert into public.cxs_exercices ({', '.join(COLS)}) values",
+        inserts([r for r in R if r["slug"] in auto_slugs]),
+        "on conflict (slug) do nothing;",
+        "",
+    ]
+    (ROOT / "supabase/migrations/2026-11-11_cxs_exercices_complet.sql").write_text("\n".join(sql2), encoding="utf-8")
+    # Liste des exercices « de base » (classés à la main) : le générateur les propose avant les variantes plus rares
+    bs = sorted(r["slug"] for r in R if r["slug"] not in auto_slugs)
+    (ROOT / "js/exercices-base.js").write_text("// Fichier généré par tools/exercices/build.py : ne pas le modifier à la main.\n// Exercices de base (classés à la main) ; les autres sont des variantes, disponibles mais proposées après.\nexport const BASE = new Set(" + json.dumps(bs, ensure_ascii=False) + ");\n", encoding="utf-8")
     from collections import Counter
-    print(len(R), "exercices")
+    print(len(R), "exercices dont", len(auto_slugs), "classés automatiquement")
     print(dict(Counter(r["pattern_principal"] or r["couche"] for r in R)))
+    print(dict(Counter(r["categorie"] for r in R if r["categorie"])))

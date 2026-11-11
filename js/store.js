@@ -40,6 +40,7 @@ const blank = () => ({
   prices: {},             // prix personnels { ingrédient: €/kg }
   crises: [],             // « Je craque » : notes { d, note }
   programme: null,        // questionnaire « Mon programme sur mesure » { v, at, answers, prefs }
+  atelier: null,          // atelier « Créer mon programme » : { d: brouillon, at }
   monplan: null,          // proposition du générateur { at, progAt, seed, prop, adopte, ajust }
   montee: null,           // montée progressive { cible, palier, depuis }
   decharge: null,         // semaine de décharge choisie { debut, fin }

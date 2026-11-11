@@ -120,8 +120,10 @@ const hh = (s) => s.slice(0, 5);
   const mv0 = JSON.stringify((await S(a.p)).moves || {});
   await tap(a.p, '#sheet [data-a="jnp-go"] >> nth=0'); await a.p.waitForTimeout(500);
   const s5 = await S(a.p);
-  ok(s5.moves[prochaine] === cibleProp.d && s5.slots[cibleProp.d].time === cibleProp.h, 'séance décalée au créneau proposé : ' + cibleProp.d + ' ' + cibleProp.h);
-  const ag2 = await a.p.evaluate(async ([k]) => { const E = await import('./js/engine.js'); return E.agenda(k, k)[k]?.st; }, [prochaine]);
+  // la séance peut déjà avoir été déplacée plus tôt dans le test : on retrouve son jour d'origine par sa destination
+  const origine = Object.entries(s5.moves).find(([, v]) => v === cibleProp.d)?.[0];
+  ok(!!origine && s5.slots[cibleProp.d].time === cibleProp.h, 'séance décalée au créneau proposé : ' + cibleProp.d + ' ' + cibleProp.h);
+  const ag2 = await a.p.evaluate(async ([k]) => { const E = await import('./js/engine.js'); return E.agenda(k, k)[k]?.st; }, [origine || prochaine]);
   ok(ag2 === 'away' && JSON.stringify(s5.workouts) === JSON.stringify(s4.workouts), 'l\'ancien jour affiche « déplacée », pas « loupée » : ' + ag2);
   ok(a.errs.length === 0, 'aucune erreur JavaScript');
 

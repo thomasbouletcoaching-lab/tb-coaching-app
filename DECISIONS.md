@@ -92,3 +92,25 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 | C46 | Le total des séances est au plus haut vu et ne recule jamais. | Spec §9.5 point 5 : les séries et l'historique ne repartent pas de zéro. |
 | C47 | Le coach ne reçoit que les identifiants de profils, jamais les zones ni les notes de santé. | Données de santé : même règle que le reste de l'app. |
 | C48 | Les profils « zappeur », « sur-motivé », « voyageur », « sédentaire de bureau » ne sont pas encore détectés. | Ils demandent un historique (changements de programme, charges) ou des questions que la spec n'a pas encore tranchées ; mieux vaut les ajouter que les inventer. |
+
+## C49 — Bibliothèque complète : tous les exercices des fiches sont classés (11/11/2026)
+- Constat (Thomas) : le squat barre, le militaire haltères, le soulevé de terre sumo… n'étaient pas dans la bibliothèque (120 sur 482 exercices des fiches), donc ne pouvaient jamais sortir dans un programme.
+- Décision : les 485 exercices des fiches sont rattachés à un pattern (squelette) ou une catégorie (isolation, modules), par famille de fiche (`tools/exercices/build.py`, fonction `auto`). Les 120 classés à la main ne changent pas.
+- Nouvelles catégories d'isolation : pectoraux, quadriceps, fessiers, adducteurs, trapèzes et cou, épaules (avant), coiffe ; modules : puissance, skills.
+- « Exercices rois » (`ROIS` dans `js/exercices.js`) : toujours proposables, même sous leur niveau ; ils passent devant dès le niveau régulier. Les variantes techniques (pause, tempo, prises spéciales) sont disponibles mais passent après (`TECHNIQUE`, `BASE` dans `js/generateur.js`).
+- Le téléphone fusionne la liste du serveur et la liste embarquée (`fusion`) : les nouveaux exercices sont visibles tout de suite, avant même la migration `2026-11-11_cxs_exercices_complet.sql` (qui élargit la contrainte des catégories puis insère les 365 lignes manquantes, sans rien modifier d'existant).
+- Niveaux, matériel, coût nerveux et contre-indications des exercices ajoutés sont déduits de règles (famille, équipement, mots du nom) : à relire par Thomas dans l'onglet « 8 patterns » du coach.
+
+## C50 — Atelier « Créer mon programme » : on part du squelette (11/11/2026)
+- Constat (Thomas) : l'éditeur existant (volume hebdo / semaine par semaine) est un fourre-tout difficile à lire. Il veut créer son programme avec la vision du programme sur mesure : répartition des 8 catégories, volume direct, exercices rangés par famille et par muscle, volume par muscle, graphique d'équilibre, surcharge progressive, focus sur un mouvement, supersets.
+- Décision : nouvel écran `atelier` (js/views/atelier.js, logique pure js/atelier.js) branché sur le bouton « Créer mon programme ». Le brouillon a la forme de la proposition du générateur, donc l'indice de difficulté, la conversion en programme du moteur et la surcharge fonctionnent sans changement. L'ancien éditeur reste accessible (« Éditeur détaillé ») pour écrire série par série.
+- Focus : +2 séries, reps plus basses, une série ajoutée toutes les 2 semaines (règle `addSet` du moteur). Superset : champ existant des lignes (r[3]). Charge : automatique d'après le RPE, comme avant.
+- Un seul programme « atelier » est enregistré (donc compatible avec la limite d'un programme perso en gratuit) ; il est remplacé à chaque enregistrement.
+
+## C51 — Roadmap vers un record, avec verdict réaliste / ambitieux / pas réaliste (11/11/2026)
+- Idée (Thomas) : choisir un mouvement, un objectif (charge × reps) et une date ; l'app dit si c'est réaliste, ambitieux ou impossible, puis détaille toute la progression, semaine par semaine et séance par séance (séries, reps, charge, pourcentage).
+- Base : les « Objectifs de performance » existants (Entraînement > Saison et objectifs). Un bouton « Voir la roadmap » s'ajoute à chaque objectif ; même charge visée, même date.
+- Verdict (`js/roadmap.js`, `verdict`) : gain mensuel nécessaire (composé) comparé à un rythme plafond par niveau, en % du 1RM par mois à 2 séances par semaine : débutant 4 %, régulier 1,8 %, avancé 0,7 % ; coefficient de fréquence 0,75 / 1 / 1,1. Réaliste jusqu'à 80 % du plafond, ambitieux jusqu'à 125 %, au-delà pas réaliste ; moins de 3 semaines : pas réaliste sauf +2 % ou moins. Ce sont des POINTS DE DÉPART à ajuster d'après le terrain (valeurs réunies en tête de fichier).
+- Si pas réaliste : deux issues proposées en un geste (garder la charge et repousser la date, ou garder la date et viser la charge atteignable).
+- Plan : 4 à 26 semaines ; phases accumulation, intensification, réalisation, décharge toutes les 4 semaines, affûtage, jour J. Charges = 1RM estimé prévu × effort visé (Epley + RIR, comme le reste de l'app), arrondies à 2,5 kg ; le jour J : échauffement progressif puis la tentative exacte.
+- Programme du moteur : charges en kg écrites semaine par semaine (`weeks`), 3 accessoires par séance selon la catégorie de mouvement. Pas de phase « Test » du moteur (elle réduirait les charges du jour J).
