@@ -14,6 +14,7 @@ create table if not exists public.cxs_exercices (
   pattern_secondaire text check (pattern_secondaire in ('PH','PV','TH','TV','SG','SH','CH','FG')),
   couche             text not null check (couche in ('squelette','isolation','module')),
   categorie          text check (categorie in ('biceps','triceps','elevations_laterales','deltoides_posterieurs','mollets','abdos','avant_bras',
+                                               'pectoraux','quadriceps','fessiers','adducteurs','trapezes','epaules_avant','coiffe','puissance','skills',
                                                'unilateral','portes','rotation','cardio','mobilite')),
   muscles            text[] not null default '{}',
   materiel           text[] not null default '{}'

@@ -6,7 +6,8 @@
 // Couche 1 (squelette) : les 8 patterns, répartis selon le nombre de séances, avec les règles de récupération.
 // Couche 2 (isolation) : selon l'objectif, les priorités et le temps restant. Couche 3 : modules utiles (mobilité, unilatéral, rotation).
 // Les seuils sont des points de départ (spec Notion, §3.1 et §4) : ils sont réunis en haut de ce fichier pour être ajustés.
-import { PATTERNS, PATTERN, exercices, CATEGORIES } from "./exercices.js";
+import { BASE } from "./exercices-base.js";
+import { PATTERNS, PATTERN, exercices, CATEGORIES, estRoi } from "./exercices.js";
 import { contraintes, joursRetenus, ecartSeances } from "./programme.js";
 import { controlesObjectif } from "./soutenabilite.js";
 import { indiceSeance, chargeSemaine, enchainementsLourds, allegee, EXEC_S, ECHAUFFEMENT_MIN, minutes as minutesIndice } from "./indice.js";
@@ -80,6 +81,7 @@ export function seriesParPattern(a = {}, n) {
 }
 
 // ---------- Choix des exercices ----------
+const TECHNIQUE = /pause|tempo|Spoto|Larsen|déficit|sécurités|planches|blocs|avec élastiques|prise arrachée|Anderson|pin press|board press|Swiss|claquées|archer|pseudo|à un bras|négatifs|explosi|lockout|bras tendus|jambes tendues|Zercher|Safety|unilatéral/i;
 const re = { talons: /talons|hack|presse|leg press|goblet|split|fentes|pendulum|belt/i };
 export function pool(code, prog, rows = exercices(), { niveau = "avance", filtreNiveau = true } = {}) {
   const c = contraintes(prog), a = prog?.answers || {}, prefs = prog?.prefs || {};
@@ -93,6 +95,9 @@ export function pool(code, prog, rows = exercices(), { niveau = "avance", filtre
     if (code === "PV" && a.shoulder === "limited") s += (e.contre_indications.includes("epaule") ? 15 : 0) - (/machine|landmine|élastique/i.test(e.nom) ? 10 : 0);
     if (/pull-over/i.test(e.nom)) s += 8; if (/^Dips/i.test(e.nom)) s += 4; if (/Squat (sumo )?poids de corps/i.test(e.nom)) s += 6;
     s += Math.abs(rang(e) - plafond) * 3;
+    if (!BASE.has(e.slug) && !estRoi(e)) s += 14; // les autres exercices de la famille restent disponibles (remplacer, favoris) mais passent après
+    if (TECHNIQUE.test(e.nom)) s += 12; // variantes techniques (pause, tempo, prises spéciales…) : disponibles, mais après les mouvements de base
+    if (estRoi(e) && plafond >= 1) s -= 4; // les exercices rois passent devant, dès le niveau régulier
     s += (pf.fatigue || pf.sousCapacite || pf.travailPhysique || plafond === 0) ? e.cout_nerveux * 3 : (niveau === "avance" ? -e.cout_nerveux : 0);
     return s;
   };
@@ -100,7 +105,7 @@ export function pool(code, prog, rows = exercices(), { niveau = "avance", filtre
     .filter(e => !c.materiel.length || e.materiel.some(m => c.materiel.includes(m)))
     .filter(e => !e.contre_indications.some(z => c.contreIndications.includes(z)))
     .filter(e => !c.exclure.includes(e.slug))
-    .filter(e => !filtreNiveau || rang(e) <= plafond || prefs[e.slug] === "love")
+    .filter(e => !filtreNiveau || rang(e) <= plafond || prefs[e.slug] === "love" || estRoi(e))
     .map(e => [score(e), e]).sort((x, y) => x[0] - y[0] || x[1].nom.localeCompare(y[1].nom, "fr")).map(v => v[1]);
 }
 const choisir = (liste, k, seed = 0) => { if (!liste.length) return []; const d = seed % Math.min(liste.length, 4); return [...liste.slice(d), ...liste.slice(0, d)].slice(0, k); };
@@ -211,7 +216,7 @@ export function generer(prog, opts = {}) {
 
   // 5. Isolation (couche 2) puis modules (couche 3), seulement s'il reste du temps
   const iso = isolationVisee(a), cat = {};
-  const poolIso = (c) => { const k = contraintes(prog); return rows.filter(e => e.actif && e.couche === "isolation" && e.categorie === c && (!k.materiel.length || e.materiel.some(m => k.materiel.includes(m))) && !e.contre_indications.some(z => k.contreIndications.includes(z)) && !k.exclure.includes(e.slug)).sort((x, y) => ((prog?.prefs?.[y.slug] === "love") - (prog?.prefs?.[x.slug] === "love")) || x.contre_indications.length - y.contre_indications.length || (x.niveau === "debutant" ? 0 : 1) - (y.niveau === "debutant" ? 0 : 1) || x.nom.localeCompare(y.nom, "fr")); };
+  const poolIso = (c) => { const k = contraintes(prog); return rows.filter(e => e.actif && e.couche === "isolation" && e.categorie === c && (!k.materiel.length || e.materiel.some(m => k.materiel.includes(m))) && !e.contre_indications.some(z => k.contreIndications.includes(z)) && !k.exclure.includes(e.slug)).sort((x, y) => ((prog?.prefs?.[y.slug] === "love") - (prog?.prefs?.[x.slug] === "love")) || (BASE.has(y.slug) - BASE.has(x.slug)) || x.contre_indications.length - y.contre_indications.length || (x.niveau === "debutant" ? 0 : 1) - (y.niveau === "debutant" ? 0 : 1) || x.nom.localeCompare(y.nom, "fr")); };
   const HAUT_CAT = ["biceps", "triceps", "elevations_laterales", "deltoides_posterieurs", "avant_bras"];
   for (const [c, want] of iso) {
     const ex = choisir(poolIso(c), 1, seed)[0]; if (!ex) continue;

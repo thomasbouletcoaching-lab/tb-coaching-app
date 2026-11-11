@@ -19,6 +19,8 @@ export const COUCHES = [["squelette", "Squelette"], ["isolation", "Isolation"], 
 export const CATEGORIES = {
   biceps: "Biceps", triceps: "Triceps", elevations_laterales: "Élévations latérales", deltoides_posterieurs: "Deltoïdes postérieurs",
   mollets: "Mollets", abdos: "Abdos", avant_bras: "Avant-bras",
+  pectoraux: "Pectoraux", quadriceps: "Quadriceps", fessiers: "Fessiers", adducteurs: "Adducteurs", trapezes: "Trapèzes et cou",
+  epaules_avant: "Épaules (avant)", coiffe: "Coiffe des rotateurs", puissance: "Puissance", skills: "Skills (calisthénie)",
   unilateral: "Unilatéral", portes: "Portés", rotation: "Rotation / anti-rotation", cardio: "Cardio", mobilite: "Mobilité",
 };
 export const MATERIEL = [["salle_complete", "Salle complète"], ["salle_basique", "Salle basique"], ["halteres_maison", "Haltères maison"], ["poids_du_corps", "Poids du corps"], ["barre_traction", "Barre de traction"], ["elastique", "Élastique"]];
@@ -33,6 +35,11 @@ export function setExercices(rows, source = "embarquée") {
   BY_NOM = Object.fromEntries(ROWS.map(r => [r.nom, r]));
   SOURCE = source;
 }
+// Les « exercices rois » : toujours proposables, même à un niveau plus bas que le leur (on les remplace ou on les garde, c'est le choix du membre)
+export const ROIS = new Set(["squat-barre", "squat-barre-haute-high-bar", "squat-barre-basse-low-bar", "front-squat", "developpe-couche-barre", "developpe-couche-halteres", "developpe-incline-barre", "developpe-incline-halteres",
+  "dips-poids-de-corps", "developpe-militaire-barre-ohp", "developpe-militaire-assis-barre", "developpe-militaire-halteres", "developpe-militaire-assis-halteres", "tractions-pronation-poids-de-corps", "tractions-supination-chin-up",
+  "rowing-penche-debout-a-la-barre", "rowing-halteres-buste-penche", "souleve-de-terre", "souleve-de-terre-roumain-barre", "souleve-de-terre-roumain-halteres", "hip-thrust-barre", "leg-press", "tirage-vertical-poulie", "souleve-de-terre-trap-bar"]);
+export const estRoi = (e) => !!e && ROIS.has(e.slug);
 export const exercices = () => ROWS;
 export const source = () => SOURCE;
 // Accepte un exercice, son slug ou son nom
@@ -87,13 +94,17 @@ export function compterParPattern(rows = ROWS) {
 // ---------- Chargement (navigateur) ----------
 const KEY = "cxs.exos";
 let loading = null;
+// Le serveur fait foi pour les exercices qu'il connaît (vidéo, actif…) ; ceux qui ne s'y trouvent pas encore viennent de la version embarquée
+export const fusion = (serveur, embarque) => { const vus = new Set((serveur || []).map(r => r.slug)); return [...(serveur || []), ...(embarque || []).filter(r => !vus.has(r.slug))]; };
 // Version embarquée d'abord (marche hors ligne), remplacée par la dernière copie du serveur gardée sur le téléphone
 export function loadExercices() {
   if (!loading) loading = (async () => {
     let cache = null;
     try { cache = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { cache = null; }
-    if (cache?.length) return setExercices(cache, "serveur");
-    try { setExercices((await (await fetch("data/exercices.json")).json()).ex, "embarquée"); } catch { setExercices([], "aucune"); }
+    let base = [];
+    try { base = (await (await fetch("data/exercices.json")).json()).ex || []; } catch { base = []; }
+    if (cache?.length) return setExercices(fusion(cache, base), "serveur");
+    setExercices(base, base.length ? "embarquée" : "aucune");
   })();
   return loading;
 }
@@ -104,7 +115,8 @@ export async function refreshExercices(c) {
   try {
     const rows = await c.exercicesAll();
     if (!rows.length) return false;
-    setExercices(rows, "serveur");
+    let base = []; try { base = (await (await fetch("data/exercices.json")).json()).ex || []; } catch { base = []; }
+    setExercices(fusion(rows, base), "serveur");
     try { localStorage.setItem(KEY, JSON.stringify(rows)); } catch { /* stockage plein : sans gravité */ }
     return true;
   } catch { return false; }

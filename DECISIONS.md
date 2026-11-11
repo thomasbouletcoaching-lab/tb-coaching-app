@@ -92,3 +92,11 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 | C46 | Le total des séances est au plus haut vu et ne recule jamais. | Spec §9.5 point 5 : les séries et l'historique ne repartent pas de zéro. |
 | C47 | Le coach ne reçoit que les identifiants de profils, jamais les zones ni les notes de santé. | Données de santé : même règle que le reste de l'app. |
 | C48 | Les profils « zappeur », « sur-motivé », « voyageur », « sédentaire de bureau » ne sont pas encore détectés. | Ils demandent un historique (changements de programme, charges) ou des questions que la spec n'a pas encore tranchées ; mieux vaut les ajouter que les inventer. |
+
+## C49 — Bibliothèque complète : tous les exercices des fiches sont classés (11/11/2026)
+- Constat (Thomas) : le squat barre, le militaire haltères, le soulevé de terre sumo… n'étaient pas dans la bibliothèque (120 sur 482 exercices des fiches), donc ne pouvaient jamais sortir dans un programme.
+- Décision : les 485 exercices des fiches sont rattachés à un pattern (squelette) ou une catégorie (isolation, modules), par famille de fiche (`tools/exercices/build.py`, fonction `auto`). Les 120 classés à la main ne changent pas.
+- Nouvelles catégories d'isolation : pectoraux, quadriceps, fessiers, adducteurs, trapèzes et cou, épaules (avant), coiffe ; modules : puissance, skills.
+- « Exercices rois » (`ROIS` dans `js/exercices.js`) : toujours proposables, même sous leur niveau ; ils passent devant dès le niveau régulier. Les variantes techniques (pause, tempo, prises spéciales) sont disponibles mais passent après (`TECHNIQUE`, `BASE` dans `js/generateur.js`).
+- Le téléphone fusionne la liste du serveur et la liste embarquée (`fusion`) : les nouveaux exercices sont visibles tout de suite, avant même la migration `2026-11-11_cxs_exercices_complet.sql` (qui élargit la contrainte des catégories puis insère les 365 lignes manquantes, sans rien modifier d'existant).
+- Niveaux, matériel, coût nerveux et contre-indications des exercices ajoutés sont déduits de règles (famille, équipement, mots du nom) : à relire par Thomas dans l'onglet « 8 patterns » du coach.
