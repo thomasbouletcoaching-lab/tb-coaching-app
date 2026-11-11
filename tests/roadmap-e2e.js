@@ -57,8 +57,12 @@ const goal = (kg, jours) => ({ id: 77, name: 'Développé couché barre', kg, re
   await tap(a.p, '[data-a="rm-freq"][data-v="2"]');
   // adopter
   await tap(a.p, '[data-a="rm-adopter"]'); await a.p.waitForTimeout(800);
-  const st = await S(a.p), pg = (st.customPrograms || []).find(p => p.id === 'road-77');
-  ok(!!pg && st.plan.programId === 'road-77' && pg.s.length === 2, 'programme créé et adopté');
+  let st = await S(a.p); const pg0 = (st.customPrograms || []).find(p => p.id === 'road-77');
+  ok(!!pg0 && st.plan.programId === 'tb-rep3', 'programme enregistré dans Mes programmes sans remplacer le programme en cours');
+  await a.p.evaluate(() => { location.hash = '#/roadmap/77'; }); await a.p.waitForTimeout(800);
+  await tap(a.p, '[data-a="rm-demarrer"]'); await a.p.waitForTimeout(800);
+  st = await S(a.p); const pg = (st.customPrograms || []).find(p => p.id === 'road-77');
+  ok(!!pg && st.plan.programId === 'road-77' && pg.s.length === 2, 'programme démarré à la demande');
   const main = pg.s[0][2][0];
   ok(Object.keys(main[5].weeks).length === pg.weeks && main[5].weeks[1].every(x => x.kg > 0), 'charges en kg pour chaque semaine');
   const dernier = pg.s[1][2][0][5].weeks[pg.weeks].at(-1);

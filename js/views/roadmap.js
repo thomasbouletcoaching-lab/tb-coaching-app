@@ -26,7 +26,7 @@ routes.roadmap = async () => {
   const g = goalOf();
   if (!g) { $app.innerHTML = header("Roadmap", "", { back: "train", offers: false }) + `<main class="page"><div class="card"><h2 class="h2">Pas d'objectif choisi</h2><p class="small muted mt8">Fixe d'abord un objectif de performance : une charge, un nombre de répétitions, une date.</p><button class="btn btn-red mt12" data-a="go" data-r="train" data-p="saison">Mes objectifs</button></div></main>`; return; }
   const { r, tgt, jours, v, road } = calc(g), [ico, col] = COUL[v.id] || COUL.inconnu, semEnCours = road ? R.semaineEnCours(road, today()) : 0;
-  $app.innerHTML = header("Roadmap", esc(g.name), { back: "train", offers: false }) + `<main class="page" style="padding-bottom:130px">
+  $app.innerHTML = header("Roadmap", esc(g.name), { back: "train", offers: false }) + `<main class="page" style="padding-bottom:160px">
     <div class="card"><div class="lbl">🎯 Ton objectif</div><div class="row between mt4" style="gap:8px"><span class="num" style="font-size:26px">${kg(g.kg)} kg × ${g.reps}</span><span class="small muted" style="text-align:right">avant le ${fmtJour(g.date)}<br>dans ${Math.max(0, Math.round(jours / 7))} semaine${Math.round(jours / 7) > 1 ? "s" : ""}</span></div>
       <p class="xs muted mt4" style="margin:4px 0 0">Soit un 1RM estimé de ${kg(Math.round(tgt * 10) / 10)} kg. Aujourd'hui : ${r.cur ? kg(r.cur) + " kg" : "inconnu"}.</p></div>
     <div class="card mt12" style="border-color:${col}"><div class="row" style="gap:10px;align-items:center"><span style="font-size:28px">${ico}</span><div><b class="h3" style="color:${col}">${esc(v.titre)}</b></div></div><p class="small mt8" style="margin:8px 0 0">${esc(v.texte)}</p>
@@ -43,7 +43,7 @@ routes.roadmap = async () => {
     <h2 class="sec">Étape par étape <small>${road.nbSemaines} semaines</small></h2>
     ${road.semaines.map(s => semaine(s, road, semEnCours)).join("")}
     <p class="xs muted mt12">Les charges viennent de ton 1RM estimé et de l'effort visé (RPE). Si une séance est plus facile ou plus dure que prévu, ajuste la charge dans la séance : le prochain recalcul en tient compte.</p>` : `<div class="card mt12"><p class="small muted" style="margin:0">${jours < 7 ? "La date est trop proche pour bâtir une roadmap : choisis une échéance à plus d'une semaine." : "Indique ton 1RM de départ pour voir la roadmap."}</p></div>`}
-  </main>${road ? `<div class="dock"><button class="btn btn-red" data-a="rm-adopter">Créer le programme de cette roadmap</button></div>` : ""}`;
+  </main>${road ? `<div class="dock"><button class="btn btn-red" data-a="rm-adopter">Créer le programme de cette roadmap</button><button class="link xs mt8" data-a="rm-demarrer" style="width:100%;text-align:center">Ou le démarrer tout de suite</button></div>` : ""}`;
 };
 
 function courbe(road) {
@@ -77,16 +77,27 @@ actions["rm-date"] = (b, d) => { const g = goalOf(); if (!g) return; update(st =
 actions["rm-kg"] = (b, d) => { const g = goalOf(); if (!g) return; update(st => { st.goals.find(y => y.id === g.id).kg = +d.k; }); buzz(); toast("Objectif ajusté"); rerender(); };
 
 // ---------- Créer le programme ----------
+// « Créer » enregistre la roadmap dans Mes programmes sans toucher au programme en cours ; « Démarrer » la lance, quand on veut.
+const enregistrer = (g, road) => {
+  const id = "road-" + g.id, prog = R.vers(road, { id });
+  update(st => { st.customPrograms = [...(st.customPrograms || []).filter(x => x.id !== id), prog]; });
+  return id;
+};
 actions["rm-adopter"] = () => {
+  const g = goalOf(); if (!g) return;
+  const { road } = calc(g); if (!road) return;
+  const id = "road-" + g.id;
+  if (S().plan?.programId === id && !confirm("Cette roadmap est ton programme en cours. La mettre à jour avec tes nouveaux réglages ?")) return;
+  enregistrer(g, road);
+  buzz(); toast("Roadmap enregistrée dans Mes programmes"); pushStats(); go("train", "programme");
+};
+actions["rm-demarrer"] = () => {
   const g = goalOf(); if (!g) return;
   const { road } = calc(g); if (!road) return;
   if (S().current) return toast("Termine ta séance en cours pour changer de programme.");
   const id = "road-" + g.id;
   if (S().plan?.programId && S().plan.programId !== id && !confirm("Ton programme actuel s'arrête et cette roadmap commence en semaine 1. Tes charges et ton historique sont gardés. Commencer ?")) return;
-  const prog = R.vers(road, { id });
-  update(st => {
-    st.customPrograms = [...(st.customPrograms || []).filter(x => x.id !== id), prog];
-    st.plan = { programId: id, startedAt: today(), week: 1, idx: 0, cycle: st.plan?.cycle || 1 };
-  });
+  enregistrer(g, road);
+  update(st => { st.plan = { programId: id, startedAt: today(), week: 1, idx: 0, cycle: st.plan?.cycle || 1 }; });
   buzz(); toast("C'est parti : ta roadmap est ton programme"); pushStats(); go("train", "programme");
 };
