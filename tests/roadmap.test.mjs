@@ -90,3 +90,14 @@ test("catégorie de mouvement : reconnue d'après le nom", () => {
   assert.equal(R.patternDe("Développé couché barre"), "PH"); assert.equal(R.patternDe("Squat barre"), "SG"); assert.equal(R.patternDe("Soulevé de terre"), "CH");
   assert.equal(R.patternDe("Tractions lestées (pronation)"), "TV"); assert.equal(R.patternDe("Développé militaire barre (OHP)"), "PV");
 });
+
+// Recalage d'une roadmap démarrée plus tard
+{
+  const R2 = await import('../js/roadmap.js');
+  const d0 = new Date(); const iso = (n) => { const x = new Date(d0); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+  const road = R2.construire({ nom: 'Développé couché barre', cur: 100, tgt: 110, kg: 110, reps: 1, debut: iso(0), fin: iso(140), freq: 2, niveau: 'regulier' });
+  const prog = R2.vers(road, { id: 'road-x' });
+  const plusTard = R2.recaler(prog, iso(14));
+  console.log(plusTard.weeks < prog.weeks && plusTard.id === 'road-x' ? '  ✓ roadmap recalée au démarrage' : '  ✗ recalage');
+  if (!(plusTard.weeks < prog.weeks && plusTard.id === 'road-x')) process.exitCode = 1;
+}

@@ -139,6 +139,12 @@ export function vers(r, { id, name, jours = null } = {}) {
     weeks: r.nbSemaines, deload: null, phases, days, s: sessions, prof: "",
     desc: `${r.nbSemaines} semaines pour passer de ${Math.round(r.cur)} kg à ${r.kg} kg × ${r.reps} (1RM estimé ${Math.round(r.tgt)} kg), jour J le ${r.fin}.`,
     why: "Chaque semaine a sa charge, ses séries et son effort : la progression est calculée à partir de ton 1RM actuel et de ta date visée. Si ta forme change, recalcule la roadmap.",
-    road: { v: VERSION, at: new Date().toISOString(), fin: r.fin },
+    road: { v: VERSION, at: new Date().toISOString(), fin: r.fin, params: { nom: r.nom, cur: r.cur, tgt: r.tgt, kg: r.kg, reps: r.reps, fin: r.fin, freq: r.freq, niveau: r.niveau } },
   };
+}
+
+// Programme de roadmap démarré plus tard : on recale les semaines sur aujourd'hui pour que le jour J reste la date visée.
+export function recaler(prog, debut) {
+  const p = prog?.road?.params; if (!p || joursEntre(debut, p.fin) < 7) return prog;
+  return vers(construire({ ...p, debut }), { id: prog.id, name: prog.name });
 }
