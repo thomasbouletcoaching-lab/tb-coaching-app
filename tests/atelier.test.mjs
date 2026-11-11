@@ -95,3 +95,18 @@ test("point de départ : la proposition du générateur est copiée sans être m
   assert.equal(d.sessions.length, prop.sessions.length); assert.equal(A.equilibre(d).complet, true);
   A.ajouter(d, 0, pat.PH); assert.equal(JSON.stringify(prop), avant);
 });
+
+test("ajout groupé, déplacement et jours par catégorie", async () => {
+  const A2 = await import("../js/atelier.js");
+  let d = A2.nouveau([0, 2, 4]);
+  d = A2.ajouterPlusieurs(d, 0, ["developpe-couche-barre", "developpe-incline-barre"], () => 4);
+  assert.equal(d.sessions[0].items.length, 2); assert.equal(d.sessions[0].items[1].n, 4);
+  d = A2.deplacerVers(d, 0, 1, 2);
+  assert.equal(d.sessions[0].items.length, 1); assert.equal(d.sessions[2].items[0].slug, "developpe-incline-barre");
+  assert.deepEqual(A2.joursPattern(d, "PH"), [0, 4]);
+  d = A2.basculerJourPattern(d, "PH", 4);
+  assert.deepEqual(A2.joursChoisis(d, "PH"), [0]);
+  assert.equal(d.sessions[2].items.length, 0); assert.equal(d.sessions[0].items.length, 2);
+  d = A2.basculerJourPattern(d, "PH", 2);
+  assert.deepEqual(A2.joursPattern(d, "PH"), [0, 2]);
+});

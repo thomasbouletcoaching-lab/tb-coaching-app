@@ -18,7 +18,7 @@ const JOURS = ["L", "M", "M", "J", "V", "S", "D"];
 const niveauProfil = () => ({ beginner: "debutant", comeback: "debutant", regular: "regulier", advanced: "avance" })[S().profile?.level] || "regulier";
 
 let D = null;                                   // le brouillon en cours (aussi gardé sur le téléphone : S().atelier)
-let K = { groupe: "PH", q: "", muscle: "", tout: false, si: 0, mode: "add", li: 0, retour: null }; // sélecteur d'exercices
+let K = { groupe: "PH", q: "", muscle: "", tout: false, si: 0, mode: "add", li: 0, retour: null, sel: [] }; // sélecteur d'exercices
 const charge = () => { D = S().atelier?.d ? JSON.parse(JSON.stringify(S().atelier.d)) : null; };
 const garde = () => update(st => { st.atelier = { d: D, at: new Date().toISOString() }; });
 const set = (d) => { D = d; garde(); };
@@ -105,11 +105,13 @@ function meilleureSeance(code) {
 actions["at-pat"] = (b, d) => {
   const c = d.c, rep = A.repartition(D, c), eq = A.equilibre(D);
   const corps = () => `<h2 class="h2">${PAT(c)} ${esc(X.PATTERN[c].nom)}</h2><p class="small muted">${eq.par[c].sets} série${eq.par[c].sets > 1 ? "s" : ""} par semaine · repère ${A.cibleSeries(D.niveau)}. Répartis-les sur tes séances.</p>
+    <h3 class="h3 mt12">Jours où tu travailles ce mouvement</h3><div class="chips wrap mt4">${D.sessions.map(s => `<button class="chip sm ${A.joursPattern(D, c).includes(s.dow) ? "on" : ""}" data-a="at-pj" data-c="${c}" data-v="${s.dow}" aria-pressed="${A.joursPattern(D, c).includes(s.dow)}">${esc(G.DOW[s.dow])}</button>`).join("")}</div>
+    <p class="xs muted mt4" style="margin:4px 0 0">Les exercices ajoutés iront sur ces jours ; tu choisis ensuite le jour de chacun.</p>
     <div class="list mt8">${D.sessions.map((s, si) => `<div class="li" style="gap:8px;padding:10px 0"><span class="grow small"><b>${esc(s.titre)}</b><br><span class="xs muted">${G.DOW[s.dow]}</span></span>
       <button class="icon-btn sm" data-a="at-rep" data-c="${c}" data-s="${si}" data-v="-1" aria-label="Une série de moins ${esc(G.DOW[s.dow])}">−</button><b class="num" style="min-width:24px;text-align:center">${A.repartition(D, c)[si]}</b><button class="icon-btn sm" data-a="at-rep" data-c="${c}" data-s="${si}" data-v="1" aria-label="Une série de plus ${esc(G.DOW[s.dow])}">+</button></div>`).join("")}</div>
-    ${A.lignesSquelette(D, c).length ? `<h3 class="h3 mt12">Exercices</h3><div class="list">${A.lignesSquelette(D, c).map(({ l, si, li }) => `<div class="li" style="gap:8px;padding:10px 0"><span class="grow small"><b>${esc(l.nom)}</b><br><span class="xs muted">${esc(D.sessions[si].titre)} · ${l.n} séries</span></span><button class="btn btn-line btn-sm" data-a="at-swap" data-s="${si}" data-i="${li}">Changer</button></div>`).join("")}</div>` : ""}
-    <button class="btn btn-line mt12" style="width:100%" data-a="at-choix" data-g="${c}" data-s="${meilleureSeance(c)}">+ Ajouter un exercice de cette catégorie</button>`;
-  sheet(corps(), (w) => { w.dataset.rr = "1"; }, { keep: !!document.getElementById("sheet") });
+    ${A.lignesSquelette(D, c).length ? `<h3 class="h3 mt12">Exercices <small class="muted">séries et jour de chacun</small></h3><div class="list">${A.lignesSquelette(D, c).map(({ l, si, li }) => ligneReglable(l, si, li, A.joursChoisis(D, c))).join("")}</div>` : ""}
+    <button class="btn btn-line mt12" style="width:100%" data-a="at-choix" data-g="${c}" data-r="${c}" data-s="${meilleureSeance(c)}">+ Ajouter des exercices de cette catégorie</button>`;
+  sheet(corps(), (w) => { w.dataset.rr = "1"; w.dataset.pat = c; }, { keep: !!document.getElementById("sheet") });
 };
 actions["at-rep"] = (b, d) => {
   const c = d.c, si = +d.s, cur = A.repartition(D, c)[si], n = Math.max(0, cur + +d.v);
@@ -118,12 +120,30 @@ actions["at-rep"] = (b, d) => {
   set(r.d); buzz(6); actions["at-pat"](null, { c });
 };
 
+// Ligne d'exercice réglable : séries (− n +), jour (parmi ceux de sa catégorie s'ils sont choisis), changer, retirer
+function ligneReglable(l, si, li, jours = null) {
+  const dows = jours?.length ? D.sessions.filter(s => jours.includes(s.dow) || s.dow === D.sessions[si].dow) : D.sessions;
+  return `<div style="padding:10px 0;border-top:1px solid var(--line)"><div class="row between" style="gap:8px"><b class="small grow">${esc(l.nom)}</b><button class="link xs" data-a="at-swap" data-s="${si}" data-i="${li}">Changer</button></div>
+    <div class="row between mt4" style="gap:8px;align-items:center"><div class="chips wrap" style="gap:4px">${dows.map(s => { const k = D.sessions.indexOf(s); return `<button class="chip sm ${k === si ? "on" : ""}" style="padding:4px 9px" data-a="at-lj" data-s="${si}" data-i="${li}" data-v="${k}" aria-label="Le ${esc(G.DOW[s.dow])}" aria-pressed="${k === si}">${JOURS[s.dow]}</button>`; }).join("")}</div>
+      <span class="row" style="gap:6px;align-items:center;flex:none"><button class="icon-btn sm" data-a="at-ln" data-s="${si}" data-i="${li}" data-v="-1" aria-label="Une série de moins">−</button><b class="num" style="min-width:52px;text-align:center">${l.n} série${l.n > 1 ? "s" : ""}</b><button class="icon-btn sm" data-a="at-ln" data-s="${si}" data-i="${li}" data-v="1" aria-label="Une série de plus">+</button></span></div></div>`;
+}
+const rafraichir = () => { const w = document.getElementById("sheet"); if (w?.dataset.pat) actions["at-pat"](null, { c: w.dataset.pat }); else rerender(); };
+actions["at-ln"] = (b, d) => {
+  const si = +d.s, li = +d.i, l = D.sessions[si]?.items[li]; if (!l) return;
+  if (l.n + +d.v < 1) { if (!confirm(`Retirer ${l.nom} ?`)) return; set(A.retirer(D, si, li)); } else set(A.regler(D, si, li, { n: l.n + +d.v }));
+  buzz(5); rafraichir();
+};
+actions["at-lj"] = (b, d) => { set(A.deplacerVers(D, +d.s, +d.i, +d.v)); buzz(6); rafraichir(); };
+actions["at-pj"] = (b, d) => { set(A.basculerJourPattern(D, d.c, +d.v)); buzz(6); rafraichir(); };
+
 // ---------- Grille de la semaine ----------
 function grille() {
   const at = (c, d) => D.sessions.filter(s => s.dow === d).reduce((t, s) => t + s.items.filter(l => l.pattern === c && l.couche === "squelette").reduce((u, l) => u + l.n, 0), 0);
   return `<div class="card" style="padding:10px 12px"><div class="mpgrid" role="table" aria-label="Catégories travaillées chaque jour"><span></span>${JOURS.map(j => `<b class="xs muted">${j}</b>`).join("")}
-    ${X.PATTERNS.map(({ code }) => `${PAT(code)}${JOURS.map((_, d) => { const n = at(code, d); return n ? `<i class="mpc ${code}" style="opacity:${(.35 + .65 * Math.min(1, n / 6)).toFixed(2)}" title="${code} : ${n} séries" aria-label="${code}, ${G.DOW[d]} : ${n} séries"></i>` : `<i class="mpc"></i>`; }).join("")}`).join("")}</div>
-    <p class="xs muted mt8" style="margin:8px 0 0">Plus la case est foncée, plus il y a de séries ce jour-là. Les jours vides sont des jours de repos.</p></div>`;
+    ${X.PATTERNS.map(({ code }) => { const pj = A.joursChoisis(D, code); return `${PAT(code)}${JOURS.map((_, d) => { const n = at(code, d), jour = D.sessions.some(s => s.dow === d), prevu = pj.includes(d);
+      const st = n ? `opacity:${(.35 + .65 * Math.min(1, n / 6)).toFixed(2)}` : prevu ? "background:transparent;outline:2px dashed var(--soft);outline-offset:-2px" : "";
+      return jour ? `<button class="mpc ${n ? code : ""}" style="border:0;padding:0;${st}" data-a="at-pj" data-c="${code}" data-v="${d}" aria-pressed="${prevu || !!n}" aria-label="${code}, ${G.DOW[d]} : ${n ? n + " séries" : prevu ? "prévu" : "non travaillé"}"></button>` : `<i class="mpc" style="opacity:.35"></i>`; }).join("")}`; }).join("")}</div>
+    <p class="xs muted mt8" style="margin:8px 0 0">Touche une case pour travailler ce mouvement ce jour-là (pointillés = prévu, sans exercice encore). Plus la case est foncée, plus il y a de séries.</p></div>`;
 }
 
 // ---------- Graphique d'équilibre (radar des 8 catégories) ----------
@@ -149,9 +169,9 @@ function seance(s, si) {
   return `<div class="card mt8"><div class="row between" style="gap:8px"><div><b class="h3">${esc(s.titre)}</b><div class="xs muted">${G.DOW[s.dow]}${s.items.length ? ` · environ ${min} min` : ""}</div>${s.items.length ? `<div class="mt4">${pastilleIndice(IX.indiceSeance(s.items))}</div>` : ""}</div><div class="row" style="gap:4px;flex-wrap:wrap;justify-content:flex-end">${pats.map(PAT).join("")}</div></div>
     <div class="mt8">${s.items.length ? s.items.map((l, li) => `<button class="li" style="padding:10px 0;gap:8px;width:100%;text-align:left" data-a="at-fiche" data-s="${si}" data-i="${li}" aria-label="Régler ${esc(l.nom)}">${l.pattern ? PAT(l.pattern) : `<span class="pat nul">${l.couche === "isolation" ? "ISO" : "MOD"}</span>`}<span class="grow small"><b>${esc(l.nom)}</b>${l.focus ? ` <span class="tag r">🎯 Focus</span>` : ""}${l.ss ? ` <span class="tag r">Superset ${esc(l.ss)}</span>` : ""}<br><span class="xs muted">${esc(serie(l))}</span></span><span class="muted">›</span></button>`).join("")
       : `<p class="small muted" style="margin:0">Aucun exercice pour l'instant.</p>`}</div>
-    <button class="btn btn-line btn-sm mt8" style="width:100%" data-a="at-choix" data-s="${si}" data-g="">+ Ajouter un exercice</button></div>`;
+    <button class="btn btn-line btn-sm mt8" style="width:100%" data-a="at-choix" data-s="${si}" data-g="">+ Ajouter des exercices</button></div>`;
 }
-actions["at-choix"] = (b, d) => ouvrirChoix({ groupe: d.g || K.groupe, si: +d.s, mode: "add", retour: null });
+actions["at-choix"] = (b, d) => ouvrirChoix({ groupe: d.g || K.groupe, si: +d.s, mode: "add", retour: d.r || null });
 actions["at-swap"] = (b, d) => { const l = D.sessions[+d.s]?.items[+d.i]; if (!l) return; ouvrirChoix({ groupe: groupeDe(l), si: +d.s, li: +d.i, mode: "swap" }); };
 const groupeDe = (l) => l.pattern || l.categorie;
 
@@ -159,8 +179,11 @@ const groupeDe = (l) => l.pattern || l.categorie;
 const ISO_CATS = ["biceps", "triceps", "elevations_laterales", "deltoides_posterieurs", "epaules_avant", "pectoraux", "trapezes", "avant_bras", "quadriceps", "fessiers", "adducteurs", "mollets", "abdos", "coiffe"];
 function travailDirect() {
   const sets = {}; D.sessions.forEach(s => s.items.forEach(l => { if (l.couche === "isolation") sets[l.categorie] = (sets[l.categorie] || 0) + l.n; }));
-  return `<div class="card"><p class="small muted" style="margin:0 0 8px">En plus du squelette : du travail direct sur un muscle (bras, épaules, mollets…) ou sur ton point faible. Touche une catégorie pour choisir l'exercice.</p>
-    <div class="chips wrap">${ISO_CATS.map(c => `<button class="chip sm ${sets[c] ? "on" : ""}" data-a="at-choix" data-g="${c}" data-s="${prochaineSeance(c)}">${esc(X.CATEGORIES[c])}${sets[c] ? ` · ${sets[c]}` : ""}</button>`).join("")}</div></div>`;
+  const lignes = D.sessions.flatMap((s, si) => s.items.map((l, li) => ({ l, si, li })).filter(x => x.l.couche !== "squelette"));
+  return `<div class="card"><p class="small muted" style="margin:0 0 8px">En plus du squelette : du travail direct sur un muscle (bras, épaules, mollets…) ou sur ton point faible. Coche autant d'exercices que tu veux, dans plusieurs catégories, puis choisis le jour.</p>
+    <div class="chips wrap">${ISO_CATS.map(c => `<button class="chip sm ${sets[c] ? "on" : ""}" data-a="at-choix" data-g="${c}" data-s="${prochaineSeance(c)}">${esc(X.CATEGORIES[c])}${sets[c] ? ` · ${sets[c]}` : ""}</button>`).join("")}</div>
+    ${lignes.length ? `<div class="mt8">${lignes.map(({ l, si, li }) => ligneReglable(l, si, li)).join("")}</div>` : ""}
+    <button class="btn btn-line btn-sm mt8" style="width:100%" data-a="at-choix" data-g="biceps" data-s="${prochaineSeance("biceps")}">+ Ajouter du travail direct</button></div>`;
 }
 const HAUT_ISO = ["biceps", "triceps", "elevations_laterales", "deltoides_posterieurs", "epaules_avant", "pectoraux", "trapezes", "avant_bras", "coiffe"];
 function prochaineSeance(cat) {
@@ -228,14 +251,17 @@ function candidats() {
 }
 const nrm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 function ouvrirChoix({ groupe, si, li = 0, mode = "add", retour = null }) {
-  K = { ...K, groupe: groupe || K.groupe, si: si ?? K.si, li, mode, retour, q: "", muscle: "", tout: false };
+  const g = groupe || K.groupe, pj = estPattern(g) && mode === "add" ? A.joursChoisis(D, g) : [];
+  if (pj.length && !pj.includes(D.sessions[si]?.dow)) si = D.sessions.findIndex(s => s.dow === pj[0]);
+  K = { ...K, groupe: g, si: si ?? K.si, li, mode, retour, q: "", muscle: "", tout: false, sel: [] };
   choix();
 }
 function choix() {
   const { l, muscles, masques, prefs } = candidats(), g = K.groupe, MAX = 40;
   const cible = D.sessions[K.si];
-  sheet(`<h2 class="h2">${mode() === "swap" ? "Changer d'exercice" : "Ajouter un exercice"}</h2>
-    <p class="small muted">${mode() === "swap" ? `Remplace « ${esc(D.sessions[K.si]?.items[K.li]?.nom || "")} », séries gardées.` : `Dans « ${esc(cible?.titre || "")} » · ${esc(G.DOW[cible?.dow ?? 0])}.`}</p>
+  const add = mode() !== "swap", sel = K.sel;
+  sheet(`<h2 class="h2">${add ? "Ajouter des exercices" : "Changer d'exercice"}</h2>
+    <p class="small muted">${add ? "Coche tous ceux que tu veux, même dans plusieurs catégories, puis ajoute-les d'un coup." : `Remplace « ${esc(D.sessions[K.si]?.items[K.li]?.nom || "")} », séries gardées.`}</p>
     <p class="xs muted patzone" style="margin-bottom:4px">Les 8 catégories de mouvements</p><div class="chips wrap">${X.PATTERNS.map(p => `<button class="chip sm ${g === p.code ? "on" : ""}" data-a="at-g" data-g="${p.code}">${p.code} · ${esc(p.nom)}</button>`).join("")}</div>
     <p class="xs muted patzone" style="margin:10px 0 4px">Travail direct</p><div class="chips wrap">${ISO_CATS.map(c => `<button class="chip sm ${g === c ? "on" : ""}" data-a="at-g" data-g="${c}">${esc(X.CATEGORIES[c])}</button>`).join("")}</div>
     <p class="xs muted patzone" style="margin:10px 0 4px">Autres</p><div class="chips wrap">${["unilateral", "portes", "rotation", "mobilite", "puissance", "skills", "cardio"].map(c => `<button class="chip sm ${g === c ? "on" : ""}" data-a="at-g" data-g="${c}">${esc(X.CATEGORIES[c])}</button>`).join("")}</div>
@@ -243,9 +269,12 @@ function choix() {
     <div class="search mt8">${I.search}<input data-c="at-q" placeholder="Chercher un exercice ou un muscle" value="${esc(K.q)}" autocomplete="off"></div>
     ${muscles.length > 1 ? `<div class="chips wrap mt8"><button class="chip sm ${K.muscle ? "" : "on"}" data-a="at-m" data-m="">Tous les muscles</button>${muscles.map(m => `<button class="chip sm ${K.muscle === m ? "on" : ""}" data-a="at-m" data-m="${esc(m)}">${esc(m)}</button>`).join("")}</div>` : ""}
     ${masques ? `<p class="xs muted mt8">${masques} exercice${masques > 1 ? "s" : ""} masqué${masques > 1 ? "s" : ""} (matériel ou gênes du questionnaire). <button class="link" data-a="at-tout">Tout afficher</button></p>` : K.tout ? `<p class="xs muted mt8"><button class="link" data-a="at-tout">Masquer ceux qui ne conviennent pas</button></p>` : ""}
-    <div class="list mt8">${l.slice(0, MAX).map(e => `<button class="li" data-a="at-pick" data-x="${esc(e.slug)}" style="gap:10px;text-align:left">${e.pattern_principal ? PAT(e.pattern_principal) : `<span class="pat nul">${e.couche === "isolation" ? "ISO" : "MOD"}</span>`}<span class="grow small"><b>${esc(e.nom)}</b>${estRoi(e) ? " ⭐" : ""}${prefs[e.slug] === "love" ? " 😍" : ""}<br><span class="xs muted">${esc(e.muscles.slice(0, 3).join(" · "))} · ${esc(X.label(X.NIVEAUX, e.niveau))}</span></span></button>`).join("") || `<p class="empty small">Aucun exercice ne correspond.</p>`}</div>
-    ${l.length > MAX ? `<p class="xs muted mt8">${l.length - MAX} autres : affine avec la recherche ou un muscle.</p>` : ""}`,
-    null, { keep: !!document.getElementById("sheet") });
+    <div class="list mt8">${l.slice(0, MAX).map(e => `<button class="li" data-a="at-pick" data-x="${esc(e.slug)}" style="gap:10px;text-align:left" ${add ? `aria-pressed="${sel.includes(e.slug)}"` : ""}>${add ? `<span style="flex:none;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-weight:800;${sel.includes(e.slug) ? "background:var(--red);color:#fff" : "border:2px solid var(--line)"}">${sel.includes(e.slug) ? "✓" : ""}</span>` : ""}${e.pattern_principal ? PAT(e.pattern_principal) : `<span class="pat nul">${e.couche === "isolation" ? "ISO" : "MOD"}</span>`}<span class="grow small"><b>${esc(e.nom)}</b>${estRoi(e) ? " ⭐" : ""}${prefs[e.slug] === "love" ? " 😍" : ""}<br><span class="xs muted">${esc(e.muscles.slice(0, 3).join(" · "))} · ${esc(X.label(X.NIVEAUX, e.niveau))}</span></span></button>`).join("") || `<p class="empty small">Aucun exercice ne correspond.</p>`}</div>
+    ${l.length > MAX ? `<p class="xs muted mt8">${l.length - MAX} autres : affine avec la recherche ou un muscle.</p>` : ""}
+    ${add ? `<div style="position:sticky;bottom:calc(-22px - var(--safe-b,0px));margin:12px -16px 0;padding:10px 16px calc(14px + var(--safe-b,0px));background:var(--chalk);border-top:1px solid var(--line)">
+      <div class="row" style="gap:6px;align-items:center;flex-wrap:wrap"><span class="xs muted">Le</span>${D.sessions.map((s, k) => `<button class="chip sm ${k === K.si ? "on" : ""}" style="padding:4px 9px" data-a="at-cs" data-v="${k}" aria-label="${esc(G.DOW[s.dow])}" aria-pressed="${k === K.si}">${JOURS[s.dow]}</button>`).join("")}</div>
+      <button class="btn btn-red mt8" style="width:100%" data-a="at-ajout" ${sel.length ? "" : "disabled"}>${sel.length ? `Ajouter ${sel.length} exercice${sel.length > 1 ? "s" : ""} · ${esc(G.DOW[cible?.dow ?? 0])}` : "Coche des exercices"}</button></div>` : ""}`,
+    (w) => { w.dataset.rr = "1"; delete w.dataset.pat; }, { keep: !!document.getElementById("sheet") });
 }
 const mode = () => K.mode;
 actions["at-g"] = (b, d) => { K.groupe = d.g; K.muscle = ""; choix(); };
@@ -255,10 +284,15 @@ changes["at-q"] = (el) => { K.q = el.value; choix(); const i = document.querySel
 actions["at-pick"] = (b, d) => {
   const e = X.exercice(d.x); if (!e) return;
   if (K.mode === "swap") { set(A.remplacer(D, K.si, K.li, e.slug)); closeSheet(); buzz(); toast("Exercice remplacé"); return rerender(); }
-  const n = e.couche === "isolation" ? 3 : Math.max(2, Math.min(4, Math.round(A.cibleSeries(D.niveau) / Math.max(1, A.lignesSquelette(D, e.pattern_principal).length + 1 + (D.sessions.length > 2 ? 1 : 0)))));
-  set(A.ajouter(D, K.si, e, n)); buzz(); toast(`${e.nom} ajouté`);
+  K.sel = K.sel.includes(e.slug) ? K.sel.filter(x => x !== e.slug) : [...K.sel, e.slug]; buzz(5); choix();
+};
+const seriesDe = (e, d) => e.couche !== "squelette" ? 3 : Math.max(2, Math.min(4, Math.round(A.cibleSeries(d.niveau) / Math.max(1, A.lignesSquelette(d, e.pattern_principal).length + 1 + (d.sessions.length > 2 ? 1 : 0)))));
+actions["at-cs"] = (b, d) => { K.si = +d.v; choix(); };
+actions["at-ajout"] = () => {
+  if (!K.sel.length) return;
+  const n = K.sel.length; set(A.ajouterPlusieurs(D, K.si, K.sel, seriesDe)); K.sel = []; buzz(); toast(`${n} exercice${n > 1 ? "s" : ""} ajouté${n > 1 ? "s" : ""}`);
   if (K.retour) { const c = K.retour; K.retour = null; return actions["at-pat"](null, { c }); }
-  closeSheet(); rerender();
+  closeSheet();
 };
 
 // ---------- Enregistrer / adopter ----------

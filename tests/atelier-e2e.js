@@ -50,13 +50,17 @@ async function choisir(p, groupe, slug, session = 0) {
   // + sur Poussée horizontale : le choix s'ouvre sur la bonne catégorie
   await a.p.click('[data-a="at-pat-d"][data-c="PH"][data-v="1"]'); await a.p.waitForTimeout(350);
   t = await txt(a.p, '#sheet');
-  ok(/Ajouter un exercice/.test(t) && /Développé couché barre/.test(t) && /Les 8 catégories de mouvements/.test(t), 'choix : catégories et exercices de Poussée horizontale');
+  ok(/Ajouter des exercices/.test(t) && /Développé couché barre/.test(t) && /Les 8 catégories de mouvements/.test(t), 'choix : catégories et exercices de Poussée horizontale');
   ok(/Pecs/.test(t) && /Tous les muscles/.test(t), 'choix : filtre par muscle');
   ok(await overflow(a.p) === 0, 'choix : rien ne dépasse de l\'écran');
   await a.p.fill('#sheet [data-c="at-q"]', 'incliné barre'); await a.p.waitForTimeout(350);
   ok(/Développé incliné barre/.test(await txt(a.p, '#sheet')), 'recherche par nom');
   await a.p.fill('#sheet [data-c="at-q"]', ''); await a.p.waitForTimeout(300);
-  await a.p.click('#sheet [data-a="at-pick"][data-x="developpe-couche-barre"]'); await a.p.waitForTimeout(400);
+  await a.p.click('#sheet [data-a="at-pick"][data-x="developpe-couche-barre"]'); await a.p.waitForTimeout(250);
+  await a.p.click('#sheet [data-a="at-pick"][data-x="developpe-incline-barre"]'); await a.p.waitForTimeout(250);
+  ok(/Ajouter 2 exercices/.test(await txt(a.p, '#sheet')), 'sélection multiple : 2 exercices cochés');
+  await a.p.click('#sheet [data-a="at-pick"][data-x="developpe-incline-barre"]'); await a.p.waitForTimeout(250);
+  await a.p.click('#sheet [data-a="at-ajout"]'); await a.p.waitForTimeout(400);
   let st = await S(a.p);
   ok(st.atelier.d.sessions.some(s => s.items.some(l => l.slug === 'developpe-couche-barre')), 'exercice ajouté au brouillon (gardé sur le téléphone)');
   ok(/\d+ séries? ·/.test(await txt(a.p, '.mpcase')), 'la carte PH affiche ses séries');
@@ -68,7 +72,7 @@ async function choisir(p, groupe, slug, session = 0) {
     await a.p.click('#sheet [data-a="at-tout"]', { timeout: 400 }).catch(() => {}); await a.p.waitForTimeout(150);
     const dispo = await a.p.locator(`#sheet [data-a="at-pick"][data-x="${s}"]`).count();
     ok(dispo === 1, `exercice roi disponible : ${s} (${g})`);
-    if (['squat-barre', 'souleve-de-terre-roumain-barre', 'rowing-penche-debout-a-la-barre', 'developpe-militaire-barre-ohp', 'tractions-pronation-poids-de-corps', 'squat-barre-basse-low-bar', 'leg-curl-assis'].includes(s)) { await a.p.click(`#sheet [data-a="at-pick"][data-x="${s}"]`); await a.p.waitForTimeout(350); }
+    if (['squat-barre', 'souleve-de-terre-roumain-barre', 'rowing-penche-debout-a-la-barre', 'developpe-militaire-barre-ohp', 'tractions-pronation-poids-de-corps', 'squat-barre-basse-low-bar', 'leg-curl-assis'].includes(s)) { await a.p.click(`#sheet [data-a="at-pick"][data-x="${s}"]`); await a.p.waitForTimeout(250); await a.p.click('#sheet [data-a="at-ajout"]'); await a.p.waitForTimeout(350); }
     else await a.p.evaluate(() => document.getElementById('sheet')?.remove());
   }
   t = await txt(a.p);
@@ -100,13 +104,28 @@ async function choisir(p, groupe, slug, session = 0) {
   await a.p.waitForTimeout(100);
   // répartition d'une catégorie
   await a.p.evaluate(() => { document.querySelector('[data-a="at-pat"][data-c="PH"]').click(); }); await a.p.waitForTimeout(350);
-  ok(/Répartis-les sur tes séances/.test(await txt(a.p, '#sheet')), 'répartition par séance');
+  ok(/Répartis-les sur tes séances/.test(await txt(a.p, '#sheet')) && /Jours où tu travailles ce mouvement/.test(await txt(a.p, '#sheet')), 'répartition par séance et jours du mouvement');
+  let nPH = (await S(a.p)).atelier.d.sessions[0].items.find(l => l.slug === 'developpe-couche-barre').n;
+  await tap(a.p, '#sheet [data-a="at-ln"][data-s="0"][data-v="1"]');
+  ok((await S(a.p)).atelier.d.sessions[0].items.find(l => l.slug === 'developpe-couche-barre').n === nPH + 1, 'séries réglables exercice par exercice');
+  await tap(a.p, '#sheet [data-a="at-lj"][data-s="0"][data-i="0"][data-v="2"]');
+  ok((await S(a.p)).atelier.d.sessions[2].items.some(l => l.slug === 'developpe-couche-barre'), 'exercice envoyé sur un autre jour');
+  await tap(a.p, '#sheet [data-a="at-pj"][data-c="PH"][data-v="0"]');
+  ok(JSON.stringify((await S(a.p)).atelier.d.patJours.PH) === '[0,4]', 'jours du mouvement modifiables');
+  await tap(a.p, '#sheet [data-a="at-lj"][data-s="2"][data-i="0"][data-v="0"]');
+  ok((await S(a.p)).atelier.d.sessions[0].items.some(l => l.slug === 'developpe-couche-barre'), 'retour sur un jour du mouvement');
+  ok(await overflow(a.p) === 0, 'répartition : rien ne dépasse');
   await a.p.evaluate(() => document.getElementById('sheet')?.remove());
   // travail direct
   await a.p.evaluate(() => document.querySelector('[data-a="at-choix"][data-g="biceps"]').click()); await a.p.waitForTimeout(300);
   ok(/Biceps/.test(await txt(a.p, '#sheet')), 'travail direct : biceps');
-  await a.p.evaluate(() => { const b = document.querySelector('#sheet [data-a="at-pick"]'); b.click(); }); await a.p.waitForTimeout(400);
-  ok((await S(a.p)).atelier.d.sessions.some(s => s.items.some(l => l.couche === 'isolation' && l.categorie === 'biceps')), 'isolation ajoutée');
+  await a.p.evaluate(() => { const b = document.querySelector('#sheet [data-a="at-pick"]'); b.click(); }); await a.p.waitForTimeout(300);
+  await a.p.click('#sheet [data-a="at-g"][data-g="triceps"]'); await a.p.waitForTimeout(250);
+  await a.p.evaluate(() => { const b = document.querySelector('#sheet [data-a="at-pick"]'); b.click(); }); await a.p.waitForTimeout(300);
+  await a.p.click('#sheet [data-a="at-cs"][data-v="1"]'); await a.p.waitForTimeout(250);
+  await a.p.click('#sheet [data-a="at-ajout"]'); await a.p.waitForTimeout(400);
+  const s1b = (await S(a.p)).atelier.d.sessions[1].items;
+  ok(s1b.some(l => l.categorie === 'biceps') && s1b.some(l => l.categorie === 'triceps'), 'isolation : plusieurs catégories ajoutées d\'un coup sur le jour choisi');
   ok(await overflow(a.p) === 0, 'éditeur : rien ne dépasse à 390 px');
   // adopter
   await tap(a.p, '[data-a="at-adopter"]'); await a.p.waitForTimeout(900);
