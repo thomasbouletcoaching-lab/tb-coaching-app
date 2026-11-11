@@ -9,6 +9,7 @@ import { CONFIG } from "../config.js";
 import { $app, esc, num, fr, buzz, toast, routes, R, actions, changes, forms, go, I, header, tabbar, chips, seg, sheet, closeSheet, lockVeil, lineChart, barChart, hbars, wordOn, premium, rank, programOpen, weekOpen, fmtDate, addDays, rerender, onLeave, isCoach, cloud, modeBar } from "../core.js";
 import { kbSection } from "./more.js";
 import { pushStats } from "../sync.js";
+import * as RM from "../roadmap.js";
 import { seasonBody } from "./season.js";
 
 const kgTxt = (v) => v == null || v === "" ? "" : E.fmtKg(v);
@@ -183,7 +184,7 @@ actions["bd-copy"] = (b, d) => { const p = E.program(d.id); if (p?.custom && (S(
 actions["set-program"] = (b, d) => {
   if (S().current) return toast("Termine d'abord ta séance en cours.");
   if (!programOpen(d.id)) return go("offers");
-  update(st => st.plan = { programId: d.id, startedAt: today(), week: 1, idx: 0, cycle: 1 });
+  update(st => { const rp = (st.customPrograms || []).find(x => x.id === d.id && x.road?.params); if (rp) st.customPrograms = st.customPrograms.map(x => x.id === d.id ? RM.recaler(rp, today()) : x); st.plan = { programId: d.id, startedAt: today(), week: 1, idx: 0, cycle: 1 }; });
   tab = "programme"; closeSheet(); toast("Programme changé"); pushStats(); routes.train();
 };
 
