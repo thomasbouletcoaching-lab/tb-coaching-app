@@ -77,7 +77,8 @@ Deno.serve(async (req) => {
         customer = c.id;
         await sb.from("subs").update({ stripe_customer: customer, updated_at: new Date().toISOString() }).eq("client_id", client.id);
       }
-      const trial = key.startsWith("premium") && !sub.trial_used ? 7 : undefined;
+      // Plus d'essai Stripe : les 30 jours d'essai sont offerts dans l'app, sans carte (voir CGV)
+      const trial = undefined;
       const s = await stripe("POST", "checkout/sessions", {
         mode: "subscription", customer, client_reference_id: client.id, locale: "fr", allow_promotion_codes: true,
         line_items: { 0: { price: price.id, quantity: 1 } },
