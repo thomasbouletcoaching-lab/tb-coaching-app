@@ -38,7 +38,7 @@ const blank = () => ({
   budget: { weekly: null, people: 1 }, // budget courses (Premium)
   receipts: [],           // tickets de caisse { id, d, shop, amount }
   prices: {},             // prix personnels { ingrédient: €/kg }
-  crises: [],             // « Je craque » : notes { d, note }
+  crises: [],             // « Je craque » : journal { d, t, envie, emotion, contexte, intensite, note?, suite? } ; anciennes notes { d, note } conservées
   programme: null,        // questionnaire « Mon programme sur mesure » { v, at, answers, prefs }
   atelier: null,          // atelier « Créer mon programme » : { d: brouillon, at }
   monplan: null,          // proposition du générateur { at, progAt, seed, prop, adopte, ajust }

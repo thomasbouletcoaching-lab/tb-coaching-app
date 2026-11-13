@@ -43,6 +43,7 @@ Ancienne app coach : coach/index.html (monolithe)        │ webhooks
 | `js/nutrition.js`, `nutri-*.js`, `recipes.js`, `shop.js`, `energy.js` | Nutrition, cibles, recettes, courses, bilan énergétique, jeûne |
 | `js/volume.js` | Moteur pur « Volume de la semaine » (testé par `node --test`) |
 | `js/quests.js` | Quêtes, séries et trophées |
+| `js/crise.js`, `js/views/crise.js` | « Je craque » : règles de réponse à une envie, déclencheurs du journal (pur, testé) et écran. Journal dans `S().crises`, envoyé au coach seulement si `S().criseShare` (accord explicite) |
 | `js/library.js` | Bibliothèque partagée par le coach (`cxs_library`) |
 | `js/exercices.js`, `js/views/bibliotheque.js` | Bibliothèque d'exercices classée selon les 8 patterns (`cxs_exercices`, version embarquée `data/exercices.json`) : voir `docs/bibliotheque-exercices.md` |
 | `js/views/*.js` | Écrans (voir § 4) |
