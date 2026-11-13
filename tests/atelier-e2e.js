@@ -36,7 +36,7 @@ async function choisir(p, groupe, slug, session = 0) {
 }
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
-  console.log('Atelier : parcours gratuit');
+  console.log('Atelier : compte en essai');
   const a = await page(b, {});
   let t = await txt(a.p);
   ok(/Ta semaine, bâtie sur 8 catégories de mouvements/.test(t) && /Partir d'une page blanche/.test(t), 'écran de départ');

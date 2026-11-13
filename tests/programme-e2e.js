@@ -58,8 +58,22 @@ const multi = async (p, vals) => { for (const v of vals) await p.check(`input[na
   await multi(a.p, ['genou']);
   await pick(a.p, 'any');
   ok(/muscles/.test(await txt(a.p)), 'pendant l\'essai, la partie avancée suit la partie courte');
+  // Partie avancée, puis favoris, jusqu'au récapitulatif
+  await multi(a.p, ['pecs', 'dos']); await multi(a.p, ['PH', 'FG']);
+  await pick(a.p, 'lot'); await pick(a.p, 'limited'); await pick(a.p, 'good');
+  await pick(a.p, '3'); await pick(a.p, '5'); await multi(a.p, ['temps']);
+  await pick(a.p, '6.5'); await pick(a.p, 'mid'); await pick(a.p, 'desk'); await pick(a.p, 'yes');
+  await tap(a.p, '[data-a="pq-favs-ok"]');
+  t = await txt(a.p);
+  ok(/C'est noté, Karim/.test(t) && /5 voulues · 3 tenables/.test(t), 'fin : récapitulatif et écart voulues/tenables');
+  ok(/on construira ton programme sur 3/.test(t), 'message sur la régularité');
+  const st = await S(a.p);
+  ok(st.programme?.answers?.goal === 'fat' && st.programme.answers.daysReal === 3 && st.programme.answers.zones[0] === 'genou' && st.programme.answers.materiel.length === 2 && st.programme.answers.target === '-8 kg d\'ici juin', 'réponses enregistrées sur le téléphone');
   ok((await overflow(a.p)).length === 0, 'rien ne dépasse de l\'écran');
-  await shot(a.p, '04-suite');
+  await shot(a.p, '04-fin');
+  // Modifier : les réponses sont reprises
+  await tap(a.p, '[data-a="pq-start"]');
+  ok(await a.p.locator('.choice.on').count() === 1, 'modification : la réponse précédente est cochée');
   ok(a.errs.length === 0, 'aucune erreur JavaScript' + (a.errs.length ? ' (' + a.errs.slice(0, 3).join(' | ') + ')' : ''));
   // Essai terminé, sans abonnement : le questionnaire n'est plus accessible, l'app montre les offres
   const z = await page(b, { trial: false });

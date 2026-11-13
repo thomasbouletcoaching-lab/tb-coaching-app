@@ -30,8 +30,8 @@ const CONFS = [['iPhone clair', 390, 844, 'light'], ['iPhone sombre', 390, 844, 
 
 // Ce qui dépasse à droite de l'écran (hors zones prévues pour défiler). La largeur de la page est comparée à la largeur
 // réelle du téléphone, pas à innerWidth : en émulation mobile, innerWidth s'élargit avec le contenu qui déborde.
-const mesure = () => {
-  const over = [...document.querySelectorAll('#app *')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > innerWidth + 1 && !e.closest('.chips,.hscroll,.modes,svg,pre'); }).map(e => String(e.className || e.tagName)).slice(0, 3);
+const mesure = (w) => {
+  const over = [...document.querySelectorAll('#app *')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > w + 1 && !e.closest('.chips,.hscroll,.modes,svg,pre'); }).map(e => String(e.className || e.tagName)).slice(0, 3);
   return { over, docW: document.documentElement.scrollWidth, vw: innerWidth, len: (document.querySelector('#app')?.innerText || '').length, bg: getComputedStyle(document.body).backgroundColor };
 };
 
@@ -56,7 +56,7 @@ async function ouvrir(b, { state, w, h, scheme }) {
     for (const r of ROUTES) {
       const n0 = a.errs.length;
       await a.p.evaluate((r) => { location.hash = '#/' + r; }, r); await a.p.waitForTimeout(650);
-      const m = await a.p.evaluate(mesure);
+      const m = await a.p.evaluate(mesure, w);
       ok(m.len > 40, `${nom} · ${r} : l'écran s'affiche`);
       ok(a.errs.length === n0, `${nom} · ${r} : aucune erreur JavaScript` + (a.errs.length > n0 ? ' (' + a.errs.slice(n0, n0 + 2).join(' | ').slice(0, 200) + ')' : ''));
       ok(m.over.length === 0 && m.docW <= w + 1, `${nom} · ${r} : rien ne dépasse de l'écran (largeur ${m.docW} pour ${w}) ${m.over.join(', ')}`);
@@ -68,7 +68,7 @@ async function ouvrir(b, { state, w, h, scheme }) {
     // Essai terminé, sans abonnement : l'écran des offres remplace l'app, sans débordement
     const fin = JSON.parse(JSON.stringify(CAMILLE)); fin.trialStart = ago(45); fin.profile.createdAt = ago(45);
     const z = await ouvrir(b, { state: fin, w, h, scheme });
-    const m = await z.p.evaluate(mesure);
+    const m = await z.p.evaluate(mesure, w);
     ok(/Ton essai est terminé/.test(await z.p.textContent('#app')), `${nom} · essai terminé : écran des offres`);
     ok(m.over.length === 0 && m.docW <= w + 1, `${nom} · essai terminé : rien ne dépasse de l'écran (largeur ${m.docW} pour ${w})`);
     ok(z.errs.length === 0, `${nom} · essai terminé : aucune erreur JavaScript`);
@@ -76,10 +76,10 @@ async function ouvrir(b, { state, w, h, scheme }) {
 
     // Premier lancement
     const n = await ouvrir(b, { state: {}, w, h, scheme });
-    const mo = await n.p.evaluate(mesure);
+    const mo = await n.p.evaluate(mesure, w);
     ok(await n.p.locator('[data-a="ob-start"]').count() === 1 && mo.docW <= w + 1 && n.errs.length === 0, `${nom} · premier lancement : accueil de l'onboarding, sans erreur ni débordement`);
     await n.ctx.close();
   }
   await b.close();
   console.log('\n' + passed + ' vérifications réussies, ' + fails + ' échec(s).'); process.exit(fails ? 1 : 0);
-})();
+})().catch(e => { console.error(e); process.exit(1); });

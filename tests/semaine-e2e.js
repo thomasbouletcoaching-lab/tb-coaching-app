@@ -1,4 +1,4 @@
-// Test de bout en bout de « Ma semaine » : Premium / gratuit, le fixe, les imprévus, placement, replacement, « Je ne peux pas »,
+// Test de bout en bout de « Ma semaine » : essai terminé (app verrouillée), le fixe, les imprévus, placement, replacement, « Je ne peux pas »,
 // revue du dimanche, rappel dans le calendrier. iPhone 390×844 tactile, Supabase simulé, données fictives.
 // Lancement : servir la racine sur BASE_URL (par défaut http://localhost:8765/), puis `node tests/semaine-e2e.js`.
 const { chromium } = require('playwright');
@@ -10,13 +10,16 @@ const ok = (c, msg) => { if (c) { passed++; console.log('  ✓', msg); } else { 
 const SB_NONE = `const chain = () => new Proxy(function () {}, { get: (t, k) => k === "then" ? (res) => res({ data: null, error: null }) : chain(), apply: () => chain() });
 export function createClient() { return { auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signOut: async () => ({}) }, from: () => chain(), rpc: () => chain(), channel: () => chain(), removeChannel() {}, storage: { from: () => chain() } }; }`;
 const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
-const T = iso(new Date()), dow = (d) => (new Date(d + 'T12:00:00').getDay() + 6) % 7;
+const dow = (d) => (new Date(d + 'T12:00:00').getDay() + 6) % 7;
 const add = (d, n) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + n); return iso(x); };
+// La suite tourne toujours un MARDI (celui de la semaine en cours), à 10 h : le planificateur dépend du jour de la semaine
+// (un samedi, il ne reste plus de séance à placer), et le test ne doit pas dépendre du jour où la CI tourne.
+const REEL = iso(new Date()), T = add(REEL, 1 - dow(REEL));
 const MON = add(T, -dow(T)), NEXT = add(MON, 7);
 const BUREAU = { id: 'b1', type: 'travail', label: 'Bureau', jours: [0, 1, 2, 3, 4], debut: '09:00', fin: '18:00' };
 const mkState = (extra = {}) => ({ profile: { name: 'Karim', email: 'karim@exemple.fr', level: 'regular', goal: 'muscle', weight: 80, sex: 'm', age: 30, height: 178, days: 3, place: 'bigGym', startProgram: 'tb-rep3', records: {}, createdAt: T, sessionMin: 60 }, trialStart: T, synced: false, plan: { programId: 'tb-rep3', startedAt: add(T, -2), week: 1, idx: 0, cycle: 1 }, schedule: { days: [{ on: true, time: '18:30', dur: 60, place: 'Salle' }, { on: false }, { on: true, time: '18:30', dur: 60, place: 'Salle' }, { on: false }, { on: true, time: '18:30', dur: 60, place: 'Salle' }, { on: false }, { on: false }] }, ...extra });
 
-async function page(b, { state, url = '#/semaine', tier = 'premium', dark = false, date = null }) {
+async function page(b, { state, url = '#/semaine', tier = 'premium', dark = false, date = T + 'T10:00:00' }) {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, serviceWorkers: 'block', colorScheme: dark ? 'dark' : 'light', acceptDownloads: true });
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', e => errs.push(e.message));
@@ -111,23 +114,17 @@ const hh = (s) => s.slice(0, 5);
   t = await txt(a.p, '#sheet');
   ok(/Je ne peux pas/.test(t) && /pas un échec/.test(t), 'feuille ouverte, ton bienveillant');
   const props = await a.p.locator('#sheet [data-a="jnp-go"]').count();
-  // Selon le jour où le test tourne, il peut ne rester aucun créneau compatible avec la récupération :
-  // l'app propose alors la fusion avec la séance suivante (ou une version courte). Les deux issues sont valides.
-  if (props === 0) {
-    ok(/Aucun créneau libre/.test(t) && await a.p.locator('#sheet [data-a="jnp-fusion"]').count() === 1, 'aucun créneau cette semaine : fusion proposée à la place');
-  } else {
-    ok(props >= 1 && props <= 3, `${props} proposition(s) de créneau`);
-    await shot(a.p, '04-je-ne-peux-pas');
-    const cibleProp = await a.p.locator('#sheet [data-a="jnp-go"]').first().evaluate(e => ({ d: e.dataset.t, h: e.dataset.h }));
-    const mv0 = JSON.stringify((await S(a.p)).moves || {});
-    await tap(a.p, '#sheet [data-a="jnp-go"] >> nth=0'); await a.p.waitForTimeout(500);
-    const s5 = await S(a.p);
-    // la séance peut déjà avoir été déplacée plus tôt dans le test : on retrouve son jour d'origine par sa destination
-    const origine = Object.entries(s5.moves).find(([, v]) => v === cibleProp.d)?.[0];
-    ok(!!origine && s5.slots[cibleProp.d].time === cibleProp.h, 'séance décalée au créneau proposé : ' + cibleProp.d + ' ' + cibleProp.h);
-    const ag2 = await a.p.evaluate(async ([k]) => { const E = await import('./js/engine.js'); return E.agenda(k, k)[k]?.st; }, [origine || prochaine]);
-    ok(ag2 === 'away' && JSON.stringify(s5.workouts) === JSON.stringify(s4.workouts), 'l\'ancien jour affiche « déplacée », pas « loupée » : ' + ag2);
-  }
+  ok(props >= 1 && props <= 3, `${props} proposition(s) de créneau`);
+  await shot(a.p, '04-je-ne-peux-pas');
+  const cibleProp = await a.p.locator('#sheet [data-a="jnp-go"]').first().evaluate(e => ({ d: e.dataset.t, h: e.dataset.h }));
+  const mv0 = JSON.stringify((await S(a.p)).moves || {});
+  await tap(a.p, '#sheet [data-a="jnp-go"] >> nth=0'); await a.p.waitForTimeout(500);
+  const s5 = await S(a.p);
+  // la séance peut déjà avoir été déplacée plus tôt dans le test : on retrouve son jour d'origine par sa destination
+  const origine = Object.entries(s5.moves).find(([, v]) => v === cibleProp.d)?.[0];
+  ok(!!origine && s5.slots[cibleProp.d].time === cibleProp.h, 'séance décalée au créneau proposé : ' + cibleProp.d + ' ' + cibleProp.h);
+  const ag2 = await a.p.evaluate(async ([k]) => { const E = await import('./js/engine.js'); return E.agenda(k, k)[k]?.st; }, [origine || prochaine]);
+  ok(ag2 === 'away' && JSON.stringify(s5.workouts) === JSON.stringify(s4.workouts), 'l\'ancien jour affiche « déplacée », pas « loupée » : ' + ag2);
   ok(a.errs.length === 0, 'aucune erreur JavaScript');
 
   console.log('Calendrier : rappel avant le rendez-vous');
