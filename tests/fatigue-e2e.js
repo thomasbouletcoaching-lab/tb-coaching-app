@@ -42,11 +42,10 @@ const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
 
-  console.log('Gratuit : aperçu verrouillé, l\'onglet existant reste');
+  console.log('Essai terminé, sans abonnement : app verrouillée sur les offres');
   const g = await page(b, { tier: 'free' });
-  ok(await g.p.locator('.veil').count() === 1 && /Fatigue nerveuse/.test(await txt(g.p)), 'carte « Fatigue nerveuse » verrouillée');
-  ok(/Pour ta séance du jour/.test(await txt(g.p)) && await g.p.locator('[data-a="fc-open"]').count() === 0, 'le conseil existant reste, aucun check-in Premium');
-  ok(/Courbatures/.test(await txt(g.p)) && /Motivation/.test(await txt(g.p)), 'les curseurs du ressenti incluent courbatures et motivation');
+  ok(/Ton essai est terminé/.test(await txt(g.p)) && await g.p.locator('[data-a="choose"]').count() >= 1, 'écran des offres à la place de la récupération');
+  ok(await g.p.locator('[data-a="fc-open"]').count() === 0, 'aucun check-in accessible');
   ok(g.errs.length === 0, 'aucune erreur JavaScript' + (g.errs.length ? ' (' + g.errs.slice(0, 3).join(' | ') + ')' : ''));
   await g.ctx.close();
 
@@ -54,6 +53,7 @@ const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.
   const a = await page(b, {});
   let t = await txt(a.p);
   ok(/Ton feu du jour/.test(t) && /Faire mon check-in \(10 secondes\)/.test(t) && !/Pour ta séance du jour/.test(t), 'bloc « feu du jour » (l\'ancien conseil est intégré, pas dupliqué)');
+  ok(/Courbatures/.test(t) && /Motivation/.test(t), 'les curseurs du ressenti incluent courbatures et motivation');
   ok(/Sans check-in, je me base seulement sur tes séances/.test(t), 'sans check-in : le feu est annoncé moins précis');
   await tap(a.p, '[data-a="fc-open"]');
   ok(/Check-in du jour/.test(await txt(a.p, '#sheet')) && await a.p.locator('#sheet input[type="radio"]').count() >= 25, 'feuille : sommeil et quatre échelles à toucher');

@@ -40,14 +40,11 @@ const hh = (s) => s.slice(0, 5);
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
 
-  console.log('Gratuit : aperçu verrouillé, l\'agenda existant reste');
+  console.log('Essai terminé, sans abonnement : app verrouillée sur les offres');
   const g = await page(b, { tier: 'free' });
-  ok(/calées dans ta vraie semaine/.test(await txt(g.p)) && await g.p.locator('.veil').count() === 1, 'écran verrouillé avec explication');
-  ok(await g.p.locator('[data-a="sm-bloc"]').count() === 0, 'aucune fonction Premium accessible');
-  await g.p.evaluate(() => { location.hash = '#/home'; }); await g.p.waitForTimeout(700);
-  const st = await S(g.p); ok(st.schedule.days.filter(d => d.on).length === 3 && !st.semaine, 'la semaine type existante est intacte, rien écrit');
-  await g.p.evaluate((d) => { location.hash = '#/home/month'; }, T); await g.p.waitForTimeout(900);
-  await g.p.evaluate(async (t) => { const E = await import('./js/engine.js'); await E.loadPrograms(); }, T);
+  ok(/Ton essai est terminé/.test(await txt(g.p)) && await g.p.locator('[data-a="choose"]').count() >= 1, 'écran des offres à la place de « Ma semaine »');
+  ok(await g.p.locator('[data-a="sm-bloc"]').count() === 0, 'aucune fonction de l\'app accessible');
+  const st = await S(g.p); ok(st.schedule.days.filter(d => d.on).length === 3 && !st.semaine, 'les données du membre sont intactes, rien écrit');
   ok(g.errs.length === 0, 'aucune erreur JavaScript' + (g.errs.length ? ' (' + g.errs.slice(0, 3).join(' | ') + ')' : ''));
   await g.ctx.close();
 
@@ -114,17 +111,23 @@ const hh = (s) => s.slice(0, 5);
   t = await txt(a.p, '#sheet');
   ok(/Je ne peux pas/.test(t) && /pas un échec/.test(t), 'feuille ouverte, ton bienveillant');
   const props = await a.p.locator('#sheet [data-a="jnp-go"]').count();
-  ok(props >= 1 && props <= 3, `${props} proposition(s) de créneau`);
-  await shot(a.p, '04-je-ne-peux-pas');
-  const cibleProp = await a.p.locator('#sheet [data-a="jnp-go"]').first().evaluate(e => ({ d: e.dataset.t, h: e.dataset.h }));
-  const mv0 = JSON.stringify((await S(a.p)).moves || {});
-  await tap(a.p, '#sheet [data-a="jnp-go"] >> nth=0'); await a.p.waitForTimeout(500);
-  const s5 = await S(a.p);
-  // la séance peut déjà avoir été déplacée plus tôt dans le test : on retrouve son jour d'origine par sa destination
-  const origine = Object.entries(s5.moves).find(([, v]) => v === cibleProp.d)?.[0];
-  ok(!!origine && s5.slots[cibleProp.d].time === cibleProp.h, 'séance décalée au créneau proposé : ' + cibleProp.d + ' ' + cibleProp.h);
-  const ag2 = await a.p.evaluate(async ([k]) => { const E = await import('./js/engine.js'); return E.agenda(k, k)[k]?.st; }, [origine || prochaine]);
-  ok(ag2 === 'away' && JSON.stringify(s5.workouts) === JSON.stringify(s4.workouts), 'l\'ancien jour affiche « déplacée », pas « loupée » : ' + ag2);
+  // Selon le jour où le test tourne, il peut ne rester aucun créneau compatible avec la récupération :
+  // l'app propose alors la fusion avec la séance suivante (ou une version courte). Les deux issues sont valides.
+  if (props === 0) {
+    ok(/Aucun créneau libre/.test(t) && await a.p.locator('#sheet [data-a="jnp-fusion"]').count() === 1, 'aucun créneau cette semaine : fusion proposée à la place');
+  } else {
+    ok(props >= 1 && props <= 3, `${props} proposition(s) de créneau`);
+    await shot(a.p, '04-je-ne-peux-pas');
+    const cibleProp = await a.p.locator('#sheet [data-a="jnp-go"]').first().evaluate(e => ({ d: e.dataset.t, h: e.dataset.h }));
+    const mv0 = JSON.stringify((await S(a.p)).moves || {});
+    await tap(a.p, '#sheet [data-a="jnp-go"] >> nth=0'); await a.p.waitForTimeout(500);
+    const s5 = await S(a.p);
+    // la séance peut déjà avoir été déplacée plus tôt dans le test : on retrouve son jour d'origine par sa destination
+    const origine = Object.entries(s5.moves).find(([, v]) => v === cibleProp.d)?.[0];
+    ok(!!origine && s5.slots[cibleProp.d].time === cibleProp.h, 'séance décalée au créneau proposé : ' + cibleProp.d + ' ' + cibleProp.h);
+    const ag2 = await a.p.evaluate(async ([k]) => { const E = await import('./js/engine.js'); return E.agenda(k, k)[k]?.st; }, [origine || prochaine]);
+    ok(ag2 === 'away' && JSON.stringify(s5.workouts) === JSON.stringify(s4.workouts), 'l\'ancien jour affiche « déplacée », pas « loupée » : ' + ag2);
+  }
   ok(a.errs.length === 0, 'aucune erreur JavaScript');
 
   console.log('Calendrier : rappel avant le rendez-vous');

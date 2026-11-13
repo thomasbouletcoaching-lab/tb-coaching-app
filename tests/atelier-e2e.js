@@ -37,7 +37,7 @@ async function choisir(p, groupe, slug, session = 0) {
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
   console.log('Atelier : parcours gratuit');
-  const a = await page(b, { tier: 'free', trial: false });
+  const a = await page(b, {});
   let t = await txt(a.p);
   ok(/Ta semaine, bâtie sur 8 catégories de mouvements/.test(t) && /Partir d'une page blanche/.test(t), 'écran de départ');
   ok(/questionnaire/.test(t), 'sans questionnaire : lien vers le questionnaire');
@@ -140,7 +140,7 @@ async function choisir(p, groupe, slug, session = 0) {
   await a.p.goto(BASE + 'index.html#/atelier', { waitUntil: 'load' }); await a.p.waitForTimeout(1000);
   ok(/Ton squelette/.test(await txt(a.p)) && (await a.p.locator('.mpcase').count()) === 8, 'le brouillon est retrouvé');
   console.log('Atelier : thème sombre');
-  const c = await page(b, { tier: 'free', trial: false });
+  const c = await page(b, {});
   await c.p.emulateMedia({ colorScheme: 'dark' }); await tap(c.p, '[data-a="at-blanc"]');
   ok(await c.p.evaluate(() => getComputedStyle(document.body).backgroundColor !== 'rgb(255, 255, 255)'), 'thème sombre appliqué');
   await b.close();

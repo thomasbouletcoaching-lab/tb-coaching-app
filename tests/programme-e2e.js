@@ -35,11 +35,11 @@ const multi = async (p, vals) => { for (const v of vals) await p.check(`input[na
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
 
-  // ===== 1. Parcours gratuit (essai terminé) =====
-  console.log('Parcours gratuit');
-  const a = await page(b, { trial: false });
+  // ===== 1. Parcours pendant l'essai (app complète) =====
+  console.log('Parcours pendant l\'essai');
+  const a = await page(b, {});
   let t = await txt(a.p);
-  ok(/Un programme qui tient dans ta vie/.test(t) && /Bâtisseur/.test(t), 'écran d\'accueil, partie avancée verrouillée');
+  ok(/Un programme qui tient dans ta vie/.test(t), 'écran d\'accueil du questionnaire');
   await shot(a.p, '01-intro');
   await tap(a.p, '[data-a="pq-start"]');
   ok(/objectif principal/.test(await txt(a.p)), 'première question : objectif principal');
@@ -57,19 +57,15 @@ const multi = async (p, vals) => { for (const v of vals) await p.check(`input[na
   ok(/gêne/.test(await txt(a.p)) && /professionnel de santé/.test(await txt(a.p)), 'gênes : mention d\'un professionnel de santé');
   await multi(a.p, ['genou']);
   await pick(a.p, 'any');
-  t = await txt(a.p);
-  ok(/C'est noté, Karim/.test(t) && /5 voulues · 3 tenables/.test(t), 'fin : récapitulatif et écart voulues/tenables');
-  ok(/on construira ton programme sur 3/.test(t), 'message sur la régularité');
-  ok(/Avec le Bâtisseur/.test(t), 'invitation Premium, sans favoris ni questions avancées');
-  const st = await S(a.p);
-  ok(st.programme?.answers?.goal === 'fat' && st.programme.answers.daysReal === 3 && st.programme.answers.zones[0] === 'genou' && st.programme.answers.materiel.length === 2 && st.programme.answers.target === '-8 kg d\'ici juin', 'réponses enregistrées sur le téléphone');
-  ok(!st.programme.prefs || Object.keys(st.programme.prefs).length === 0, 'aucune préférence sans Premium');
+  ok(/muscles/.test(await txt(a.p)), 'pendant l\'essai, la partie avancée suit la partie courte');
   ok((await overflow(a.p)).length === 0, 'rien ne dépasse de l\'écran');
-  await shot(a.p, '04-fin');
-  // Modifier : les réponses sont reprises
-  await tap(a.p, '[data-a="pq-start"]');
-  ok(await a.p.locator('.choice.on').count() === 1, 'modification : la réponse précédente est cochée');
+  await shot(a.p, '04-suite');
   ok(a.errs.length === 0, 'aucune erreur JavaScript' + (a.errs.length ? ' (' + a.errs.slice(0, 3).join(' | ') + ')' : ''));
+  // Essai terminé, sans abonnement : le questionnaire n'est plus accessible, l'app montre les offres
+  const z = await page(b, { trial: false });
+  ok(/Ton essai est terminé/.test(await txt(z.p)) && await z.p.locator('[data-a="pq-start"]').count() === 0, 'essai terminé : écran des offres à la place du questionnaire');
+  ok(z.errs.length === 0, 'essai terminé : aucune erreur JavaScript');
+  await z.ctx.close();
   await a.ctx.close();
 
   // ===== 2. Parcours Premium, thème par défaut =====

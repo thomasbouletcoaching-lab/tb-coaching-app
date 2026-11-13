@@ -39,12 +39,11 @@ const tap = async (p, sel) => { await p.click(sel); await p.waitForTimeout(700);
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
 
-  console.log('Gratuit : aperçu verrouillé, adéquation à l\'objectif visible');
+  console.log('Essai terminé, sans abonnement : app verrouillée sur les offres');
   const g = await page(b, { state: { programme: PROG({ goal: 'strength', target: '100 kg au développé couché', daysWanted: 2, daysReal: 2, style: 'hautbas', sessionMin: 90, sleep: undefined, stress: undefined, kids: undefined, quits: undefined, level: 'regular' }) }, tier: 'free' });
-  ok(/Est-ce que ça tient dans ta vie/.test(await txt(g.p)) && await g.p.locator('.veil').count() === 1, 'monplan : carte de soutenabilité verrouillée');
-  ok(/Tu vises la force au développé couché mais tu ne fais qu'une séance de PH par semaine/.test(await txt(g.p)), 'contrôle d\'objectif gratuit : message de la spec sur le développé couché');
+  ok(/Ton essai est terminé/.test(await txt(g.p)) && await g.p.locator('[data-a="choose"]').count() >= 1, 'écran des offres à la place du programme proposé');
   await g.p.evaluate(() => { location.hash = '#/soutenabilite'; }); await g.p.waitForTimeout(800);
-  ok(await g.p.locator('.veil').count() === 1 && /Score de soutenabilité|score de soutenabilité|Est-ce que ça tient/.test(await txt(g.p)), 'écran verrouillé avec explication');
+  ok(/Ton essai est terminé/.test(await txt(g.p)), 'écran des offres à la place du score de soutenabilité');
   ok(g.errs.length === 0, 'aucune erreur JavaScript' + (g.errs.length ? ' (' + g.errs.slice(0, 3).join(' | ') + ')' : ''));
   await g.ctx.close();
 
