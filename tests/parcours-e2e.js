@@ -26,7 +26,9 @@ const SB_NONE = `const chain = () => new Proxy(function () {}, { get: (t, k) => 
 export function createClient() { return { auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signOut: async () => ({}) }, from: () => chain(), rpc: () => chain(), channel: () => chain(), removeChannel() {}, storage: { from: () => chain() } }; }`;
 
 const ROUTES = ['home', 'plan', 'defi', 'carnet', 'train', 'atelier', 'monprogramme', 'monplan', 'semaine', 'soutenabilite', 'roadmap', 'volume', 'food', 'body', 'moncorps', 'recup', 'bilan', 'bilans', 'regularite', 'rapport', 'compare', 'anamnese', 'coach', 'offers', 'profile', 'settings', 'account', 'trophees', 'crise', 'kb', 'monprofil', 'privacy', 'agenda', 'simu', 'builder'];
-const CONFS = [['iPhone clair', 390, 844, 'light'], ['iPhone sombre', 390, 844, 'dark'], ['Android clair', 360, 740, 'light'], ['Android sombre', 360, 740, 'dark']];
+// La dernière configuration élargit légèrement les lettres : chaque téléphone a sa propre police de secours, parfois plus large
+// (c'est ainsi que la CI a trouvé un débordement des tuiles du Profil invisible sur la machine de développement).
+const CONFS = [['iPhone clair', 390, 844, 'light'], ['iPhone sombre', 390, 844, 'dark'], ['Android clair', 360, 740, 'light'], ['Android sombre', 360, 740, 'dark'], ['Android clair, police plus large', 360, 740, 'light', '.07em']];
 
 // Ce qui dépasse à droite de l'écran (hors zones prévues pour défiler). La largeur de la page est comparée à la largeur
 // réelle du téléphone, pas à innerWidth : en émulation mobile, innerWidth s'élargit avec le contenu qui déborde.
@@ -35,7 +37,7 @@ const mesure = (w) => {
   return { over, docW: document.documentElement.scrollWidth, vw: innerWidth, len: (document.querySelector('#app')?.innerText || '').length, bg: getComputedStyle(document.body).backgroundColor };
 };
 
-async function ouvrir(b, { state, w, h, scheme }) {
+async function ouvrir(b, { state, w, h, scheme, large }) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true, serviceWorkers: 'block', colorScheme: scheme, reducedMotion: 'reduce' });
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', e => errs.push(e.message));
@@ -44,15 +46,17 @@ async function ouvrir(b, { state, w, h, scheme }) {
   await p.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ body: SB_NONE, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' } }));
   await p.route('https://fonts.googleapis.com/**', r => r.fulfill({ body: '', contentType: 'text/css' }));
   await p.addInitScript((s) => { if (!localStorage.getItem('cxs.v1')) localStorage.setItem('cxs.v1', s); }, JSON.stringify(state));
-  await p.goto(BASE, { waitUntil: 'load' }); await p.waitForTimeout(1400);
+  await p.goto(BASE, { waitUntil: 'load' });
+  if (large) await p.addStyleTag({ content: `*{letter-spacing:${large} !important}` });
+  await p.waitForTimeout(1400);
   return { p, ctx, errs };
 }
 
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
-  for (const [nom, w, h, scheme] of CONFS) {
+  for (const [nom, w, h, scheme, large] of CONFS) {
     console.log(nom + ' (' + w + '×' + h + ')');
-    const a = await ouvrir(b, { state: CAMILLE, w, h, scheme });
+    const a = await ouvrir(b, { state: CAMILLE, w, h, scheme, large });
     for (const r of ROUTES) {
       const n0 = a.errs.length;
       await a.p.evaluate((r) => { location.hash = '#/' + r; }, r); await a.p.waitForTimeout(650);
@@ -67,7 +71,7 @@ async function ouvrir(b, { state, w, h, scheme }) {
 
     // Essai terminé, sans abonnement : l'écran des offres remplace l'app, sans débordement
     const fin = JSON.parse(JSON.stringify(CAMILLE)); fin.trialStart = ago(45); fin.profile.createdAt = ago(45);
-    const z = await ouvrir(b, { state: fin, w, h, scheme });
+    const z = await ouvrir(b, { state: fin, w, h, scheme, large });
     const m = await z.p.evaluate(mesure, w);
     ok(/Ton essai est terminé/.test(await z.p.textContent('#app')), `${nom} · essai terminé : écran des offres`);
     ok(m.over.length === 0 && m.docW <= w + 1, `${nom} · essai terminé : rien ne dépasse de l'écran (largeur ${m.docW} pour ${w})`);
@@ -75,7 +79,7 @@ async function ouvrir(b, { state, w, h, scheme }) {
     await z.ctx.close();
 
     // Premier lancement
-    const n = await ouvrir(b, { state: {}, w, h, scheme });
+    const n = await ouvrir(b, { state: {}, w, h, scheme, large });
     const mo = await n.p.evaluate(mesure, w);
     ok(await n.p.locator('[data-a="ob-start"]').count() === 1 && mo.docW <= w + 1 && n.errs.length === 0, `${nom} · premier lancement : accueil de l'onboarding, sans erreur ni débordement`);
     await n.ctx.close();

@@ -459,7 +459,8 @@ input,select,textarea{max-width:100%;min-width:0}
 .cmpt{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}.cmpt th:first-child,.cmpt td:first-child{width:46%}.cmpt th{font-size:12px;text-align:center;vertical-align:middle;padding:8px 4px;color:var(--ink)}.cmpt td{padding:9px 4px;border-top:1px solid var(--line);text-align:center;vertical-align:middle}.cmpt td:first-child{text-align:left;font-weight:600;color:var(--ink);padding-left:8px}.cmpt th:nth-child(2),.cmpt td:nth-child(2){background:color-mix(in srgb,var(--red) 8%,transparent)}
 /* v4 : profil façon Hevy, tuiles de tableau de bord, sélecteur de mode, bulle de messages */
 .avatar{width:64px;height:64px;border-radius:50%;background:var(--gradbtn);color:#fff;display:grid;place-items:center;font-size:28px;font-weight:800;flex:none;box-shadow:0 6px 18px rgba(143,53,16,.25)}
-.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tiles{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.tile{min-width:0}.tile>span:last-child{min-width:0;overflow-wrap:anywhere}
 .tile{display:flex;gap:10px;align-items:center;text-align:left;padding:14px 12px;border-radius:18px;background:var(--glass);border:1px solid var(--glass-b);color:inherit;font:inherit;font-size:15px;min-height:76px;box-shadow:var(--shadow);cursor:pointer;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
 .tile:active{transform:scale(.98)}
 .tile-ic{font-size:20px;width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:var(--tint);color:var(--red);flex:none}
