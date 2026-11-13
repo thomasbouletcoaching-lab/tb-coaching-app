@@ -39,6 +39,16 @@ const shot = async (p, name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: 
 const mise = (p, sel) => p.evaluate((sel) => { const els = [...document.querySelectorAll(sel)].filter(e => e.getBoundingClientRect().width > 0);
   return { docW: document.documentElement.scrollWidth, n: els.length, petits: els.filter(e => { const r = e.getBoundingClientRect(); return r.height < 44 || r.width < 44; }).map(e => e.textContent.trim() + ' ' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height)) }; }, sel);
 const HOMME = /\bHommes?\b|\bhommes?\b/;
+// Contraste du texte d'un bouton translucide posé sur une carte en dégradé : on compose le fond du bouton sur la couleur
+// la plus claire du dégradé de la carte (cas le plus défavorable pour un texte clair) et on renvoie le rapport WCAG.
+const contraste = (p, sel) => p.evaluate((sel) => {
+  const nums = (c) => (c.match(/[\d.]+/g) || []).map(Number);
+  const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+  const el = document.querySelector(sel), cs = getComputedStyle(el), carte = el.closest('.card');
+  const stops = (getComputedStyle(carte).backgroundImage.match(/rgba?\([^)]+\)/g) || [getComputedStyle(carte).backgroundColor]).map(nums);
+  const fg = nums(cs.color), bg = nums(cs.backgroundColor), a = bg.length > 3 ? bg[3] : 1;
+  return Math.min(...stops.map(s => { const fond = [0, 1, 2].map(i => bg[i] * a + s[i] * (1 - a)); const x = lum(fg), y = lum(fond); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }));
+}, sel);
 
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
@@ -47,7 +57,7 @@ const HOMME = /\bHommes?\b|\bhommes?\b/;
   for (const [nom, profil] of [['sexe féminin, genre jamais demandé (compte existant)', { sex: 'f' }], ['sexe masculin par défaut de l\'ancien onboarding', { sex: 'm' }], ['compte venu de l\'ancienne app, sans sexe ni genre', {}]]) {
     const a = await page(b, { state: mk(profil) });
     const t = await txt(a.p);
-    ok(!HOMME.test(t) && !/\bFemme\b/.test(t) && /La reprise en marche/.test(t), nom + ' : palier neutre « La reprise en marche », ni « Homme » ni « Femme »');
+    ok(!HOMME.test(t) && !/\bFemme\b/.test(t) && /En pleine reprise/.test(t), nom + ' : palier neutre « En pleine reprise », ni « Homme » ni « Femme »');
     ok(a.errs.length === 0, nom + ' : aucune erreur JavaScript');
     await a.ctx.close();
   }
@@ -57,6 +67,16 @@ const HOMME = /\bHommes?\b|\bhommes?\b/;
   ok(/Comment veux-tu qu'on s'adresse à toi/.test(await txt(a.p)) && await a.p.locator('[data-a="genre-set"]').count() === 3, 'question posée sur l\'écran Trophées : masculin, féminin, neutre');
   let m = await mise(a.p, '[data-a="genre-set"]');
   ok(m.petits.length === 0 && m.docW <= a.w + 1, 'boutons de 44 px au moins, rien ne dépasse' + (m.petits.length ? ' : ' + m.petits.join(', ') : ''));
+  for (const scheme of ['light', 'dark']) { await a.p.emulateMedia({ colorScheme: scheme }); await a.p.waitForTimeout(150);
+    const c = await contraste(a.p, '[data-a="genre-set"]'); ok(c >= 4.5, `boutons du genre lisibles sur la carte en dégradé, thème ${scheme === 'dark' ? 'sombre' : 'clair'} (contraste ${c.toFixed(1)} au point le plus clair du fond)`); }
+  await a.p.emulateMedia({ colorScheme: 'light' });
+  // Ouvrir Mes infos et enregistrer sans toucher au genre ne doit pas valoir un choix
+  await go(a.p, 'profile'); await tap(a.p, '[data-a="edit-body"]');
+  ok(await a.p.inputValue('#sheet select[name="genre"]') === '' && /Pas encore choisi/.test(await txt(a.p, '#sheet')), 'Mes infos : genre « Pas encore choisi », rien de présélectionné');
+  await tap(a.p, '#sheet form button.btn-red'); await a.p.waitForTimeout(400);
+  ok(!(await S(a.p)).profile.genre, 'enregistrer ses infos sans toucher au genre ne l\'enregistre pas à la place de la personne');
+  await go(a.p, 'trophees');
+  ok(await a.p.locator('[data-a="genre-set"]').count() === 3, 'la question reste posée sur Trophées');
   await shot(a.p, 'genre-01-question');
   await tap(a.p, '[data-a="genre-set"][data-v="f"]');
   let t = await txt(a.p);
@@ -76,9 +96,11 @@ const HOMME = /\bHommes?\b|\bhommes?\b/;
   let st = await S(a.p);
   ok(st.profile.genre === 'n' && st.profile.sex === null, 'genre neutre et sexe non précisé enregistrés');
   const kcalApres = await a.p.evaluate(async () => (await import('./js/energy.js')).bmr());
+  const modeles = await a.p.evaluate(async () => { const N = await import('./js/nutrition.js'); const base = { goal: 'fat', level: 'advanced', age: 34, diet: 'all' }; return [N.pickModel({ ...base, sex: null }), N.pickModel({ ...base }), N.pickModel({ ...base, sex: 'm' }), N.pickModel({ ...base, sex: 'f' })].join(','); });
+  ok(modeles === 'douce,douce,ventre,femme', 'sans sexe déclaré, le plan alimentaire par défaut est le plus doux, jamais le déficit le plus fort (' + modeles + ')');
   ok(Math.round(kcalApres - kcalAvant) === 83, 'sans sexe déclaré, la dépense de repos prend la valeur médiane (+83 kcal par rapport à « femme », −83 par rapport à « homme »)');
   await go(a.p, 'trophees');
-  ok(/La reprise en marche/.test(await txt(a.p)) && !/Femme|Homme/.test(await txt(a.p)), 'retour au palier neutre');
+  ok(/En pleine reprise/.test(await txt(a.p)) && !/Femme|Homme/.test(await txt(a.p)), 'retour au palier neutre');
   await go(a.p, 'profile'); await tap(a.p, '[data-a="edit-body"]');
   await a.p.selectOption('#sheet select[name="genre"]', 'm'); await tap(a.p, '#sheet form button.btn-red'); await a.p.waitForTimeout(400);
   await go(a.p, 'trophees');
@@ -89,10 +111,10 @@ const HOMME = /\bHommes?\b|\bhommes?\b/;
   console.log('On ne parle de reprise qu\'à quelqu\'un qui reprend');
   const y = await page(b, { state: mk({ name: 'Yanis', level: 'advanced', goal: 'strength', sex: 'm', genre: 'm' }) });
   t = await txt(y.p);
-  ok(/L'Homme d'élan/.test(t) && !/de la reprise|Tu reviens après les écarts/.test(t), 'profil avancé au masculin : « L\'Homme d\'élan », pas de « reprise »');
+  ok(/En plein élan/.test(t) && !/de la reprise|En pleine reprise|De retour|Tu es de retour/.test(t), 'profil avancé : « En plein élan », aucun mot de « reprise » sur sa carte');
   await y.ctx.close();
   const l = await page(b, { state: { ...mk({ name: 'Léa', level: 'beginner', genre: 'f', sex: 'f' }), workouts: [], daily: {}, food: {} } });
-  ok(/La Commençante/.test(await txt(l.p)), 'débutante au féminin, niveau 1 : « La Commençante »');
+  ok(/La Débutante/.test(await txt(l.p)), 'débutante au féminin, niveau 1 : « La Débutante »');
   await l.ctx.close();
 
   console.log('Textes qui ne visaient que les hommes');
@@ -100,7 +122,7 @@ const HOMME = /\bHommes?\b|\bhommes?\b/;
   t = await txt(c.p);
   ok(!HOMME.test(t) && (!/aider d'autres/.test(t) || /aider d'autres personnes à se lancer/.test(t)), 'rapport : « d\'autres personnes », plus « d\'autres hommes »');
   await go(c.p, 'anamnese'); t = await txt(c.p);
-  ok(!/tu seras fier|Prêt à changer/.test(t), 'point de départ : plus d\'accord au masculin (« fier », « prêt »)');
+  ok(!/tu seras fier|Prêt à changer|avec mon fils|La salle, seul/.test(t), 'point de départ : plus d\'accord au masculin ni d\'exemple qui présume une situation');
   for (const r of ['home', 'food', 'train', 'offers', 'coach', 'profile', 'settings', 'trophees', 'defi', 'regularite', 'monprofil', 'moncorps']) { await go(c.p, r); const x = await txt(c.p); ok(!HOMME.test(x), r + ' : aucun texte ne parle d\'« homme(s) »' + (HOMME.test(x) ? ' → ' + x.match(/.{0,40}[Hh]ommes?.{0,30}/)[0] : '')); }
   const modele = await c.p.evaluate(async () => { const N = await import('./js/nutrition.js'); await N.loadModels?.(); return JSON.stringify(N.MODELS || null); });
   ok(!modele || !/homme actif|Homme 30-55/.test(modele), 'modèles de plan alimentaire : plus de « homme actif »');
@@ -120,7 +142,7 @@ const HOMME = /\bHommes?\b|\bhommes?\b/;
     else await tap(o.p, '[data-a="ob-pick"] >> nth=0');
   }
   ok(await o.p.locator('[data-f="ob-body"]').count() === 1, 'on arrive à l\'écran âge, taille, poids');
-  ok(!/\bÉtudiant\b|\bSalarié\b|\bRetraité\b|\bIndépendant\b|Un ami\b/.test(vus), 'les réponses proposées avant cet écran ne sont pas écrites au masculin');
+  ok(!/(?<![\p{L}])(Étudiant|Salarié|Retraité|Indépendant|Un ami|Serveur|livreur|infirmier|Être suivi|toujours assis|Assis,)(?![\p{L}])/u.test(vus) && /Je fais des études/.test(vus), 'les réponses proposées avant cet écran ne sont pas écrites au masculin');
   ok(await o.p.locator('[data-a="ob-sex"]').count() === 3 && await o.p.locator('[data-a="ob-genre"]').count() === 3, 'sexe : homme, femme ou ne pas dire ; genre : masculin, féminin ou neutre');
   ok(await o.p.locator('[data-f="ob-body"] .seg button.on').count() === 0 && await o.p.locator('[data-f="ob-body"] [aria-pressed="true"]').count() === 0, 'aucun choix présélectionné (« Homme » ne l\'est plus)');
   m = await mise(o.p, '[data-f="ob-body"] button, [data-f="ob-body"] label.field'); // la zone tactile d'un champ est son étiquette entière

@@ -85,6 +85,7 @@ p{margin:0 0 10px}
 .card .deco{position:absolute;right:-10px;bottom:-14px;font-size:110px;opacity:.09;pointer-events:none;line-height:1}
 .card.grad{background:var(--gradbtn);color:#fff;border:0}
 .card.grad .muted,.card.grad .lbl{color:rgba(255,255,255,.8)}
+.card.grad .chip{background:#fff;border-color:#fff;color:#173C8A}
 .card.soft{background:var(--gradsoft)}
 
 /* Boutons */

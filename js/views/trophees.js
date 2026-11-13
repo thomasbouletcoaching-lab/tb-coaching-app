@@ -1,7 +1,8 @@
 // Trophées, niveaux et récompenses : la régularité rendue visible.
 import { GENRES, genreChoisi } from "../genre.js";
 import { S, update } from "../store.js";
-import { $app, esc, routes, actions, header, tabbar, buzz, I } from "../core.js";
+import { $app, esc, routes, actions, header, tabbar, buzz, toast, I } from "../core.js";
+import { syncProfile } from "../sync.js";
 import { gather, stageOf, TROPHIES, rewardsFor, unlockedTrophies, unlockedRewards, dailyQuests } from "../quests.js";
 
 routes.trophees = () => {
@@ -30,5 +31,5 @@ routes.trophees = () => {
 actions["genre-set"] = (b, d) => {
   if (!GENRES.some(g => g[0] === d.v)) return;
   update(st => { st.profile.genre = d.v; st.synced = false; });
-  buzz(); routes.trophees();
+  syncProfile(); buzz(); toast("C'est noté. Modifiable dans Profil › Mes infos."); routes.trophees();
 };

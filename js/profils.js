@@ -26,7 +26,7 @@ export const CATALOGUE = {
   equilibre: { nom: "Équilibre de vie", phrase: "Ta vie est intense en ce moment : on protège ton sommeil et ta récupération." },
   corps: { nom: "Corps déjà sollicité", phrase: "Ton travail demande déjà beaucoup au corps : on allège le bas du corps." },
   regularite: { nom: "Régularité d'abord", phrase: "Une séance faite vaut mieux qu'une séance parfaite : on compte les séances, pas les jours exacts." },
-  polyvalent: { nom: "Sportif polyvalent", phrase: "Tu pratiques un sport : le travail unilatéral et la rotation complètent ta semaine." },
+  polyvalent: { nom: "Profil multisport", phrase: "Tu pratiques un sport : le travail unilatéral et la rotation complètent ta semaine." },
 };
 export const MAX_AFFICHES = 4;
 

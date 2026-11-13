@@ -140,7 +140,8 @@ export function pickModel(p) {
   if (p.diet === "vegan") return "vegan";
   if (p.diet === "vegetarian") return "vege";
   if (p.age >= 50) return "senior";
-  if (p.goal === "fat") return p.sex === "f" ? "femme" : (p.level === "comeback" || p.level === "beginner" ? "douce" : "ventre");
+  // Sans sexe déclaré : le modèle le plus doux, jamais le déficit le plus fort par défaut
+  if (p.goal === "fat") return p.sex === "f" ? "femme" : (p.sex !== "m" || p.level === "comeback" || p.level === "beginner" ? "douce" : "ventre");
   if (p.goal === "recomp") return "recompo";
   if (p.goal === "strength") return "force";
   if (p.goal === "restart") return "douce";
@@ -244,7 +245,7 @@ export const PLAN_PRESETS = [
   { id: "perte3", e: "📉", n: "Perte de gras · 3 repas", d: "Trois vrais repas, pas de grignotage, des protéines à chaque repas.", p: { meals: 3 } },
   { id: "if168", e: "⏳", n: "Jeûne intermittent 16/8 · 2 repas", d: "Déjeuner et dîner, dans une fenêtre de 8 heures.", p: { meals: 2 } },
   { id: "masse5", e: "💪", n: "Prise de muscle · 5 repas", d: "Les calories réparties sur 5 prises pour manger assez sans se forcer.", p: { meals: 5 } },
-  { id: "athlete6", e: "🏋️", n: "Sportif · 6 prises", d: "Gros volume d'entraînement : 3 repas et 3 collations.", p: { meals: 6 } },
+  { id: "athlete6", e: "🏋️", n: "Gros volume · 6 prises", d: "Gros volume d'entraînement : 3 repas et 3 collations.", p: { meals: 6 } },
   { id: "vege4", e: "🥚", n: "Végétarien · 4 repas", d: "Œufs, laitages, légumineuses, tofu.", p: { meals: 4, diet: "vegetarian" } },
   { id: "vegan4", e: "🌱", n: "Vegan · 4 repas", d: "100 % végétal : soja, légumineuses et céréales pour des protéines complètes. Vitamine B12 indispensable.", p: { meals: 4, diet: "vegan" } },
   { id: "pesce4", e: "🐟", n: "Pescétarien · 4 repas", d: "Poisson et végétal, pas de viande.", p: { meals: 4, diet: "pesce" } },
@@ -252,8 +253,8 @@ export const PLAN_PRESETS = [
   { id: "sansporc4", e: "🚫", n: "Sans porc · 4 repas", d: "Aucun produit à base de porc.", p: { meals: 4, noPork: true } },
   { id: "sg4", e: "🌾", n: "Sans gluten · 4 repas", d: "Riz, quinoa, sarrasin, pommes de terre à la place du blé. Vérifie les étiquettes (avoine certifiée).", p: { meals: 4, noGluten: true } },
   { id: "sl4", e: "🥛", n: "Sans lactose · 4 repas", d: "Boissons et yaourts végétaux à la place des laitages.", p: { meals: 4, noLactose: true } },
-  { id: "papa3", e: "👨", n: "Papa pressé · 3 repas", d: "Des plats simples à préparer en batch le dimanche.", p: { meals: 3 } },
-  { id: "allait5", e: "🤱", n: "Maman allaitante · 5 repas · +400 kcal", d: "L'allaitement demande environ 400 kcal de plus par jour. Pas de régime restrictif pendant cette période.", p: { meals: 5, kcalAdj: 400 } },
+  { id: "papa3", e: "👨", n: "Parent pressé · 3 repas", d: "Des plats simples à préparer en batch le dimanche.", p: { meals: 3 } },
+  { id: "allait5", e: "🤱", n: "Allaitement · 5 repas · +400 kcal", d: "L'allaitement demande environ 400 kcal de plus par jour. Pas de régime restrictif pendant cette période.", p: { meals: 5, kcalAdj: 400 } },
   { id: "enceinte2", e: "🤰", n: "Grossesse 2e trimestre · 5 repas · +250 kcal", d: "Pas de restriction calorique pendant la grossesse : suis l'avis de ton médecin ou de ta sage-femme.", p: { meals: 5, kcalAdj: 250 } },
   { id: "enceinte3", e: "🤰", n: "Grossesse 3e trimestre · 5 repas · +450 kcal", d: "Des petits repas plus fréquents pour le confort digestif.", p: { meals: 5, kcalAdj: 450 } },
   { id: "senior4", e: "👴", n: "Senior · 4 repas", d: "Des protéines bien réparties sur la journée pour garder le muscle.", p: { meals: 4 } },

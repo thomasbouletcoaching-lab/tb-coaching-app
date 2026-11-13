@@ -12,7 +12,7 @@ const SCALES = [
   ["energy", "⚡ Énergie dans la semaine", "à plat", "en pleine forme"],
   ["sleepQ", "😴 Qualité du sommeil", "très mauvaise", "excellente"],
   ["stress", "😮‍💨 Stress", "calme", "très stressé"],
-  ["hunger", "🍽️ Faim", "aucune", "affamé en permanence"],
+  ["hunger", "🍽️ Faim", "aucune", "faim en permanence"],
   ["plan", "🎯 J'ai suivi mon plan", "pas du tout", "à la lettre"],
 ];
 export const CI_MEASURES = [["waistNav", "Tour de taille (nombril)"], ["hips", "Hanches"], ["chest", "Poitrine"], ["arm_r_r", "Bras droit relâché"], ["thigh_r_r", "Cuisse droite"]];

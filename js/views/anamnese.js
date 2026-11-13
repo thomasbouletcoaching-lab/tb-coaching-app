@@ -16,7 +16,7 @@ export const HEALTH = [
   ["supervised", "Un médecin t'a-t-il dit de ne faire du sport que sous surveillance médicale ?"],
 ];
 const ZONES = [["epaule", "Épaule"], ["coude", "Coude"], ["poignet", "Poignet"], ["nuque", "Nuque, haut du dos"], ["lombaires", "Bas du dos"], ["hanche", "Hanche"], ["genou", "Genou"], ["cheville", "Cheville, pied"]];
-const TRIED = [["salle", "La salle, seul"], ["coach", "Un coach"], ["programme", "Un programme en ligne"], ["appli", "Une appli"], ["regime", "Un régime"], ["sport", "Un sport collectif"]];
+const TRIED = [["salle", "La salle, sans accompagnement"], ["coach", "Un coach"], ["programme", "Un programme en ligne"], ["appli", "Une appli"], ["regime", "Un régime"], ["sport", "Un sport collectif"]];
 const SCHED = [["bureau", "Horaires de bureau"], ["decale", "Horaires décalés"], ["deplacement", "Souvent en déplacement"], ["variable", "Très variables"]];
 const ALCO = [["jamais", "Jamais"], ["rare", "Occasionnellement"], ["semaine", "Chaque week-end"], ["souvent", "Plusieurs fois par semaine"]];
 const YEARS = [["0", "Jamais vraiment"], ["1", "Moins d'1 an"], ["3", "1 à 3 ans"], ["5", "Plus de 3 ans"]];
@@ -51,7 +51,7 @@ routes.anamnese = () => {
       <div class="card"><b class="small">Tabac</b>${one("smoke", [["0", "Non"], ["1", "Oui"]], li.smoke == null ? "" : li.smoke ? "1" : "0")}</div>
 
       <h2 class="sec">🔥 Ta motivation</h2>
-      <label class="field"><span>Pourquoi maintenant ? Ta vraie raison</span><textarea name="why" maxlength="400" placeholder="ex. je veux pouvoir jouer au foot avec mon fils sans être essoufflé">${esc(mo.why || "")}</textarea></label>
+      <label class="field"><span>Pourquoi maintenant ? Ta vraie raison</span><textarea name="why" maxlength="400" placeholder="ex. je veux pouvoir monter trois étages sans m'essouffler">${esc(mo.why || "")}</textarea></label>
       <label class="field"><span>Dans 12 semaines, ta plus grande fierté serait…</span><textarea name="proud" maxlength="400">${esc(mo.proud || "")}</textarea></label>
       <div class="grid2"><label class="field"><span>Une date qui compte ? (facultatif)</span><input type="date" name="deadline" min="${today()}" value="${esc(mo.deadline || "")}"></label>
         <label class="field"><span>Envie de changer tes habitudes (1 à 10)</span><input name="ready" inputmode="numeric" value="${mo.ready ?? ""}" placeholder="ex. 8"></label></div>

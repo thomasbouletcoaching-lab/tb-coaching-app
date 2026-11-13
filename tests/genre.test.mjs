@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { genreDe, genreChoisi, accord, mifflinSexe, sexeValide, GENRES, SEXES } from "../js/genre.js";
+import { genreDe, genreChoisi, mifflinSexe, sexeValide, libelleGenre, libelleSexe, GENRES, SEXES } from "../js/genre.js";
 import { palier, paliersPour, PALIERS, reprend } from "../js/paliers.js";
 
 test("sans choix, on s'adresse à la personne de façon neutre", () => {
@@ -17,15 +17,9 @@ test("le sexe ne sert jamais à deviner le genre, et inversement", () => {
   assert.equal(sexeValide("f"), "f"); assert.equal(sexeValide("m"), "m"); assert.equal(sexeValide(""), null); assert.equal(sexeValide("autre"), null);
 });
 
-test("accord : la forme choisie, sinon la neutre ; la forme neutre est obligatoire", () => {
-  const f = { m: "fier", f: "fière", n: "satisfait·e" };
-  assert.equal(accord({ genre: "m" }, f), "fier"); assert.equal(accord({ genre: "f" }, f), "fière"); assert.equal(accord({}, f), "satisfait·e"); assert.equal(accord({ sex: "f" }, f), "satisfait·e");
-  assert.equal(accord({ genre: "f" }, { m: "a", n: "c" }), "c");
-  assert.throws(() => accord({}, { m: "a", f: "b" })); assert.throws(() => accord({}, null));
-});
-
 test("les listes proposées : trois genres, et la possibilité de ne pas dire son sexe", () => {
   assert.deepEqual(GENRES.map(g => g[0]), ["m", "f", "n"]); assert.deepEqual(SEXES.map(s => s[0]), ["m", "f", ""]);
+  assert.equal(libelleGenre("f"), "Au féminin"); assert.equal(libelleGenre("x"), ""); assert.equal(libelleSexe("m"), "Homme"); assert.equal(libelleSexe(null), "");
 });
 
 const NIVEAUX = [1, 2, 3, 4, 5, 7, 8, 12];
@@ -35,8 +29,8 @@ for (const genre of [undefined, "m", "f", "n"]) for (const sex of [undefined, "m
 test("aucun palier ne dit « Homme » ou « Femme » sans que la personne ait choisi ce genre", () => {
   for (const p of PROFILS) for (const n of NIVEAUX) {
     const nom = palier(n, p).name;
-    if (p.genre !== "m") assert.ok(!/\bHomme\b|\bLe (Commençant|Nouveau venu)\b/.test(nom), `${JSON.stringify(p)} niveau ${n} → ${nom}`);
-    if (p.genre !== "f") assert.ok(!/\bFemme\b|\bLa (Commençante|Nouvelle venue)\b/.test(nom), `${JSON.stringify(p)} niveau ${n} → ${nom}`);
+    if (p.genre !== "m") assert.ok(!/\bHomme\b|\bLe (Débutant|Nouveau venu)\b/.test(nom), `${JSON.stringify(p)} niveau ${n} → ${nom}`);
+    if (p.genre !== "f") assert.ok(!/\bFemme\b|\bLa (Débutante|Nouvelle venue)\b/.test(nom), `${JSON.stringify(p)} niveau ${n} → ${nom}`);
   }
 });
 
@@ -48,7 +42,7 @@ test("bug signalé : une personne sans genre choisi, ou au féminin, ne voit jam
   }
   assert.equal(palier(3, { genre: "f", level: "comeback" }).name, "La Femme de la reprise");
   assert.equal(palier(3, { genre: "m", level: "comeback" }).name, "L'Homme de la reprise");
-  assert.equal(palier(3, { level: "comeback" }).name, "La reprise en marche");
+  assert.equal(palier(3, { level: "comeback" }).name, "En pleine reprise");
 });
 
 test("on ne parle de reprise ou de retour qu'à quelqu'un qui reprend", () => {
@@ -57,17 +51,18 @@ test("on ne parle de reprise ou de retour qu'à quelqu'un qui reprend", () => {
     if (!reprend(p)) assert.ok(!/reprise|retour|reviens|revenir|repart/i.test(t), `${JSON.stringify(p)} niveau ${n} → ${t}`);
   }
   assert.equal(reprend({ level: "comeback" }), true); assert.equal(reprend({ goal: "restart", level: "regular" }), true); assert.equal(reprend({ level: "regular", goal: "fat" }), false); assert.equal(reprend(undefined), false);
-  assert.match(palier(4, { level: "regular", genre: "f" }).name, /La Femme d'élan/);
+  assert.equal(palier(4, { level: "regular", genre: "f" }).name, "En plein élan");
 });
 
-test("on ne dit pas « commençant » à quelqu'un de régulier ou d'avancé", () => {
-  for (const level of ["regular", "advanced"]) for (const genre of ["m", "f", "n"]) assert.ok(!/Commençant|Premiers pas/.test(palier(1, { level, genre }).name));
-  assert.equal(palier(1, { level: "beginner", genre: "f" }).name, "La Commençante"); assert.equal(palier(1, {}).name, "Premiers pas"); assert.equal(palier(2, { level: "advanced" }).name, "Nouveau cap");
+test("on ne dit « débutant » qu'à quelqu'un qui a dit débuter (un compte sans niveau connu n'est pas présumé débutant)", () => {
+  for (const level of [undefined, "regular", "advanced", "comeback"]) for (const genre of ["m", "f", "n", undefined]) { const s = palier(1, { level, genre }); assert.ok(!/Débutant|Premiers pas|début/i.test(s.name + " " + s.line), JSON.stringify({ level, genre }) + " → " + s.name); }
+  assert.equal(palier(1, { level: "beginner", genre: "f" }).name, "La Débutante"); assert.equal(palier(1, { level: "beginner" }).name, "Premiers pas");
+  assert.equal(palier(1, {}).name, "Nouveau cap"); assert.equal(palier(2, { level: "advanced" }).name, "Nouveau cap"); assert.equal(palier(1, { level: "comeback", genre: "m" }).name, "De retour");
 });
 
 test("chaque palier a ses trois formes, une icône et une phrase qui ne s'accorde avec personne", () => {
   for (const p of PALIERS) { assert.ok(p.icon && p.variantes.length); assert.equal(p.variantes.at(-1).si({}), true, "la dernière variante couvre tous les profils");
-    for (const v of p.variantes) { for (const g of ["m", "f", "n"]) assert.ok(v.noms[g] && v.noms[g].length <= 26, JSON.stringify(v.noms)); assert.ok(!/\b(prête?|fi(er|ère)|motivée?|régulier|régulière|revenue?|seule?)\b/i.test(v.line), v.line); assert.ok(!/Homme|Femme/.test(v.noms.n)); } }
+    for (const v of p.variantes) { for (const g of ["m", "f", "n"]) assert.ok(v.noms[g] && v.noms[g].length <= 26, JSON.stringify(v.noms)); assert.ok(!/(?<![\p{L}])(prête?|fi(er|ère)|motivée?|régulier|régulière|revenue?|seule?)(?![\p{L}])/iu.test(v.line), v.line); assert.ok(!/Homme|Femme/.test(v.noms.n)); } }
 });
 
 test("seuils d'origine conservés (1, 3, 5, 8) et niveaux hors bornes tolérés", () => {
@@ -79,6 +74,10 @@ test("seuils d'origine conservés (1, 3, 5, 8) et niveaux hors bornes tolérés"
 test("modèles de nutrition : aucun nom ni description ne présume un homme, un âge précis ou une situation familiale", () => {
   const M = JSON.parse(readFileSync(new URL("../data/nutrition-models.json", import.meta.url), "utf8"));
   for (const m of M) { const t = m.name + " " + (m.prof || "");
-    if (m.id !== "femme") assert.ok(!/\bhommes?\b|\bfemmes?\b/i.test(t), t);
-    assert.ok(!/\b(Client|Pratiquant|Débutant)\b/.test(t), t); assert.ok(!/\d{2}-\d{2} ans|travail et famille/.test(t), t); }
+    if (m.id !== "femme") assert.ok(!/(?<![\p{L}])(hommes?|femmes?)(?![\p{L}])/iu.test(t), t);
+    assert.ok(!/(?<![\p{L}])(Client|Pratiquant|Débutant|Végétarien|Sportif)(?![\p{L}])/u.test(t), t); assert.ok(!/\d{2}-\d{2} ans|travail et famille/.test(t), t); }
+});
+
+test("les mots accentués sont bien détectés par les motifs de ces tests (\\b ne marche pas à côté d'un accent)", () => {
+  assert.ok(/(?<![\p{L}])motivée?(?![\p{L}])/iu.test("tu es motivé.")); assert.ok(!/(?<![\p{L}])seule?(?![\p{L}])/iu.test("seulement"));
 });

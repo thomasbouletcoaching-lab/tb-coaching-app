@@ -10,7 +10,7 @@ import { fatigueBlock } from "./fatigue.js";
 import { premium } from "../core.js";
 
 const D = (d) => S().daily[d] || {};
-const FEEL = [["energy", "⚡ Énergie", "à plat", "en forme"], ["well", "🙂 Bien-être", "mal", "très bien"], ["stress", "😮‍💨 Stress", "calme", "très stressé"], ["crave", "🍫 Envies de craquer", "aucune", "très fortes"], ["sat", "🍽️ Satiété", "affamé", "rassasié"], ["sore", "💪 Courbatures", "aucune", "très fortes"], ["motiv", "🔥 Motivation", "à plat", "à fond"]];
+const FEEL = [["energy", "⚡ Énergie", "à plat", "en forme"], ["well", "🙂 Bien-être", "mal", "très bien"], ["stress", "😮‍💨 Stress", "calme", "très fort"], ["crave", "🍫 Envies de craquer", "aucune", "très fortes"], ["sat", "🍽️ Satiété", "grande faim", "plus faim du tout"], ["sore", "💪 Courbatures", "aucune", "très fortes"], ["motiv", "🔥 Motivation", "à plat", "à fond"]];
 
 // Glycogène : estimation simple à partir des glucides des dernières 24 h, du jeûne et de la séance de la veille
 export function glycogen(d = today()) {
@@ -47,7 +47,7 @@ export function readiness(d = today()) {
   else if (g.lvl === "correctes") tips.push("Réserves correctes : une collation avec glucides 1 h avant aide pour une séance longue.");
   if (f.stress >= 8) { score -= 1; tips.push("Stress élevé : moins de séries, même intensité. Le mouvement aide, l'épuisement non."); }
   if (f.energy != null && f.energy <= 3) score -= 1;
-  const lv = score >= 3 ? ["🟢", "prêt", "Tu peux suivre ta séance comme prévu."] : score >= 2 ? ["🟠", "à surveiller", "Séance oui, en gardant de la marge."] : ["🔴", "fatigué", "Séance courte ou repos actif aujourd'hui."];
+  const lv = score >= 3 ? ["🟢", "feu vert", "Tu peux suivre ta séance comme prévu."] : score >= 2 ? ["🟠", "à surveiller", "Séance oui, en gardant de la marge."] : ["🔴", "fatigue", "Séance courte ou repos actif aujourd'hui."];
   return { icon: lv[0], label: lv[1], short: s != null ? `${fr(s, 1)} h de sommeil · glycogène ${g.lvl}` : lv[2], text: lv[2], tips, g, score };
 }
 

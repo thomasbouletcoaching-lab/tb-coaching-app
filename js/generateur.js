@@ -288,7 +288,7 @@ function modulesVises(a) {
   const m = [];
   if (a.ankle === "limited") m.push({ cat: "mobilite", re: /cheville/i, n: 2, texte: "Mobilité de cheville (genou au mur) : 2 × 30 s avant le squat.", pour: s => s.items.some(l => l.pattern === "SG" || l.pattern === "SH") });
   if (a.shoulder === "limited") m.push({ cat: "mobilite", re: /World/i, n: 2, texte: "Mobilité d'épaule et de colonne (World's greatest stretch) : 2 × 30 s avant les poussées.", pour: s => s.items.some(l => l.pattern === "PV" || l.pattern === "PH") });
-  if (a.work === "desk") m.push({ cat: "mobilite", re: /90\/90/i, n: 2, texte: "Mobilité des hanches 90/90 : 2 × 30 s, utile si tu es beaucoup assis.", pour: s => s.items.some(l => BAS.includes(l.pattern)) });
+  if (a.work === "desk") m.push({ cat: "mobilite", re: /90\/90/i, n: 2, texte: "Mobilité des hanches 90/90 : 2 × 30 s, utile si tu passes beaucoup de temps en position assise.", pour: s => s.items.some(l => BAS.includes(l.pattern)) });
   if (a.goal === "sport") { m.push({ cat: "unilateral", re: /Step-up/i, n: 2, texte: "Travail unilatéral (step-up, fentes) : utile pour le sport.", pour: s => s.items.some(l => BAS.includes(l.pattern)) }); m.push({ cat: "rotation", re: /Pallof/i, n: 2, texte: "Anti-rotation (Pallof press) : utile pour les sports de raquette ou de combat.", pour: s => s.items.some(l => HAUT.includes(l.pattern)) }); }
   if (["fat", "health", "restart", "recomp"].includes(a.goal)) m.push({ cardio: true, texte: "Cardio facile (marche rapide, vélo en zone 2) : 2 fois 20 à 30 min par semaine, en dehors des séances." });
   return m;
