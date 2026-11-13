@@ -1,4 +1,5 @@
 // Profil, réglages, sauvegarde, connaissances, mon compte, confidentialité.
+import { GENRES, SEXES, genreDe, sexeValide } from "../genre.js";
 import { S, update, resetAll, exportJSON, importJSON, today } from "../store.js";
 import * as E from "../engine.js";
 import * as N from "../nutrition.js";
@@ -115,6 +116,8 @@ actions["edit-body"] = () => {
   sheet(`<h2 class="h1">Mes infos</h2><form data-f="edit-body" class="stack mt12">
     <div class="grid3"><label class="field"><span>Poids (kg)</span><input name="weight" inputmode="decimal" value="${E.fmtKg(p.weight)}"></label><label class="field"><span>Taille (cm)</span><input name="height" inputmode="numeric" value="${p.height}"></label><label class="field"><span>Âge</span><input name="age" inputmode="numeric" value="${p.age}"></label></div>
     <label class="field"><span>E-mail</span><input name="email" type="email" value="${esc(p.email || "")}"></label>
+    <label class="field"><span>Comment on s'adresse à toi</span><select name="genre">${GENRES.map(([v, l]) => `<option value="${v}" ${genreDe(p) === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+    <label class="field"><span>Sexe (sert seulement à estimer ta dépense)</span><select name="sex">${SEXES.map(([v, l]) => `<option value="${v}" ${(p.sex || "") === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
     <label class="field"><span>Objectif de pas par jour</span><input name="stepsGoal" inputmode="numeric" value="${p.stepsGoal || 8000}"></label>
     <label class="field"><span>Objectif</span><select name="goal">${opt("goal").map(([v, l]) => `<option value="${v}" ${p.goal === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
     <label class="field"><span>Activité</span><select name="activity">${opt("activity").map(([v, l]) => `<option value="${v}" ${p.activity === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
@@ -125,7 +128,7 @@ actions["edit-body"] = () => {
     <button class="btn btn-red">Enregistrer</button></form>`);
 };
 forms["edit-body"] = (v) => {
-  update(st => { const p = st.profile; p.weight = num(v.weight) || p.weight; p.height = num(v.height) || p.height; p.age = num(v.age) || p.age; p.email = v.email.trim() || p.email; p.stepsGoal = Math.round(num(v.stepsGoal)) || 8000; p.goal = v.goal; p.activity = v.activity; p.stepsAvg = +v.stepsAvg || null; p.days = +v.days || p.days; p.sessionMin = +v.sessionMin || 60; p.sportHours = +v.sportHours || 0; p.diet = v.diet; p.nutritionModel = N.pickModel(p); st.synced = false; });
+  update(st => { const p = st.profile; p.weight = num(v.weight) || p.weight; p.height = num(v.height) || p.height; p.age = num(v.age) || p.age; p.email = v.email.trim() || p.email; p.genre = GENRES.some(g => g[0] === v.genre) ? v.genre : null; p.sex = sexeValide(v.sex); p.stepsGoal = Math.round(num(v.stepsGoal)) || 8000; p.goal = v.goal; p.activity = v.activity; p.stepsAvg = +v.stepsAvg || null; p.days = +v.days || p.days; p.sessionMin = +v.sessionMin || 60; p.sportHours = +v.sportHours || 0; p.diet = v.diet; p.nutritionModel = N.pickModel(p); st.synced = false; });
   closeSheet(); toast("Infos mises à jour"); syncProfile(); rerender();
 };
 

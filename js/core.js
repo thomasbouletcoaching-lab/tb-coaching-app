@@ -30,7 +30,7 @@ export const canMsg = () => MSGS_PER_WEEK[tier()] !== 0;
 export function msgQuotaText() {
   const lim = MSGS_PER_WEEK[tier()];
   if (lim == null) return "Messages illimités";
-  if (lim === 0) return "Messages avec Thomas réservés aux coachés";
+  if (lim === 0) return "Messages avec Thomas réservés aux personnes coachées";
   const left = S().demoTier ? lim : (S().me?.msgsLeft ?? lim);
   return `${left} message${left > 1 ? "s" : ""} disponible${left > 1 ? "s" : ""} cette semaine`;
 }

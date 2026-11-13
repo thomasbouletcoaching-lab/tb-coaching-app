@@ -43,6 +43,7 @@ Ancienne app coach : coach/index.html (monolithe)        │ webhooks
 | `js/nutrition.js`, `nutri-*.js`, `recipes.js`, `shop.js`, `energy.js` | Nutrition, cibles, recettes, courses, bilan énergétique, jeûne |
 | `js/volume.js` | Moteur pur « Volume de la semaine » (testé par `node --test`) |
 | `js/quests.js` | Quêtes, séries et trophées |
+| `js/genre.js`, `js/paliers.js` | Genre choisi (accord des textes : `profile.genre`) et sexe déclaré (estimations : `profile.sex`), jamais déduits l'un de l'autre ; noms des paliers selon le genre et le profil réel (purs, testés) |
 | `js/crise.js`, `js/views/crise.js` | « Je craque » : règles de réponse à une envie, déclencheurs du journal (pur, testé) et écran. Journal dans `S().crises`, envoyé au coach seulement si `S().criseShare` (accord explicite) |
 | `js/library.js` | Bibliothèque partagée par le coach (`cxs_library`) |
 | `js/exercices.js`, `js/views/bibliotheque.js` | Bibliothèque d'exercices classée selon les 8 patterns (`cxs_exercices`, version embarquée `data/exercices.json`) : voir `docs/bibliotheque-exercices.md` |
@@ -60,7 +61,7 @@ Défini dans `store.js` (`blank()`), enrichi au fil des écrans :
 
 | Clé | Contenu |
 |---|---|
-| `profile` | Réponses de l'onboarding : nom, e-mail, objectif, niveau, lieu, jours, durée, records, âge/taille/poids, activité, régime, priorité, source, `startProgram`, `nutritionModel`, `createdAt` |
+| `profile` | Réponses de l'onboarding : nom, e-mail, objectif, niveau, lieu, jours, durée, records, `sex` (m, f ou vide) et `genre` (m, f, n ou vide), âge/taille/poids, activité, régime, priorité, source, `startProgram`, `nutritionModel`, `createdAt` |
 | `trialStart` | Date de début de l'essai (posée à la fin de l'onboarding) |
 | `plan` | Programme suivi `{ programId, startedAt, week, idx, cycle }` |
 | `workouts`, `current`, `lifts` | Séances terminées, séance en cours, historique e1RM par exercice |

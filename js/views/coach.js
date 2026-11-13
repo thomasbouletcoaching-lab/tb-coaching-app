@@ -34,7 +34,7 @@ routes.coach = async () => {
     ${rank() >= 2 ? `<button class="card tap mt12" data-a="go" data-r="offers" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left"><span class="grow"><b>Toutes les offres</b><br><span class="small muted">Comparer et changer de formule</span></span>${I.chev}</button>` : ""}
   </main>${tabbar("coach")}`;
 };
-actions["coach-msg"] = () => { if (canMsg()) return go("chat"); toast("Les messages avec Thomas sont réservés aux coachés"); go("offers"); };
+actions["coach-msg"] = () => { if (canMsg()) return go("chat"); toast("Les messages avec Thomas sont réservés aux personnes coachées"); go("offers"); };
 actions["coach-follow"] = (b, d) => { const p = E.program(d.id); if (!p) return toast("Programme indisponible hors connexion"); if (!confirm(`Suivre « ${p.name} » ? Ton programme actuel s'arrête, tes charges sont gardées.`)) return; update(st => st.plan = { programId: d.id, startedAt: today(), week: 1, idx: 0, cycle: 1 }); toast("C'est parti : ton nouveau programme est dans le carnet"); go("carnet"); };
 actions["coach-plan"] = (b, d) => { const r = libraryRows().find(x => x.id === +d.id); if (!r?.data?.meals) return; update(st => { st.myPlan = { meals: JSON.parse(JSON.stringify(r.data.meals)) }; st.coachPlanId = r.id; st.editVar = null; }); toast("Plan de Thomas appliqué : il s'affiche chaque jour dans ton journal"); rerender(); };
 function followUp() {
@@ -213,7 +213,7 @@ async function sendAudio(blob) {
 }
 
 routes.chat = async () => {
-  if (!isCoach() && !canMsg()) { toast("Les messages avec Thomas sont réservés aux coachés"); return go("offers"); }
+  if (!isCoach() && !canMsg()) { toast("Les messages avec Thomas sont réservés aux personnes coachées"); return go("offers"); }
   const memberId = isCoach() ? R.param : null;
   const m = memberId ? (window.__members || []).find(x => x.id === memberId) : null;
   $app.innerHTML = header(memberId ? esc(m?.name || "Membre") : "Thomas", memberId ? esc(m?.email || "") : "Je réponds moi-même", { back: memberId ? "admin-msg" : "coach" })
@@ -347,7 +347,7 @@ routes.member = async () => {
     $app.innerHTML = header(esc(m.name || "Membre"), esc(D?.plan ? `${(E.program(D.plan.programId)?.name || "").split("·")[0]} · semaine ${D.plan.week}` : m.email || ""), { back: "admin", actions: `<button class="pill" data-a="go" data-r="member-prog" data-p="${esc(m.id)}">📋 Programme</button>` }) + `<main class="page">${top}${body}</main>${adminTabbar("admin")}`;
     return;
   }
-  const L = { goal: "Objectif", discipline: "Discipline", level: "Niveau", place: "Lieu", days: "Jours / semaine", sex: "Sexe", age: "Âge", height: "Taille", weight: "Poids", diet: "Alimentation", activity: "Activité", backPain: "Gêne lombaire", word: "Parole", news: "Accepte les e-mails" };
+  const L = { goal: "Objectif", discipline: "Discipline", level: "Niveau", place: "Lieu", days: "Jours / semaine", sex: "Sexe", genre: "S'adresse à (m, f, n)", age: "Âge", height: "Taille", weight: "Poids", diet: "Alimentation", activity: "Activité", backPain: "Gêne lombaire", word: "Parole", news: "Accepte les e-mails" };
   $app.innerHTML = header(esc(m.name || "Membre"), esc(m.email || ""), { back: "admin" }) + `<main class="page">${top}
     <h2 class="sec">Formule</h2>
     <div class="card"><div class="row" style="gap:8px"><select id="tier" class="inp grow" style="text-align:left">${assignable(m.tier).map(x => `<option value="${x.id}" ${x.id === m.tier ? "selected" : ""}>${esc(x.name)} · ${esc(x.price)}</option>`).join("")}</select><button class="btn btn-red btn-sm" style="width:auto" data-a="set-tier" data-id="${m.id}">Valider</button></div></div>

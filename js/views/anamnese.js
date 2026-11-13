@@ -52,9 +52,9 @@ routes.anamnese = () => {
 
       <h2 class="sec">🔥 Ta motivation</h2>
       <label class="field"><span>Pourquoi maintenant ? Ta vraie raison</span><textarea name="why" maxlength="400" placeholder="ex. je veux pouvoir jouer au foot avec mon fils sans être essoufflé">${esc(mo.why || "")}</textarea></label>
-      <label class="field"><span>Dans 12 semaines, tu seras fier de toi si…</span><textarea name="proud" maxlength="400">${esc(mo.proud || "")}</textarea></label>
+      <label class="field"><span>Dans 12 semaines, ta plus grande fierté serait…</span><textarea name="proud" maxlength="400">${esc(mo.proud || "")}</textarea></label>
       <div class="grid2"><label class="field"><span>Une date qui compte ? (facultatif)</span><input type="date" name="deadline" min="${today()}" value="${esc(mo.deadline || "")}"></label>
-        <label class="field"><span>Prêt à changer tes habitudes (1 à 10)</span><input name="ready" inputmode="numeric" value="${mo.ready ?? ""}" placeholder="ex. 8"></label></div>
+        <label class="field"><span>Envie de changer tes habitudes (1 à 10)</span><input name="ready" inputmode="numeric" value="${mo.ready ?? ""}" placeholder="ex. 8"></label></div>
 
       <label class="check mt8"><input type="checkbox" name="consent" ${a.consent ? "checked" : ""} required> J'accepte que ces informations, dont celles sur ma santé, soient enregistrées et partagées avec mon coach pour adapter mon accompagnement. Je peux les modifier ou les effacer à tout moment.</label>
       <button class="btn btn-red">Enregistrer</button>

@@ -17,7 +17,7 @@ export const CONFIG = {
 export const TRIAL_DAYS = 30;
 export const OFFERS = [
   // « free » = compte sans accès (essai terminé, pas d'abonnement) : plus vendu, l'app est alors verrouillée (voir locked() dans core.js).
-  { id: "free", rank: 0, name: "Sans accès (essai terminé)", price: "", per: "", msgs: "Messages avec Thomas réservés aux coachés", tagline: "", feats: [] },
+  { id: "free", rank: 0, name: "Sans accès (essai terminé)", price: "", per: "", msgs: "Messages avec Thomas réservés aux personnes coachées", tagline: "", feats: [] },
   { id: "premium", rank: 1, name: "Bâtisseur", price: "19,99 €", per: "/mois", alt: "ou 119,99 € par an, soit 6 mois offerts", msgs: "Messages avec Thomas : avec le coaching",
     tagline: "L'app complète, pour avancer seul avec ma méthode.", ribbon: "30 jours offerts",
     feats: ["Apprendre, journal alimentaire (base Ciqual), carnet de séance et minuteur", "Les 111 programmes (salle, maison, street, force, femmes, parents, santé) et les cycles de 12 semaines", "Charges calculées et surcharge progressive selon ton RPE, alertes plateau et blessure", "Plan alimentaire selon ton profil, ton régime et ton nombre de repas, modifiable au gramme", "Recettes, batch cooking, liste de courses et budget par magasin", "Vitamines, minéraux et compléments : ce qu'il te faut, à quelle dose", "Bilan énergétique, statistiques, photos et mensurations", "Créer et modifier tes propres programmes"],

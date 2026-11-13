@@ -1,4 +1,5 @@
 // Carburant : cibles, base Ciqual, plats types, plan alimentaire, journal.
+import { mifflinSexe } from "./genre.js";
 import { S, update, today } from "./store.js";
 import { ING as RING } from "./recipes.js";
 
@@ -148,7 +149,7 @@ export function pickModel(p) {
 export function targets(p = S().profile) {
   if (!p || !MODELS) return null;
   const m = MODELS.find(x => x.id === (p.nutritionModel || pickModel(p))) || MODELS[0];
-  const bmr = 10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === "f" ? -161 : 5);
+  const bmr = 10 * p.weight + 6.25 * p.height - 5 * p.age + mifflinSexe(p.sex);
   const ex = weeklyExercise(p), base = bmr * (ACTIVITY[p.activity] || 1.4) + stepsAdj(p) + ex.total;
   const kcal = Math.round((base * (1 + (m.adj || 0) / 100) + (S().planPrefs?.kcalAdj || 0)) / 10) * 10;
   const prot = Math.round((m.pk || 1.8) * p.weight), fat = Math.round((m.lk || .9) * p.weight);
