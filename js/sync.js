@@ -1,4 +1,5 @@
 // Synchronisation avec le serveur : profil, formule, compteurs (messages, notifications).
+import { PARTAGE_MAX } from "./crise.js";
 import { S, update, today, onSave } from "./store.js";
 import * as E from "./engine.js";
 import * as N from "./nutrition.js";
@@ -47,7 +48,7 @@ export function snapshot() {
     // Suivi : bilans, anamnèse, témoignage, photos envoyées volontairement, essai
     checkins: (st.checkins || []).slice(-26), anamnese: st.anamnese || null, programme: pourCoach(st.programme, !!st.anamnese?.consent), testimonial: st.testimonial || null, sharedPhotos: st.sharedPhotos || [], trialStart: st.trialStart || null, defi: st.defi || null,
     // Journal « Je craque » : uniquement avec l'accord explicite du membre ; sinon null, ce qui efface aussi une copie envoyée avant un retrait d'accord
-    crises: st.criseShare ? (st.crises || []).slice(-30) : null, profileCreatedAt: st.profile?.createdAt || null };
+    crises: st.criseShare ? (st.crises || []).slice(-PARTAGE_MAX) : null, criseShare: st.criseShare || null, profileCreatedAt: st.profile?.createdAt || null };
   let ag = null, ns = null; try { ag = E.agenda(t, t)[t]; ns = E.nextSession(); } catch { }
   const tot = N.dayTotals(t), D = st.daily[t] || {}, lw = st.workouts.at(-1);
   const summary = { today: t, session: ag ? { st: ag.st, title: ag.title } : null, inProgress: st.current ? { title: st.current.title, start: st.current.start, done: st.current.exercises.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0) } : null,

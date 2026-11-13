@@ -39,7 +39,8 @@ const mise = (p) => p.evaluate(() => {
     muets: inter.filter(e => e.tagName === 'BUTTON' && !(e.textContent || '').trim() && !e.getAttribute('aria-label')).length,
     cases: [...document.querySelectorAll('#app main input[type=checkbox]')].filter(e => !e.closest('label')).length };
 });
-const INTERDITS = /suicid|3114|\bprier\b|prière|rattrap|punit/i;
+const INTERDITS = /suicid|3114|\bprier\b|prière|alcool|rattrap|punit/i;
+const sansApres = (t) => t.replace(/Pas de repas sauté, pas de jeûne pour rattraper, pas de séance en plus pour compenser\./, '');
 
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
@@ -49,7 +50,7 @@ const INTERDITS = /suicid|3114|\bprier\b|prière|rattrap|punit/i;
   let t = await txt(a.p);
   ok(/Qu'est-ce qui se passe/.test(t) && /J'ai envie de/.test(t) && /Ce que je ressens/.test(t) && /Où je suis/.test(t) && /Force de l'envie/.test(t), 'écran de saisie : envie, ressenti, lieu, force');
   ok(!INTERDITS.test(t), 'aucune mention du suicide, du 3114, de la prière ni de rattrapage');
-  ok(/parles-en à ton médecin, ou à la ligne d'écoute spécialisée dans les troubles du comportement alimentaire au 09 69 325 900/.test(t) && (t.match(/09 69 325 900/g) || []).length === 1, 'une seule phrase sobre en bas, avec la ligne d\'écoute spécialisée');
+  ok(/parles-en à un médecin, ou à la ligne d'écoute spécialisée dans les troubles du comportement alimentaire au 09 69 325 900/.test(t) && (t.match(/09 69 325 900/g) || []).length === 1, 'une seule phrase sobre en bas, avec la ligne d\'écoute spécialisée');
   let m = await mise(a.p);
   ok(m.docW <= a.w + 1, 'rien ne dépasse de l\'écran (' + m.docW + ')');
   ok(m.petits.length === 0, 'cibles tactiles d\'au moins 44 px' + (m.petits.length ? ' : ' + m.petits.slice(0, 4).join(', ') : ''));
@@ -68,10 +69,11 @@ const INTERDITS = /suicid|3114|\bprier\b|prière|rattrap|punit/i;
   await tap(a.p, '[data-f="cr-go"] button');
   t = await txt(a.p);
   ok(/Une pause de 10 minutes/.test(t) && /Bois un grand verre d'eau/.test(t), 'réponse concrète : pause de 10 minutes, boire, marcher');
-  ok(/trois respirations lentes/.test(t), 'conseil adapté au ressenti (stress)');
-  ok(/Ton prochain repas est un repas normal/.test(t) && /Pas de repas sauté, pas de jeûne, pas de séance en plus pour compenser/.test(t), 'ce qu\'on fait après : repas normal, aucune compensation');
+  ok(/trois respirations lentes/.test(t) && t.indexOf('trois respirations lentes') < t.indexOf('Bois un grand verre'), 'conseil adapté au ressenti (stress), donné avant la décision');
+  ok(await a.p.evaluate(() => document.activeElement?.id) === 'cr-titre', 'le focus est placé sur le titre de la réponse (lecteur d\'écran, clavier)');
+  ok(/Ton prochain repas est un repas normal/.test(t) && /Pas de repas sauté, pas de jeûne pour rattraper, pas de séance en plus pour compenser/.test(t), 'ce qu\'on fait après : repas normal, aucune compensation');
   ok(/Elle ne dit rien de ta valeur ni de ta volonté/.test(t), 'déculpabilisation explicite');
-  ok(!INTERDITS.test(t.replace(/pas de séance en plus pour compenser/, '')), 'toujours aucun texte interdit');
+  ok(!INTERDITS.test(sansApres(t)), 'toujours aucun texte interdit');
   let st = await S(a.p);
   ok(st.crises.length === 1 && st.crises[0].d === T && /^\d\d:\d\d$/.test(st.crises[0].t) && st.crises[0].envie === 'sucre' && st.crises[0].emotion === 'stress' && st.crises[0].contexte === 'maison' && st.crises[0].intensite === 3, 'envie enregistrée dans le journal avec l\'heure');
   ok(await a.p.locator('#app main b').count() === 0 && /Journée difficile <b>au bureau<\/b>/.test(t), 'le texte libre est affiché tel quel, jamais interprété comme du HTML');
@@ -79,25 +81,32 @@ const INTERDITS = /suicid|3114|\bprier\b|prière|rattrap|punit/i;
   ok(m.docW <= a.w + 1 && m.petits.length === 0 && m.muets === 0, 'réponse : mise en page et cibles tactiles correctes' + (m.petits.length ? ' : ' + m.petits.slice(0, 4).join(', ') : ''));
   await shot(a.p, 'crise-02-reponse');
 
+  // « Reviens ici ensuite » : l'app est fermée puis rouverte pendant la pause
+  await a.p.reload({ waitUntil: 'load' }); await a.p.waitForTimeout(1300);
+  ok(/Une pause de 10 minutes/.test(await txt(a.p)) && await a.p.locator('[data-a="cr-suite"]').count() === 3 && (await S(a.p)).crises.length === 1, 'au retour après la pause, la réponse et la question « et ensuite ? » sont retrouvées, sans doublon');
   await tap(a.p, '[data-a="cr-suite"][data-v="plus"]');
   t = await txt(a.p);
-  ok(/Un seul repas ne défait pas des semaines de régularité/.test(t) && (await S(a.p)).crises[0].suite === 'plus', '« J\'ai mangé plus que prévu » : message bienveillant, issue notée');
+  ok(/Un repas ne défait pas ce que tu construis/.test(t) && /✓ J'ai mangé plus que prévu/.test(t) && (await S(a.p)).crises[0].suite === 'plus', '« J\'ai mangé plus que prévu » : message bienveillant, issue notée et cochée (pas seulement par la couleur)');
   await tap(a.p, '[data-a="cr-suite"][data-v="passee"]');
   ok((await S(a.p)).crises.length === 1 && (await S(a.p)).crises[0].suite === 'passee', 'on peut corriger l\'issue sans créer de doublon');
   ok(await a.p.locator('[data-c="cr-share"]').count() === 0, 'pas de partage proposé hors coaching (essai)');
+  await a.p.reload({ waitUntil: 'load' }); await a.p.waitForTimeout(1300);
+  ok(/Qu'est-ce qui se passe/.test(await txt(a.p)), 'une fois l\'issue notée, le retour sur l\'écran propose une nouvelle saisie');
+  await pick(a.p, 'envie', 'sucre');
+  ok(await a.p.evaluate(() => document.activeElement?.dataset?.v) === 'sucre', 'après un choix, le focus reste sur le bouton touché');
+  await pick(a.p, 'envie', 'sucre');
 
   console.log('Faim, soirée, envie forte');
-  await tap(a.p, '[data-a="cr-new"]');
   await pick(a.p, 'emotion', 'faim'); await pick(a.p, 'envie', 'sale'); await tap(a.p, '[data-f="cr-go"] button');
-  ok(/C'est de la faim : mange/.test(await txt(a.p)) && /deux tranches de pain/.test(await txt(a.p)), 'vraie faim : manger quelque chose de précis et suffisant');
+  ok(/C'est de la faim : mange/.test(await txt(a.p)) && /par exemple du pain avec du fromage, des œufs ou du houmous/.test(await txt(a.p)), 'faim : manger quelque chose de précis et suffisant, donné en exemple adaptable');
   await tap(a.p, '[data-a="cr-new"]');
   await pick(a.p, 'contexte', 'soiree'); await pick(a.p, 'intensite', '5'); await tap(a.p, '[data-f="cr-go"] button');
-  ok(/Profite du moment, en choisissant/.test(await txt(a.p)) && /repas plaisir de la semaine/.test(await txt(a.p)), 'soirée : repli sur le repas plaisir, sans interdit');
+  ok(/Profite du moment, en choisissant/.test(await txt(a.p)) && /Ce repas peut être ton repas plaisir/.test(await txt(a.p)), 'soirée : repli sur le repas plaisir, sans interdit');
   await tap(a.p, '[data-a="cr-new"]');
   await pick(a.p, 'intensite', '5'); await tap(a.p, '[data-f="cr-go"] button');
-  ok(/Une portion choisie, pas un paquet fini/.test(await txt(a.p)), 'envie envahissante : portion choisie');
+  ok(/Une portion choisie, tranquillement/.test(await txt(a.p)), 'envie envahissante : portion choisie');
   await tap(a.p, '[data-a="cr-new"]'); await tap(a.p, '[data-f="cr-go"] button');
-  ok(/Une pause de 10 minutes/.test(await txt(a.p)) && (await S(a.p)).crises.length === 5, 'sans rien choisir : la pause est proposée quand même (zéro saisie obligatoire)');
+  ok(/Une pause de 10 minutes/.test(await txt(a.p)) && (await S(a.p)).crises.length === 5 && (await S(a.p)).crises[4].intensite === null, 'sans rien choisir : la pause est proposée quand même, et aucune intensité n\'est inventée');
   ok(a.errs.length === 0, 'aucune erreur JavaScript' + (a.errs.length ? ' (' + a.errs.slice(0, 3).join(' | ') + ')' : ''));
 
   console.log('Journal, effacement, quêtes');
@@ -122,10 +131,37 @@ const INTERDITS = /suicid|3114|\bprier\b|prière|rattrap|punit/i;
   ok(snap.crises === null, 'sans accord, le journal ne part pas chez le coach');
   await c.p.check('[data-c="cr-share"]'); await c.p.waitForTimeout(250);
   snap = await c.p.evaluate(async () => (await import('./js/sync.js')).snapshot().data);
-  ok(Array.isArray(snap.crises) && snap.crises.length === 4 && !!(await S(c.p)).criseShare, 'avec accord (horodaté), le journal est joint au dossier');
+  ok(Array.isArray(snap.crises) && snap.crises.length === 4 && !!(await S(c.p)).criseShare && snap.criseShare === (await S(c.p)).criseShare, 'avec accord (horodaté), le journal et la date de l\'accord sont joints au dossier');
   await c.p.uncheck('[data-c="cr-share"]'); await c.p.waitForTimeout(250);
   snap = await c.p.evaluate(async () => (await import('./js/sync.js')).snapshot().data);
-  ok(snap.crises === null && !(await S(c.p)).criseShare, 'accord retiré : le journal n\'est plus envoyé et la copie du coach est effacée au prochain envoi');
+  ok(snap.crises === null && snap.criseShare === null && !(await S(c.p)).criseShare, 'accord retiré : le prochain envoi ne contient plus le journal (valeur nulle, qui remplace la copie du coach)');
+  // La fusion côté serveur (js/cloud.js) remplace bien l'ancienne copie par la valeur nulle
+  const fusion = await c.p.evaluate(() => { const prev = { crises: [{ d: '2026-11-01', note: 'copie du coach' }], criseShare: '2026-11-01T10:00:00Z', food: {} }, data = { crises: null, criseShare: null }; return { ...prev, ...data }; });
+  ok(fusion.crises === null && fusion.criseShare === null, 'fusion du dossier : une valeur nulle écrase la copie précédente');
+  // Accord donné puis changement de formule : la case reste visible pour pouvoir retirer l'accord
+  await c.p.check('[data-c="cr-share"]'); await c.p.waitForTimeout(250);
+  await c.p.evaluate(() => { const s = JSON.parse(localStorage.getItem('cxs.v1')); s.me = { tier: 'premium', isCoach: false }; localStorage.setItem('cxs.v1', JSON.stringify(s)); });
+  await c.p.reload({ waitUntil: 'load' }); await c.p.waitForTimeout(1300);
+  ok(await c.p.locator('[data-c="cr-share"]').count() === 1 && await c.p.isChecked('[data-c="cr-share"]'), 'formule changée (plus de coaching) : la case reste affichée tant que l\'accord est en cours');
+  await c.p.uncheck('[data-c="cr-share"]'); await c.p.waitForTimeout(250);
+  snap = await c.p.evaluate(async () => (await import('./js/sync.js')).snapshot().data);
+  ok(snap.crises === null && !(await S(c.p)).criseShare, 'l\'accord se retire même après le changement de formule');
+  await c.p.reload({ waitUntil: 'load' }); await c.p.waitForTimeout(1300);
+  ok(await c.p.locator('[data-c="cr-share"]').count() === 0, 'accord retiré et plus de coaching : la case n\'est plus proposée');
+
+  console.log('Côté coach : bloc affiché seulement avec accord, contenu jamais interprété');
+  const coach = await c.p.evaluate(async () => {
+    const { craquages } = await import('./js/views/suivi-coach.js');
+    const sale = [{ d: '2026-11-10', t: '21:10', emotion: 'fatigue', contexte: 'maison', note: '<img src=x onerror=alert(1)>' }, { d: '<b>x</b>', t: '<i>', envie: '<u>', emotion: '<s>', contexte: '"><script>', suite: '<p>', note: 12 }, null, 'x', { d: '2026-11-11', t: '20:00', emotion: 'fatigue' }, { d: '2026-11-12', t: '20:30', emotion: 'fatigue' }];
+    // (le titre « Ce qui revient » du bloc est en gras : c'est le seul <b> légitime, d'où « p > b » plus bas)
+    const html = craquages({ crises: sale, criseShare: '2026-11-09T08:00:00.000Z' }); const div = document.createElement('div'); div.innerHTML = html;
+    return { sansCle: craquages({}), nul: craquages({ crises: null, criseShare: null }), sansAccord: craquages({ crises: sale }), videPartage: craquages({ crises: [], criseShare: '2026-11-09T08:00:00.000Z' }),
+      balises: div.querySelectorAll('img, script, i, u, s, p > b').length, texte: div.textContent.replace(/\s+/g, ' ') };
+  });
+  ok(coach.sansCle === '' && coach.nul === '' && coach.sansAccord === '', 'sans accord (clé absente, nulle, ou journal sans date d\'accord) : aucun bloc « Craquages »');
+  ok(/Craquages 4 /.test(coach.texte) && /Partagé par le membre depuis le/.test(coach.texte) && /fatigue/.test(coach.texte), 'avec accord : journal, date de l\'accord et déclencheurs');
+  ok(coach.balises === 0 && /<img src=x onerror=alert\(1\)>/.test(coach.texte), 'un journal piégé est affiché comme du texte, jamais exécuté');
+  ok(/Aucune envie notée/.test(coach.videPartage), 'accord donné, journal vide : le bloc le dit');
   m = await mise(c.p);
   ok(m.docW <= c.w + 1 && m.petits.length === 0 && m.cases === 0, 'journal : mise en page correcte, case à cocher avec son libellé' + (m.petits.length ? ' : ' + m.petits.slice(0, 4).join(', ') : ''));
   ok(c.errs.length === 0, 'aucune erreur JavaScript' + (c.errs.length ? ' (' + c.errs.slice(0, 3).join(' | ') + ')' : ''));

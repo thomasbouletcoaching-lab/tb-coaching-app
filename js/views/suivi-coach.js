@@ -9,7 +9,7 @@ import { HEALTH } from "./anamnese.js";
 import { checkinText } from "./checkin.js";
 import { scoreRing } from "./suivi.js";
 import { resume } from "../programme.js";
-import { declencheurs, resume as resumeCrise } from "../crise.js";
+import { declencheurs, resume as resumeCrise, PARTAGE_MAX } from "../crise.js";
 
 const ZL = { epaule: "Épaule", coude: "Coude", poignet: "Poignet", nuque: "Nuque", lombaires: "Bas du dos", hanche: "Hanche", genou: "Genou", cheville: "Cheville" };
 const YL = { 0: "Jamais vraiment", 1: "Moins d'1 an", 3: "1 à 3 ans", 5: "Plus de 3 ans" };
@@ -37,7 +37,7 @@ export function memberSuivi(D, m) {
     ${an?.at ? `<div class="card small">
       ${an.flags?.length ? `<div class="card" style="box-shadow:0 0 0 2px var(--warn) inset;margin:0 0 10px"><b>⚠️ ${an.flags.length} réponse${an.flags.length > 1 ? "s" : ""} « oui » santé</b>${HEALTH.filter(([k]) => an.health?.[k]).map(([, q]) => `<p class="xs mt4" style="margin:0">• ${esc(q)}</p>`).join("")}${an.healthNote ? `<p class="xs mt4" style="margin:0"><b>Précision :</b> ${esc(an.healthNote)}</p>` : ""}<p class="xs muted mt4" style="margin:0">Avis médical conseillé avant d'augmenter l'intensité.</p></div>` : `<p style="margin:0 0 6px">✅ Aucun « oui » aux questions santé.</p>`}
       ${an.zones?.length ? `<p style="margin:0 0 6px"><b>Gênes :</b> ${an.zones.map(z => ZL[z] || z).join(", ")}</p>` : ""}${an.surgery ? `<p style="margin:0 0 6px"><b>Antécédents :</b> ${esc(an.surgery)}</p>` : ""}
-      <p style="margin:0 0 6px"><b>Pourquoi maintenant :</b> ${esc(an.motivation?.why || "–")}</p><p style="margin:0 0 6px"><b>Fier si :</b> ${esc(an.motivation?.proud || "–")}${an.motivation?.deadline ? ` · <b>échéance</b> ${fmtDate(an.motivation.deadline, { day: "numeric", month: "short", year: "numeric" })}` : ""}${an.motivation?.ready ? ` · <b>prêt</b> ${an.motivation.ready}/10` : ""}</p>
+      <p style="margin:0 0 6px"><b>Pourquoi maintenant :</b> ${esc(an.motivation?.why || "–")}</p><p style="margin:0 0 6px"><b>Fierté visée :</b> ${esc(an.motivation?.proud || "–")}${an.motivation?.deadline ? ` · <b>échéance</b> ${fmtDate(an.motivation.deadline, { day: "numeric", month: "short", year: "numeric" })}` : ""}${an.motivation?.ready ? ` · <b>prêt</b> ${an.motivation.ready}/10` : ""}</p>
       <p style="margin:0 0 6px"><b>Historique :</b> ${YL[an.history?.years] || "–"}${an.history?.tried?.length ? ` · a essayé : ${an.history.tried.join(", ")}` : ""}</p>${an.history?.worked ? `<p style="margin:0 0 6px"><b>A marché :</b> ${esc(an.history.worked)}</p>` : ""}${an.history?.stopped ? `<p style="margin:0 0 6px"><b>L'a fait arrêter :</b> ${esc(an.history.stopped)}</p>` : ""}
       <p class="xs muted" style="margin:0">Sommeil ${an.life?.sleep ?? "–"} h · stress ${an.life?.stress ?? "–"}/10 · ${esc(an.life?.schedule || "rythme ?")} · enfants ${an.life?.kids == null ? "?" : an.life.kids ? "oui" : "non"} · alcool ${esc(an.life?.alcohol || "?")} · tabac ${an.life?.smoke == null ? "?" : an.life.smoke ? "oui" : "non"} · rempli le ${fmtDate(an.at.slice(0, 10), { day: "numeric", month: "short" })}</p></div>`
       : `<p class="small muted">Pas encore remplie. Le membre la voit sur son accueil et dans le Défi 30 jours.</p>`}
@@ -47,20 +47,22 @@ export function memberSuivi(D, m) {
     <h2 class="sec">💬 Témoignage</h2>
     ${t?.ok ? `<div class="card small"><p style="margin:0">« ${esc(t.quote)} »</p><p class="xs muted mt8" style="margin:0">Accord du ${fmtDate(t.at.slice(0, 10), { day: "numeric", month: "long", year: "numeric" })} · ${t.anon === "anonyme" ? "anonyme" : t.anon === "initiale" ? "initiale seulement" : "prénom"} · ${t.photos ? "photos autorisées" : "sans photos"}${t.summary ? ` · ${t.summary.days} j, ${t.summary.weight != null ? `${t.summary.weight > 0 ? "+" : ""}${fr(t.summary.weight, 1)} kg, ` : ""}${t.summary.sessions} séances` : ""}</p></div>`
       : t?.revokedAt ? `<p class="small muted">Accord retiré le ${fmtDate(t.revokedAt.slice(0, 10), { day: "numeric", month: "long" })} : ne plus utiliser.</p>` : `<p class="small muted">Pas de témoignage autorisé.</p>`}
-    ${craquages()}
+    ${craquages(D)}
     <h2 class="sec">📸 Photos envoyées <small>${(S().sharedPhotos || []).length}</small></h2>
     ${(S().sharedPhotos || []).length ? `<div class="photo-grid">${S().sharedPhotos.slice(-9).map(p => `<figure><img alt="Photo du ${esc(p.d)}" data-ppath="${esc(p.path)}" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" style="background:var(--line)"><figcaption>${fmtDate(p.d, { day: "numeric", month: "short" })} · ${esc(p.view)}</figcaption></figure>`).join("")}</div>`
       : `<p class="small muted">Le membre n'a envoyé aucune photo (elles restent sur son téléphone tant qu'il ne les envoie pas).</p>`}`;
 }
 
-// Journal « Je craque » : présent dans le dossier seulement si le membre a donné son accord (sinon la clé est absente ou nulle)
-function craquages() {
-  const j = S().crises; if (!Array.isArray(j)) return "";
-  const d = declencheurs(j);
+// Journal « Je craque » : affiché seulement si le membre a donné son accord. On lit le dossier brut `D` (et non S(), que
+// withState complète avec un journal vide) : sans accord, la clé `crises` est absente ou nulle et le bloc n'apparaît pas.
+export function craquages(D) {
+  if (!Array.isArray(D?.crises) || !D.criseShare) return "";
+  const j = D.crises.filter(e => e && typeof e === "object" && !Array.isArray(e)); // un journal abîmé ne doit rien casser
+  const d = declencheurs(j), date = (x) => /^\d{4}-\d{2}-\d{2}$/.test(String(x || "")) ? fmtDate(x, { weekday: "short", day: "numeric", month: "long" }) : String(x || "");
   return `<h2 class="sec">🆘 Craquages <small>${j.length}</small></h2>
-    <p class="xs muted">Partagé par le membre, qui peut retirer son accord à tout moment.</p>
-    ${d ? `<div class="card small"><b>Ce qui revient</b><ul style="margin:6px 0 0;padding-left:20px">${d.constats.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
-    ${j.length ? j.slice(-5).reverse().map(e => `<div class="card small"><span class="xs muted">${esc(e.d)}</span>${resumeCrise(e) ? `<p style="margin:4px 0 0">${esc(resumeCrise(e))}</p>` : ""}${e.note ? `<p style="margin:4px 0 0">${esc(e.note)}</p>` : ""}</div>`).join("") : `<p class="small muted">Aucune envie notée.</p>`}`;
+    <p class="xs muted">Partagé par le membre depuis le ${esc(date(String(D.criseShare).slice(0, 10)))}. Il peut retirer son accord à tout moment. ${j.length >= PARTAGE_MAX ? `Seules les ${PARTAGE_MAX} dernières notes sont partagées.` : ""}</p>
+    ${d ? `<div class="card small"><b>Ce qui revient</b>${d.constats.length ? `<ul style="margin:6px 0 0;padding-left:20px">${d.constats.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p style="margin:4px 0 0">Pas de déclencheur net pour l'instant.</p>`}</div>` : ""}
+    ${j.length ? j.slice(-5).reverse().map(e => `<div class="card small"><span class="xs muted">${esc(date(e.d))}</span>${resumeCrise(e) ? `<p style="margin:4px 0 0">${esc(resumeCrise(e))}</p>` : ""}${typeof e.note === "string" && e.note ? `<p style="margin:4px 0 0">${esc(e.note)}</p>` : ""}</div>`).join("") : `<p class="small muted">Aucune envie notée.</p>`}`;
 }
 
 async function hydratePhotos() {
