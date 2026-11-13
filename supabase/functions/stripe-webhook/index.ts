@@ -2,6 +2,7 @@
 // Appelée uniquement par Stripe : chaque requête est authentifiée par la signature Stripe-Signature (STRIPE_WEBHOOK_SECRET).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { stripe, subRow } from "./stripe.ts";
+import { cxsHandle } from "./cxs.ts";
 
 const enc = new TextEncoder();
 async function verify(payload: string, header: string, secret: string) {
@@ -23,6 +24,10 @@ Deno.serve(async (req) => {
   const ev = JSON.parse(payload);
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
   try {
+    // Nouvelle app (liens de paiement « tb-my-coach ») : traitée à part, sinon le flux historique continue
+    let handled = false;
+    try { handled = await cxsHandle(sb, ev); } catch (e) { console.error("cxs", e); return new Response("error", { status: 500 }); }
+    if (handled) return new Response("ok", { status: 200 });
     let s: any = null, cid: string | null = null;
     if (ev.type === "checkout.session.completed" && ev.data.object.mode === "subscription") {
       cid = ev.data.object.client_reference_id;

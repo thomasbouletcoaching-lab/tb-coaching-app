@@ -8,7 +8,7 @@ import { adherenceCard, defiCard } from "./suivi.js";
 import { checkinCard } from "./checkin.js";
 import { memberSuivi } from "./suivi-coach.js";
 import { myAdherence, summaryBetween, checkins as myCheckins, defiDay, since as sinceStart } from "../progress.js";
-import { coachLogo, trialLeft, $app, esc, num, fr, buzz, toast, ago, routes, R, actions, forms, changes, go, I, header, tabbar, adminTabbar, seg, chips, sheet, closeSheet, badges, fmtDate, addDays, rerender, tier, rank, premium, isCoach, msgQuotaText, cloud, cloudNow, render, onLeave, canMsg } from "../core.js";
+import { coachLogo, trialLeft, $app, esc, num, fr, buzz, toast, ago, routes, R, actions, forms, changes, go, I, header, tabbar, adminTabbar, seg, chips, sheet, closeSheet, badges, fmtDate, addDays, rerender, tier, rank, premium, isCoach, msgQuotaText, cloud, cloudNow, render, onLeave, canMsg, locked } from "../core.js";
 import { refreshMe, syncProfile } from "../sync.js";
 import { fromCoach, libraryRows } from "../library.js";
 import { openProgramEditor } from "./coachprog.js";
@@ -30,7 +30,7 @@ routes.coach = async () => {
       ${plans.map(r => { const k = (r.data?.meals || []).flatMap(m => m.items || []).reduce((a, x) => a + (x.kcal || 0), 0); return `<div class="card"><div class="lbl">🍽️ Nutrition</div><b class="h3">${esc(r.name)}</b><p class="small muted mt4">${(r.data?.meals || []).length} repas · ${fr(k)} kcal par jour${r.data?.note ? " · " + esc(r.data.note) : ""}</p><button class="btn ${S().coachPlanId === r.id ? "btn-line" : "btn-red"} btn-sm mt8" data-a="coach-plan" data-id="${r.id}">${S().coachPlanId === r.id ? "✓ Plan appliqué · le réappliquer" : "Appliquer ce plan à mon journal"}</button></div>`; }).join("")}`
       : `<div class="card"><p class="small" style="margin:0">${coached ? "Thomas t'envoie ici ton programme d'entraînement et ton plan alimentaire, écrits pour toi. Ils apparaissent dès qu'il les a préparés." : "Avec le coaching personnalisé, Thomas écrit ton programme d'entraînement et ton plan alimentaire : ils arrivent ici, et il suit tes séances et ton journal."}</p>${coached ? "" : `<button class="btn btn-red btn-sm mt12" data-a="go" data-r="apply">Candidater au coaching</button>`}</div>`}
     <h2 class="sec">🎯 Ta formule <small>${esc(o.name)}</small></h2>
-    ${rank() >= 2 ? followUp() : `<button class="card tap" data-a="go" data-r="offers" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left"><span style="font-size:28px">🚀</span><span class="grow"><b>${premium() ? "Passer au coaching avec Thomas" : "Voir les offres"}</b><br><span class="small muted">${premium() ? "Programme et plan écrits pour toi, bilans, messages" : `Bâtisseur : ${TRIAL_DAYS} jours offerts, puis 14,99 €/mois`}</span></span>${I.chev}</button>`}
+    ${rank() >= 2 ? followUp() : `<button class="card tap" data-a="go" data-r="offers" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left"><span style="font-size:28px">🚀</span><span class="grow"><b>${premium() ? "Passer au coaching avec Thomas" : "Voir les offres"}</b><br><span class="small muted">${premium() ? "Programme et plan écrits pour toi, bilans, messages" : `Bâtisseur : ${TRIAL_DAYS} jours offerts, puis 19,99 €/mois`}</span></span>${I.chev}</button>`}
     ${rank() >= 2 ? `<button class="card tap mt12" data-a="go" data-r="offers" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left"><span class="grow"><b>Toutes les offres</b><br><span class="small muted">Comparer et changer de formule</span></span>${I.chev}</button>` : ""}
   </main>${tabbar("coach")}`;
 };
@@ -48,20 +48,20 @@ function followUp() {
 // ---------- Offres et démo ----------
 routes.offers = () => {
   const cur = S().me?.tier || "free";
-  $app.innerHTML = header("Les offres", `${TRIAL_DAYS} jours d'essai, sans engagement`, { back: "__hist", offers: false }) + `<main class="page">
+  $app.innerHTML = header("Les offres", locked() ? "Ton essai est terminé" : `${TRIAL_DAYS} jours d'essai, sans carte bancaire`, { back: "__hist", offers: false }) + `<main class="page">
     <h2 class="sec" style="margin-top:8px">Ce qui accélère vraiment tes progrès</h2>
     <div class="list">${[["🎯", "Des charges calculées à chaque séance", "Fini le hasard : l'app te dit quoi soulever selon ton RPE, et détecte tes plateaux avant qu'ils durent."],
       ["🍽️", "Un plan alimentaire au gramme", "Ton plan selon ton profil, tes jours d'entraînement et de repos, tes courses et ton budget."],
       ["📈", "Toutes tes données, lisibles", "Tonnage, records, mensurations, projections : tu vois si tu avances, semaine après semaine."],
       ["🧑‍🏫", "Le coaching : quelqu'un qui ajuste pour toi", "Thomas écrit ton programme et ton plan, lit tes séances, répond à tes messages."]].map(([e, t, d]) => `<div class="li"><span class="em">${e}</span><span class="grow small"><b>${t}</b><br><span class="xs muted">${d}</span></span></div>`).join("")}</div>
-    ${trialLeft() > 0 ? `<div class="card grad"><b>🎁 Ton essai : encore ${trialLeft()} jour${trialLeft() > 1 ? "s" : ""}</b><p class="small mt4" style="margin:0">Pendant ${TRIAL_DAYS} jours, tout Bâtisseur est ouvert. Ensuite tu gardes le Gratuit, ou tu continues avec Bâtisseur.</p></div>` : `<div class="card grad"><b>🎁 ${TRIAL_DAYS} jours d'essai de l'app complète</b><p class="small mt4" style="margin:0">Chaque nouveau compte essaie Bâtisseur gratuitement pendant ${TRIAL_DAYS} jours.</p></div>`}
+    ${locked() ? `<div class="card grad"><b>🔒 Ton essai de ${TRIAL_DAYS} jours est terminé</b><p class="small mt4" style="margin:0">Pour continuer, choisis Bâtisseur (19,99 €/mois, résiliable à tout moment) ou candidate au coaching. Tes données sont conservées. Invité par Thomas ? Connecte-toi avec ton compte.</p><button class="btn btn-line btn-sm mt8" data-a="go" data-r="account">Me connecter</button></div>` : trialLeft() > 0 ? `<div class="card grad"><b>🎁 Ton essai : encore ${trialLeft()} jour${trialLeft() > 1 ? "s" : ""}</b><p class="small mt4" style="margin:0">Pendant ${TRIAL_DAYS} jours, tout Bâtisseur est ouvert, sans carte bancaire. Ensuite : 19,99 €/mois, résiliable à tout moment.</p></div>` : `<div class="card grad"><b>🎁 ${TRIAL_DAYS} jours d'essai, sans carte bancaire</b><p class="small mt4" style="margin:0">Chaque nouveau compte essaie Bâtisseur pendant ${TRIAL_DAYS} jours. Ensuite : 19,99 €/mois.</p></div>`}
     <h2 class="sec">Comparer</h2>
-    <div class="card" style="padding:6px"><table class="cmp"><thead><tr><th></th><th>Gratuit</th><th>Bâtis&shy;seur</th><th>Coa&shy;ching</th></tr></thead><tbody>${COMPARE.map(r => `<tr><td>${esc(r[0])}</td>${r.filter((_, i) => i !== 3).slice(1).map(c => `<td class="${c === "–" ? "muted" : ""}">${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    <div class="card" style="padding:6px"><table class="cmpt"><thead><tr><th></th><th>Bâtisseur</th><th>Coaching</th></tr></thead><tbody>${COMPARE.map(r => `<tr><td>${esc(r[0])}</td>${[r[2], r[4]].map(c => `<td class="${c === "–" ? "muted" : ""}">${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
     ${PUBLIC_OFFERS.map(o => `<div class="offer ${o.id === cur ? "cur" : ""} mt16">${o.id === cur ? `<span class="ribbon">Ta formule</span>` : o.ribbon ? `<span class="ribbon">${esc(o.ribbon)}</span>` : ""}
       <div class="row between" style="align-items:flex-end"><div><div class="h2">${esc(o.name)}</div><div class="small muted">${esc(o.tagline)}</div></div><div class="price" style="text-align:right;white-space:nowrap">${esc(o.price)}<small>${esc(o.per)}</small></div></div>
       ${o.alt ? `<div class="small red mt4" style="text-align:right">${esc(o.alt)}</div>` : ""}${o.was ? `<div class="small mt4" style="text-align:right"><span class="muted">au lieu de <s>${esc(o.was)}</s></span></div>` : ""}
       <ul>${o.feats.map(f => `<li>${I.check}<span>${esc(f)}</span></li>`).join("")}<li>${I.check}<span>${esc(o.msgs)}</span></li></ul>
-      ${o.id === "free" || o.id === cur ? "" : `<button class="btn btn-red" data-a="choose" data-v="${o.id}">${o.rank >= 2 ? "Candidater au coaching" : trialLeft() > 0 ? "Continuer avec le Bâtisseur" : `Essayer ${TRIAL_DAYS} jours gratuitement`}</button>`}
+      ${o.id === cur ? "" : `<button class="btn btn-red" data-a="choose" data-v="${o.id}">${o.rank >= 2 ? "Candidater au coaching" : locked() || trialLeft() > 0 ? "S'abonner · 19,99 €/mois" : `Essayer ${TRIAL_DAYS} jours gratuitement`}</button>${o.rank === 1 && o.pay?.year && (locked() || trialLeft() > 0) ? `<button class="btn btn-line mt8" data-a="choose-year">S'abonner à l'année · 119,99 €</button>` : ""}`}
     </div>`).join("")}
     <p class="xs muted mt16">Sans engagement, résiliable à tout moment. Les formules de suivi démarrent après un appel de 15 minutes pour vérifier que je peux vraiment t'aider.</p>
   </main>${tabbar("coach")}`;
@@ -70,10 +70,11 @@ actions.demo = (b, d) => { update(st => st.demoTier = d.v); toast(`Démo ${offer
 actions["demo-exit"] = () => { update(st => st.demoTier = null); render(); };
 actions["demo-choose"] = () => { const t = S().demoTier; update(st => st.demoTier = null); chooseOffer(t); };
 actions.choose = (b, d) => chooseOffer(d.v);
-function chooseOffer(id) {
+actions["choose-year"] = () => chooseOffer("premium", "year");
+function chooseOffer(id, per = "month") {
   const o = offer(id);
   if (o.rank === 1) {
-    const link = o.pay?.month;
+    const link = o.pay?.[per];
     if (link) { const u = new URL(link); const c = cloudNow()?.userId?.(); if (c) u.searchParams.set("client_reference_id", c); if (S().profile?.email) u.searchParams.set("prefilled_email", S().profile.email); location.href = u.toString(); return; }
     sheet(`<h2 class="h1">Bâtisseur</h2><p class="mt12">Le paiement en ligne ouvre très bientôt. En attendant, écris-moi : je t'active la formule Bâtisseur moi-même.</p><button class="btn btn-red mt12" data-a="prefill" data-t="Bonjour Thomas, je veux passer à la formule Bâtisseur.">Écrire à Thomas</button>`);
     return;

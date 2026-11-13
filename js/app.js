@@ -49,7 +49,7 @@ window.addEventListener("hashchange", render);
   if (S().profile && !S().trialStart) update(st => st.trialStart = today());
   if (S().demoTier) update(st => st.demoTier = null); // plus de mode démo : essai de TRIAL_DAYS jours (Défi 30 jours)
   render();
-  refreshMe().then(() => { if (["home", "coach", "account"].includes(R.route) && !document.querySelector(".sheet-wrap, .composer, input:focus, textarea:focus")) render(); });
+  refreshMe().then(() => { if (["home", "coach", "account", "offers"].includes(R.route) && !document.querySelector(".sheet-wrap, .composer, input:focus, textarea:focus")) render(); });
   setInterval(refreshMe, 60000);
   pullCoachSlots(); setInterval(pullCoachSlots, 5 * 60000);
   pullCoachPlan(); setInterval(pullCoachPlan, 5 * 60000);
