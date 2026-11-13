@@ -74,7 +74,7 @@ function decrochageBlock() {
 function frame(active, body, sub = "") {
   const email = S().profile?.email || "";
   $app.innerHTML = header("Espace coach", esc(sub || email), { actions: `<button class="pill ic" data-a="adm-refresh" aria-label="Actualiser">↻</button>` })
-    + `<main class="page">${A.err ? `<div class="card" style="box-shadow:0 0 0 2px var(--warn) inset"><p class="small" style="margin:0">⚠️ ${esc(A.err)}</p></div>` : ""}${body}</main>${adminTabbar(active)}`;
+    + `<main class="page">${A.err ? `<div class="card" style="box-shadow:0 0 0 2px var(--warn) inset"><p class="small" style="margin:0">⚠️ ${esc(A.err === "LOGIN_REQUIRED" ? "Ta session a expiré. Reconnecte-toi pour retrouver ton espace coach." : A.err)}</p>${A.err === "LOGIN_REQUIRED" ? `<button class="btn btn-red mt8" data-a="go" data-r="account">Me connecter</button>` : ""}</div>` : ""}${body}</main>${adminTabbar(active)}`;
 }
 async function guard(active) {
   if (!isCoach()) { go("home"); return false; }
