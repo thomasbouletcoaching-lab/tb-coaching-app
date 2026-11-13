@@ -114,6 +114,7 @@ p{margin:0 0 10px}
 
 /* Segments (Aujourd'hui / Semaine / Mois) */
 .seg{display:flex;gap:4px;padding:4px;border-radius:18px;background:color-mix(in srgb,var(--glass) 72%,transparent);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border:1px solid var(--glass-b);margin:4px 0 14px}
+.seg{overflow-x:auto;scrollbar-width:none}.seg::-webkit-scrollbar{display:none}
 .seg button{flex:1;min-height:44px;padding:0 4px;border-radius:14px;color:var(--soft);font-size:15px;font-weight:600}
 .seg button.on{background:var(--paper);color:var(--ink);font-weight:700;box-shadow:0 1px 3px rgba(20,16,18,.12)}
 .chips{position:relative;display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}
@@ -378,6 +379,7 @@ hr{border:0;border-top:1px solid var(--line);margin:16px 0}
 .mtab th{font-size:11px;font-weight:600;color:var(--soft);text-align:center;padding:2px;line-height:1.2}
 .mtab td{text-align:center;padding:3px 2px;border-top:1px solid var(--line)}
 .mtab td:first-child{text-align:left;font-weight:600;white-space:nowrap;padding-right:6px}
+.mtab.in{table-layout:fixed}.mtab.in th{overflow-wrap:anywhere}.mtab.in td:first-child{width:27%;white-space:normal;overflow-wrap:anywhere}
 .mtab.in input{width:100%;min-width:0;box-sizing:border-box;text-align:center;font:inherit;font-size:15px;padding:8px 2px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink)}
 .tbar{height:4px;border-radius:3px;background:var(--line);margin-top:6px;overflow:hidden}.tbar i{display:block;height:100%;width:0;background:var(--gradbtn);transition:width .5s}
 .set .setmeta .prev{color:var(--soft);font-style:italic}
@@ -467,7 +469,8 @@ input,select,textarea{max-width:100%;min-width:0}
 .tile-ic svg{width:21px;height:21px}
 .mode-sel{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:inherit;font:inherit;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:6px 0;cursor:pointer}
 .mode-sel .chev{width:16px;height:16px;transform:rotate(90deg)}
-.modes{display:flex;gap:6px;margin-top:8px;padding:4px;border-radius:14px;background:var(--btn2);border:1px solid var(--line)}
+.modes{display:flex;gap:6px;margin-top:8px;padding:4px;border-radius:14px;background:var(--btn2);border:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.modes::-webkit-scrollbar{display:none}
 .modes button{flex:1;border:0;background:none;color:var(--soft);font:inherit;font-size:14px;font-weight:600;padding:8px 4px;border-radius:10px;cursor:pointer}
 .modes button.on{background:var(--paper);color:var(--ink);box-shadow:0 2px 8px rgba(24,33,44,.08)}
 .slider-row{display:flex;align-items:center;gap:10px;padding:8px 0}
