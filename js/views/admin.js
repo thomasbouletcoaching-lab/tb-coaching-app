@@ -4,7 +4,7 @@ import { S, update, today } from "../store.js";
 import * as E from "../engine.js";
 import * as N from "../nutrition.js";
 import * as RC from "../recipes.js";
-import { CONFIG, OFFERS, offer } from "../config.js";
+import { CONFIG, OFFERS, offer, assignable } from "../config.js";
 import { $app, esc, num, fr, toast, ago, routes, R, actions, forms, changes, go, I, header, seg, chips, sheet, closeSheet, fmtDate, addDays, rerender, isCoach, cloud, barChart, adminTabbar, adminBadges, hbars } from "../core.js";
 import { readyList, ensureReady } from "./coach.js";
 import { libraryRows, refreshLibrary } from "../library.js";
@@ -367,7 +367,7 @@ function paySheet(p = null) {
   sheet(`<h2 class="h2">${p ? "Modifier" : "Nouvel"} encaissement</h2><form data-f="pay" data-id="${p?.id || ""}" class="mt12">
     <div class="grid2"><label class="field"><span>Client</span><select name="mid">${memberOpts(p?.mid)}</select></label><label class="field"><span>Ou nom</span><input name="who" value="${esc(p && !p.mid ? p.who : "")}" placeholder="Client hors app"></label></div>
     <div class="grid2 mt8"><label class="field"><span>Montant (€)</span><input name="amount" inputmode="decimal" required value="${p ? String(p.amount).replace(".", ",") : ""}"></label><label class="field"><span>Date</span><input type="date" name="d" required value="${p?.d || today()}"></label></div>
-    <label class="field mt8"><span>Libellé</span><input name="label" value="${esc(p?.label || "")}" placeholder="Coaching Proximité, mois 2…"></label>
+    <label class="field mt8"><span>Libellé</span><input name="label" value="${esc(p?.label || "")}" placeholder="Coaching, mois 2…"></label>
     <label class="li mt8" style="gap:10px"><input type="checkbox" name="paid" ${p?.paid ?? true ? "checked" : ""} style="width:20px;height:20px;accent-color:var(--red)"><span class="grow">Déjà encaissé</span></label>
     <button class="btn btn-red mt12">Enregistrer</button>${p ? `<button type="button" class="btn btn-line mt8" data-a="pay-del" data-id="${p.id}" style="color:var(--red)">Supprimer</button>` : ""}</form>`);
 }
@@ -383,7 +383,7 @@ actions["pay-tog"] = async (b, d) => { const p = B().payments.find(p => p.id ===
 actions["pay-del"] = async (b, d) => { if (!confirm("Supprimer cet encaissement ?")) return; B().payments = B().payments.filter(p => p.id !== +d.id); closeSheet(); rerender(); await saveStore("biz"); };
 actions["cyc-new"] = () => sheet(`<h2 class="h2">Nouveau cycle client</h2><form data-f="cyc" class="mt12">
   <div class="grid2"><label class="field"><span>Client</span><select name="mid">${memberOpts()}</select></label><label class="field"><span>Ou nom</span><input name="who" placeholder="Client hors app"></label></div>
-  <label class="field mt8"><span>Formule</span><select name="offer">${OFFERS.filter(o => o.rank >= 2).map(o => `<option value="${o.id}">${esc(o.name)} · ${esc(o.price)}${esc(o.per)}</option>`).join("")}<option value="custom">Offre personnalisée (à décrire)</option></select></label>
+  <label class="field mt8"><span>Formule</span><select name="offer">${assignable().filter(o => o.rank >= 3).map(o => `<option value="${o.id}">${esc(o.name)} · ${esc(o.price)}${esc(o.per)}</option>`).join("")}<option value="custom">Offre personnalisée (à décrire)</option></select></label>
   <label class="field mt8"><span>Intitulé (si offre personnalisée)</span><input name="label" maxlength="80" placeholder="Coaching salle · 3 séances par semaine"></label>
   <label class="field mt8"><span>Détail de l'offre</span><textarea name="detail" rows="4" maxlength="1000" placeholder="Ce qui est inclus, rythme, suivi, conditions…"></textarea></label>
   <div class="grid3 mt8"><label class="field"><span>Début</span><input type="date" name="start" value="${today()}" required></label><label class="field"><span>Semaines</span><input name="weeks" inputmode="numeric" value="12"></label><label class="field"><span>Prix (€)</span><input name="price" inputmode="decimal" placeholder="890"></label></div>
@@ -420,13 +420,13 @@ routes["admin-subs"] = async () => {
   const list = ms.filter(m => subF === "all" || (subF === "trial" ? trial(m) : m.tier === subF)).sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
   const stripe = OFFERS.some(o => o.pay?.month);
   frame("admin-subs", `<h1 class="h1 mt8">Abonnés</h1>
-    <div class="card mt8"><div class="grid3">${OFFERS.map(o => `<div><span class="xs muted">${esc(o.name)}</span><br><b class="num" style="font-size:24px">${ms.filter(m => m.tier === o.id).length}</b></div>`).join("")}<div><span class="xs muted">En essai</span><br><b class="num" style="font-size:24px">${ms.filter(trial).length}</b></div></div>
+    <div class="card mt8"><div class="grid3">${assignable().map(o => `<div><span class="xs muted">${esc(o.name)}</span><br><b class="num" style="font-size:24px">${ms.filter(m => m.tier === o.id).length}</b></div>`).join("")}<div><span class="xs muted">En essai</span><br><b class="num" style="font-size:24px">${ms.filter(trial).length}</b></div></div>
       <div class="lbl mt16">Revenu mensuel récurrent estimé</div><b class="num" style="font-size:30px">${eur(mrr)}</b><p class="xs muted" style="margin:4px 0 0">Formules actives × prix mensuel, hors frais Stripe ; les essais et les formules avec date de fin ne comptent pas.</p></div>
-    <div class="card mt12"><b>Paiement en ligne (Stripe) : ${stripe ? "🟢 liens actifs" : "🟠 à configurer"}</b><p class="small muted mt4" style="margin-bottom:0">${stripe ? "Les boutons de paiement de l'app ouvrent tes liens Stripe." : "Crée dans Stripe un lien de paiement par formule (Bâtisseur mensuel et annuel, Fraternité), puis envoie-les-moi : je les branche dans l'app. En attendant, active les formules à la main ci-dessous."}</p></div>
-    <div class="card mt12"><b class="h3">Liste (${list.length})</b><div class="mt8">${chips([["all", "Tous"], ...OFFERS.map(o => [o.id, o.name]), ["trial", "Essai"]], subF, "sub-f")}</div>
+    <div class="card mt12"><b>Paiement en ligne (Stripe) : ${stripe ? "🟢 liens actifs" : "🟠 à configurer"}</b><p class="small muted mt4" style="margin-bottom:0">${stripe ? "Les boutons de paiement de l'app ouvrent tes liens Stripe." : "Crée dans Stripe un lien de paiement par formule (Bâtisseur mensuel et annuel), puis envoie-les-moi : je les branche dans l'app. En attendant, active les formules à la main ci-dessous."}</p></div>
+    <div class="card mt12"><b class="h3">Liste (${list.length})</b><div class="mt8">${chips([["all", "Tous"], ...assignable().map(o => [o.id, o.name]), ["trial", "Essai"]], subF, "sub-f")}</div>
       ${list.map(m => { const s = A.sums[m.id] || {}; return `<div style="border-top:1px solid var(--line);padding:12px 0;margin-top:8px"><div class="row between"><b>${esc(first(m))}</b><span class="tag ${offer(m.tier).rank ? "r" : ""}">${esc(offer(m.tier).name)}</span></div>
         <p class="xs muted mt4" style="margin-bottom:8px">${esc(m.email || "e-mail non renseigné")}${trial(m) ? ` · jusqu'au ${fmtDate(m.tier_until, { day: "numeric", month: "short", year: "numeric" })}` : ""}<br>Inscrit le ${fmtDate(m.created_at.slice(0, 10), { day: "numeric", month: "short", year: "numeric" })} · vu ${ago(m.last_seen)} · ${s.lastWorkout ? `dernière séance ${ago(s.lastWorkout.end)}` : "aucune séance notée"}</p>
-        <div class="row" style="gap:6px"><select class="inp grow" id="t-${m.id}" style="text-align:left">${OFFERS.map(o => `<option value="${o.id}" ${o.id === m.tier ? "selected" : ""}>${esc(o.name)}</option>`).join("")}</select><input class="inp" type="date" id="u-${m.id}" value="${m.tier_until || ""}" style="width:150px" aria-label="Jusqu'au"></div>
+        <div class="row" style="gap:6px"><select class="inp grow" id="t-${m.id}" style="text-align:left">${assignable(m.tier).map(o => `<option value="${o.id}" ${o.id === m.tier ? "selected" : ""}>${esc(o.name)}</option>`).join("")}</select><input class="inp" type="date" id="u-${m.id}" value="${m.tier_until || ""}" style="width:150px" aria-label="Jusqu'au"></div>
         <button class="btn btn-line btn-sm mt8" data-a="sub-apply" data-id="${m.id}">Appliquer</button></div>`; }).join("") || `<p class="empty small">Aucun membre dans ce filtre.</p>`}
       <p class="xs muted mt8">Changer la formule ici l'offre (activation manuelle, sans paiement). Date vide = sans fin. Une formule de coaching fait entrer le dossier dans « Mes clients ».</p></div>`);
 };

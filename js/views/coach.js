@@ -3,7 +3,7 @@ import { PUBLIC_OFFERS } from "../config.js";
 import { S, update, today, withState } from "../store.js";
 import * as N from "../nutrition.js";
 import * as E from "../engine.js";
-import { CONFIG, OFFERS, offer, COMPARE, TRIAL_DAYS } from "../config.js";
+import { CONFIG, OFFERS, offer, assignable, COMPARE, TRIAL_DAYS } from "../config.js";
 import { adherenceCard, defiCard } from "./suivi.js";
 import { checkinCard } from "./checkin.js";
 import { memberSuivi } from "./suivi-coach.js";
@@ -311,7 +311,7 @@ async function adminHome() {
     <h2 class="sec">☀️ Aujourd'hui chez tes membres</h2>
     ${todayRows.length ? `<div class="list">${todayRows.map(({ m, s }) => `<button class="li" data-a="go" data-r="member" data-p="${m.id}"><span class="grow"><b class="small">${esc(m.name || m.email)}</b><br><span class="xs">${stTxt(s)}</span><br><span class="xs muted">🍽️ ${s.meals ? `${fr(s.kcal)} kcal · ${fr(s.prot)} g P` : "rien noté"}${s.weight ? ` · ⚖️ ${fr(s.weight, 1)} kg` : ""}${s.focus ? ` · 🎯 ${esc(s.focus)}` : ""}</span></span>${I.chev}</button>`).join("")}</div>` : `<p class="small muted">Rien encore aujourd'hui. Les données arrivent dès qu'un membre ouvre l'app.</p>`}
     <h2 class="sec">👥 Tous les membres</h2>
-    <div class="chips">${OFFERS.map(o => `<span class="chip">${esc(o.name)} · ${list.filter(m => m.tier === o.id).length}</span>`).join("")}</div>
+    <div class="chips">${assignable().map(o => `<span class="chip">${esc(o.name)} · ${list.filter(m => m.tier === o.id).length}</span>`).join("")}</div>
     <div class="search mt12">${I.search}<input id="aq" placeholder="Nom ou e-mail" value="${esc(adminFilter)}"></div>
     <div class="list mt12">${shown.length ? shown.map(m => `<button class="li" data-a="go" data-r="member" data-p="${m.id}"><span class="grow"><b>${esc(m.name || "Sans nom")}</b> <span class="tag ${m.tier !== "free" ? "r" : ""}">${esc(offer(m.tier).name)}</span>${m.onboarding?.application ? ` <span class="tag r">Candidature</span>` : ""}<br><span class="xs muted">${esc(m.email || "e-mail non renseigné")} · vu ${ago(m.last_seen)}${SM[m.id]?.summary?.program ? ` · ${esc(SM[m.id].summary.program.split("·")[0])} S${SM[m.id].summary.week}` : ""}</span></span>${m.unread ? `<span class="badge" style="position:static;border:0">${m.unread}</span>` : ""}${I.chev}</button>`).join("") : `<p class="empty small">Aucun membre pour l'instant.</p>`}</div>
     ${hidden ? `<p class="xs muted mt8">${hidden} compte${hidden > 1 ? "s" : ""} sans prénom ni e-mail masqué${hidden > 1 ? "s" : ""} (onboarding pas terminé ou tests).</p>` : ""}
@@ -350,7 +350,7 @@ routes.member = async () => {
   const L = { goal: "Objectif", discipline: "Discipline", level: "Niveau", place: "Lieu", days: "Jours / semaine", sex: "Sexe", age: "Âge", height: "Taille", weight: "Poids", diet: "Alimentation", activity: "Activité", backPain: "Gêne lombaire", word: "Parole", news: "Accepte les e-mails" };
   $app.innerHTML = header(esc(m.name || "Membre"), esc(m.email || ""), { back: "admin" }) + `<main class="page">${top}
     <h2 class="sec">Formule</h2>
-    <div class="card"><div class="row" style="gap:8px"><select id="tier" class="inp grow" style="text-align:left">${OFFERS.map(x => `<option value="${x.id}" ${x.id === m.tier ? "selected" : ""}>${esc(x.name)} · ${esc(x.price)}</option>`).join("")}</select><button class="btn btn-red btn-sm" style="width:auto" data-a="set-tier" data-id="${m.id}">Valider</button></div></div>
+    <div class="card"><div class="row" style="gap:8px"><select id="tier" class="inp grow" style="text-align:left">${assignable(m.tier).map(x => `<option value="${x.id}" ${x.id === m.tier ? "selected" : ""}>${esc(x.name)} · ${esc(x.price)}</option>`).join("")}</select><button class="btn btn-red btn-sm" style="width:auto" data-a="set-tier" data-id="${m.id}">Valider</button></div></div>
     ${ap ? `<h2 class="sec">Candidature <small>${new Date(ap.at).toLocaleDateString("fr-FR")}</small></h2><div class="card small"><b>${esc(offer(ap.offer).name)}</b><p class="mt8"><b>Objectif :</b> ${esc(ap.goal)}</p><p><b>Frein :</b> ${esc(ap.obstacle)}</p><p><b>Temps :</b> ${esc(ap.time)} · <b>Urgence :</b> ${esc(ap.urgency)}/10</p>${ap.phone ? `<p><b>Téléphone :</b> <a href="tel:${esc(ap.phone)}">${esc(ap.phone)}</a></p>` : ""}</div>` : ""}
     <h2 class="sec">Activité</h2>
     <div class="card"><div class="stat3"><div><b>${st.workouts ?? 0}</b><span>séances</span></div><div><b>${st.weight ? E.fmtKg(st.weight) : "–"}</b><span>kg</span></div><div><b>${st.week ?? "–"}</b><span>semaine</span></div></div></div>

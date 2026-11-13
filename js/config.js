@@ -17,25 +17,25 @@ export const CONFIG = {
 export const TRIAL_DAYS = 30;
 export const OFFERS = [
   // « free » = compte sans accès (essai terminé, pas d'abonnement) : plus vendu, l'app est alors verrouillée (voir locked() dans core.js).
-  { id: "free", rank: 0, name: "Essai terminé", price: "", per: "", msgs: "Messages avec Thomas réservés aux coachés", tagline: "", feats: [] },
+  { id: "free", rank: 0, name: "Sans accès (essai terminé)", price: "", per: "", msgs: "Messages avec Thomas réservés aux coachés", tagline: "", feats: [] },
   { id: "premium", rank: 1, name: "Bâtisseur", price: "19,99 €", per: "/mois", alt: "ou 119,99 € par an, soit 6 mois offerts", msgs: "Messages avec Thomas : avec le coaching",
     tagline: "L'app complète, pour avancer seul avec ma méthode.", ribbon: "30 jours offerts",
     feats: ["Apprendre, journal alimentaire (base Ciqual), carnet de séance et minuteur", "Les 111 programmes (salle, maison, street, force, femmes, parents, santé) et les cycles de 12 semaines", "Charges calculées et surcharge progressive selon ton RPE, alertes plateau et blessure", "Plan alimentaire selon ton profil, ton régime et ton nombre de repas, modifiable au gramme", "Recettes, batch cooking, liste de courses et budget par magasin", "Vitamines, minéraux et compléments : ce qu'il te faut, à quelle dose", "Bilan énergétique, statistiques, photos et mensurations", "Créer et modifier tes propres programmes"],
     pay: { month: "https://buy.stripe.com/9B6eVc8nO6x8bL8a9GeUU01", year: "https://buy.stripe.com/9B600i6fG6x802qepWeUU02" } },
-  { id: "essentiel", rank: 2, name: "Fraternité", price: "59 €", per: "/mois", msgs: "10 messages par semaine",
+  { id: "essentiel", rank: 2, name: "Fraternité (ancienne formule)", price: "59 €", per: "/mois", msgs: "10 messages par semaine",
     tagline: "Avancer avec d'autres hommes, et un coach qui garde un œil sur toi.",
     feats: ["Tout Bâtisseur", "Le groupe privé des bâtisseurs : entraide et défis", "Un live questions-réponses par mois avec Thomas", "2 corrections vidéo de ta technique par mois", "Bilan mensuel commenté", "Version experte des connaissances et module maillons faibles"] },
-  { id: "suivi", rank: 3, name: "Coaching Essentiel", price: "99 €", per: "/mois", msgs: "20 messages par semaine",
+  { id: "suivi", rank: 3, name: "Coaching Essentiel (ancienne formule)", price: "99 €", per: "/mois", msgs: "20 messages par semaine",
     tagline: "Ton programme et ton plan, écrits pour toi.",
     feats: ["Tout Fraternité", "Programme 100 % sur mesure : ta semaine, ta salle ou ta maison", "Plan alimentaire selon tes goûts et ton budget de courses", "Bilan chaque semaine, ajustements chaque mois", "Réponse sous 24 h"] },
   { id: "avance", rank: 4, name: "Coaching personnalisé", price: "Sur candidature", per: "", msgs: "Messages avec Thomas, réponse sous 24 h",
     tagline: "Ton programme et ta technique, suivis de près par Thomas.", ribbon: "Sur candidature",
-    feats: ["Tout le Coaching Essentiel", "Corrections vidéo illimitées", "Ajustements chaque semaine", "Un appel visio de 30 min par mois", "Suivi global de ta progression"] },
+    feats: ["Tout Bâtisseur", "Programme et plan alimentaire écrits pour toi", "Corrections vidéo illimitées", "Ajustements chaque semaine", "Un appel visio de 30 min par mois", "Suivi global de ta progression"] },
   // Invité : accès offert par Thomas (ami, proche). Pas de facturation, mêmes accès qu'un coaché, jamais affiché à la vente.
   { id: "invite", rank: 3, name: "Invité", price: "Offert", per: "", msgs: "Messages et vocaux illimités",
     tagline: "Un accès offert par Thomas.",
     feats: ["Coaching complet : programme, plan alimentaire, bilans", "Messages et vocaux avec Thomas"] },
-  { id: "surmesure", rank: 5, name: "Coaching Élite", price: "339 €", per: "/mois", msgs: "Messages et vocaux illimités, réponse prioritaire",
+  { id: "surmesure", rank: 5, name: "Accès total (coach)", price: "339 €", per: "/mois", msgs: "Messages et vocaux illimités, réponse prioritaire",
     tagline: "Le mentorat complet. Je ne prends que 5 hommes à la fois.",
     feats: ["Tout le Coaching Proximité", "Disponibilité quasi directe (vocaux prioritaires)", "Un appel toutes les 2 semaines", "Nutrition revue au détail, adaptée à chaque imprévu", "Une séance en salle offerte (Paris)"] },
 ];
@@ -49,6 +49,10 @@ export const COMPARE = [
 // Ce qui est proposé à la vente dans l'app : Bâtisseur (essai de 30 jours puis 19,99 €/mois), et le coaching personnalisé sur candidature.
 // Les autres formules restent dans la base (le coach peut les attribuer) mais ne sont plus affichées.
 export const PUBLIC_OFFERS = OFFERS.filter(o => ["premium", "avance"].includes(o.id));
+// Formules qu'on peut attribuer aujourd'hui. Les anciennes (Fraternité, Coaching Essentiel, accès total) restent
+// dans la base pour les comptes existants mais n'apparaissent plus que si le membre en a déjà une.
+export const ACTIVE_TIERS = ["free", "premium", "avance", "invite"];
+export const assignable = (current) => OFFERS.filter(o => ACTIVE_TIERS.includes(o.id) || o.id === current);
 export const offer = (id) => OFFERS.find(o => o.id === id) || OFFERS[0];
 export const MSGS_PER_WEEK = { free: 0, premium: 0, essentiel: 10, suivi: 20, avance: 50, invite: null, surmesure: null };
 // Programmes accessibles sans Premium
