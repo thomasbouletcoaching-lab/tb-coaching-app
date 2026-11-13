@@ -6,7 +6,7 @@
 
 1. **La migration vers la nouvelle app est déjà faite aux trois quarts.** Les 16 membres actifs utilisent la nouvelle app ; l'ancienne ne reçoit plus de séances depuis le 27 octobre. L'historique (séances, repas, mesures) a déjà été copié dans les dossiers de la nouvelle app pour 10 membres. Il reste à migrer : la messagerie (encore dans l'ancienne table), 6 anciens clients qui n'ont jamais ouvert la nouvelle app, les bilans hebdomadaires de l'ancienne app, les notes de coach et les paiements.
 2. **La CI est rouge pour une raison simple** : la fin de la formule gratuite (PR #25) a rendu obsolètes 5 suites de tests qui testent encore un parcours « gratuit ». La vieille suite `tests/run.js`, elle, est verte.
-3. **Le dépôt est en retard sur la production.** Les deux fonctions de paiement déployées sont plus récentes que leur code dans le dépôt, 7 fonctions serveur sur 9 n'ont aucune source dans le dépôt, et un schéma `cxs_migration` existe en base sans trace. Tant que ce n'est pas rattrapé, tout redéploiement depuis le dépôt ferait revenir l'essai Stripe de 7 jours.
+3. **Le dépôt était en retard sur la production.** La fonction de paiement `billing` déployée n'offre plus d'essai Stripe, alors que son code dans le dépôt disait encore 7 jours : un redéploiement depuis le dépôt l'aurait fait revenir (corrigé dans cette PR, voir § 4). Sept fonctions serveur sur neuf n'ont aucune source dans le dépôt, et un schéma `cxs_migration` existe en base sans trace.
 4. **Sécurité** : aucune alerte de niveau ERROR. 6 fonctions sensibles sont appelables sans connexion, 40 par tout membre connecté. Le coach voit aujourd'hui tous les dossiers de tous les comptes, sans distinction entre coachés et abonnés autonomes (contraire à la décision D8, sans conséquence aujourd'hui car il n'y a pas encore d'abonné autonome).
 5. **Bugs confirmés à fort impact** : « L'Homme de la reprise » affiché à toute personne dont le genre n'est pas enregistré comme féminin (dont tous les comptes venus de l'ancienne app) ; mention du 3114 et de « prier » dans « Je craque » ; la page des offres déborde de l'écran ; boutons trop petits dans les éditeurs du coach.
 
@@ -55,8 +55,8 @@ Méthode : 223 écrans mesurés automatiquement avec la persona fictive Camille 
 
 | Élément | En production | Dans le dépôt | Risque |
 |---|---|---|---|
-| Fonction `billing` | Version 5, sans essai Stripe | Encore `trial = 7` | Un redéploiement depuis le dépôt ferait revenir l'essai de 7 jours |
-| Fonction `stripe-webhook` | Version 5, avec `cxs.ts` (abonnements de la nouvelle app) | Sans `cxs.ts` | Un redéploiement couperait l'activation des abonnements |
+| Fonction `billing` | Version 5, sans essai Stripe | Disait encore `trial = 7` ; **aligné sur la production dans cette PR** (la ligne d'essai, recopiée d'une lecture de la production du 13/11 ; le reste du fichier n'a pas été comparé octet par octet) | Sans cet alignement, un redéploiement depuis le dépôt aurait fait revenir l'essai de 7 jours |
+| Fonction `stripe-webhook` | Version 5, avec `cxs.ts` (abonnements de la nouvelle app) | Présent, avec `cxs.ts` (rectification : une première version de cet audit le disait absent, à tort) | Aucun écart relevé à la lecture |
 | Fonctions `push`, `delete-account`, `coach-access`, `purge-media`, `coach-ai`, `tel-probe`, `import-ciqual` | Actives | Aucune source | Code non relu, non versionné |
 | Schéma `cxs_migration` (6 fonctions : `dry_run`, `summary`, `history_for`, `food_for`, `measures_for`, `num`) | Présent | Aucune trace | Outil d'une migration déjà faite, à documenter ou retirer |
 | Table `cxs_exercices` (120 lignes) | Présente | Fichier `2026-11-10_cxs_exercices.sql`, absent de l'historique des migrations | Historique incomplet |
@@ -65,7 +65,7 @@ Méthode : 223 écrans mesurés automatiquement avec la persona fictive Camille 
 | `2026-11-11_cxs_exercices_complet.sql`, `2026-11-10_cxs_exercices_seed.sql` | Non appliquées (120 exercices au lieu de 485) | Présentes | Sans effet visible : le téléphone fusionne avec la liste embarquée |
 | 53 migrations antérieures au 30/10 | Appliquées | Aucun fichier | Impossible de reconstruire la base depuis le dépôt |
 
-Recommandation : première PR de la phase 1 = rapatrier dans le dépôt le code des 9 fonctions et un instantané du schéma (lecture seule en production, écriture seulement dans le dépôt).
+Recommandation : première PR de la phase 1 = rapatrier dans le dépôt le code des 7 fonctions sans source (`push`, `delete-account`, `coach-access`, `purge-media`, `coach-ai`, `tel-probe`, `import-ciqual`) et un instantané du schéma (lecture seule en production, écriture seulement dans le dépôt).
 
 ## 5. Sécurité : constat (détail en phase 1)
 
@@ -167,7 +167,7 @@ Méthode : titres d'écran et appels serveur de `coach/index.html` comparés aux
 
 ## 8. Paiement : ce que la lecture montre (pour la phase 3)
 
-- L'essai Stripe est déjà retiré **en production**. Le dépôt, lui, est en retard (§ 4).
+- L'essai Stripe est déjà retiré **en production** ; le code du dépôt est aligné par cette PR (§ 4).
 - La nouvelle app paie par liens de paiement Stripe ; le webhook met `cxs_profiles.tier = premium` et `tier_until` = fin de période. Deux points à vérifier en mode test avant de vendre, non vérifiés ici (Stripe non consulté) :
   1. les événements de renouvellement et de résiliation ne sont reconnus que si l'abonnement Stripe porte bien la marque « tb-my-coach » et l'identifiant du membre ; si le lien de paiement ne les transmet pas, un renouvellement peut ne pas prolonger l'accès ;
   2. si le membre paie avec un autre e-mail et sans identifiant, il paie sans obtenir l'accès (le webhook écrit seulement une erreur dans le journal).
@@ -243,7 +243,7 @@ Effort : S = moins d'une demi-journée, M = une à deux journées, L = plus.
 | Ordre | PR | Contenu | Effort | Touche la production ? |
 |---|---|---|---|---|
 | 0.1 | Tests à jour | Les 5 suites E2E alignées sur « plus de formule gratuite » ; CI verte ; test automatique de la liste hors ligne | S | Non |
-| 0.2 | Dépôt = production | Code des 9 fonctions serveur et instantané du schéma rapatriés | S | Non (lecture) |
+| 0.2 | Dépôt = production | `billing` aligné (fait dans cette PR) ; reste : code des 7 fonctions sans source et instantané du schéma | S | Non (lecture) |
 | 6.6 | « Je craque » | Retrait du 3114, du mot « suicide » et de « prier » ; nouveau parcours | M | Non |
 | 8.1 | Paliers et genre | B1, B3, B5 ; question de genre au profil | M | Non |
 | 1.1 à 1.6 | Sécurité | Un fichier SQL par sujet : fonctions sans connexion ; fonctions des membres ; RLS et D8 ; extensions ; stockage ; XSS | L | Oui, point d'arrêt à chaque fichier |
