@@ -139,7 +139,7 @@ Bucket `media` : lecture et dépôt si `can_access(<1er dossier = client_id>)` ;
 
 ### 6.6 Edge Functions
 
-`push`, `delete-account`, `billing` (Checkout et portail Stripe, essai Stripe de 7 jours sur Premium si `trial_used = false`), `stripe-webhook` (signature vérifiée, met à jour `subs`), `purge-media`. Secrets dans Supabase (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`), jamais dans le dépôt.
+`push`, `delete-account`, `billing` (Checkout et portail Stripe, pas d'essai Stripe : l'essai est le Défi 30 jours dans l'app, sans carte), `stripe-webhook` (signature vérifiée, met à jour `subs`), `purge-media`. Secrets dans Supabase (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`), jamais dans le dépôt.
 
 ## 7. Formules et droits
 
