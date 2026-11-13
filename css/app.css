@@ -456,7 +456,7 @@ input,select,textarea{max-width:100%;min-width:0}
 .tab span{font-size:10px;white-space:nowrap;letter-spacing:-.2px;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .tab svg{width:24px;height:24px}
 .catgrid button.on{background:var(--gradbtn);color:#fff;border-color:transparent}.catgrid button.on .muted{color:#fff}
-.cmp{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}.cmp th:first-child,.cmp td:first-child{width:38%}.cmp th{font-size:10.5px;text-align:center;padding:6px 2px;color:var(--ink);hyphens:manual}.cmp td{padding:7px 2px;border-top:1px solid var(--line);text-align:center}.cmp td:first-child{text-align:left;font-weight:600;color:var(--ink)}.cmp th:nth-child(3),.cmp td:nth-child(3){background:color-mix(in srgb,var(--red) 8%,transparent)}
+.cmpt{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}.cmpt th:first-child,.cmpt td:first-child{width:46%}.cmpt th{font-size:12px;text-align:center;vertical-align:middle;padding:8px 4px;color:var(--ink)}.cmpt td{padding:9px 4px;border-top:1px solid var(--line);text-align:center;vertical-align:middle}.cmpt td:first-child{text-align:left;font-weight:600;color:var(--ink);padding-left:8px}.cmpt th:nth-child(2),.cmpt td:nth-child(2){background:color-mix(in srgb,var(--red) 8%,transparent)}
 /* v4 : profil façon Hevy, tuiles de tableau de bord, sélecteur de mode, bulle de messages */
 .avatar{width:64px;height:64px;border-radius:50%;background:var(--gradbtn);color:#fff;display:grid;place-items:center;font-size:28px;font-weight:800;flex:none;box-shadow:0 6px 18px rgba(143,53,16,.25)}
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}

@@ -73,7 +73,7 @@ routes.defi = async () => {
     <h2 class="sec">Tes étapes</h2>
     <div class="list">${steps.map(row).join("")}</div>
     ${d >= 21 && !S().application ? `<div class="card hl mt16"><b class="h3">Et après le défi ?</b><p class="small mt4">Tu as vu ce que tu peux faire seul. Avec Thomas, ton programme et ton plan sont écrits pour toi, il lit tes bilans chaque semaine et ajuste. Les places sont limitées : la candidature prend 2 minutes, tes résultats du défi y sont joints.</p><button class="btn btn-red mt8" data-a="defi-go" data-r="apply-defi">Candidater au coaching</button></div>` : ""}
-    ${end ? `<div class="card mt12"><b class="small">Ou continuer seul</b><p class="xs muted mt4">Tu gardes le Gratuit pour toujours (carnet, journal, 6 programmes). Bâtisseur garde tout ouvert.</p><button class="btn btn-line btn-sm mt8" data-a="go" data-r="offers">Voir les formules</button>${S().defi?.closed ? "" : `<button class="btn btn-ghost btn-sm mt8" data-a="defi-close">Masquer le défi</button>`}</div>` : ""}
+    ${end ? `<div class="card mt12"><b class="small">Ou continuer seul</b><p class="xs muted mt4">Bâtisseur garde tout ouvert : 19,99 €/mois, résiliable à tout moment.</p><button class="btn btn-line btn-sm mt8" data-a="go" data-r="offers">Voir les formules</button>${S().defi?.closed ? "" : `<button class="btn btn-ghost btn-sm mt8" data-a="defi-close">Masquer le défi</button>`}</div>` : ""}
   </main>${tabbar("home")}`;
 };
 actions["defi-go"] = (b, d) => { if (d.r === "apply-defi") return applyFromDefi(); go(d.r); };

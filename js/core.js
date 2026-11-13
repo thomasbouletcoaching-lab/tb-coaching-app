@@ -17,6 +17,9 @@ export const hhmm = (d = new Date()) => d.toTimeString().slice(0, 5);
 export const trialLeft = () => { const t = S().trialStart; if (!t || (S().me?.tier && S().me.tier !== "free")) return 0; return Math.max(0, TRIAL_DAYS - Math.floor((Date.now() - new Date(t + "T00:00:00").getTime()) / 864e5)); };
 export const tier = () => (S().me?.isCoach ? "surmesure" : null) || (S().me?.tier && S().me.tier !== "free" ? S().me.tier : trialLeft() > 0 ? "premium" : "free");
 export const rank = () => offer(tier()).rank;
+// Plus de formule gratuite : essai terminé et pas d'abonnement ni d'accès Invité = app verrouillée sur les offres.
+// Sécurité : tant que le lien de paiement n'est pas configuré, rien n'est verrouillé.
+export const locked = () => !ALL_FREE && !!S().profile && !S().me?.isCoach && tier() === "free" && !!offer("premium").pay?.month;
 export const premium = () => ALL_FREE || rank() >= 1;
 export const expert = () => ALL_FREE || rank() >= 2; // contenus « suivi » (connaissances expertes)
 export const isCoach = () => APP_MODE === "coach" && !!S().me?.isCoach && !S().demoTier;
@@ -214,6 +217,7 @@ export function render() {
   // L'app coach s'ouvre sur l'espace coach, seulement pour un compte coach (sinon : accueil client, sans boucle)
   if (APP_MODE === "coach" && R.route === "home") R.route = isCoach() ? "admin-today" : "account"; // app coach : connexion directe, sans onboarding
   if (!S().profile && !["onboarding", "x", "privacy", "account"].includes(R.route)) R.route = "onboarding";
+  if (locked() && !["offers", "account", "privacy", "x", "onboarding", "apply"].includes(R.route)) R.route = "offers";
   if (S().current && !["workout", "x", "fiche", "simu"].includes(R.route) && sessionStorage.getItem("cxs.min") !== "1") R.route = "workout";
   stops.forEach(f => f()); stops.clear(); closeSheet(); document.getElementById("hlb")?.remove();
   Promise.resolve((routes[R.route] || routes.home)()).then(centerChips);

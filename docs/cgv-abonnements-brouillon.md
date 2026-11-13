@@ -17,9 +17,9 @@ payantes sont proposées par abonnement :
 
 Le coaching de 12 semaines reste régi par les articles précédents.
 
-**Essai.** La première souscription à Premium peut comprendre un essai gratuit de 7 jours. Aucun montant
-n'est prélevé pendant l'essai. Sans résiliation avant la fin de l'essai, l'abonnement démarre et le
-premier paiement est prélevé.
+**Essai.** Chaque nouveau membre bénéficie de 30 jours d'app complète (« Défi 30 jours »), sans souscription
+ni carte bancaire. La souscription à Premium ne comprend pas d'essai supplémentaire : le premier paiement
+est prélevé à la souscription.
 
 **Paiement.** Le paiement est réalisé par carte bancaire via le prestataire Stripe. Les données de carte
 ne sont ni vues ni conservées par TB my Coach. L'abonnement est renouvelé automatiquement à chaque
