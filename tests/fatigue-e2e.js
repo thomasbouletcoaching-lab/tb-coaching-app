@@ -9,14 +9,16 @@ const ok = (c, msg) => { if (c) { passed++; console.log('  ✓', msg); } else { 
 const SB_NONE = `const chain = () => new Proxy(function () {}, { get: (t, k) => k === "then" ? (res) => res({ data: null, error: null }) : chain(), apply: () => chain() });
 export function createClient() { return { auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signOut: async () => ({}) }, from: () => chain(), rpc: () => chain(), channel: () => chain(), removeChannel() {}, storage: { from: () => chain() } }; }`;
 const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
-const T = iso(new Date()), dow = (d) => (new Date(d + 'T12:00:00').getDay() + 6) % 7;
+const dow = (d) => (new Date(d + 'T12:00:00').getDay() + 6) % 7;
+// Date fixée sur le mardi de la semaine en cours, 10 h : le bouton de démarrage dépend du jour (comme « Ma semaine »).
 const add = (d, n) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + n); return iso(x); };
+const REEL = iso(new Date()), T = add(REEL, 1 - dow(REEL));
 const sched = (extra = {}) => ({ days: Array.from({ length: 7 }, (_, i) => extra[i] || (i % 2 === 0 || i === dow(T) ? { on: true, time: '18:30', dur: 60, place: 'Salle' } : { on: false })) });
 const mkState = (extra = {}) => ({ profile: { name: 'Karim', email: 'karim@exemple.fr', level: 'regular', goal: 'muscle', weight: 80, sex: 'm', age: 30, height: 178, days: 3, place: 'bigGym', startProgram: 'tb-rep3', records: {}, createdAt: T, sessionMin: 60 }, trialStart: T, synced: false, plan: { programId: 'tb-rep3', startedAt: add(T, -2), week: 1, idx: 0, cycle: 1 }, schedule: sched(), ...extra });
 const feuxRouges = (n) => Object.fromEntries(Array.from({ length: n }, (_, k) => [add(T, -k), { sleep: 5, feel: { energy: 3, stress: 8, sore: 8, motiv: 2 }, feu: 'rouge' }]));
 const seance = (d, rpe, trpe) => ({ id: d, title: 'S', start: d + 'T17:00:00.000Z', end: d + 'T18:00:00.000Z', exercises: [{ name: 'Squat barre', unit: 'reps', kind: 'F', rest: 180, sets: Array.from({ length: 5 }, () => ({ type: 'N', kg: 100, reps: 5, lo: 5, trpe, rpe, done: true })) }, { name: 'Développé couché', unit: 'reps', kind: 'P', rest: 120, sets: Array.from({ length: 4 }, () => ({ type: 'N', kg: 80, reps: 5, lo: 5, trpe, rpe, done: true })) }] });
 
-async function page(b, { state, url = '#/recup', tier = 'premium', dark = false, date = null }) {
+async function page(b, { state, url = '#/recup', tier = 'premium', dark = false, date = T + 'T10:00:00' }) {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, serviceWorkers: 'block', colorScheme: dark ? 'dark' : 'light' });
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', e => errs.push(e.message));
