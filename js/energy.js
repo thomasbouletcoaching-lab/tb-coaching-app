@@ -1,4 +1,5 @@
 // Dépense énergétique : MB (Mifflin-St Jeor), NEAT (pas + activité), EAT (séances, cardio), TEF (effet thermique), TDEE.
+import { mifflinSexe } from "./genre.js";
 import { S, today } from "./store.js";
 
 export const ACTIVITY_NEAT = { low: 0.15, light: 0.22, mid: 0.3, high: 0.5, vhigh: 0.65 }; // fraction du MB hors pas comptés
@@ -25,7 +26,7 @@ export function bmr(p = S().profile) {
   if (!p) return 1600;
   const w = day().weight || p.weight, bf = lastFat();
   if (bf) return 370 + 21.6 * w * (1 - bf / 100);
-  return 10 * w + 6.25 * p.height - 5 * p.age + (p.sex === "f" ? -161 : 5);
+  return 10 * w + 6.25 * p.height - 5 * p.age + mifflinSexe(p.sex);
 }
 export const bmrMethod = () => lastFat() ? `Katch-McArdle (masse grasse ${String(lastFat()).replace(".", ",")} %)` : "Mifflin-St Jeor";
 // Effet thermique selon les macros : protéines ≈ 25 %, glucides ≈ 7,5 %, lipides ≈ 2 % de leurs calories

@@ -45,6 +45,8 @@ jobs:
         run: node --test tests/profils.test.mjs
       - name: Tester « Je craque » (réponses, déclencheurs, textes interdits)
         run: node --test tests/crise.test.mjs
+      - name: Tester le genre choisi et les paliers adaptés au profil
+        run: node --test tests/genre.test.mjs
       - name: Tester la liste hors ligne du service worker (modules réellement chargés)
         run: node --test tests/sw.test.mjs
       - name: Installer les outils de test
@@ -69,6 +71,7 @@ jobs:
           node tests/roadmap-e2e.js
           node tests/parcours-e2e.js
           node tests/crise-e2e.js
+          node tests/genre-e2e.js
         env:
           BASE_URL: http://localhost:8765/
       - name: Tests de l'ancienne interface (coach/)

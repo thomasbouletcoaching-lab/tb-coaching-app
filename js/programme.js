@@ -36,7 +36,7 @@ export const QUESTIONS = [
   { id: "quitWhy", section: "avance", type: "multi", q: "Qu'est-ce qui a <span class=\"k\">coupé l'élan</span> ?", sub: "Coche ce qui s'applique.", skip: (a) => !a.quits || a.quits === "0", opts: QUIT_WHY, min: 0 },
   { id: "sleep", section: "avance", type: "single", q: "Ton <span class=\"k\">sommeil</span> en moyenne ?", opts: [["5", "Moins de 6 h"], ["6.5", "6 à 7 h"], ["7.5", "7 à 8 h"], ["8.5", "Plus de 8 h"]] },
   { id: "stress", section: "avance", type: "single", q: "Ton niveau de <span class=\"k\">stress</span> en ce moment ?", opts: [["low", "Faible"], ["mid", "Moyen"], ["high", "Élevé"]] },
-  { id: "work", section: "avance", type: "single", q: "Ton <span class=\"k\">travail</span> ?", opts: [["desk", "Surtout assis"], ["standing", "Debout, en mouvement"], ["physical", "Physique (chantier, manutention)"]] },
+  { id: "work", section: "avance", type: "single", q: "Ton <span class=\"k\">travail</span> ?", opts: [["desk", "Surtout en position assise"], ["standing", "Debout, en mouvement"], ["physical", "Physique (chantier, manutention)"]] },
   { id: "kids", section: "avance", type: "single", q: "As-tu des <span class=\"k\">enfants en bas âge</span> ?", opts: [["no", "Non"], ["yes", "Oui"]] },
 ];
 const BY_ID = Object.fromEntries(QUESTIONS.map(q => [q.id, q]));

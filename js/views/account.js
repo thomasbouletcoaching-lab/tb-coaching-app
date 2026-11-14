@@ -20,7 +20,7 @@ function loginId(s) {
 async function body() {
   const email = await C.accountEmail();
   if (email) {
-    return `<div class="card mt12"><div class="lbl">Connecté</div><p class="mt8" style="margin:0"><b>${esc(email)}</b></p>
+    return `<div class="card mt12"><div class="lbl">Connexion active</div><p class="mt8" style="margin:0"><b>${esc(email)}</b></p>
       <p class="small muted mt8">Tes séances, ta nutrition et tes mesures restent sur ce téléphone. Le coaching et la messagerie passent par ton compte TB my Coach.</p>
       <button class="btn btn-red mt12" data-a="account-restore">Restaurer mes données TB my Coach</button>
       <button class="btn btn-line mt12" data-a="account-out">Me déconnecter</button></div>`;
@@ -58,7 +58,7 @@ actions["account-restore"] = async () => {
 };
 
 actions["account-out"] = async () => {
-  try { await C.signOutSb(); toast("Déconnecté"); } catch (e) { toast("Déconnexion impossible : " + e.message); }
+  try { await C.signOutSb(); toast("Déconnexion faite"); } catch (e) { toast("Déconnexion impossible : " + e.message); }
   rerender();
 };
 
@@ -125,7 +125,7 @@ forms["account-signin"] = async (v) => {
     let full = false; try { full = await restoreFromCloud(await C.fetchMigrated()); } catch (err) { console.warn("Compte non restauré :", err.message); }
     let r = { w: 0, f: 0, m: 0, p: 0 }; try { r = await restoreMigrated(); } catch (err) { console.warn("Données non restaurées :", err.message); }
     await refreshMe().catch(() => { });
-    toast(full ? "Connecté · ton compte est restauré" : r.w + r.f + r.m ? `Connecté · ${r.w} séances, ${r.f} repas, ${r.m} mesures restaurés` : "Connecté");
+    toast(full ? "Connexion réussie · ton compte est restauré" : r.w + r.f + r.m ? `Connexion réussie · ${r.w} séances, ${r.f} repas, ${r.m} mesures restaurés` : "Connexion réussie");
     go(APP_MODE === "coach" && isCoach() ? "admin-today" : "profile");
   }
   catch (e) { toast(e.message === "Invalid login credentials" ? "E-mail ou mot de passe incorrect" : "Connexion impossible : " + e.message); }

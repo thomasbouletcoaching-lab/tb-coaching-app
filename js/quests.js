@@ -5,18 +5,13 @@ import { S, today } from "./store.js";
 import * as E from "./engine.js";
 import * as N from "./nutrition.js";
 import { esc } from "./core.js";
+import { palier } from "./paliers.js";
 
 const MAX_DAYS = 800;
 const shift = (d, n) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
 
-// Avatar : la personne telle qu'elle se construit, par stades de niveau (représentation, pas un corps idéalisé)
-export const STAGES = [
-  { from: 1, name: "Le Commençant", nameF: "La Commençante", icon: "🌱", line: "Chaque début compte. Le premier pas est déjà une décision." },
-  { from: 3, name: "L'Homme de la reprise", nameF: "La Femme de la reprise", icon: "🔥", line: "Tu reviens après les écarts. C'est ça, la force." },
-  { from: 5, name: "L'Homme de discipline", nameF: "La Femme de discipline", icon: "🛡️", line: "Ta régularité se voit : elle devient ton caractère." },
-  { from: 8, name: "L'Homme de fer", nameF: "La Femme de fer", icon: "🏛️", line: "Corps, régularité et méthode tiennent ensemble. Continue." },
-];
-export const stageOf = (level, sex = S().profile?.sex) => { const s = [...STAGES].reverse().find(x => level >= x.from); return sex === "f" ? { ...s, name: s.nameF || s.name } : s; };
+// Paliers : la personne telle qu'elle se construit. Le nom dépend du genre CHOISI et du profil réel (js/paliers.js).
+export const stageOf = (level, profile = S().profile) => palier(level, profile);
 
 // Trophées : débloqués par la régularité et les bons comportements, jamais par le poids
 export const TROPHIES = [

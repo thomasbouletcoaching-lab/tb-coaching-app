@@ -521,7 +521,7 @@ actions["prog-pub"] = async (b, d) => { const p = S().customPrograms.find(x => x
 // Acquisition : d'où viennent les inscrits (onboarding) et ce qu'ils cherchent en premier
 const SRC = { instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube", friend: "Bouche-à-oreille", gym: "En salle", thomas: "Thomas directement", google: "Google ou App Store", other: "Autre" };
 const PRIO = { strength: "Force sans stagner", fat: "Perdre du gras", time: "Peu de temps", regular: "Tenir dans la durée", food: "Savoir quoi manger", coach: "Être coaché" };
-const WHO = { student: "Étudiant", employee: "Salarié", freelance: "Indépendant", parent: "Parent", shift: "Horaires décalés", retired: "Retraité", other: "Autre" };
+const WHO = { student: "Aux études", employee: "Emploi salarié", freelance: "À son compte", parent: "Parent", shift: "Horaires décalés", retired: "À la retraite", other: "Autre" };
 function acquisitionCard() {
   const ms = window.__members || []; if (!ms.length) return "";
   const count = (k, map) => { const o = {}; ms.forEach(m => { const v = m.onboarding?.[k]; if (v) o[v] = (o[v] || 0) + 1; }); return Object.entries(o).sort((a, b) => b[1] - a[1]).map(([v, n]) => ({ l: map[v] || v, v: n })); };
