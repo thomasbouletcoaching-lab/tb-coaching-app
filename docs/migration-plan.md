@@ -389,3 +389,24 @@ Requêtes de structure et de comptage uniquement : types de colonnes, nombres de
 | `cxs_member_data` | Une ligne par `user_id`, aucune sans profil | R2, R3 et R6 valables telles qu'écrites |
 
 Restent à vérifier avant R1 : le sens des clés `S_d_N`, `S_t_N`, `S_h_N` et `pp` du carnet, la cible de `cou`, `epaules`, `mg`, et les échelles de `stress` et `motiv`. Ces points demandent de lire le code de l'app, exclu de cette étape.
+
+## 9. Vérifications dans le code et sur les valeurs (lecture seule, 14/11)
+
+Recherche dans `js/` (aucun fichier de données lu) et agrégats min/max sur les anciennes valeurs (aucun contenu affiché).
+
+| Point | Résultat | Conséquence |
+|---|---|---|
+| Clés du carnet `S_d_N`, `S_t_N`, `S_h_N`, `nu_*`, `pp` | Aucune construction de ces clés dans le code actuel | Ce sont des restes de l'ancienne app : copie brute dans `tbLegacy.carnet[k]`, aucun mapping |
+| `suivi.sommeil` (valeurs 2 à 5, 7 bilans) | Le nouveau bilan a `sleepQ` (qualité 1 à 5) à côté de `sleepH` (heures) | **Recommandation : `sommeil` → `sleepQ`**, plus proche que les heures. Décision M13 |
+| `suivi.stress` (valeurs 1 à 3, 6 bilans) | Le bilan actuel est noté sur 10 (0 à 10 dans `checkin.js`, 1 à 10 dans l'anamnèse) | **Pas de conversion linéaire** : l'échelle ancienne est inconnue. Copie sous `legacy.stress`, champ `stress` laissé vide. Décision M14 |
+| `suivi.motiv` (valeurs 4 à 5, 6 bilans) | Échelle actuelle variable selon l'écran (1 à 5 emoji dans `fatigue.js`, 1 à 10 dans `recuperation.js`) | Même traitement que `stress` : copie sous `legacy.motiv`. Décision M14 |
+| `mesures.mg` (3 valeurs, 15,1 à 88) | Aucun champ `mg` dans le code. Le champ de masse grasse est `fat` (`energy.js`, borné à 3–60) | **Pas de correspondance sûre** : 88 est hors de l'échelle `fat`. `mg` reste sous `tbLegacy`. Décision M15 |
+| `cou`, `epaules` (mesures) | Pas de champ correspondant dans `store.js` ni `checkin.js` (`CI_MEASURES`) | Restent sous `tbLegacy` |
+
+Décisions nouvelles :
+
+| # | Question | Recommandation |
+|---|---|---|
+| M13 | Ancien `sommeil` (2 à 5) versé dans `sleepQ` ? | Oui |
+| M14 | `stress` et `motiv` de l'ancien `suivi` : copie brute sous `legacy`, sans conversion ? | Oui, tant que l'échelle n'est pas confirmée par Thomas |
+| M15 | `mg` des mesures : vraiment de la masse grasse, et dans quelle unité ? | Thomas confirme ; sans réponse, `tbLegacy` |
