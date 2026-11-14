@@ -103,3 +103,24 @@ Recommandation : A.
 ## 7. Prochaine étape
 
 Tester les cinq fichiers sur une **branche Supabase** (copie de la structure, sans données réelles) avec les personas fictifs, puis te présenter chaque fichier avec son résultat. L'application en production reste un point d'arrêt : ton « go », fichier par fichier.
+
+## 8. Réponses de Thomas (14/11/2026) et fichiers (f) et (g)
+
+Q1 : préparer la règle maintenant. Q2 : laisser `pg_net`. Q3 : laisser `self_start` et `nutri_food_add` jusqu'au retrait de l'ancienne app. Q4 : ajouter le garde-fou maintenant.
+
+| Fichier | Ce qu'il fait | Effet |
+|---|---|---|
+| (f) `…_f_coach_lecture.sql` | Le coach ne lit le dossier (`cxs_member_data`, `nutri_daily`, `cxs_live_sessions`) que des comptes coachés ou Invités, des fiches de l'ancienne app dont il est le coach, et des personnes qui ont consenti (`cxs_profiles.consent_suivi`, faux par défaut) | Voir « conséquences » ci-dessous |
+| (g) `…_g_messages.sql` | Sur `cxs_messages`, seul l'auteur modifie le texte, le vocal, l'auteur, le fil et la date ; marquer lu et réagir restent permis au destinataire | Aucun pour un usage normal |
+
+**Écart assumé avec la demande** : `cxs_profiles` et `cxs_messages` ne sont pas restreints. Le coach a besoin du nom, de l'e-mail et de la formule de chaque compte pour gérer les abonnés, et il est l'interlocuteur de chaque conversation. Limite : `cxs_profiles.onboarding` contient aussi les réponses du profil (âge, poids, objectif) ; les séparer du compte demande de déplacer ces colonnes, à faire avec la phase 9.2.
+
+**Conséquences de (f) à connaître avant d'appliquer** :
+- Les membres **en essai** ont la formule `free` en base (l'essai est compté sur le téléphone). Sans consentement, tu ne verras plus leur dossier : plus d'alerte « Qui décroche » ni de suivi du Défi 30 jours pour eux. C'est l'application stricte de D8.
+- Tant que l'app ne propose pas la case de consentement (texte à valider, point d'arrêt R6), personne ne peut consentir : appliquer (f) avant cette case revient à masquer tous les comptes non coachés.
+- Les 15 comptes Invité actuels restent visibles.
+
+**À décider par Thomas** :
+1. La liste des formules « coachées » : `essentiel`, `suivi`, `avance`, `invite`, `surmesure`. À confirmer.
+2. Les membres en essai : masqués sans consentement (D8 strict, recommandé), ou visibles pendant l'essai (il faudrait alors l'écrire dans la politique de confidentialité).
+3. Ordre d'application : (g) dès que possible ; (f) seulement quand la case de consentement existe dans l'app.
