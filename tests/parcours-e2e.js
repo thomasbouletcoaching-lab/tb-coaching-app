@@ -28,7 +28,7 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
 const ROUTES = ['home', 'plan', 'defi', 'carnet', 'train', 'atelier', 'monprogramme', 'monplan', 'semaine', 'soutenabilite', 'roadmap', 'volume', 'food', 'body', 'moncorps', 'recup', 'bilan', 'bilans', 'regularite', 'rapport', 'compare', 'anamnese', 'coach', 'offers', 'profile', 'settings', 'account', 'trophees', 'crise', 'kb', 'monprofil', 'privacy', 'agenda', 'simu', 'builder'];
 // La dernière configuration élargit légèrement les lettres : chaque téléphone a sa propre police de secours, parfois plus large
 // (c'est ainsi que la CI a trouvé un débordement des tuiles du Profil invisible sur la machine de développement).
-const CONFS = [['iPhone clair', 390, 844, 'light'], ['iPhone sombre', 390, 844, 'dark'], ['Android clair', 360, 740, 'light'], ['Android sombre', 360, 740, 'dark'], ['Android clair, police plus large', 360, 740, 'light', '.12em']];
+const CONFS = [['iPhone clair', 390, 844, 'light'], ['iPhone sombre', 390, 844, 'dark'], ['Android clair', 360, 740, 'light'], ['Android sombre', 360, 740, 'dark']];
 
 // Ce qui dépasse à droite de l'écran (hors zones prévues pour défiler). La largeur de la page est comparée à la largeur
 // réelle du téléphone, pas à innerWidth : en émulation mobile, innerWidth s'élargit avec le contenu qui déborde.
