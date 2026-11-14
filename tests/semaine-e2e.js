@@ -1,4 +1,4 @@
-// Test de bout en bout de « Ma semaine » : Premium / gratuit, le fixe, les imprévus, placement, replacement, « Je ne peux pas »,
+// Test de bout en bout de « Ma semaine » : essai terminé (app verrouillée), le fixe, les imprévus, placement, replacement, « Je ne peux pas »,
 // revue du dimanche, rappel dans le calendrier. iPhone 390×844 tactile, Supabase simulé, données fictives.
 // Lancement : servir la racine sur BASE_URL (par défaut http://localhost:8765/), puis `node tests/semaine-e2e.js`.
 const { chromium } = require('playwright');
@@ -10,13 +10,16 @@ const ok = (c, msg) => { if (c) { passed++; console.log('  ✓', msg); } else { 
 const SB_NONE = `const chain = () => new Proxy(function () {}, { get: (t, k) => k === "then" ? (res) => res({ data: null, error: null }) : chain(), apply: () => chain() });
 export function createClient() { return { auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signOut: async () => ({}) }, from: () => chain(), rpc: () => chain(), channel: () => chain(), removeChannel() {}, storage: { from: () => chain() } }; }`;
 const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
-const T = iso(new Date()), dow = (d) => (new Date(d + 'T12:00:00').getDay() + 6) % 7;
+const dow = (d) => (new Date(d + 'T12:00:00').getDay() + 6) % 7;
 const add = (d, n) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + n); return iso(x); };
+// La suite tourne toujours un MARDI (celui de la semaine en cours), à 10 h : le planificateur dépend du jour de la semaine
+// (un samedi, il ne reste plus de séance à placer), et le test ne doit pas dépendre du jour où la CI tourne.
+const REEL = iso(new Date()), T = add(REEL, 1 - dow(REEL));
 const MON = add(T, -dow(T)), NEXT = add(MON, 7);
 const BUREAU = { id: 'b1', type: 'travail', label: 'Bureau', jours: [0, 1, 2, 3, 4], debut: '09:00', fin: '18:00' };
 const mkState = (extra = {}) => ({ profile: { name: 'Karim', email: 'karim@exemple.fr', level: 'regular', goal: 'muscle', weight: 80, sex: 'm', age: 30, height: 178, days: 3, place: 'bigGym', startProgram: 'tb-rep3', records: {}, createdAt: T, sessionMin: 60 }, trialStart: T, synced: false, plan: { programId: 'tb-rep3', startedAt: add(T, -2), week: 1, idx: 0, cycle: 1 }, schedule: { days: [{ on: true, time: '18:30', dur: 60, place: 'Salle' }, { on: false }, { on: true, time: '18:30', dur: 60, place: 'Salle' }, { on: false }, { on: true, time: '18:30', dur: 60, place: 'Salle' }, { on: false }, { on: false }] }, ...extra });
 
-async function page(b, { state, url = '#/semaine', tier = 'premium', dark = false, date = null }) {
+async function page(b, { state, url = '#/semaine', tier = 'premium', dark = false, date = T + 'T10:00:00' }) {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, serviceWorkers: 'block', colorScheme: dark ? 'dark' : 'light', acceptDownloads: true });
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', e => errs.push(e.message));
@@ -40,14 +43,11 @@ const hh = (s) => s.slice(0, 5);
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
 
-  console.log('Gratuit : aperçu verrouillé, l\'agenda existant reste');
+  console.log('Essai terminé, sans abonnement : app verrouillée sur les offres');
   const g = await page(b, { tier: 'free' });
-  ok(/calées dans ta vraie semaine/.test(await txt(g.p)) && await g.p.locator('.veil').count() === 1, 'écran verrouillé avec explication');
-  ok(await g.p.locator('[data-a="sm-bloc"]').count() === 0, 'aucune fonction Premium accessible');
-  await g.p.evaluate(() => { location.hash = '#/home'; }); await g.p.waitForTimeout(700);
-  const st = await S(g.p); ok(st.schedule.days.filter(d => d.on).length === 3 && !st.semaine, 'la semaine type existante est intacte, rien écrit');
-  await g.p.evaluate((d) => { location.hash = '#/home/month'; }, T); await g.p.waitForTimeout(900);
-  await g.p.evaluate(async (t) => { const E = await import('./js/engine.js'); await E.loadPrograms(); }, T);
+  ok(/Ton essai est terminé/.test(await txt(g.p)) && await g.p.locator('[data-a="choose"]').count() >= 1, 'écran des offres à la place de « Ma semaine »');
+  ok(await g.p.locator('[data-a="sm-bloc"]').count() === 0, 'aucune fonction de l\'app accessible');
+  const st = await S(g.p); ok(st.schedule.days.filter(d => d.on).length === 3 && !st.semaine, 'les données du membre sont intactes, rien écrit');
   ok(g.errs.length === 0, 'aucune erreur JavaScript' + (g.errs.length ? ' (' + g.errs.slice(0, 3).join(' | ') + ')' : ''));
   await g.ctx.close();
 

@@ -43,6 +43,8 @@ jobs:
         run: node --test tests/atelier.test.mjs
       - name: Tester la détection des profils et le parcours reprise durable
         run: node --test tests/profils.test.mjs
+      - name: Tester la liste hors ligne du service worker (modules réellement chargés)
+        run: node --test tests/sw.test.mjs
       - name: Installer les outils de test
         working-directory: tests
         run: npm install --no-audit --no-fund && npx playwright install --with-deps chromium
@@ -63,6 +65,7 @@ jobs:
           node tests/onboarding-sur-mesure-e2e.js
           node tests/atelier-e2e.js
           node tests/roadmap-e2e.js
+          node tests/parcours-e2e.js
         env:
           BASE_URL: http://localhost:8765/
       - name: Tests de l'ancienne interface (coach/)

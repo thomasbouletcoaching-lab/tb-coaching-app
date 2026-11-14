@@ -9,14 +9,16 @@ const ok = (c, msg) => { if (c) { passed++; console.log('  ✓', msg); } else { 
 const SB_NONE = `const chain = () => new Proxy(function () {}, { get: (t, k) => k === "then" ? (res) => res({ data: null, error: null }) : chain(), apply: () => chain() });
 export function createClient() { return { auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signOut: async () => ({}) }, from: () => chain(), rpc: () => chain(), channel: () => chain(), removeChannel() {}, storage: { from: () => chain() } }; }`;
 const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
-const T = iso(new Date()), dow = (d) => (new Date(d + 'T12:00:00').getDay() + 6) % 7;
+const dow = (d) => (new Date(d + 'T12:00:00').getDay() + 6) % 7;
+// Date fixée sur le mardi de la semaine en cours, 10 h : le bouton de démarrage dépend du jour (comme « Ma semaine »).
 const add = (d, n) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + n); return iso(x); };
+const REEL = iso(new Date()), T = add(REEL, 1 - dow(REEL));
 const sched = (extra = {}) => ({ days: Array.from({ length: 7 }, (_, i) => extra[i] || (i % 2 === 0 || i === dow(T) ? { on: true, time: '18:30', dur: 60, place: 'Salle' } : { on: false })) });
 const mkState = (extra = {}) => ({ profile: { name: 'Karim', email: 'karim@exemple.fr', level: 'regular', goal: 'muscle', weight: 80, sex: 'm', age: 30, height: 178, days: 3, place: 'bigGym', startProgram: 'tb-rep3', records: {}, createdAt: T, sessionMin: 60 }, trialStart: T, synced: false, plan: { programId: 'tb-rep3', startedAt: add(T, -2), week: 1, idx: 0, cycle: 1 }, schedule: sched(), ...extra });
 const feuxRouges = (n) => Object.fromEntries(Array.from({ length: n }, (_, k) => [add(T, -k), { sleep: 5, feel: { energy: 3, stress: 8, sore: 8, motiv: 2 }, feu: 'rouge' }]));
 const seance = (d, rpe, trpe) => ({ id: d, title: 'S', start: d + 'T17:00:00.000Z', end: d + 'T18:00:00.000Z', exercises: [{ name: 'Squat barre', unit: 'reps', kind: 'F', rest: 180, sets: Array.from({ length: 5 }, () => ({ type: 'N', kg: 100, reps: 5, lo: 5, trpe, rpe, done: true })) }, { name: 'Développé couché', unit: 'reps', kind: 'P', rest: 120, sets: Array.from({ length: 4 }, () => ({ type: 'N', kg: 80, reps: 5, lo: 5, trpe, rpe, done: true })) }] });
 
-async function page(b, { state, url = '#/recup', tier = 'premium', dark = false, date = null }) {
+async function page(b, { state, url = '#/recup', tier = 'premium', dark = false, date = T + 'T10:00:00' }) {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, serviceWorkers: 'block', colorScheme: dark ? 'dark' : 'light' });
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', e => errs.push(e.message));
@@ -42,11 +44,10 @@ const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
 
-  console.log('Gratuit : aperçu verrouillé, l\'onglet existant reste');
+  console.log('Essai terminé, sans abonnement : app verrouillée sur les offres');
   const g = await page(b, { tier: 'free' });
-  ok(await g.p.locator('.veil').count() === 1 && /Fatigue nerveuse/.test(await txt(g.p)), 'carte « Fatigue nerveuse » verrouillée');
-  ok(/Pour ta séance du jour/.test(await txt(g.p)) && await g.p.locator('[data-a="fc-open"]').count() === 0, 'le conseil existant reste, aucun check-in Premium');
-  ok(/Courbatures/.test(await txt(g.p)) && /Motivation/.test(await txt(g.p)), 'les curseurs du ressenti incluent courbatures et motivation');
+  ok(/Ton essai est terminé/.test(await txt(g.p)) && await g.p.locator('[data-a="choose"]').count() >= 1, 'écran des offres à la place de la récupération');
+  ok(await g.p.locator('[data-a="fc-open"]').count() === 0, 'aucun check-in accessible');
   ok(g.errs.length === 0, 'aucune erreur JavaScript' + (g.errs.length ? ' (' + g.errs.slice(0, 3).join(' | ') + ')' : ''));
   await g.ctx.close();
 
@@ -54,6 +55,7 @@ const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.
   const a = await page(b, {});
   let t = await txt(a.p);
   ok(/Ton feu du jour/.test(t) && /Faire mon check-in \(10 secondes\)/.test(t) && !/Pour ta séance du jour/.test(t), 'bloc « feu du jour » (l\'ancien conseil est intégré, pas dupliqué)');
+  ok(/Courbatures/.test(t) && /Motivation/.test(t), 'les curseurs du ressenti incluent courbatures et motivation');
   ok(/Sans check-in, je me base seulement sur tes séances/.test(t), 'sans check-in : le feu est annoncé moins précis');
   await tap(a.p, '[data-a="fc-open"]');
   ok(/Check-in du jour/.test(await txt(a.p, '#sheet')) && await a.p.locator('#sheet input[type="radio"]').count() >= 25, 'feuille : sommeil et quatre échelles à toucher');

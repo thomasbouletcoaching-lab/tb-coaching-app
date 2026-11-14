@@ -114,3 +114,12 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 - Si pas réaliste : deux issues proposées en un geste (garder la charge et repousser la date, ou garder la date et viser la charge atteignable).
 - Plan : 4 à 26 semaines ; phases accumulation, intensification, réalisation, décharge toutes les 4 semaines, affûtage, jour J. Charges = 1RM estimé prévu × effort visé (Epley + RIR, comme le reste de l'app), arrondies à 2,5 kg ; le jour J : échauffement progressif puis la tentative exacte.
 - Programme du moteur : charges en kg écrites semaine par semaine (`weeks`), 3 accessoires par séance selon la catégorie de mouvement. Pas de phase « Test » du moteur (elle réduirait les charges du jour J).
+
+## C52 — Tests alignés sur la fin de la formule gratuite, test de parcours général (13/11/2026)
+- Constat : la CI était rouge depuis la PR #25. Cinq suites de bout en bout testaient encore un compte « gratuit » avec accès partiel, qui n'existe plus : essai terminé sans abonnement = app verrouillée sur les offres.
+- Décision : ces suites vérifient maintenant le verrouillage sur les offres, et leurs autres vérifications tournent sur un compte en essai. Aucun test n'a été désactivé ; les seules vérifications retirées portent sur l'écran « verrouillé, passe au Bâtisseur », qui n'est plus atteignable.
+- La suite « Ma semaine » dépendait du jour où elle tournait (un vendredi, « Je ne peux pas » ne trouve aucun créneau et propose la fusion ; un samedi, il ne reste plus de séance à placer). Elle tourne maintenant toujours sur le mardi de la semaine en cours, à 10 h, avec une horloge simulée.
+- Nouveau test `tests/parcours-e2e.js` : 35 écrans, iPhone 390×844 et Android 360×740, clair et sombre, animations réduites ; aucune erreur JavaScript, rien ne dépasse. Il compare la largeur de la page à la largeur réelle du téléphone : en émulation mobile, `innerWidth` s'élargit avec le contenu, ce qui masquait les débordements dans les contrôles existants.
+- Nouveau test `tests/sw.test.mjs` : tout module JavaScript chargé par l'app doit figurer dans la liste hors ligne de `sw.js`.
+- Correctif trouvé par ce test : la page des offres (et l'écran de fin d'essai) débordait de 28 px ; le prix passe maintenant à la ligne.
+- Code devenu inatteignable (accès partiel sans Premium dans le questionnaire, « Ma semaine », la soutenabilité, la fatigue) : laissé en place, à retirer en phase 10.

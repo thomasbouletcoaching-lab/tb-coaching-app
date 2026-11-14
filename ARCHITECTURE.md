@@ -49,7 +49,7 @@ Ancienne app coach : coach/index.html (monolithe)        │ webhooks
 | `data/*.json` | Programmes, fiches d'exercices, aliments (Ciqual, Open Food Facts, fast-food) |
 | `supabase/functions/` | Sources des Edge Functions `billing` et `stripe-webhook` |
 | `supabase/migrations/` | Migrations SQL versionnées (à relire avant application) |
-| `tests/` | `volume.test.mjs` (unitaire), `volume-e2e.js` (Playwright, iPhone 390×844), `run.js` + `harness.js` (ancienne app) |
+| `tests/` | `*.test.mjs` (unitaires, `node --test`), `sw.test.mjs` (liste hors ligne du service worker), `*-e2e.js` (Playwright, iPhone 390×844), `parcours-e2e.js` (35 écrans principaux du membre, iPhone et Android 360×740, clair et sombre, animations réduites), `run.js` + `harness.js` (ancienne app) |
 | `tools/` | Scripts Python de génération des bases d'aliments |
 | `.github/workflows/` | `tests.yml` (syntaxe + tests sur chaque PR), `keepalive.yml`, `ciqual.yml` |
 
