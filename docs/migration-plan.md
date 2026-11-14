@@ -410,3 +410,25 @@ Décisions nouvelles :
 | M13 | Ancien `sommeil` (2 à 5) versé dans `sleepQ` ? | Oui |
 | M14 | `stress` et `motiv` de l'ancien `suivi` : copie brute sous `legacy`, sans conversion ? | Oui, tant que l'échelle n'est pas confirmée par Thomas |
 | M15 | `mg` des mesures : vraiment de la masse grasse, et dans quelle unité ? | Thomas confirme ; sans réponse, `tbLegacy` |
+
+## 10. Décisions prises par Thomas (QCM du 14/11)
+
+| # | Décision |
+|---|---|
+| M1 | Rattachement des clients sans compte : à la main, un par un |
+| M2 | Pas d'archivage automatique ; rien n'est archivé sans décision explicite |
+| M3 | Réponse du coach : champ `coachReply` dans le bilan |
+| M4 | `motiv` gardé à part, pas versé dans `mood` |
+| M5 | Anciens messages non lus marqués lus à la copie |
+| M6 | Ancienne app en lecture seule à T, au moins pour la messagerie |
+| M7 | Table `cxs_program_history` créée maintenant, copie à l'identique (`prog_hist` et `cycles`) |
+| M8 | Statut des `coach_id` et des 2 inscrits en autonomie : à trancher avec D8 plus tard, rien d'écrit d'ici là |
+| M9 | Répétition sur base restaurée en local |
+| M10 | Sauvegarde : stockage chiffré hors Supabase et hors GitHub (lieu exact à préciser) |
+| M11 | Cinq comptes possiblement doublons : confirmation paire par paire à la main |
+| M12 | Bilans sans date : date de dernière modification (`dateSource: "updated_at"`) |
+| M13 | `sommeil` versé dans `sleepQ` |
+| M14 | `stress` et `motiv` de l'ancien suivi : copie brute sous `legacy`, sans conversion |
+| M15 | `mg` des mesures gardé sous `tbLegacy` |
+
+Rien de ce qui suit n'est exécuté tant que le lieu de sauvegarde (M10) et l'accord écrit de Thomas au point R1 ne sont pas donnés.
