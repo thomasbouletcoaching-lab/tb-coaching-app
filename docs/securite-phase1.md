@@ -9,7 +9,7 @@
 3. **Une seule fonction exposée lisait l'information d'un autre compte** : `cxs_msgs_left` (nombre de messages restants). Corrigée dans le fichier (b).
 4. Ces fichiers ne règlent **pas** deux sujets qui demandent ta décision (voir § 5) : la lecture par le coach de tous les dossiers (D8), et la modification possible du texte d'un message par son destinataire dans `cxs_messages`.
 
-## 2. Inventaire des fonctions SECURITY DEFINER (61 examinées)
+## 2. Inventaire des fonctions (60 SECURITY DEFINER et `cxs_migration.num`)
 
 Méthode : droits lus dans le catalogue ; corps lus en entier pour 24 fonctions (les 6 sans connexion, toutes celles sans contrôle apparent, et les fonctions de lecture croisée). Pour les autres, le contrôle est constaté par la présence des appels de vérification dans le corps, **sans relecture ligne à ligne** : c'est indiqué « marqueurs ».
 
@@ -47,7 +47,7 @@ Méthode : droits lus dans le catalogue ; corps lus en entier pour 24 fonctions 
 | `compta_claim`, `compta_coaching_payments`, `cpta_coaching_payments`, `cpta_create_foyer`, `cpta_session` | Comptabilité | Oui : appartenance au foyer | **Non touchées** (§ 4) |
 | `compta_private.cpta_role`, `is_member`, `is_owner`, `member_role` | Comptabilité (aides des politiques) | Oui | **Non touchées** |
 
-### 2.4 Déjà fermées à l'API (11) — rien à faire
+### 2.4 Déjà fermées à l'API (12) — rien à faire
 
 `cxs_profiles_guard`, `leads_push`, `messages_push_trg`, `subs_owner_sync` (déclencheurs) ; `gx_calc`, `gx_coach_of`, `gx_sync`, `push_fire`, `push_targets`, `purge_fire`, `media_videos_a_purger`, `rls_auto_enable` (internes).
 
