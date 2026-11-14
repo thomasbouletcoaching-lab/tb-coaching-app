@@ -444,3 +444,21 @@ Exécutée par Thomas, sur son poste. Je n'accède à aucune donnée exportée.
 5. Ensuite, et seulement ensuite : point d'arrêt R1 (§ 6.2), avec l'accord écrit de Thomas.
 
 Ce que je vérifierai à réception : les empreintes correspondent, les comptages sont identiques entre la production et la restauration, et la liste de contrôle R1 (§ 6.2) est complète.
+
+## 12. Journal d'exécution (14/11, accord de Thomas : ajouts seuls, contrôle à chaque étape)
+
+| Étape | Résultat | Contrôle |
+|---|---|---|
+| `00_snapshot` | Schéma privé `bak_20261114`, 15 tables | Comptages et empreintes identiques à la source. **Ne remplace pas l'export hors Supabase (§ 11), toujours à faire** |
+| `01_structure` | 5 colonnes ajoutées à `cxs_messages` (8 → 13), schéma `mig`, `cxs_program_history` (RLS : lecture de ses propres lignes) | 2 messages existants intacts |
+| `02_correspondance` | 16 lignes : 10 `auto`, 6 `en_attente`, 0 doublon | Identique à R0 ; 16 profils inchangés, aucun compte créé |
+| `03_messages` | 119 copiés, 2 messages natifs conservés (121) | Empreinte source = copie, 0 orphelin, ancienne table intacte (155) |
+| `05` notes et historique | 10 notes, 22 `prog_hist`, 1 cycle | Comptages attendus = copiés, 0 orphelin |
+
+Écarts au plan, et pourquoi :
+
+- **Déclencheur `cxs_notify_on_reply`** : chaque insertion d'un message dont l'expéditeur n'est pas le membre crée une notification « Nouveau message de Thomas ». La copie a donc été faite dans une transaction où les déclencheurs sont suspendus (`session_replication_role = replica`), avec annulation automatique si le nombre de notifications changait. Il n'a pas changé. Aucun déclencheur n'a été modifié ni désactivé de façon durable.
+- **17 messages avec pièce jointe ou vocal non copiés** : l'app n'affiche pas `media` ; ils apparaîtraient comme des bulles vides. À copier après la copie des fichiers du stockage et le support de `media` dans l'app (PR 2.1).
+- **Étape 04 (bilans) suspendue** : `js/sync.js` renvoie à chaque synchronisation les 26 derniers bilans de l'appareil du membre, ce qui écraserait toute entrée ajoutée côté serveur. Les 16 bilans ne doivent pas être écrits dans `cxs_member_data.data.checkins` depuis le serveur. Options : (a) table dédiée en lecture seule affichée par l'app ; (b) fusion côté appareil à la prochaine connexion, dans la PR 2.1. `04_bilans.sql` reste un brouillon à ne pas jouer en l'état.
+
+Reste à faire : fichiers du stockage et réécriture de `media`, bilans (décision ci-dessus), correctif d'écriture de la messagerie (§ 4.3) puis rattrapage, paires M11, export hors Supabase, réconciliation finale (R8 après T).
