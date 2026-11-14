@@ -76,7 +76,7 @@ Cible : `cxs_member_data.data.checkins[]`.
 | `w` | `week` | Inchangé |
 | (calculé) | `d` | § 3.1 |
 | `poids` | `weight` | Virgule décimale à convertir en point |
-| `sommeil` | `sleepH` | **[à vérifier]** : heures ou note sur 10. Si c'est une note, ne pas la verser dans un champ en heures → `tbLegacy` |
+| `sommeil` | Pas `sleepH` | Vérifié : valeurs de 2 à 5, c'est une note et non des heures. Conservé sous `legacy.sommeil`, jamais versé dans un champ en heures |
 | `stress` | `stress` | Échelle à comparer |
 | `motiv` | `mood` | Rapprochement approximatif (motivation ≠ humeur) : décision § 7 |
 | `win` | `win` | Inchangé |
@@ -95,19 +95,19 @@ Ajouts seuls, sans valeur par défaut contraignante : sans effet sur l'app en se
 | Colonne | Type proposé | Rôle |
 |---|---|---|
 | `media` | `jsonb` | Pièces jointes (16 messages) |
-| `reply_to` | `uuid`, référence `cxs_messages(id)`, `on delete set null` | Réponse à un message |
+| `reply_to` | `bigint`, référence `cxs_messages(id)`, `on delete set null` (vérifié : `cxs_messages.id` est un `int8`, l'ancien `reply_to` un `uuid`, d'où la traduction en deux passes) | Réponse à un message |
 | `edited_at` | `timestamptz` | Message modifié |
-| `ref` | même type que `messages.ref` **[à vérifier]** | Renvoi vers un élément de l'app |
-| `legacy_id` | type de `messages.id`, index unique partiel (`where legacy_id is not null`) | Copie rejouable sans doublon |
+| `ref` | `text` (vérifié) | Renvoi vers un élément de l'app |
+| `legacy_id` | `uuid` (vérifié), index unique partiel (`where legacy_id is not null`) | Copie rejouable sans doublon |
 
 Règles de copie :
 
 - `client_id → user_id` par `mig.client_map`. Messages des clients `en_attente` : non copiés (§ 2).
-- `sender` : dérivé de `from_coach`. Valeurs exactes attendues par la nouvelle app **[à vérifier]**.
-- `created_at` : repris de l'original, jamais la date de la copie. **[à vérifier : la colonne existe des deux côtés]**
-- `body`, `audio_path`, `reactions`, `edited_at`, `ref` : repris tels quels.
+- `sender` : repris tel quel. Vérifié : c'est des deux côtés l'identifiant de compte de l'expéditeur (les 55 messages du coach portent l'identifiant du profil coach, les messages des clients rattachés portent leur `user_id`). `from_coach` n'a donc pas besoin de colonne.
+- `created_at` : repris de l'original, jamais la date de la copie (colonne présente des deux côtés, vérifié).
+- `audio_path`, `reactions`, `edited_at`, `ref` : repris tels quels. `body` : obligatoire dans `cxs_messages` alors que 15 anciens messages n'ont pas de texte (pièce jointe seule) → copiés avec un texte vide.
 - `reply_to` : copie en deux passes. Passe 1 sans `reply_to` ; passe 2, traduction de l'ancien identifiant vers le nouveau via `legacy_id`. Une réponse dont le message d'origine n'est pas copié : `reply_to` vide, signalé dans la réconciliation.
-- `read_at` : les anciens messages sont marqués lus à leur date d'envoi. Sinon 155 messages apparaissent non lus et les compteurs s'affolent. Décision § 7.
+- `read_at` : l'ancienne table a sa propre colonne `read_at` (vérifié) : elle est reprise telle quelle. Seuls les messages restés non lus posent question : décision § 7.
 - Les 2 messages déjà dans `cxs_messages` sont conservés et comparés aux anciens (même membre, même horodatage, même empreinte du texte) pour ne pas les doubler.
 
 ### 4.2 Pièces jointes et vocal
@@ -116,7 +116,7 @@ Règles de copie :
 
 1. **Copier, ne pas déplacer.** Les fichiers d'origine restent en place jusqu'à l'archivage.
 2. Chaque fichier est copié sous le dossier du `user_id`, puis `media` et `audio_path` de la ligne copiée pointent vers la copie. Les règles d'accès au stockage (PR 1.5) restent ainsi fondées sur « le dossier porte mon identifiant », sans exception pour l'ancien rangement.
-3. Si `client_id` et `user_id` sont identiques pour un membre, rien à copier.
+3. Vérifié : `client_id` et `user_id` diffèrent pour les 10 clients rattachés. La copie de fichiers concerne donc tout le monde. `media` est une liste d'objets `{path, type, dur}`.
 4. Contrôle : pour chaque chemin cité, l'objet existe et a la même taille que l'original (§ 5, requête R7). Un fichier introuvable n'empêche pas de copier le message : la ligne est signalée.
 5. La copie de fichiers passe par l'API de stockage, pas par SQL : c'est une écriture en production, donc après R1.
 
@@ -359,9 +359,33 @@ Après R1, un arrêt à chaque étape : colonnes → correspondance → copies �
 | M2 | Date limite après laquelle les données d'un client jamais revenu sont archivées | À fixer avant la PR 2.3 |
 | M3 | Réponse du coach aux bilans (`reply`) : champ `coachReply` dans le bilan, ou message dans la messagerie ? | `coachReply` |
 | M4 | `motiv` versé dans `mood`, ou gardé à part ? | Gardé à part si les échelles diffèrent |
-| M5 | Anciens messages marqués lus à la copie ? | Oui |
+| M5 | Anciens messages restés non lus : marqués lus à la copie ? | Oui |
 | M6 | Ancienne app en lecture seule à l'heure T ? | Oui, pour la messagerie au minimum |
 | M7 | `prog_hist` et `cycles` : nouvelle table `cxs_program_history` maintenant, ou attendre la phase 4.4 ? | Maintenant, copie à l'identique |
 | M8 | `coach_id` et les 2 inscrits en autonomie : statut dans la nouvelle app (D8) | À trancher avec D8 |
 | M9 | Répétition sur une branche Supabase (payante) ou sur une base restaurée en local ? | Base restaurée : elle sert aussi de preuve de restauration |
 | M10 | Lieu de stockage de la sauvegarde | Hors Supabase, hors GitHub, chiffré |
+| M11 | Cinq comptes de la nouvelle app portent le programme d'un client « sans compte » (§ 8) : sont-ce les mêmes personnes sous un autre e-mail ? | Thomas confirme chaque paire à la main ; aucune fusion automatique |
+| M12 | Bilans sans date d'envoi et sans début de cycle (5 chez les rattachés) : date de dernière modification, date donnée par Thomas, ou quarantaine ? | Date de dernière modification, marquée `dateSource: "updated_at"` |
+
+## 8. Vérifications faites en lecture seule (14/11)
+
+Requêtes de structure et de comptage uniquement : types de colonnes, nombres de lignes, formes de valeurs. Aucun nom, e-mail ni texte affiché, aucune écriture.
+
+| Point | Résultat | Conséquence |
+|---|---|---|
+| Identifiants | `clients.id` ≠ `cxs_profiles.id` pour les 10 rattachés | La table de correspondance est indispensable ; les fichiers sont à copier pour tous |
+| Les 6 clients « sans compte » | Tous ont un compte de connexion au même e-mail, mais pas de profil | Il leur suffit de se connecter à la nouvelle app ; rien à créer |
+| **15 `tbRaw` pour 10 rattachés** | Les 5 autres sont sur des comptes sans ancienne fiche, et chacun porte un programme identique à celui d'un client « en attente » (une correspondance est faible : programme vide) ; 2 ont aussi le même nom | **Plusieurs des 6 « sans compte » ont probablement déjà un compte sous un autre e-mail.** Décision M11 avant toute copie ; le § 2 ne s'applique qu'à ceux qui restent |
+| Dates (`d`) de `nutri_log` et `mesures` | Type `date` | Pas de format ancien à convertir |
+| `suivi.data.sent` | Horodatage ISO pour 12 bilans sur 18, absent pour 6 | Règle 1 du § 3.1 pour 12 |
+| Début de cycle | Aucun client ayant des bilans n'a de ligne dans `cycles` ; `program.params` ne le porte pas | La règle 2 du § 3.1 est inapplicable aujourd'hui : décision M12 (`suivi.updated_at` existe) |
+| `suivi.w` | De 1 à 10 | Commence à 1 |
+| Bilans | 16 chez les rattachés (5 sans date d'envoi), 2 chez les clients en attente | 16 à copier, 2 en attente |
+| Messages | 134 chez les rattachés, 21 chez les clients en attente ; 16 avec pièce jointe ; 5 avec `ref` ; aucune réponse, aucun message modifié | `reply_to` et `edited_at` restent à ajouter pour la parité, mais rien à traduire à la copie |
+| `coach_notes` | 10, toutes sur des clients rattachés ; colonnes `body`, `pinned`, `created_at` | Aucune note en attente |
+| `prog_hist` | 4 lignes sur 26 chez les clients en attente ; colonnes `program`, `hash`, `source`, `saved_at`, `created_by` | À reprendre telles quelles dans la table cible |
+| `cxs_coach_store` | `key text`, `value jsonb` | La clé `tb_notes:<user_id>` convient |
+| `cxs_member_data` | Une ligne par `user_id`, aucune sans profil | R2, R3 et R6 valables telles qu'écrites |
+
+Restent à vérifier avant R1 : le sens des clés `S_d_N`, `S_t_N`, `S_h_N` et `pp` du carnet, la cible de `cou`, `epaules`, `mg`, et les échelles de `stress` et `motiv`. Ces points demandent de lire le code de l'app, exclu de cette étape.
