@@ -432,3 +432,15 @@ Décisions nouvelles :
 | M15 | `mg` des mesures gardé sous `tbLegacy` |
 
 Rien de ce qui suit n'est exécuté tant que le lieu de sauvegarde (M10) et l'accord écrit de Thomas au point R1 ne sont pas donnés.
+
+## 11. Sauvegarde : procédure retenue (QCM du 14/11)
+
+Exécutée par Thomas, sur son poste. Je n'accède à aucune donnée exportée.
+
+1. **Export** depuis le tableau de bord Supabase : base complète (schéma et données) et bucket `media` (pièces jointes, vocal, photos), avec la liste des objets et leur taille.
+2. **Stockage** : disque chiffré de Thomas, jamais sur GitHub, jamais dans Supabase, jamais dans le bac à sable de cette session.
+3. **Empreintes** : SHA-256 de chaque fichier, date et heure de l'export, notées dans un fichier sans donnée client. Seules ces empreintes et les comptages (§ 5, R0 à R2) me sont transmis.
+4. **Restauration de test** sur le poste de Thomas, dans une base locale. Les requêtes R0 à R2 doivent y donner les mêmes chiffres qu'en production.
+5. Ensuite, et seulement ensuite : point d'arrêt R1 (§ 6.2), avec l'accord écrit de Thomas.
+
+Ce que je vérifierai à réception : les empreintes correspondent, les comptages sont identiques entre la production et la restauration, et la liste de contrôle R1 (§ 6.2) est complète.
