@@ -19,6 +19,11 @@
 -- 3) Consentement : colonne ajoutée seulement si elle n'existe pas. false = pas de consentement.
 alter table public.cxs_profiles add column if not exists consent_suivi boolean not null default false;
 alter table public.cxs_profiles add column if not exists consent_suivi_at timestamptz; -- date du dernier changement (preuve)
+-- Le membre doit pouvoir changer SON consentement. En production, les droits d'écriture de cxs_profiles sont accordés
+-- colonne par colonne : une colonne nouvelle n'en hérite pas. On accorde donc explicitement ces deux colonnes au rôle
+-- authenticated. La fonction de garde cxs_profiles_guard ne protège ni l'une ni l'autre (elle protège id, is_coach, tier,
+-- tier_until) : aucune modification de cette fonction n'est nécessaire.
+grant update (consent_suivi, consent_suivi_at) on public.cxs_profiles to authenticated;
 comment on column public.cxs_profiles.consent_suivi is 'Consentement explicite, séparé et révocable de la personne à ce que le coach lise son dossier (D8). false par défaut.';
 
 -- Règle unique, réutilisée par les politiques : « l'appelant est coach ET a le droit de lire le dossier de cette personne ».
@@ -54,7 +59,8 @@ alter policy "cxs séance en direct : membre ou coach" on public.cxs_live_sessio
   using ((user_id = (select auth.uid())) or public.cxs_coach_peut_lire(user_id))
   with check ((user_id = (select auth.uid())) or public.cxs_coach_peut_lire(user_id));
 
--- RETOUR ARRIÈRE (les colonnes de consentement peuvent rester : elles ne gênent rien) :
+-- RETOUR ARRIÈRE (les colonnes de consentement peuvent rester : elles ne gênent rien ; retirer le droit d'écriture) :
+--   revoke update (consent_suivi, consent_suivi_at) on public.cxs_profiles from authenticated;
 --   alter policy "cxs lire ses données ou coach" on public.cxs_member_data using ((user_id = (select auth.uid())) or public.cxs_is_coach());
 --   alter policy "nutri lit ses totaux ou coach" on public.nutri_daily using ((user_id = (select auth.uid())) or public.cxs_is_coach());
 --   alter policy "cxs séance en direct : membre ou coach" on public.cxs_live_sessions

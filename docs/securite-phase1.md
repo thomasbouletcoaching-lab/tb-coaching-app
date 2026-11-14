@@ -124,3 +124,9 @@ Q1 : préparer la règle maintenant. Q2 : laisser `pg_net`. Q3 : laisser `self_s
 1. La liste des formules « coachées » : `essentiel`, `suivi`, `avance`, `invite`, `surmesure`. À confirmer.
 2. Les membres en essai : masqués sans consentement (D8 strict, recommandé), ou visibles pendant l'essai (il faudrait alors l'écrire dans la politique de confidentialité).
 3. Ordre d'application : (g) dès que possible ; (f) seulement quand la case de consentement existe dans l'app.
+
+### Vérification ajoutée (14/11, lecture du catalogue de production)
+
+- Le rôle `authenticated` a le droit de modifier `cxs_profiles` colonne par colonne (`created_at, email, id, is_coach, last_seen, name, onboarding, stats, tier, tier_until`). `consent_suivi` n'existe pas encore en production.
+- La fonction de garde `cxs_profiles_guard` protège `id`, `is_coach`, `tier` et `tier_until`. Elle ne protège pas `consent_suivi`, ce qui est voulu.
+- Ajouté dans (f) : `grant update (consent_suivi, consent_suivi_at) on public.cxs_profiles to authenticated`. Sans ce droit, la case de consentement échouerait en silence.
