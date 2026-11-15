@@ -517,3 +517,7 @@ Relevé de référence à T + 6 min (01:14 UTC) : 148 messages attendus = 148 co
 | Sauvegarde | Confiance aux sauvegardes automatiques de Supabase ; pas d'export hors plateforme | Risque accepté par Thomas : pas de copie hors Supabase. L'instantané `bak_20261114` reste en base. À reconsidérer si un ordinateur est disponible |
 | Mise en ligne publique | Après les correctifs de sécurité (audit § 5 et § 11, points 1.1 à 1.6) | Pas d'ouverture publique avant ces correctifs |
 | Ancienne app du coach | Retirée maintenant | `coach/index.html` redirige vers `coach.html`, retire l'ancien service worker et son cache. Le code précédent reste dans l'historique git. **Les anciennes tables ne sont pas archivées** : la condition du § 2 (plus de client en attente) n'est pas remplie (4 clients en attente) |
+
+## 18. Retrait de l'étape de test de l'ancienne interface (15/11)
+
+L'étape « Tests de l'ancienne interface (coach/) » de la CI testait l'ancienne app, retirée par la PR #33. Elle a été supprimée de `.github/workflows/tests.yml` (décision de Thomas). Les tests du nouvel espace coach restent dans l'étape principale, qui passe.
