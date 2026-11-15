@@ -521,3 +521,22 @@ Relevé de référence à T + 6 min (01:14 UTC) : 148 messages attendus = 148 co
 ## 18. Retrait de l'étape de test de l'ancienne interface (15/11)
 
 L'étape « Tests de l'ancienne interface (coach/) » de la CI testait l'ancienne app, retirée par la PR #33. Elle a été supprimée de `.github/workflows/tests.yml` (décision de Thomas). Les tests du nouvel espace coach restent dans l'étape principale, qui passe.
+
+## 19. Sécurité, correctif 1 appliqué en production (15/11, accord de Thomas)
+
+Appliqué via `docs/migration-sql/07_securite_1_1_brouillon.sql` (version corrigée : `cxs_migration.num(text)`) :
+
+| Fonction | Avant | Après | Pourquoi c'est sûr |
+|---|---|---|---|
+| `messages_guard()`, `cxs_notify_member_on_reply()` | Appelables par tous | Aucun droit d'appel | Déclencheurs : ne demandent pas de droit d'appel. Les deux déclencheurs restent actifs (vérifié) |
+| `cxs_set_tier()` | Anonymes + connectés | Connectés seulement | L'app l'appelle connectée ; la fonction vérifie déjà le rôle coach |
+| `cxs_msgs_left()` | Anonymes + connectés | Connectés seulement | L'app l'appelle connectée (`js/cloud.js`) |
+| `cxs_migration.num(text)` | Chemin de recherche non fixé | Chemin fixé | Sans effet fonctionnel |
+
+Conseiller de sécurité après correction : fonctions appelables sans connexion 6 → 2 (`cxs_is_coach`, `is_coach`, gardées volontairement : les règles d'accès les utilisent). Chemin de recherche : résolu.
+
+**Reste ouvert :**
+- 38 fonctions appelables par les connectés (`SECURITY DEFINER`) : à examiner une par une, certaines sont voulues (ex. `me_info`, `gx_me`). Pas de fuite confirmée : les fonctions comptables s'appuient sur des contrôles dans des fonctions auxiliaires.
+- 7 tables avec RLS sans politique (refus total) : à vérifier qu'aucune n'est lue par l'app.
+- Extensions `pg_net` et `pg_walinspect` dans le schéma public.
+- Protection des mots de passe compromis : à activer par Thomas dans le tableau de bord Supabase (Auth).
