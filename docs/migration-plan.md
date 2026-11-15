@@ -540,3 +540,16 @@ Conseiller de sécurité après correction : fonctions appelables sans connexion
 - 7 tables avec RLS sans politique (refus total) : à vérifier qu'aucune n'est lue par l'app.
 - Extensions `pg_net` et `pg_walinspect` dans le schéma public.
 - Protection des mots de passe compromis : à activer par Thomas dans le tableau de bord Supabase (Auth).
+
+## 20. Examen des 38 fonctions accessibles aux connectés (15/11, lecture seule)
+
+Méthode : code de chaque fonction lu dans la base (aucune donnée), utilisation vérifiée dans le dépôt (`.rpc(`), comptage des comptes (aucune adresse affichée).
+
+| Groupe | Fonctions | Constat | Décision proposée |
+|---|---|---|---|
+| **Utilisées par la nouvelle app** (5) | `cxs_msgs_left`, `cxs_my_client_id`, `cxs_client_id_of`, `cxs_set_tier`, `cxs_inbox` | Vérifient l'identité (`auth.uid()`) ou le rôle coach | Garder |
+| **Possiblement utilisées par l'app de comptabilité** (hors dépôt, question Q8) | `compta_claim`, `compta_coaching_payments`, `cpta_coaching_payments`, `cpta_create_foyer`, `cpta_session` | Contrôles dans des fonctions auxiliaires (`compta_private`) : pas de fuite constatée | Garder jusqu'à réponse sur l'app de comptabilité |
+| **Identifient la personne par son e-mail** (`auth.jwt()->>'email'`) | `gx_me`, `gx_my_client`, `gx_post_record`, `gx_join`, `my_payments`, `is_client_of` | Sûres seulement si l'e-mail est confirmé à l'inscription. Aujourd'hui les 18 comptes sont confirmés (vérifié). Le réglage Auth n'a pas pu être lu d'ici | Exiger un e-mail confirmé dans ces fonctions (correctif à rédiger) |
+| **Aucun usage visible** (anciennes fonctions de l'ancienne app, retirée) | `can_access`, `client_activation`, `client_app_status`, `coach_set_plan`, `coach_subscribers`, `cycle_archive`, `food_price_set`, `is_coach_of_client`, `me_info`, `msg_react`, `my_email`, `nutri_food_add`, `push_clients`, `push_public_key`, `push_register`, `push_test`, `self_start`, `gx_board`, `gx_feed`, `gx_react` | Contrôles de rôle ou d'identité présents pour la plupart ; ce ne sont pas des fuites | Retirer l'accès des connectés, après accord (un ancien cache de l'app pourrait encore les appeler : perte de fonction, pas de donnée) |
+
+Conclusion : aucune fuite de données confirmée dans les 38 fonctions. Le point réel est le contrôle par e-mail, qui dépend d'un réglage à vérifier, et la surface inutile à réduire.
