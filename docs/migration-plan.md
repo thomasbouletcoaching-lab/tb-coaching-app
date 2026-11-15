@@ -474,3 +474,17 @@ Reste à faire : fichiers du stockage et réécriture de `media`, bilans (décis
 Décision de fait : les pièces jointes et vocaux **gardent leur chemin d'origine** (dossier de la fiche client), aucun fichier n'est copié. Les chemins restent valides tant que les fiches `clients` existent. La copie vers un dossier par compte relève de la PR 1.5 (stockage).
 
 À faire avant la mise en ligne du code : déployer la source de `stripe-webhook` (écriture de production, hors de ce plan), relire la politique d'insertion de `cxs_messages` (quota par palier) puisque les membres qui écrivaient dans l'ancienne table y seront soumis, puis noter l'heure T, rejouer la copie des messages écrits entre-temps (§ 4.3, requête R8 ensuite).
+
+## 14. Paires M11 tranchées par Thomas (15/11)
+
+Les cinq comptes candidats avaient été créés le 30/10 sans e-mail, ce qui explique l'échec du rattachement par e-mail ; chacun correspondait à un seul client, avec un programme identique.
+
+| Paire | Décision | Résultat |
+|---|---|---|
+| Diana, Marie-France | Confirmées | `mig.client_map` : statut `manuel`, données copiées (14 messages) |
+| Antoine, Dylan, Emmanuel | Non confirmées | Restent `en_attente` ; leurs 7 messages (dont Emmanuel) restent dans l'ancienne table |
+| TestThomas | Compte de test, ignoré | Reste `en_attente` |
+
+Réconciliation après copie : 148 messages attendus = 148 copiés (empreinte identique, pièces jointes et vocal compris), 16 bilans, 23 `prog_hist`, 10 notes, 0 orphelin, 16 profils inchangés, ancienne table à 155. Statuts : 10 `auto`, 2 `manuel`, 4 `en_attente`.
+
+Reste, pour ces deux membres comme pour les dix autres : le carnet, le journal alimentaire et les mesures de leur ancienne fiche n'ont pas fait l'objet d'une réconciliation membre par membre (§ 1, lignes `carnet`, `nutri_log`, `mesures`).
