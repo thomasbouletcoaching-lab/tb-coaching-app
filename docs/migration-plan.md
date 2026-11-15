@@ -557,3 +557,7 @@ Conclusion : aucune fuite de données confirmée dans les 38 fonctions. Le point
 **Appliqué le 15/11 (accord de Thomas) :** retrait de l'accès des connectés à 17 fonctions sans usage visible (`client_activation`, `client_app_status`, `coach_set_plan`, `coach_subscribers`, `cycle_archive`, `food_price_set`, `me_info`, `msg_react`, `nutri_food_add`, `push_clients`, `push_public_key`, `push_register`, `push_test`, `self_start`, `gx_board`, `gx_feed`, `gx_react`). Vérifié : aucune règle d'accès ne les utilise.
 **Gardées volontairement :** `can_access`, `is_coach_of_client`, `my_email` (utilisées par les règles de lecture des données ; les retirer couperait l'accès) ; `compta_*` et `cpta_*` (app de comptabilité hors dépôt, à confirmer).
 **En attente de relecture :** correctif e-mail confirmé, brouillon `docs/migration-sql/08_email_verifie_brouillon.sql`.
+
+## 21. Protection des mots de passe compromis activée (15/11, par Thomas)
+
+Activée dans le tableau de bord (Authentication > Attack Protection, renvoi vers le fournisseur e-mail). Vérifié : **ENABLED**. Confirmation d'e-mail avant la première connexion : **activée**. Seul fournisseur actif : **Email**. Captcha : laissé désactivé (non demandé).
