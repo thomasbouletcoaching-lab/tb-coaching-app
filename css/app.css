@@ -671,4 +671,10 @@ a.card{text-decoration:none;color:inherit}
 .rt .inp.pre{width:84px;color:var(--soft);padding:0 10px}.qk{min-width:48px;padding:0 10px;flex:none;font-size:20px}
 .icon-btn{min-width:44px;min-height:44px}.water button{width:44px;height:44px}
 .mb12{margin-bottom:12px}#onetap .chip{min-height:44px;flex:0 1 auto;max-width:100%}
+.wk button,.rest button{min-height:44px;min-width:44px}.wk .link{display:inline-flex;align-items:center}.wk .prevbox summary{min-height:44px;display:flex;align-items:center}
+.ex .acts{gap:0 14px}.wk .ex h3 .link{margin-left:4px}
+.exline{display:flex;gap:12px;align-items:center;width:100%;text-align:left;margin-top:12px;padding:10px 16px;min-height:60px}
+.exline .em{width:36px;height:36px;border-radius:50%;background:var(--btn2);display:grid;place-items:center;font-weight:800;flex:none}.exline.done{opacity:.75}
+.serie{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:92px;padding:8px 10px;border-radius:16px;background:var(--btn2);border:1px solid var(--line)}
+.serie b{font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}.serie span{font-size:12px;color:var(--soft)}
 .hello.sm{font-size:28px;line-height:1.15}

@@ -435,19 +435,31 @@ actions.abandon = () => {
 actions.resume = () => { sessionStorage.removeItem("cxs.min"); go("workout"); };
 actions.minimize = () => { sessionStorage.setItem("cxs.min", "1"); go("home"); };
 
+// Un exercice à la fois : celui en cours est déplié (avec ses partenaires de superset), les autres tiennent sur une ligne.
+// Valider la dernière série d'un exercice déplie le suivant : la séance se fait sans chercher sa place dans une longue page.
+let openX = null, openFor = null;
+const nextX = (cur) => { const i = cur.exercises.findIndex(e => e.sets.some(s => !s.done)); return i < 0 ? Math.max(0, cur.exercises.length - 1) : i; };
+function exerciseLine(ex, xi) {
+  const n = ex.sets.length, dn = ex.sets.filter(s => s.done).length, all = n > 0 && dn === n;
+  return `<button class="card exline ${all ? "done" : ""}" data-a="ex-open" data-x="${xi}" aria-expanded="false"><span class="em">${all ? "✅" : xi + 1}</span><span class="grow"><b>${esc(ex.name)}</b><br><span class="xs muted">${dn}/${n} séries · ${targetTxt(ex)}</span></span>${I.chev}</button>`;
+}
+actions["ex-open"] = (b, d) => { openX = +d.x; rerender(); document.querySelector("article.ex")?.scrollIntoView({ block: "start" }); window.scrollBy(0, -150); };
 routes.workout = async () => {
   const cur = S().current; if (!cur) return go("train");
+  if (openFor !== cur.start) { openFor = cur.start; openX = null; }
+  const fx = openX != null && cur.exercises[openX] ? openX : nextX(cur), fss = cur.exercises[fx]?.ss;
+  const isOpen = (ex, xi) => xi === fx || (!!fss && ex.ss === fss);
   await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
   sessionStorage.removeItem("cxs.min");
   const doneSets = cur.exercises.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0), all = cur.exercises.reduce((a, e) => a + e.sets.length, 0);
-  $app.innerHTML = `<header class="top"><div class="row1"><button class="icon-btn" data-a="minimize" aria-label="Réduire">${I.back}</button><h1 style="font-size:20px">${esc(cur.title)}</h1><button class="icon-btn" data-a="abandon" aria-label="Abandonner la séance" title="Abandonner la séance" style="font-size:18px">🗑️</button><button class="btn btn-red btn-sm" data-a="finish" style="width:auto">Terminer</button></div>
+  $app.innerHTML = `<header class="top wk"><div class="row1"><button class="icon-btn" data-a="minimize" aria-label="Réduire">${I.back}</button><h1 style="font-size:20px">${esc(cur.title)}</h1><button class="icon-btn" data-a="abandon" aria-label="Abandonner la séance" title="Abandonner la séance" style="font-size:18px">🗑️</button><button class="btn btn-red btn-sm" data-a="finish" style="width:auto">Terminer</button></div>
       <div class="sub">${cur.target ? `<button class="link" data-a="dur-change" style="color:inherit">⏳ <span id="clock">0:00</span></button>` : `⏱️ <span id="clock">0:00</span>`} · ${doneSets}/${all} séries${cur.free ? "" : ` · semaine ${cur.week} · ${esc(cur.phase)}`}</div>
       ${cur.target ? `<div class="tbar"><i id="tbar"></i></div><div class="xs" id="tpace" style="margin-top:4px"></div>` : ""}</header>
-    <main class="page" style="padding-bottom:200px">
+    <main class="page wk" style="padding-bottom:200px">
     ${cur.comeback ? `<p class="small red">Reprise après une pause : charges allégées de 10 % aujourd'hui.</p>` : ""}
     <div class="row between small muted"><span>${adv() ? "Mode avancé : % et RPE visibles" : "RPE visible · % masqués"}</span><button class="link" data-a="adv-toggle">${adv() ? "Simplifier" : "Afficher les %"}</button></div>
     ${cur.exercises.length > 1 ? `<button class="btn btn-line btn-sm mt8" data-a="ex-order" style="width:100%">↕️ Réorganiser les exercices</button>` : ""}
-    ${cur.exercises.map((ex, xi) => exerciseBlock(ex, xi)).join("")}
+    ${cur.exercises.map((ex, xi) => isOpen(ex, xi) ? exerciseBlock(ex, xi) : exerciseLine(ex, xi)).join("")}
     ${cur.exercises.length ? "" : `<p class="empty">Ajoute ton premier exercice.</p>`}
     <button class="btn btn-line mt16" data-a="add-ex">${I.plus.replace("<svg", '<svg width="20"')} Ajouter un exercice</button>
     <button class="btn btn-red mt12" data-a="finish">Terminer la séance</button></main>`;
@@ -547,6 +559,7 @@ actions.tick = (b, d) => {
   s.done = !s.done;
   if (s.done && s.reps == null) s.reps = s.lo;
   const recs = s.done ? recordsFor(ex, s) : [];
+  if (s.done && ex.sets.every(o => o.done)) openX = null; // exercice bouclé : le suivant se déplie
   save(); buzz(s.done ? 18 : 8); rerender();
   if (recs.length) setTimeout(() => celebrate(ex.name, recs), 250);
   if (s.done) startRest(s.type === "W" ? 60 : ex.rest);
@@ -688,8 +701,8 @@ document.addEventListener("pointerdown", (e) => {
   h.addEventListener("pointermove", mv); h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up);
 });
 actions["ord-mv"] = (b, d) => { const a = S().current.exercises, i = +d.x, j = i + +d.v; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; save(); orderSheet(); };
-actions["ex-move"] = (b, d) => { const a = S().current.exercises, i = +d.x, j = i + +d.v; [a[i], a[j]] = [a[j], a[i]]; save(); closeSheet(); rerender(); };
-actions["ex-del"] = (b, d) => { if (!confirm("Retirer cet exercice de la séance ?")) return; S().current.exercises.splice(+d.x, 1); save(); closeSheet(); rerender(); };
+actions["ex-move"] = (b, d) => { openX = null; const a = S().current.exercises, i = +d.x, j = i + +d.v; [a[i], a[j]] = [a[j], a[i]]; save(); closeSheet(); rerender(); };
+actions["ex-del"] = (b, d) => { if (!confirm("Retirer cet exercice de la séance ?")) return; S().current.exercises.splice(+d.x, 1); openX = null; save(); closeSheet(); rerender(); };
 actions["ex-tech"] = (b, d) => {
   sheet(`<h2 class="h2">Technique d'intensification</h2><p class="small muted">S'applique à toutes les séries de travail.</p><div class="chips wrap mt12">${E.TECHS.map(([e, t]) => `<button class="chip" data-a="ex-tech-set" data-x="${d.x}" data-v="${esc(t)}">${e} ${esc(t)}</button>`).join("")}</div>`);
 };
@@ -822,7 +835,7 @@ forms["new-ex"] = (v) => {
 };
 actions["add-ex"] = async () => {
   await Promise.all([E.loadFiches(), E.loadLib()]);
-  pickExercise((n) => { S().current.exercises.push(E.blankExercise(n)); save(); rerender(); setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 50); });
+  pickExercise((n) => { S().current.exercises.push(E.blankExercise(n)); openX = S().current.exercises.length - 1; save(); rerender(); setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 50); });
 };
 actions["ex-swap"] = async (b, d) => {
   await Promise.all([E.loadFiches(), E.loadLib()]);

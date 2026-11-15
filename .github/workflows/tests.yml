@@ -49,6 +49,8 @@ jobs:
         run: node --test tests/genre.test.mjs
       - name: Tester la liste hors ligne du service worker (modules réellement chargés)
         run: node --test tests/sw.test.mjs
+      - name: Tester la série de jours actifs (repos prévu, retour après absence)
+        run: node --test tests/serie.test.mjs
       - name: Vérifier que la messagerie n'écrit plus dans l'ancienne table
         run: node --test tests/messagerie.test.mjs
       - name: Installer les outils de test
@@ -72,6 +74,7 @@ jobs:
           node tests/atelier-e2e.js
           node tests/roadmap-e2e.js
           node tests/parcours-e2e.js
+          node tests/coeur-e2e.js
           node tests/crise-e2e.js
           node tests/genre-e2e.js
         env:
