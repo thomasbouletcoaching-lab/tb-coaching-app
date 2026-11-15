@@ -49,6 +49,8 @@ jobs:
         run: node --test tests/genre.test.mjs
       - name: Tester la liste hors ligne du service worker (modules réellement chargés)
         run: node --test tests/sw.test.mjs
+      - name: Vérifier que la messagerie n'écrit plus dans l'ancienne table
+        run: node --test tests/messagerie.test.mjs
       - name: Installer les outils de test
         working-directory: tests
         run: npm install --no-audit --no-fund && npx playwright install --with-deps chromium

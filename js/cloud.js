@@ -64,46 +64,28 @@ export async function touch(stats) {
 }
 
 // Messagerie
-// Une seule conversation par client : la table « messages » (fiche client TB liée au compte) est utilisée
-// dès qu'elle existe, sinon la table « cxs_messages » (comptes sans fiche TB).
+// Une seule conversation par membre, dans la table « cxs_messages » (l'ancienne table « messages » n'est plus écrite
+// depuis la migration de la phase 2 ; elle reste en lecture seule jusqu'à son archivage).
 let cidCache = null;
 async function myClientId() {
   if (cidCache) return cidCache;
   const { data, error } = await sb.rpc("cxs_my_client_id"); if (error) throw error;
   cidCache = data || null; return cidCache;
 }
-// Coach : fiche client liée au compte d'un membre (nul si le compte n'est pas coach)
+// Fiche client liée au compte d'un membre : ne sert plus qu'au dossier des vocaux dans le stockage
 async function clientIdFor(memberId) {
   if (!memberId || memberId === uid) return myClientId();
   const { data, error } = await sb.rpc("cxs_client_id_of", { p_uid: memberId }); if (error) throw error;
   return data || null;
 }
-// Côté membre : le coach est « coach ». Côté coach : ses propres messages sont à lui, ceux du membre à lui.
-const asThread = (m, memberId = null) => ({ id: m.id, user_id: uid, sender: memberId ? (m.from_coach ? uid : memberId) : (m.from_coach ? "coach" : uid), body: m.body, created_at: m.created_at, read_at: m.read_at, reactions: m.reactions || {}, audio_path: m.audio_path || null });
 const ownThread = (memberId) => !memberId || memberId === uid;
-const MSG_COLS = "id,from_coach,body,created_at,read_at,reactions,audio_path";
+const MSG_COLS = "id,user_id,sender,body,created_at,read_at,reactions,audio_path,media";
 export async function thread(memberId = uid) {
-  if (ownThread(memberId)) {
-    const cid = await myClientId(); if (!cid) return [];
-    const { data, error } = await sb.from("messages").select(MSG_COLS).eq("client_id", cid).order("created_at", { ascending: true }).limit(300);
-    if (error) throw error; return (data || []).map(m => asThread(m));
-  }
-  const cid = await clientIdFor(memberId);
-  if (cid) {
-    const { data, error } = await sb.from("messages").select(MSG_COLS).eq("client_id", cid).order("created_at", { ascending: true }).limit(300);
-    if (error) throw error; return (data || []).map(m => asThread(m, memberId));
-  }
-  const { data, error } = await sb.from("cxs_messages").select("id,user_id,sender,body,created_at,read_at,reactions,audio_path").eq("user_id", memberId).order("created_at", { ascending: true }).limit(300);
-  if (error) throw error; return data;
+  const { data, error } = await sb.from("cxs_messages").select(MSG_COLS).eq("user_id", memberId || uid).order("created_at", { ascending: true }).limit(300);
+  if (error) throw error; return data || [];
 }
 export async function send(body, memberId = uid, audioPath = null) {
-  if (ownThread(memberId)) {
-    const cid = await myClientId(); if (!cid) throw new Error("Aucune fiche client liée à ce compte");
-    const { error } = await sb.from("messages").insert({ client_id: cid, sender: uid, from_coach: false, body, audio_path: audioPath }); if (error) throw error; return;
-  }
-  const cid = await clientIdFor(memberId);
-  if (cid) { const { error } = await sb.from("messages").insert({ client_id: cid, sender: uid, from_coach: true, body, audio_path: audioPath }); if (error) throw error; return; }
-  const { error } = await sb.from("cxs_messages").insert({ user_id: memberId, sender: uid, body, audio_path: audioPath }); if (error) throw error;
+  const { error } = await sb.from("cxs_messages").insert({ user_id: memberId || uid, sender: uid, body, audio_path: audioPath }); if (error) throw error;
 }
 // Message vocal : fichier dans le bucket « media », dans le dossier de la fiche client (mêmes droits que les photos)
 export async function uploadAudio(blob, memberId = uid) {
@@ -119,23 +101,21 @@ export async function audioUrl(path) {
 }
 export async function react(id, emoji, current = {}) {
   const r = { ...(current || {}) }; if (r[uid] === emoji) delete r[uid]; else r[uid] = emoji;
-  const { error } = await sb.from("messages").update({ reactions: r }).eq("id", id); if (error) throw error; return r;
+  const { error } = await sb.from("cxs_messages").update({ reactions: r }).eq("id", id); if (error) throw error; return r;
 }
 export async function markRead(memberId, fromOther) {
-  if (ownThread(memberId)) {
-    const cid = await myClientId(); if (!cid) return;
-    await sb.from("messages").update({ read_at: new Date().toISOString() }).eq("client_id", cid).eq("from_coach", true).is("read_at", null); return;
-  }
-  const cid = await clientIdFor(memberId);
-  // Les messages du membre sont dans les deux tables selon l'époque : on marque lu dans les deux
-  if (cid) await sb.from("messages").update({ read_at: new Date().toISOString() }).eq("client_id", cid).eq("from_coach", false).is("read_at", null);
-  await sb.from("cxs_messages").update({ read_at: new Date().toISOString() }).eq("user_id", memberId).neq("sender", uid).is("read_at", null);
+  await sb.from("cxs_messages").update({ read_at: new Date().toISOString() }).eq("user_id", ownThread(memberId) ? uid : memberId).neq("sender", uid).is("read_at", null);
 }
 export async function unreadFromCoach() {
   if (!uid) return 0;
-  const cid = await myClientId(); if (!cid) return 0;
-  const { count } = await sb.from("messages").select("id", { count: "exact", head: true }).eq("client_id", cid).eq("from_coach", true).is("read_at", null);
+  const { count } = await sb.from("cxs_messages").select("id", { count: "exact", head: true }).eq("user_id", uid).neq("sender", uid).is("read_at", null);
   return count || 0;
+}
+
+// Bilans de l'ancienne app (migrés en phase 2, en lecture seule)
+export async function legacyCheckins(memberId = uid) {
+  const { data, error } = await sb.from("cxs_legacy_checkins").select("id,d,week,date_source,weight,sleep_q,win,coach_reply,legacy").eq("user_id", memberId || uid).order("d", { ascending: false }).limit(100);
+  if (error) throw error; return data || [];
 }
 
 // Notifications

@@ -138,7 +138,13 @@ const stopPoll = () => { clearInterval(pollT); pollT = null; };
 function msgHtml(x) {
   const mine = x.sender === me, rs = Object.values(x.reactions || {});
   const grouped = rs.reduce((o, e) => (o[e] = (o[e] || 0) + 1, o), {});
-  const content = x.audio_path ? `<audio controls preload="none" data-ap="${esc(x.audio_path)}" style="width:220px;max-width:100%;display:block"></audio>` : esc(x.body);
+  const pj = (Array.isArray(x.media) ? x.media : []).filter(m => m && typeof m.path === "string").map(m => {
+    const t = String(m.type || ""), p = esc(m.path);
+    if (t.startsWith("image")) return `<img data-mp="${p}" alt="Photo jointe" loading="lazy" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">`;
+    if (t.startsWith("video")) return `<video controls playsinline preload="none" data-mp="${p}" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px"></video>`;
+    return `<audio controls preload="none" data-ap="${p}" style="width:220px;max-width:100%;display:block"></audio>`;
+  }).join("");
+  const content = x.audio_path ? `<audio controls preload="none" data-ap="${esc(x.audio_path)}" style="width:220px;max-width:100%;display:block"></audio>` : pj + esc(x.body);
   return `<div class="msg ${mine ? "me" : "them"}" data-a="msg" data-id="${x.id}">${content}<time>${ago(x.created_at)}${mine && x.read_at ? " · lu" : ""}</time></div>${rs.length ? `<div class="reacts ${mine ? "me" : "them"}">${Object.entries(grouped).map(([e, n]) => `<span>${e}${n > 1 ? " " + n : ""}</span>`).join("")}</div>` : ""}`;
 }
 // Messages prêts (espace coach) : phrases réutilisables, stockées dans l'espace coach (clé « ready »)
@@ -180,6 +186,10 @@ forms["ready-new"] = async (v) => { await readySave([...readyList(), { id: "r" +
 // Lecteurs audio : l'adresse signée n'est demandée qu'au moment de l'affichage
 async function hydrateAudio() {
   const c = await cloud(); if (!c) return;
+  document.querySelectorAll("[data-mp]:not([src])").forEach(async el => {
+    try { el.src = await c.audioUrl(el.dataset.mp); }
+    catch (e) { el.outerHTML = `<span class="xs muted">Pièce jointe indisponible</span>`; }
+  });
   document.querySelectorAll("audio[data-ap]:not([src])").forEach(async el => {
     try { el.src = await c.audioUrl(el.dataset.ap); }
     catch (e) { el.outerHTML = `<span class="xs muted">Message vocal indisponible</span>`; }
