@@ -577,3 +577,10 @@ Appliqué : `gx_my_client`, `is_client_of`, `my_payments` utilisent désormais `
 - Test d'usurpation simulé (sans afficher de donnée) : avec une fausse identité portant l'adresse d'une vraie fiche, 0 paiement visible et aucune fiche de gamification retrouvée.
 - Retour arrière : `docs/migration-sql/08_retour_arriere.sql`.
 - Non testé : l'écran « Mes paiements » sur un vrai compte membre (pas d'identifiant de test ici). À faire par Thomas sur son téléphone.
+
+## 24. Clôture (15/11)
+
+- **Tests de l'app** : syntaxe OK ; tests unitaires : aucun échec ; parcours e2e : 440 vérifications, 0 échec.
+- **`pg_net`** : déplacement testé dans une transaction annulée : **refusé par Postgres** (extension non déplaçable). Elle reste dans `public`, c'est sa place définitive. L'alerte du conseiller pour cette extension restera donc ouverte. Risque : faible, elle ne sert qu'aux notifications et à la purge des vidéos.
+- **Alertes finales du conseiller** : 2 fonctions anonymes (`cxs_is_coach`, `is_coach`, volontaires), 21 fonctions connectées (dont 5 de comptabilité à confirmer), 7 tables sans politique (refus total, inutilisées).
+- **Test « Mes paiements » sur un vrai compte** : non réalisé ici (pas d'identifiant de test). À faire par Thomas sur son téléphone.
