@@ -1,32 +1,34 @@
--- BROUILLON, NON EXÉCUTÉ. Exiger un e-mail confirmé dans les fonctions qui identifient la personne par son e-mail.
--- Aujourd'hui : auth.jwt()->>'email' est pris tel quel. Sûr seulement si la confirmation d'e-mail est obligatoire à l'inscription.
--- Les 18 comptes actuels sont tous confirmés (vérifié le 15/11). Ce correctif ferme le cas des futurs comptes.
+-- BROUILLON, NON EXÉCUTÉ. À relire avec Thomas avant application.
+-- Constat : trois fonctions identifient la personne par auth.jwt()->>'email' (valeur déclarée, pas forcément confirmée).
+-- Correctif : elles utilisent public.my_email() (déjà existante), qui ne renvoie l'e-mail que s'il est confirmé.
+-- Effet sur les 18 comptes actuels : aucun (tous confirmés). Effet sur un futur compte non confirmé : aucune donnée.
 
--- 1. Une seule source : l'e-mail du compte, seulement s'il est confirmé.
-create or replace function public.cxs_verified_email()
-returns text language sql stable security definer set search_path = '' as $$
-  select u.email::text from auth.users u
-  where u.id = (select auth.uid()) and u.email_confirmed_at is not null
-$$;
-revoke execute on function public.cxs_verified_email() from anon, public;
-
--- 2. Les fonctions qui lisent l'e-mail passent par cette source.
+-- 1. gx_my_client (utilisée par gx_me, gx_join, gx_post_record : elles suivent automatiquement).
 create or replace function public.gx_my_client() returns uuid
 language sql stable security definer set search_path = 'public' as $$
   select c.id from clients c
-  where c.email is not null and lower(c.email) = lower(public.cxs_verified_email()) and not c.archived
+  where c.email is not null and lower(c.email) = my_email() and not c.archived
   order by c.created_at limit 1
 $$;
 
+-- 2. is_client_of.
 create or replace function public.is_client_of(coach uuid) returns boolean
 language sql stable security definer set search_path = 'public' as $$
   select exists(select 1 from public.clients c where c.coach_id = coach and c.email is not null
-    and lower(c.email) = lower(public.cxs_verified_email()))
+    and lower(c.email) = my_email())
 $$;
 
--- my_payments : même principe. Corps à reprendre tel quel en remplaçant
---   (select auth.jwt()->>'email')  par  public.cxs_verified_email()
--- (la règle de sélection est identique ; voir la définition en place avant application).
+-- 3. my_payments : même règle de sélection, e-mail confirmé seulement.
+create or replace function public.my_payments() returns jsonb
+language sql stable security definer set search_path = 'public' as $$
+  select jsonb_build_object(
+    'pays', coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'label',p.label,'due',p.due,'amount',p.amount,'status',p.status,'paid_at',p.paid_at,'method',p.method,'invoice_no',p.invoice_no,'invoice',p.invoice,'client_name',p.client_name) order by p.due)
+      from biz_payments p join clients c on c.id = p.client_id
+      where lower(c.email) = my_email() and p.coach_id = c.coach_id), '[]'::jsonb),
+    'paylink', (select s.data->>'paylink' from biz_settings s join clients c on c.coach_id = s.coach_id
+      where lower(c.email) = my_email() limit 1))
+$$;
 
--- Effet attendu : pour un compte confirmé (les 18 actuels), résultat identique. Pour un compte non confirmé : aucune donnée.
--- À appliquer seulement après relecture par Thomas, et vérification sur les 18 comptes (comptages avant/après, sans adresse affichée).
+-- Vérification à faire après application (sans afficher d'adresse) :
+--  * comptages identiques avant/après pour my_payments, gx_me, is_client_of sur les 18 comptes ;
+--  * l'app Membre (Mes paiements, gamification, fiche client) fonctionne sur un compte de test.
