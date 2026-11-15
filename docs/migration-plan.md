@@ -498,3 +498,26 @@ Reste, pour ces deux membres comme pour les dix autres : le carnet, le journal a
 | Bilans | Affichés dans « Mes bilans » (bloc « Bilans de l'ancienne app », chargé à part) ; côté coach, pas encore d'écran dédié |
 | Quota de messagerie | Palier Invité : 2 messages par semaine ; les 15 membres sont Invité sauf Thomas (illimité). Aucun membre n'est sur quota après la copie |
 | `stripe-webhook` | Fichiers du dépôt conformes à la version déployée (v5) sur tous les repères ; seule la ligne du message change |
+
+## 16. Mise en ligne (15/11)
+
+| Étape | Heure (UTC) | Résultat |
+|---|---|---|
+| PR #32 fusionnée | 01:08 | CI verte (`e2e`), commit `e346685`. **T = 01:08** |
+| `stripe-webhook` déployé | juste après | Version 6, `verify_jwt` désactivé comme la version 5 ; seul changement : le message d'abonnement va dans `cxs_messages` |
+
+À faire : rejouer la copie des messages (`docs/migration-sql/03_messages.sql`) pour ceux écrits dans l'ancienne table depuis la dernière copie, puis relever R8 (aucune ligne créée ou modifiée dans `messages` après T) à T + 24 h et T + 7 jours. Les téléphones qui ont encore l'ancienne version en cache peuvent écrire dans l'ancienne table jusqu'à leur prochain rechargement : d'où ces relevés. Ne passer l'ancienne table en lecture seule (M6) qu'une fois R8 à zéro.
+
+Relevé de référence à T + 6 min (01:14 UTC) : 148 messages attendus = 148 copiés, 0 orphelin, dernier message de l'ancienne table le 9/11, **R8 = 0** (rien créé ni modifié après T). Relevés suivants programmés : T + 24 h (16/11, 01:15 UTC) et T + 7 jours (22/11, 01:15 UTC).
+
+## 17. Décisions du 15/11 (par téléphone)
+
+| Point | Décision | Conséquence |
+|---|---|---|
+| Sauvegarde | Confiance aux sauvegardes automatiques de Supabase ; pas d'export hors plateforme | Risque accepté par Thomas : pas de copie hors Supabase. L'instantané `bak_20261114` reste en base. À reconsidérer si un ordinateur est disponible |
+| Mise en ligne publique | Après les correctifs de sécurité (audit § 5 et § 11, points 1.1 à 1.6) | Pas d'ouverture publique avant ces correctifs |
+| Ancienne app du coach | Retirée maintenant | `coach/index.html` redirige vers `coach.html`, retire l'ancien service worker et son cache. Le code précédent reste dans l'historique git. **Les anciennes tables ne sont pas archivées** : la condition du § 2 (plus de client en attente) n'est pas remplie (4 clients en attente) |
+
+## 18. Retrait de l'étape de test de l'ancienne interface (15/11)
+
+L'étape « Tests de l'ancienne interface (coach/) » de la CI testait l'ancienne app, retirée par la PR #33. Elle a été supprimée de `.github/workflows/tests.yml` (décision de Thomas). Les tests du nouvel espace coach restent dans l'étape principale, qui passe.
