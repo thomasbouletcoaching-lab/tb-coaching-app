@@ -561,3 +561,10 @@ Conclusion : aucune fuite de données confirmée dans les 38 fonctions. Le point
 ## 21. Protection des mots de passe compromis activée (15/11, par Thomas)
 
 Activée dans le tableau de bord (Authentication > Attack Protection, renvoi vers le fournisseur e-mail). Vérifié : **ENABLED**. Confirmation d'e-mail avant la première connexion : **activée**. Seul fournisseur actif : **Email**. Captcha : laissé désactivé (non demandé).
+
+## 22. Extensions (15/11)
+
+- `pg_walinspect` déplacée du schéma `public` vers `extensions` (non utilisée par l'app ni par les fonctions). Vérifié : l'alerte du conseiller a disparu.
+- `pg_net` **non déplacée** : les tâches planifiées (notifications `push-daily`, `push-weekly`, `push-tick`, `push-pay` ; purge des vidéos `purge-videos`) passent par les fonctions `push_fire` et `purge_fire`. Les déplacer sans test pourrait casser les notifications. À faire seulement après un test sur une copie.
+
+**Reste ouvert** : le correctif du contrôle par e-mail (brouillon `08_email_verifie_brouillon.sql`, à relire avec Thomas) ; les 21 fonctions accessibles aux connectés, dont 6 à contrôle par e-mail et 2 de comptabilité (à confirmer) ; les 7 tables sans politique (refus total, sans usage dans l'app).
