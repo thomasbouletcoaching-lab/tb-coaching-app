@@ -278,10 +278,27 @@ function journalBody(t) {
     <div class="card"><div class="rt" style="border:0;padding:0"><span class="em">💧</span><div class="grow"><b>Eau</b><div class="small muted">${fr(water * .25, 2)} L · 1 verre = 25 cl</div></div><div class="water"><button data-a="water" data-v="-1" data-d="${d}" aria-label="Retirer un verre">−</button><b>${water}</b><button data-a="water" data-v="1" data-d="${d}" aria-label="Ajouter un verre">+</button></div></div></div>
     ${fs ? `<button class="card tap" data-a="food-tab" data-v="jeune" style="display:flex;gap:12px;align-items:center"><span style="font-size:26px">${fs.stage[1]}</span><span class="grow"><b>Jeûne en cours · ${Math.floor(fs.hours)} h</b><br><span class="small muted">${esc(fs.stage[2])}</span></span>${I.chev}</button>` : ""}
     ${memosCard(d)}
+    ${oneTapCard(d)}
     ${ML.mealCards(t, d)}
     ${SP.suppsMini(d)}
     <p class="xs muted mt12">Les heures servent à suivre tes fenêtres de repas et ton jeûne. Valeurs nutritionnelles : table Ciqual (Anses) et Open Food Facts.</p>`;
 }
+// En un tap : refaire un repas d'hier (repas par repas, ou la journée entière) ou un repas enregistré (« Mes repas »)
+function oneTapCard(d) {
+  const y = addDays(d, -1), yl = N.dayLog(y), tl = N.dayLog(d);
+  const meals = [...new Set(yl.map(e => e.meal))].filter(m => !tl.some(e => e.meal === m));
+  const dishes = (S().dishes || []).slice(0, 4);
+  if (!meals.length && !dishes.length) return "";
+  const kc = (es) => fr(es.reduce((a, e) => a + (e.kcal || 0), 0));
+  return `<div class="card" id="onetap"><div class="lbl">⚡ En un tap</div><div class="chips wrap mt8">
+    ${meals.length > 1 && !tl.length ? `<button class="chip on" data-a="food-copy" data-from="${y}" data-d="${d}">Toute la journée d'hier · ${kc(yl)} kcal</button>` : ""}
+    ${meals.map(m => `<button class="chip" data-a="food-copy" data-from="${y}" data-d="${d}" data-m="${esc(m)}">${esc(m)} d'hier · ${kc(yl.filter(e => e.meal === m))} kcal</button>`).join("")}
+    ${dishes.map((x, i) => `<button class="chip" data-a="dish-now" data-i="${i}">${esc(x.n)} · ${fr(x.kcal)} kcal</button>`).join("")}</div></div>`;
+}
+actions["dish-now"] = (b, d) => { const di = S().dishes[+d.i]; if (!di) return; const meal = mealNow(); N.addEntry({ meal, label: di.n, g: null, kcal: Math.round(di.kcal), p: di.p, c: di.c, f: di.f }, D()); buzz(); toast(`Ajouté au ${meal.toLowerCase()}`); rerender(); };
+// Favoris et récents : ajout direct à la dernière quantité utilisée (ou à la portion habituelle), sans passer par le choix des grammes
+const quickG = (f) => (S().recentFoods || []).find(x => x.n === f.n)?.g || f.g || f.ug || 100;
+actions["quick-food"] = (b, d) => { const f = srcList(d.src)[+d.i]; if (!f || f.kcal == null) return; const g = quickG(f); N.rememberFood({ ...f, g }); addedToMeal(N.entryFromFood(f, g, afs.meal), `${f.n.split(",")[0]} · ${g} g`); const li = b.closest(".li"); if (li) li.style.opacity = ".55"; };
 changes.mtime = (el) => { const m = el.dataset.m, d = el.dataset.d; update(st => (st.food[d] || []).forEach(e => { if (e.meal === m) e.time = el.value; })); toast("Heure du repas enregistrée"); };
 actions["del-food"] = (b, d) => { N.removeEntry(+d.id, d.d); rerender(); };
 actions["save-meal"] = (b, d) => {
@@ -389,7 +406,7 @@ function quickFoods(foodLi) {
 function drawAfs(w = document.getElementById("sheet")) {
   const box = w.querySelector("#afsb");
   w.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.v === afs.tab));
-  const foodLi = (f, src, i) => `<div class="li" data-li="${src}-${i}"><button class="grow" style="text-align:left" data-a="pick-food" data-src="${src}" data-i="${i}"><span class="small">${esc(f.n)}</span><br><span class="xs muted">${perLine(f)}</span></button><button class="icon-btn" data-a="fav-food" data-src="${src}" data-i="${i}" aria-label="Favori" style="color:${N.isFavFood(f.n) ? "var(--gold)" : "var(--soft)"}">${N.isFavFood(f.n) ? "★" : "☆"}</button></div>`;
+  const foodLi = (f, src, i) => `<div class="li" data-li="${src}-${i}"><button class="grow" style="text-align:left" data-a="pick-food" data-src="${src}" data-i="${i}"><span class="small">${esc(f.n)}</span><br><span class="xs muted">${perLine(f)}</span></button>${src !== "search" && f.kcal != null ? `<button class="btn btn-line btn-sm qk" style="font-size:14px" data-a="quick-food" data-src="${src}" data-i="${i}" aria-label="Ajouter ${quickG(f)} g">+ ${quickG(f)} g</button>` : ""}<button class="icon-btn" data-a="fav-food" data-src="${src}" data-i="${i}" aria-label="Favori" style="color:${N.isFavFood(f.n) ? "var(--gold)" : "var(--soft)"}">${N.isFavFood(f.n) ? "★" : "☆"}</button></div>`;
   if (afs.tab === "search") {
     box.innerHTML = `<div class="search">${I.search}<input id="fq" placeholder="riz, poulet, skyr…" autocomplete="off" enterkeyhint="search"></div>
       <button class="btn btn-line btn-sm mt8" data-a="scan" style="width:100%">${I.scan.replace("<svg", '<svg width="20"')} Scanner un code-barres</button><div id="fr" class="mt12">${quickFoods(foodLi)}</div>`;

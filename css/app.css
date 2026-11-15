@@ -670,4 +670,5 @@ a.card{text-decoration:none;color:inherit}
 .fold>summary{min-height:44px}.fold>.in{padding:0 12px 14px}.fold>.in>.sec:first-child{margin-top:4px}
 .rt .inp.pre{width:84px;color:var(--soft);padding:0 10px}.qk{min-width:48px;padding:0 10px;flex:none;font-size:20px}
 .icon-btn{min-width:44px;min-height:44px}.water button{width:44px;height:44px}
+.mb12{margin-bottom:12px}#onetap .chip{min-height:44px;flex:0 1 auto;max-width:100%}
 .hello.sm{font-size:28px;line-height:1.15}

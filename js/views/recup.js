@@ -80,7 +80,7 @@ routes.recup = () => {
       ${r.tips.map(t => `<p class="small mt8" style="margin-bottom:0">• ${esc(t)}</p>`).join("")}</div>`}
 
     <h2 class="sec">😴 Sommeil</h2>
-    <div class="card"><form data-f="sleep" class="grid2"><label class="field"><span>Heures dormies</span><input name="h" inputmode="decimal" value="${x.sleep != null ? String(x.sleep).replace(".", ",") : ""}" placeholder="ex. 7,5"></label>
+    <div class="card">${x.sleep == null && lastSleep(d) ? `<button class="btn btn-red mb12" id="sleep-same" data-a="sleep-same" data-v="${lastSleep(d)}">✓ ${fr(lastSleep(d), 1)} h, comme la dernière nuit notée</button>` : ""}<form data-f="sleep" class="grid2"><label class="field"><span>Heures dormies</span><input name="h" inputmode="decimal" value="${x.sleep != null ? String(x.sleep).replace(".", ",") : lastSleep(d) ? String(lastSleep(d)).replace(".", ",") : ""}" placeholder="ex. 7,5"></label>
       <label class="field"><span>Qualité</span><select name="q" class="inp">${["", "1 · très mauvaise", "2 · mauvaise", "3 · correcte", "4 · bonne", "5 · excellente"].map((l, i) => `<option value="${i || ""}" ${x.sleepQ === i ? "selected" : ""}>${l || "–"}</option>`).join("")}</select></label>
       <label class="field"><span>Coucher</span><input name="bed" type="time" value="${x.bed || ""}"></label><label class="field"><span>Lever</span><input name="wake" type="time" value="${x.wake || ""}"></label>
       <button class="btn btn-red btn-sm" style="grid-column:1/-1">Enregistrer ma nuit</button></form>
@@ -114,5 +114,8 @@ forms.sleep = (v) => {
   update(st => { const x = st.daily[d] = st.daily[d] || {}; x.sleep = h; x.sleepQ = +v.q || null; x.bed = v.bed || null; x.wake = v.wake || null; });
   toast("Nuit enregistrée"); rerender();
 };
+// Dernière nuit notée avant ce jour : elle pré-remplit le champ, un tap la confirme
+const lastSleep = (d) => { const ks = Object.keys(S().daily).filter(k => k < d && S().daily[k]?.sleep).sort(); return ks.length ? S().daily[ks.at(-1)].sleep : null; };
+actions["sleep-same"] = (b, d) => { const day = rDay || today(), h = +d.v; if (!(h > 0 && h < 16)) return; update(st => { const x = st.daily[day] = st.daily[day] || {}; x.sleep = h; }); toast("Nuit enregistrée"); rerender(); };
 changes.feel = (el) => { const d = rDay || today(); update(st => { const x = st.daily[d] = st.daily[d] || {}; x.feel = { ...(x.feel || {}), [el.dataset.k]: +el.value }; }); el.nextElementSibling.textContent = el.value; };
 actions["walk-after"] = () => { const d = rDay || today(); update(st => { const x = st.daily[d] = st.daily[d] || {}; x.walkAfter = !x.walkAfter; }); rerender(); };
