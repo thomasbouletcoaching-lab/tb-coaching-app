@@ -498,3 +498,12 @@ Reste, pour ces deux membres comme pour les dix autres : le carnet, le journal a
 | Bilans | Affichés dans « Mes bilans » (bloc « Bilans de l'ancienne app », chargé à part) ; côté coach, pas encore d'écran dédié |
 | Quota de messagerie | Palier Invité : 2 messages par semaine ; les 15 membres sont Invité sauf Thomas (illimité). Aucun membre n'est sur quota après la copie |
 | `stripe-webhook` | Fichiers du dépôt conformes à la version déployée (v5) sur tous les repères ; seule la ligne du message change |
+
+## 16. Mise en ligne (15/11)
+
+| Étape | Heure (UTC) | Résultat |
+|---|---|---|
+| PR #32 fusionnée | 01:08 | CI verte (`e2e`), commit `e346685`. **T = 01:08** |
+| `stripe-webhook` déployé | juste après | Version 6, `verify_jwt` désactivé comme la version 5 ; seul changement : le message d'abonnement va dans `cxs_messages` |
+
+À faire : rejouer la copie des messages (`docs/migration-sql/03_messages.sql`) pour ceux écrits dans l'ancienne table depuis la dernière copie, puis relever R8 (aucune ligne créée ou modifiée dans `messages` après T) à T + 24 h et T + 7 jours. Les téléphones qui ont encore l'ancienne version en cache peuvent écrire dans l'ancienne table jusqu'à leur prochain rechargement : d'où ces relevés. Ne passer l'ancienne table en lecture seule (M6) qu'une fois R8 à zéro.
