@@ -568,3 +568,12 @@ Activée dans le tableau de bord (Authentication > Attack Protection, renvoi ver
 - `pg_net` **non déplacée** : les tâches planifiées (notifications `push-daily`, `push-weekly`, `push-tick`, `push-pay` ; purge des vidéos `purge-videos`) passent par les fonctions `push_fire` et `purge_fire`. Les déplacer sans test pourrait casser les notifications. À faire seulement après un test sur une copie.
 
 **Reste ouvert** : le correctif du contrôle par e-mail (brouillon `08_email_verifie_brouillon.sql`, à relire avec Thomas) ; les 21 fonctions accessibles aux connectés, dont 6 à contrôle par e-mail et 2 de comptabilité (à confirmer) ; les 7 tables sans politique (refus total, sans usage dans l'app).
+
+## 23. Correctif e-mail appliqué (15/11, accord de Thomas)
+
+Appliqué : `gx_my_client`, `is_client_of`, `my_payments` utilisent désormais `my_email()` (e-mail confirmé) au lieu de l'e-mail déclaré dans le jeton.
+
+- Vérification : 16 fiches liées avant et après (16 sur 16 confirmées). Aucun effet sur les comptes actuels.
+- Test d'usurpation simulé (sans afficher de donnée) : avec une fausse identité portant l'adresse d'une vraie fiche, 0 paiement visible et aucune fiche de gamification retrouvée.
+- Retour arrière : `docs/migration-sql/08_retour_arriere.sql`.
+- Non testé : l'écran « Mes paiements » sur un vrai compte membre (pas d'identifiant de test ici). À faire par Thomas sur son téléphone.
