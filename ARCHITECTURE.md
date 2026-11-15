@@ -95,7 +95,7 @@ Le routeur force `onboarding` tant qu'il n'y a pas de profil, et `workout` tant 
 2. **Instantané pour le coach** : à chaque `save()`, `pushData()` (regroupé, au plus toutes les 20 s, 4 s pendant une séance) fusionne `data` (40 dernières séances, 31 jours de repas, 60 jours de routine, 40 mesures…) et `summary` (séance du jour, kcal, poids, agenda −7/+21 j, `s7`, `lastActive`, `alerts`) dans `cxs_member_data`.
 3. **Totaux nutritionnels** : `nutri_daily` (14 derniers jours) pour les alertes sucres / sodium côté coach.
 4. **Descendant** : programme (`cxs_coach_plans`), créneaux (`cxs_coach_slots`), plan alimentaire (`cxs_coach_food_plans`), séance en direct (`cxs_live_sessions`, toutes les 15 s).
-5. **Messagerie** : table `messages` (fiche `clients` liée par e-mail via `cxs_my_client_id()`), à défaut `cxs_messages`. Vocaux dans le bucket `media/<client_id>/audio/`.
+5. **Messagerie** : table `cxs_messages` uniquement (depuis la migration de la phase 2 ; l'ancienne table `messages` n'est plus écrite). Vocaux dans le bucket `media/<client_id>/audio/` (fiche `clients` liée par e-mail via `cxs_my_client_id()`).
 
 ## 6. Schéma Supabase (schéma `public`)
 

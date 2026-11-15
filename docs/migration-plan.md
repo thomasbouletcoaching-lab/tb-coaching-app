@@ -462,3 +462,15 @@ Ce que je vérifierai à réception : les empreintes correspondent, les comptage
 - **Étape 04 (bilans) suspendue** : `js/sync.js` renvoie à chaque synchronisation les 26 derniers bilans de l'appareil du membre, ce qui écraserait toute entrée ajoutée côté serveur. Les 16 bilans ne doivent pas être écrits dans `cxs_member_data.data.checkins` depuis le serveur. Options : (a) table dédiée en lecture seule affichée par l'app ; (b) fusion côté appareil à la prochaine connexion, dans la PR 2.1. `04_bilans.sql` reste un brouillon à ne pas jouer en l'état.
 
 Reste à faire : fichiers du stockage et réécriture de `media`, bilans (décision ci-dessus), correctif d'écriture de la messagerie (§ 4.3) puis rattrapage, paires M11, export hors Supabase, réconciliation finale (R8 après T).
+
+## 13. Journal d'exécution, suite (15/11)
+
+| Étape | Résultat | Contrôle |
+|---|---|---|
+| Bilans | Table `cxs_legacy_checkins` (RLS : le membre lit les siens, le coach lit tout), 16 bilans copiés ; 5 dates tirées de la dernière modification | 16 sur 16, somme des poids 719,7 = 719,7, somme des semaines 62 = 62 ; 2 bilans de clients en attente non copiés |
+| Messages restants | 15 messages à pièce jointe et 1 vocal copiés, déclencheurs suspendus dans la transaction | 134 sur 134 pour les clients rattachés, empreinte identique (texte, date, `media`, vocal), 0 orphelin, ancienne table intacte (155) |
+| Code (sur la branche, non déployé) | `js/cloud.js` : messagerie uniquement sur `cxs_messages` ; `js/views/coach.js` : affichage des pièces jointes ; `stripe-webhook` (source seulement, non déployée) écrit dans `cxs_messages` ; test de garde `tests/messagerie.test.mjs` ajouté à la CI | Syntaxe OK, 16 suites unitaires + garde : 0 échec |
+
+Décision de fait : les pièces jointes et vocaux **gardent leur chemin d'origine** (dossier de la fiche client), aucun fichier n'est copié. Les chemins restent valides tant que les fiches `clients` existent. La copie vers un dossier par compte relève de la PR 1.5 (stockage).
+
+À faire avant la mise en ligne du code : déployer la source de `stripe-webhook` (écriture de production, hors de ce plan), relire la politique d'insertion de `cxs_messages` (quota par palier) puisque les membres qui écrivaient dans l'ancienne table y seront soumis, puis noter l'heure T, rejouer la copie des messages écrits entre-temps (§ 4.3, requête R8 ensuite).

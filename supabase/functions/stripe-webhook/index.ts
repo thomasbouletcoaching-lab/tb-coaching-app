@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     if (error) throw error;
     // nouveau coaching léger : prévenir le coach par un message dans l'app (notification habituelle)
     if (row.plan === "light" && before !== "light" && cur.user_id) {
-      await sb.from("messages").insert({ client_id: cur.client_id, sender: cur.user_id, from_coach: false, body: "🎉 Je viens de m'abonner au coaching léger. On commence quand tu veux !" });
+      await sb.from("cxs_messages").insert({ user_id: cur.user_id, sender: cur.user_id, body: "🎉 Je viens de m'abonner au coaching léger. On commence quand tu veux !" });
     }
     return new Response("ok", { status: 200 });
   } catch (e) {
