@@ -488,3 +488,13 @@ Les cinq comptes candidats avaient été créés le 30/10 sans e-mail, ce qui ex
 Réconciliation après copie : 148 messages attendus = 148 copiés (empreinte identique, pièces jointes et vocal compris), 16 bilans, 23 `prog_hist`, 10 notes, 0 orphelin, 16 profils inchangés, ancienne table à 155. Statuts : 10 `auto`, 2 `manuel`, 4 `en_attente`.
 
 Reste, pour ces deux membres comme pour les dix autres : le carnet, le journal alimentaire et les mesures de leur ancienne fiche n'ont pas fait l'objet d'une réconciliation membre par membre (§ 1, lignes `carnet`, `nutri_log`, `mesures`).
+
+## 15. Journal d'exécution, fin de la copie des données (15/11)
+
+| Point | Résultat |
+|---|---|
+| Réconciliation carnet, journal, mesures par membre | Mesures : aucune manquante. **7 jours de journal alimentaire** absents de `food`/`daily` chez 6 membres ; séances : la clé `S_s_` n'a pas pu être comptée avec le motif testé |
+| Archive brute `cxs_legacy_rows` | 924 lignes de carnet, 96 jours de journal, 27 mesures, 11 onboardings des 12 clients rattachés, empreintes identiques à la source. Aucun champ ne se perd, même sans cible |
+| Bilans | Affichés dans « Mes bilans » (bloc « Bilans de l'ancienne app », chargé à part) ; côté coach, pas encore d'écran dédié |
+| Quota de messagerie | Palier Invité : 2 messages par semaine ; les 15 membres sont Invité sauf Thomas (illimité). Aucun membre n'est sur quota après la copie |
+| `stripe-webhook` | Fichiers du dépôt conformes à la version déployée (v5) sur tous les repères ; seule la ligne du message change |

@@ -114,8 +114,25 @@ routes.bilans = () => {
       <div class="card mt12"><div class="lbl">⚡ Énergie /10</div>${lineChart(ser("energy"))}</div>` : ""}
     ${l.map(c => `<details class="card mt8"><summary style="list-style:none;cursor:pointer"><div class="row between"><b>${fmtDate(c.d, { weekday: "short", day: "numeric", month: "short" })}</b><span class="xs muted">${MOODS.find(m => m[0] === c.mood)?.[1] || ""} ${c.weight ? fr(c.weight, 1) + " kg" : ""} · ${c.score ?? "–"}/100</span></div></summary>
       <pre class="small" style="white-space:pre-wrap;font-family:inherit;margin:8px 0 0">${esc(checkinText(c).split("\n").slice(1).join("\n"))}</pre></details>`).join("") || `<p class="empty">Ton premier bilan apparaîtra ici.</p>`}
+    <div id="old-bilans"></div>
   </main>${tabbar("coach")}`;
+  loadOldBilans();
 };
+
+// Bilans de l'ancienne app (migrés, en lecture seule) : chargés à part, la liste actuelle ne dépend pas d'eux
+const OLD_LABELS = { stress: "Stress", motiv: "Motivation", courb: "Courbatures", douleur: "Douleur", hard: "Séance difficile", q: "Question", q5: "Question", msg: "Message" };
+async function loadOldBilans() {
+  try {
+    const c = await cloud(); if (!c || !c.legacyCheckins) return;
+    const l = await c.legacyCheckins(); const box = document.getElementById("old-bilans"); if (!l.length || !box) return;
+    const row = (k, v) => v == null || v === "" ? "" : `<p class="small" style="margin:4px 0 0"><b>${esc(k)} :</b> ${esc(String(v))}</p>`;
+    box.innerHTML = `<div class="lbl mt16">🗂️ Bilans de l'ancienne app</div>` + l.map(b => {
+      const extra = Object.entries(b.legacy || {}).filter(([k, v]) => OLD_LABELS[k] && typeof v !== "object").map(([k, v]) => row(OLD_LABELS[k], v)).join("");
+      return `<details class="card mt8"><summary style="list-style:none;cursor:pointer"><div class="row between"><b>${fmtDate(b.d, { day: "numeric", month: "short", year: "numeric" })}${b.date_source === "updated_at" ? " <small class=\"muted\">(date approximative)</small>" : ""}</b><span class="xs muted">Semaine ${esc(String(b.week))}${b.weight ? " · " + fr(b.weight, 1) + " kg" : ""}</span></div></summary>
+        <div style="margin-top:8px">${row("Qualité du sommeil", b.sleep_q != null ? b.sleep_q + "/5" : null)}${row("Victoire de la semaine", b.win)}${extra}${row("Réponse de Thomas", b.coach_reply)}</div></details>`;
+    }).join("");
+  } catch (e) { /* silencieux : la liste actuelle reste affichée */ }
+}
 
 // Carte d'accueil : du vendredi au lundi, si le bilan de la semaine n'est pas fait
 export function checkinCard(t = today()) {

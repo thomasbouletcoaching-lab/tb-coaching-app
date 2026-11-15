@@ -112,6 +112,12 @@ export async function unreadFromCoach() {
   return count || 0;
 }
 
+// Bilans de l'ancienne app (migrés en phase 2, en lecture seule)
+export async function legacyCheckins(memberId = uid) {
+  const { data, error } = await sb.from("cxs_legacy_checkins").select("id,d,week,date_source,weight,sleep_q,win,coach_reply,legacy").eq("user_id", memberId || uid).order("d", { ascending: false }).limit(100);
+  if (error) throw error; return data || [];
+}
+
 // Notifications
 export async function notifications() {
   if (!uid) return [];
