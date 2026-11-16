@@ -22,7 +22,7 @@ import { durationSheet } from "./train.js";
 import { seasonTimeline, goalsMini } from "./season.js";
 import { readiness } from "./recup.js";
 import { FREE_WEEKS, TRIAL_DAYS } from "../config.js";
-import { gamCard } from "../quests.js";
+import { gamCard, gather } from "../quests.js";
 
 let homeTab = "today", homeDay = null;
 const WATER_GOAL = 8; // verres de 25 cl
@@ -52,18 +52,26 @@ function trainingCard(d) {
     <p class="muted mt8">${ag?.st === "missed" ? "Pas de rattrapage : on reprend à la prochaine séance." : nx ? `Prochaine séance : <b style="color:var(--ink)">${esc(nx[1].title)}</b> ${nx[0] === addDays(today(), 1) ? "demain" : fmtDate(nx[0], { weekday: "long" })}${nx[1].time ? ` à ${nx[1].time}` : ""}` : ""}</p>
     <div class="row mt8"><button class="btn btn-line btn-sm" data-a="home-tab" data-v="week">Voir ma semaine</button>${d === today() ? `<button class="btn btn-line btn-sm" data-a="free-session">Séance libre</button>` : ""}</div><div class="deco">🗓️</div></div>`;
 }
-export function routineCard(d = today()) {
-  const D = S().daily[d] || {}, foodN = N.dayLog(d).length;
-  const filled = [D.weight, D.steps, D.sleep, D.water, foodN].filter(x => x).length;
+// Dernière valeur connue avant ce jour : elle pré-remplit la case, un tap sur ✓ la confirme.
+const lastDaily = (k, d) => { const ks = Object.keys(S().daily).filter(x => x < d && S().daily[x]?.[k]).sort(); return ks.length ? S().daily[ks.at(-1)][k] : null; };
+const fmtV = (k, v) => k === "steps" ? String(v) : String(v).replace(".", ",");
+const filledCount = (d) => { const D = S().daily[d] || {}; return [D.weight, D.steps, D.sleep, D.water, N.dayLog(d).length].filter(x => x).length; };
+export function routineCard(d = today(), hero = false, sub = "") {
+  const D = S().daily[d] || {}, foodN = N.dayLog(d).length, y = addDays(d, -1), yN = N.dayLog(y).length;
+  const filled = filledCount(d);
   const last7 = Array.from({ length: 7 }, (_, i) => addDays(today(), i - 6)).map(k => { const x = S().daily[k] || {}; return [x.weight, x.steps, x.sleep, x.water, N.dayLog(k).length].filter(Boolean).length >= 3; });
   const water = D.water || 0;
-  return `<div class="card"><div class="row between"><div><div class="lbl">Ma routine du jour</div><div class="mt4"><b class="num" style="font-size:22px">${filled}/5</b> <span class="muted small">· 30 secondes</span></div></div><div class="dots">${last7.map(x => `<i class="${x ? "on" : ""}"></i>`).join("")}</div></div>
-    <div class="rt mt12"><span class="em">⚖️</span><div class="grow"><b>Poids</b><div class="small muted">le matin, à jeun</div></div><input class="inp" inputmode="decimal" placeholder="kg" value="${D.weight ? String(D.weight).replace(".", ",") : ""}" data-c="routine" data-k="weight" data-d="${d}" aria-label="Poids en kg"></div>
-    <div class="rt"><span class="em">👣</span><div class="grow"><b>Pas</b><div class="small muted">objectif ${fr(S().profile?.stepsGoal || 8000)}</div></div><input class="inp" inputmode="numeric" placeholder="pas" value="${D.steps || ""}" data-c="routine" data-k="steps" data-d="${d}" aria-label="Nombre de pas"></div>
-    <div class="rt"><span class="em">😴</span><div class="grow"><b>Sommeil</b><div class="small muted">nuit dernière</div></div><input class="inp" inputmode="decimal" placeholder="heures" value="${D.sleep ? String(D.sleep).replace(".", ",") : ""}" data-c="routine" data-k="sleep" data-d="${d}" aria-label="Heures de sommeil"></div>
+  const row = (k, em, name, hint, unit, mode, aria) => { const l = D[k] ? null : lastDaily(k, d);
+    return `<div class="rt"><span class="em">${em}</span><div class="grow"><b>${name}</b><div class="small muted">${l ? "comme la dernière fois ?" : hint}</div></div><input class="inp ${l ? "pre" : ""}" inputmode="${mode}" placeholder="${unit}" value="${D[k] ? fmtV(k, D[k]) : l ? fmtV(k, l) : ""}" data-c="routine" data-k="${k}" data-d="${d}" aria-label="${aria}">${l ? `<button class="btn btn-line btn-sm qk" data-a="routine-same" data-k="${k}" data-v="${l}" data-d="${d}" aria-label="Confirmer ${fmtV(k, l)} ${unit}">✓</button>` : ""}</div>`; };
+  const meal = !foodN && yN ? `<button class="btn ${hero ? "btn-red" : "btn-line"} mt12" data-a="food-copy" data-from="${y}" data-d="${d}">Copier mes repas d'hier</button>` : hero && !foodN ? `<button class="btn btn-red mt12" data-a="go" data-r="food">Noter un repas</button>` : "";
+  return `<div class="card ${hero ? "hero" : ""}"><div class="row between"><div>${hero ? `<div class="lbl">Aujourd'hui${sub ? " · " + sub : ""}</div><h2 class="h1 mt4">${filled >= 5 ? "Journée notée ✅" : "Note ta journée"}</h2>` : `<div class="lbl">Ma routine du jour</div>`}<div class="mt4"><b class="num" style="font-size:22px">${filled}/5</b> <span class="muted small">· 30 secondes</span></div></div><div class="dots">${last7.map(x => `<i class="${x ? "on" : ""}"></i>`).join("")}</div></div>
+    ${meal}
+    <div class="rt mt12"><span class="em">🍽️</span><div class="grow"><b>Repas</b><div class="small muted">${foodN ? `${foodN} aliment${foodN > 1 ? "s" : ""} noté${foodN > 1 ? "s" : ""} · ${fr(N.dayTotals(d).kcal)} kcal` : "pas encore noté"}</div></div>${hero && !foodN && !yN ? "" : `<button class="btn btn-line btn-sm" data-a="go" data-r="food">${foodN ? "Ajouter" : "Noter"}</button>`}</div>
+    ${row("weight", "⚖️", "Poids", "le matin, à jeun", "kg", "decimal", "Poids en kg")}
+    ${row("sleep", "😴", "Sommeil", "nuit dernière", "h", "decimal", "Heures de sommeil")}
+    ${row("steps", "👣", "Pas", `objectif ${fr(S().profile?.stepsGoal || 8000)}`, "pas", "numeric", "Nombre de pas")}
     <div class="rt"><span class="em">💧</span><div class="grow"><b>Eau</b><div class="small muted">${fr(water * .25, 2)} L · objectif ${fr(WATER_GOAL * .25, 1)} L</div><div class="glasses">${Array.from({ length: Math.max(WATER_GOAL, water) }, (_, i) => `<i class="${i < water ? "on" : ""}"></i>`).join("")}</div></div><div class="water"><button data-a="water" data-v="-1" data-d="${d}" aria-label="Retirer un verre">−</button><b>${water}</b><button data-a="water" data-v="1" data-d="${d}" aria-label="Ajouter un verre">+</button></div></div>
-    <div class="rt"><span class="em">🍽️</span><div class="grow"><b>Nutrition</b><div class="small muted">${foodN ? `${foodN} aliment${foodN > 1 ? "s" : ""} noté${foodN > 1 ? "s" : ""} · ${fr(N.dayTotals(d).kcal)} kcal` : "pas encore noté"}</div></div><button class="btn btn-line btn-sm" data-a="go" data-r="food">Noter</button></div>
-    <p class="xs muted mt8" style="margin:0">Une journée compte dans la série dès que 3 des 5 cases sont remplies. Le poids se lit en moyenne sur 7 jours : les variations d'un jour à l'autre sont normales.</p></div>`;
+    ${hero ? "" : `<p class="xs muted mt8" style="margin:0">Une journée compte dans la série dès que 3 des 5 cases sont remplies. Le poids se lit en moyenne sur 7 jours : les variations d'un jour à l'autre sont normales.</p>`}</div>`;
 }
 // Rituel du matin : 1 minute, l'esprit, le corps, une seule priorité
 function eveningCard() { return ""; }
@@ -128,14 +136,8 @@ export function triade(d = today()) {
   const routine = [D.weight, D.steps, D.sleep, D.water, N.dayLog(d).length].filter(Boolean).length >= 3;
   return { corps, nutri, nutriFrac, routine, score: [corps, nutri, routine].filter(Boolean).length };
 }
-function triadeStreak() {
-  let n = 0, k = today();
-  if (triade(k).score < 2) k = addDays(k, -1);
-  while (triade(k).score >= 2 && n < 366) { n++; k = addDays(k, -1); }
-  return n;
-}
 function triadeCard() {
-  const x = triade(today()), s = triadeStreak();
+  const x = triade(today()), s = gather().streak; // même série que la carte de progression (repos prévus tolérés)
   const item = (ico, label, on, frac, col) => `<div><div class="mini"><svg viewBox="0 0 66 66">${ring(frac, 66, 7, col)}</svg><b>${on ? "✓" : Math.round(frac * 100) + "%"}</b></div><div class="v">${ico} ${label}</div></div>`;
   return `<div class="card"><div class="row between"><div class="lbl">Triade de discipline</div><span class="xs muted">${s ? `🔥 Série : ${s} jour${s > 1 ? "s" : ""}` : "Série à démarrer"}</span></div>
     <div class="minis mt8">${item("🏋️", "Corps", x.corps, x.corps ? 1 : 0, "#B3263A")}${item("🍽️", "Nutrition", x.nutri, x.nutriFrac, "#E0A93B")}${item("📋", "Routine", x.routine, x.routine ? 1 : 0, "#4F5D2A")}</div>
@@ -144,6 +146,11 @@ function triadeCard() {
 function quickActions() {
   return `<div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="go" data-r="food">🍽️ Ajouter un repas</button><button class="btn btn-line btn-sm grow" data-a="go" data-r="carnet">🏋️ Séance</button><button class="btn btn-red btn-sm grow" data-a="go" data-r="crise">🆘 Je craque</button></div>`;
 }
+
+// Sections repliées : l'écran s'ouvre sur l'action du jour, le reste se déplie à la demande (état gardé le temps de la visite)
+const openFolds = new Set();
+const fold = (id, title, html) => html.trim() ? `<details class="fold" data-fold="${id}" ${openFolds.has(id) ? "open" : ""}><summary>${title}</summary><div class="in">${html}</div></details>` : "";
+document.addEventListener("toggle", (e) => { const id = e.target?.dataset?.fold; if (id) { if (e.target.open) openFolds.add(id); else openFolds.delete(id); } }, true);
 
 routes.home = async () => {
   await Promise.all([N.loadModels(), E.loadPrograms()]);
@@ -156,32 +163,39 @@ routes.home = async () => {
   if (homeTab === "week") body = agendaWeekView() + `<h2 class="sec">📊 Bilan de la semaine</h2>` + weekSummary();
   else if (homeTab === "month") body = agendaMonthView();
   else if (homeTab === "year") body = agendaYearView(seasonTimeline());
-  else body = `${weekStrip(d)}
-    ${d !== today() ? `<p class="small muted center">${fmtDate(d)} · <a href="#" data-a="home-day" data-v="${today()}" class="link">revenir à aujourd'hui</a></p>` : ""}
-    ${alerts.length ? `<div class="card" style="box-shadow:0 0 0 2px var(--warn) inset"><div class="lbl">⚠️ Alerte blessure</div><p class="mt8" style="margin-bottom:6px"><b>${esc(alerts[0].name)}</b> : ${esc(alerts[0].last.note)}</p><p class="small muted">Baisse la charge ou remplace l'exercice. Si la douleur persiste, parles-en à un professionnel de santé.</p><button class="btn btn-line btn-sm" data-a="go" data-r="chat">Prévenir Thomas</button></div>` : ""}
-    ${d === today() && restDayOn() ? restDayCard() : ""}
-    ${d === today() ? await suiviCards() : ""}
-    ${d === today() ? cycleCard(ns) : ""}
-    ${trainingCard(d)}
-    ${d === today() ? quickActions() : ""}
-    ${d === today() ? strengthCard() : ""}
-    ${d === today() ? cheatCard() : ""}
-    <h2 class="sec">📊 Récap du jour</h2>
-    <button class="card tap" data-a="go" data-r="food">${caloriesCard(d, true)}</button>
+  else {
+    const recap = `<button class="card tap" data-a="go" data-r="food">${caloriesCard(d, true)}</button>
     ${recoveryMini(d)}
-    ${fs ? `<button class="card tap mt12" data-a="go" data-r="recup"><div class="row"><span style="font-size:30px">${fs.stage[1]}</span><div class="grow"><div class="lbl">⏳ Jeûne en cours</div><b class="h3">${Math.floor(fs.hours)} h ${String(Math.floor(fs.hours % 1 * 60)).padStart(2, "0")}</b><div class="xs muted">${esc(fs.stage[2])}</div></div>${I.chev}</div></button>` : ""}
-    ${d === today() ? `<h2 class="sec">🎮 Quêtes et régularité</h2>` + triadeCard() + gamCard() : ""}
-    ${d === today() ? liveBanner() + coachFoodCard() : ""}
-    ${routineCard(d)}
-    ${d === today() && rank() < 1 ? offersCard() : ""}
-    ${progressCard()}
+    ${fs ? `<button class="card tap mt12" data-a="go" data-r="recup"><div class="row"><span style="font-size:30px">${fs.stage[1]}</span><div class="grow"><div class="lbl">⏳ Jeûne en cours</div><b class="h3">${Math.floor(fs.hours)} h ${String(Math.floor(fs.hours % 1 * 60)).padStart(2, "0")}</b><div class="xs muted">${esc(fs.stage[2])}</div></div>${I.chev}</div></button>` : ""}`;
+    if (d !== today()) body = `${weekStrip(d)}
+    <p class="small muted center">${fmtDate(d)} · <a href="#" data-a="home-day" data-v="${today()}" class="link">revenir à aujourd'hui</a></p>
+    ${trainingCard(d)}
+    <h2 class="sec">📊 Récap du jour</h2>
+    ${recap}
+    ${routineCard(d)}`;
+    else {
+      // Ordre : 1. l'action du jour (séance prévue, sinon saisie de la journée) 2. forme du jour 3. progression 4. le reste, replié
+      const st = E.agenda(d, d)[d]?.st, session = st === "planned" || !!S().current;
+      const hero = session ? trainingCard(d).replace('<div class="card">', '<div class="card hero">') : routineCard(d, true, st === "done" ? "séance faite ✅" : st === "missed" ? "" : "jour de repos");
+      body = `<div class="mt16" id="hero">${hero}</div>
+    ${alerts.length ? `<div class="card" style="box-shadow:0 0 0 2px var(--warn) inset"><div class="lbl">⚠️ Alerte blessure</div><p class="mt8" style="margin-bottom:6px"><b>${esc(alerts[0].name)}</b> : ${esc(alerts[0].last.note)}</p><p class="small muted">Baisse la charge ou remplace l'exercice. Si la douleur persiste, parles-en à un professionnel de santé.</p><button class="btn btn-line btn-sm" data-a="go" data-r="chat">Prévenir Thomas</button></div>` : ""}
+    <div id="forme">${isCoach() ? "" : feuCard()}</div>
+    <div id="progression" class="mt12">${gamCard()}</div>
+    ${await suiviCards()}
+    ${liveBanner() + coachFoodCard()}
+    ${fold("jour", `📋 Ma journée · ${filledCount(d)}/5`, (session ? routineCard(d) : "") + recap + quickActions())}
+    ${fold("sem", "🗓️ Ma semaine et mon cycle", weekStrip(d) + (restDayOn() ? restDayCard() : "") + cycleCard(ns) + (session ? "" : trainingCard(d)) + strengthCard() + cheatCard())}
+    ${fold("prog", "📈 Régularité et progrès", triadeCard() + progressCard())}
+    ${rank() < 1 ? offersCard() : ""}
     ${canMsg() || isCoach() ? `<h2 class="sec">💬 Ton coach</h2>
     <button class="card tap" data-a="go" data-r="${isCoach() ? "coach" : "chat"}" style="display:flex;align-items:center;gap:12px"><span style="width:46px;height:46px;border-radius:50%;background:var(--paper);display:grid;place-items:center;flex:none;border:1px solid var(--line);overflow:hidden"><img src="assets/icon-192-grec.png" alt="TB my Coach" width="46" height="46" style="width:100%;height:100%;object-fit:cover"></span>
       <span class="grow"><b>${isCoach() ? "Espace coach" : "Écrire à Thomas"}</b><br><span class="small muted">${isCoach() ? "Tes membres et leurs messages" : badges.msgs ? `${badges.msgs} nouveau${badges.msgs > 1 ? "x" : ""} message${badges.msgs > 1 ? "s" : ""}` : msgQuotaText()}</span></span>${I.chev}</button>` : ""}`;
+    }
+  }
   $app.innerHTML = `<main class="page">
     <div class="row between" style="padding-top:var(--safe-t)"><div></div><div class="row">${isCoach() ? "" : `<button class="pill" data-a="go" data-r="offers">🚀 ${rank() >= 2 ? "Mon coaching" : "Passer au coaching"}</button>`}<button class="pill ic" data-a="notifs" aria-label="Notifications">${I.bell}${badges.notifs ? `<span class="badge">${badges.notifs}</span>` : ""}</button></div></div>
     <p class="kicker mt12">${fmtDate(today())}${ns ? ` · semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)}` : ""}</p>
-    <div class="row between" style="align-items:flex-end"><h1 class="hello">${greet()}<br>${esc(pr.name)}</h1><button class="pill ic" style="width:56px;height:56px;border-radius:50%;font-weight:800;font-size:20px" data-a="go" data-r="profile" aria-label="Profil">${esc(pr.name[0].toUpperCase())}</button></div>
+    <div class="row between" style="align-items:flex-end"><h1 class="hello sm">${greet()}, ${esc(pr.name)}</h1><button class="pill ic" style="width:56px;height:56px;border-radius:50%;font-weight:800;font-size:20px" data-a="go" data-r="profile" aria-label="Profil">${esc(pr.name[0].toUpperCase())}</button></div>
     <div class="mt16">${seg([["today", "Aujourd'hui"], ["week", "Semaine"], ["month", "Mois"], ["year", "Année"]], homeTab, "home-tab")}</div>
     ${body}</main>${tabbar("home")}`;
 };
@@ -206,16 +220,24 @@ actions.water = (b, d) => {
   update(st => { const x = st.daily[d.d] = st.daily[d.d] || {}; x.water = Math.max(0, (x.water || 0) + +d.v); });
   buzz(); rerender();
 };
-changes.routine = (el) => {
-  const k = el.dataset.k, v = num(el.value), d = el.dataset.d;
+function saveRoutine(k, raw, d) {
+  const txt = String(raw ?? "").trim(), v = num(txt);
   const ok = { weight: v > 30 && v < 250, steps: v >= 0 && v < 100000, sleep: v >= 0 && v <= 16 }[k];
-  if (el.value.trim() && !ok) return toast("Valeur invalide");
+  if (txt && !ok) return toast("Valeur invalide");
   update(st => {
-    const x = st.daily[d] = st.daily[d] || {}; if (el.value.trim()) x[k] = k === "steps" ? Math.round(v) : v; else delete x[k];
+    const x = st.daily[d] = st.daily[d] || {}; if (txt) x[k] = k === "steps" ? Math.round(v) : v; else delete x[k];
     if (k === "weight" && ok) { st.profile.weight = v; const m = st.measures.find(m => m.d === d); if (m) m.weight = v; else st.measures.push({ d, weight: v }); }
   });
   if (k === "weight") pushStats();
   buzz(); rerender();
+}
+changes.routine = (el) => saveRoutine(el.dataset.k, el.value, el.dataset.d);
+actions["routine-same"] = (b, d) => saveRoutine(d.k, d.v, d.d);
+// Copier les repas d'un autre jour (hier, par défaut) : un tap, les heures des repas sont gardées
+actions["food-copy"] = (b, d) => {
+  const src = N.dayLog(d.from).filter(e => !d.m || e.meal === d.m); if (!src.length) return toast("Rien à copier ce jour-là");
+  src.forEach(({ id, ...e }) => N.addEntry({ ...e }, d.d || today()));
+  buzz(); toast(d.m ? `${d.m} copié` : `${src.length} aliment${src.length > 1 ? "s" : ""} copié${src.length > 1 ? "s" : ""} depuis hier`); rerender();
 };
 actions["free-session"] = async () => {
   await Promise.all([E.loadPrograms(), E.loadFiches()]);
@@ -226,7 +248,7 @@ actions["free-session"] = async () => {
 async function suiviCards() {
   if (isCoach()) return "";
   const defi = defiOn(), out = [defi ? await defiCard() : "", checkinCard()];
-  out.push(criseCard(), feuCard(), revueCard(), monteeCard());
+  out.push(criseCard(), revueCard(), monteeCard()); // la forme du jour (feu) est affichée à part, juste sous l'action du jour
   if (!defi) out.push(anamneseCard());
   if (!defi && (myAdherence().age ?? 0) >= 3) out.push(adherenceCard());
   return out.join("");

@@ -6,6 +6,7 @@ import * as E from "./engine.js";
 import * as N from "./nutrition.js";
 import { esc } from "./core.js";
 import { palier } from "./paliers.js";
+import { streakOf, awayDays, retourMessage } from "./serie.js";
 
 const MAX_DAYS = 800;
 const shift = (d, n) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
@@ -43,15 +44,18 @@ export function dayScore(d, ag) {
   const D = S().daily[d] || {};
   const routine = [D.weight, D.steps, D.sleep, D.water, N.dayLog(d).length].filter(Boolean).length >= 3;
   const crise = (S().crises || []).some(c => c.d === d);
+  // Repos prévu : repos choisi, absence annoncée, ou jour sans séance dans un programme en cours. Il ne casse pas la série.
+  const since = String(S().plan?.startedAt || "").slice(0, 10);
+  const rest = st === "rest" || st === "away" || (!st && !!since && d >= since);
   const score = [corps, nutri, routine].filter(Boolean).length;
   const points = (done ? 40 : 0) + (corps ? 10 : 0) + (nutri ? 10 : 0) + (routine ? 10 : 0) + (score === 3 ? 20 : 0) + (crise ? 10 : 0);
-  return { d, done, corps, nutri, routine, crise, score, points };
+  return { d, done, corps, nutri, routine, crise, rest, score, points };
 }
 
 // Chiffres de la personne : points, niveau, série, reprises, trophées
 export function gather(today_ = today()) {
   const keys = new Set([...Object.keys(S().daily), ...Object.keys(S().food || {}), ...(S().crises || []).map(c => c.d)]);
-  const empty = { points: 0, level: 1, nextAt: 40, levelPct: 0, sessions: 0, weekSessions: 0, streak: 0, comebacks: 0, crises: 0, proteinDays: 0, today: null, byDay: {} };
+  const empty = { points: 0, level: 1, nextAt: 40, levelPct: 0, sessions: 0, weekSessions: 0, streak: 0, comebacks: 0, away: 0, retour: "", crises: 0, proteinDays: 0, today: null, byDay: {} };
   if (!keys.size) return empty;
   const start = [...keys].sort()[0];
   const ag = E.agenda(start, today_);
@@ -62,16 +66,14 @@ export function gather(today_ = today()) {
   const points = days.reduce((a, k) => a + byDay[k].points, 0);
   const level = Math.floor(Math.sqrt(points / 40)) + 1;
   const floorAt = 40 * (level - 1) ** 2, nextAt = 40 * level ** 2;
-  let streak = 0, k = today_;
-  if ((byDay[k]?.score || 0) < 2) k = shift(k, -1);
-  while (byDay[k] && byDay[k].score >= 2 && streak < 400) { streak++; k = shift(k, -1); }
+  const streak = streakOf(byDay, today_), away = awayDays(byDay, today_);
   let comebacks = 0;
-  for (let i = 1; i < days.length; i++) if (byDay[days[i - 1]].score < 2 && byDay[days[i]].score >= 2 && byDay[days[i - 1]].score !== undefined) comebacks++;
+  for (let i = 1; i < days.length; i++) if (byDay[days[i - 1]].score < 2 && byDay[days[i]].score >= 2 && byDay[days[i - 1]].score !== undefined && !byDay[days[i - 1]].rest) comebacks++;
   const weekStart = shift(today_, -6);
   const sessions = days.filter(x => byDay[x].done).length;
   const weekSessions = days.filter(x => x >= weekStart && byDay[x].done).length;
   return {
-    points, level, nextAt, levelPct: Math.round((points - floorAt) / (nextAt - floorAt) * 100), sessions, weekSessions, streak, comebacks,
+    points, level, nextAt, levelPct: Math.round((points - floorAt) / (nextAt - floorAt) * 100), sessions, weekSessions, streak, comebacks, away, retour: retourMessage(away, (byDay[today_]?.score || 0) >= 2),
     crises: days.filter(x => byDay[x].crise).length, proteinDays: days.filter(x => byDay[x].nutri).length,
     today: byDay[today_] || null, byDay,
   };
@@ -92,15 +94,16 @@ export function dailyQuests(c) {
   ];
 }
 
-// Carte affichée sur le Temple : niveau, avatar, quêtes du jour, accès aux trophées
+// Carte affichée sur l'accueil : série de jours actifs, points et niveau, quêtes du jour, accès aux trophées
 export function gamCard() {
   const c = gather();
   const st = stageOf(c.level);
   const q = dailyQuests(c);
   const got = unlockedTrophies(c).length;
-  return `<div class="card"><div class="row between"><div class="lbl">🎮 Ta progression</div><span class="xs muted">${c.points} pts</span></div>
-    <div class="row mt8" style="gap:12px"><span style="font-size:34px;line-height:1">${st.icon}</span><div class="grow"><b>${esc(st.name)}</b> · niveau ${c.level}<div class="gauge mt4"><i style="width:${c.levelPct}%"></i></div><div class="xs muted mt4">${c.nextAt - c.points} pts avant le niveau ${c.level + 1}</div></div></div>
-    <p class="small muted mt8" style="margin:8px 0 0">${esc(st.line)}</p>
-    <div class="mt8">${q.map(x => `<div class="row between small" style="padding:4px 0"><span>${x.ok ? "✅" : "⬜"} ${esc(x.n)}</span><span class="xs muted">+${x.p}</span></div>`).join("")}</div>
-    <div class="row between mt8"><span class="xs muted">${c.streak ? `🔥 Série : ${c.streak} jour${c.streak > 1 ? "s" : ""}` : "Série à démarrer"} · ${got}/${TROPHIES.length} trophées</span><button class="btn btn-line btn-sm" data-a="go" data-r="trophees">Trophées</button></div></div>`;
+  return `<div class="card" id="gam"><div class="row between"><div class="lbl">🎮 Ta progression</div><button class="btn btn-line btn-sm" data-a="go" data-r="trophees">Trophées ${got}/${TROPHIES.length}</button></div>
+    <div class="row mt8" style="gap:12px"><div class="serie" aria-label="Série de jours actifs"><b>🔥 ${c.streak}</b><span>jour${c.streak > 1 ? "s" : ""} de série</span></div><div class="grow"><b>${st.icon} ${esc(st.name)}</b> · niveau ${c.level}<div class="gauge mt4"><i style="width:${c.levelPct}%"></i></div><div class="xs muted mt4">${c.points} pts · encore ${c.nextAt - c.points} avant le niveau ${c.level + 1}</div></div></div>
+    ${c.retour ? `<p class="small mt8 retour" style="margin:8px 0 0">${esc(c.retour)}</p>` : ""}
+    <div class="lbl mt12">Quêtes du jour</div>
+    <div class="mt4">${q.map(x => `<div class="row between small" style="padding:4px 0"><span>${x.ok ? "✅" : "⬜"} ${esc(x.n)}</span><span class="xs muted">+${x.p}</span></div>`).join("")}</div>
+    <p class="xs muted mt8" style="margin:8px 0 0">Un jour de repos prévu ne casse pas ta série.</p></div>`;
 }
