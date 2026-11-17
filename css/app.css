@@ -664,3 +664,6 @@ a.card{text-decoration:none;color:inherit}
 .feupuce{flex:none;display:inline-block;width:26px;height:26px;border-radius:50%;background:var(--soft)}
 .feupuce.vert{background:var(--good)}.feupuce.orange{background:var(--warn)}.feupuce.rouge{background:#D8542B}
 .card.feu.vert{box-shadow:0 0 0 1.5px var(--good) inset}.card.feu.orange{box-shadow:0 0 0 1.5px var(--warn) inset}.card.feu.rouge{box-shadow:0 0 0 1.5px #D8542B inset}
+
+/* Pastilles de couleur (personnage) : le choix reste visible malgré le fond en ligne */
+.chip.on[style*="background"]{outline:3px solid var(--red);outline-offset:2px}

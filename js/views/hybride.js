@@ -13,22 +13,40 @@ import * as P from "../personnage.js";
 import { $app, esc, routes, actions, forms, header, tabbar, toast, buzz, go, sheet, closeSheet, rerender, tier, isCoach, cloud, fmtDate } from "../core.js";
 import { etatDuJour } from "./fatigue.js";
 
-let D = null, chargement = null;
-const charger = () => chargement || (chargement = Promise.all([fetch("data/hybride.json").then(r => r.json()), X.loadExercices()]).then(([d]) => { D = d; }).catch(() => { chargement = null; }));
+let D = null, chargement = null, echec = false;
+// Un échec de chargement est mémorisé (pas de boucle de requêtes) : l'écran propose « Réessayer »
+const charger = () => chargement || (chargement = Promise.all([fetch("data/hybride.json").then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }), X.loadExercices()])
+  .then(([d]) => { if (!d?.macros || !d?.groupes) throw new Error("données"); D = d; echec = false; })
+  .catch(() => { echec = true; chargement = null; }));
+const ecranAttente = () => echec
+  ? `<main class="page"><div class="card"><p class="small" style="margin:0">Données indisponibles pour l'instant (connexion ?).</p><button class="btn btn-line btn-sm mt8" data-a="hyb-reessayer">Réessayer</button></div></main>`
+  : `<main class="page"><p class="small muted">Chargement…</p></main>`;
 const COACHES = ["avance", "surmesure", "invite"];
 export const accesHybride = () => isCoach() || tier() !== "free";
-const hyb = () => S().hybride || {};
+const estObjet = (x) => !!x && typeof x === "object" && !Array.isArray(x);
+const hyb = () => estObjet(S().hybride) ? S().hybride : {};
+const prepare = (st) => { if (!estObjet(st.hybride)) st.hybride = {}; return st.hybride; };
+// Bloc valide (macro connue, date ISO, 3 à 6 séances), lu via H.lire() : un ancien format est converti en copie
+const blocValide = (b) => estObjet(b) && D.macros.some(m => m.id === b.macroId) && /^\d{4}-\d{2}-\d{2}$/.test(String(b.debut)) && !isNaN(new Date(b.debut + "T12:00:00")) && [3, 4, 5, 6].includes(+b.nbSeances);
+function blocCourant() {
+  const b = hyb().bloc; if (!b) return null;
+  const lu = estObjet(b) ? (H.lire(b).courant || b) : b;
+  if (blocValide(lu)) return { ...lu, nbSeances: +lu.nbSeances };
+  // Bloc illisible : archivé tel quel (jamais effacé), puis on repropose le formulaire
+  update(st => { const h = prepare(st); h.anciens = [...(Array.isArray(h.anciens) ? h.anciens : []), { illisible: h.bloc, archiveLe: new Date().toISOString() }]; h.bloc = null; });
+  return null;
+}
 const exDe = (n) => X.exercice(n) || null;
 const lundiProchain = (d = today()) => H.dowDe(d) === 0 ? d : H.addJours(H.lundiDe(d), 7);
 const QLT = (id) => D.qualites.find(q => q.id === id)?.nom || id;
 
 // ---------- Calcul de l'état affiché ----------
 function etat() {
-  const auj = today(), h = hyb(), J = Q.journalDepuisEtat(D, S(), exDe);
+  const auj = today(), h = hyb(), bloc = blocCourant(), J = Q.journalDepuisEtat(D, { ...S(), hybride: { ...h, bloc } }, exDe);
   const b = Q.bilan(D, J, auj, { precedents: h.debloques || [], xpBase: h.xpServeur ?? null });
-  const cal = h.bloc ? H.calendrier(D, { debut: h.bloc.debut, macroId: h.bloc.macroId }) : null;
+  const cal = bloc ? H.calendrier(D, { debut: bloc.debut, macroId: bloc.macroId }) : null;
   const pos = cal ? H.position(cal, auj) : null;
-  return { auj, J, b, cal, pos };
+  return { auj, J, b, cal, pos, bloc };
 }
 
 // ---------- Synchronisation avec le serveur (silencieuse, jamais bloquante) ----------
@@ -38,9 +56,9 @@ async function synchroniser(force = false) {
   dernierCalcul = Date.now();
   try {
     const c = await cloud(); if (!c || !(await c.ensureSession().catch(() => null))) return;
-    if (hyb().bloc && !hyb().blocEnvoye) { await c.hybBlocSave(hyb().bloc); update(st => { st.hybride.blocEnvoye = true; }); }
+    const bl = D && blocCourant(); if (bl && !hyb().blocEnvoye) { await c.hybBlocSave(bl); update(st => { prepare(st).blocEnvoye = true; }); }
     const r = await c.hybCalcul();
-    if (r?.ok) { update(st => { st.hybride = { ...(st.hybride || {}), xpServeur: r.xp, debloques: r.debloques || [] }; }); if (location.hash.startsWith("#/hybride")) rerender(); }
+    if (r?.ok) { update(st => { const h = prepare(st); h.xpServeur = Math.max(+h.xpServeur || 0, +r.xp || 0); h.debloques = [...new Set([...(Array.isArray(h.debloques) ? h.debloques : []), ...(Array.isArray(r.debloques) ? r.debloques : [])])]; }); if (location.hash.startsWith("#/hybride")) rerender(); }
   } catch (e) { console.warn("Calcul de l'XP reporté :", e.message); }
 }
 
@@ -59,8 +77,8 @@ function cartePerso({ b }) {
 }
 
 // Séance du jour : générée pour la semaine du bloc, puis ajustée selon la Forme du jour
-function seanceDuJour({ auj, pos }) {
-  const h = hyb();
+function seanceDuJour({ auj, pos, bloc }) {
+  const h = { ...hyb(), bloc };
   if (!pos || pos.fini) return null;
   const prop = GH.semaine(D, X.exercices(), { bloc: h.bloc, semaineMacro: pos.n, answers: S().programme?.answers || { level: S().profile?.level, materiel: [], zones: [] }, prefs: S().programme?.prefs || {}, reprise: h.bloc.reprise, vma: h.bloc.vma, halterophilie: h.bloc.halterophilie, paliers: h.paliers || {} });
   const s = prop.seances.find(x => x.dow === H.dowDe(auj));
@@ -74,7 +92,7 @@ function seanceDuJour({ auj, pos }) {
 
 function carteJour(e) {
   const { pos } = e;
-  if (!pos) return carte("Programme du jour", `<p class="small" style="margin:6px 0 0">Ton bloc commence le ${esc(fmtDate(hyb().bloc.debut))}.</p>`);
+  if (!pos) return carte("Programme du jour", `<p class="small" style="margin:6px 0 0">Ton bloc commence le ${esc(fmtDate(e.bloc.debut))}.</p>`);
   if (pos.fini) return carte("Programme du jour", `<p class="small" style="margin:6px 0 0">Bloc terminé. Choisis le suivant quand tu veux.</p><button class="btn btn-red btn-sm mt8" data-a="hyb-nouveau">Choisir le bloc suivant</button>`);
   const j = seanceDuJour(e);
   const tete = `<div class="xs muted mt4">Semaine ${pos.n} sur 12 · ${pos.decharge ? "décharge" : `RIR ${pos.rir}`}${pos.tests.length ? ` · tests : ${pos.tests.map(t => esc(t.toUpperCase())).join(", ")}` : ""}</div>`;
@@ -101,34 +119,46 @@ function radarSvg(r) {
   return `<svg viewBox="-20 0 260 220" width="100%" style="max-width:300px" role="img" aria-label="Radar des 7 qualités : ${r.map(x => `${x.nom} ${x.v} sur 100`).join(", ")}">${grille}${forme}${lbl}</svg>`;
 }
 function carteRadar(e) {
-  const C = hyb().bloc && e.pos && !e.pos.fini ? H.cibles(D, { macroId: hyb().bloc.macroId, semaine: e.pos.semaine, nbSeances: hyb().bloc.nbSeances }) : null;
+  const C = e.bloc && e.pos && !e.pos.fini ? H.cibles(D, { macroId: e.bloc.macroId, semaine: e.pos.semaine, nbSeances: e.bloc.nbSeances }) : null;
   const r = Q.radar(D, e.J, e.auj, C);
   return carte("Tes 7 qualités · 4 dernières semaines", `<div style="text-align:center">${radarSvg(r)}</div><p class="xs muted" style="margin:4px 0 0">Ce que tu as entraîné, comparé aux repères du programme. Ce n'est ni une note ni une mesure du corps.</p>`);
 }
 
-function carteFrise({ cal, pos }) {
-  const m = H.macro(D, hyb().bloc.macroId);
+function carteFrise({ cal, pos, bloc }) {
+  const m = H.macro(D, bloc.macroId);
   const cases = cal.map(s => `<div title="Semaine ${s.n}" style="flex:1;min-width:0;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;${pos?.n === s.n ? "background:var(--red);color:var(--red-ink);font-weight:700" : s.decharge ? "background:var(--tint2)" : "background:var(--tint)"}">${s.decharge ? "D" : s.n}</div>`).join("");
-  return carte(`Bloc ${esc(m.id)} · ${esc(m.nom)}`, `<div class="xs muted mt4">En développement : ${m.dev.map(QLT).map(esc).join(" et ")}. Le reste est entretenu.</div><div class="row mt8" style="gap:3px" aria-label="Frise des 12 semaines">${cases}</div><div class="xs muted mt4">D = décharge (volume divisé par deux) ou tests.</div>
+  return carte(`Bloc ${esc(m.id)} · ${esc(m.nom)}`, `<div class="xs muted mt4">En développement : ${m.dev.map(QLT).map(esc).join(" et ")}. Le reste est entretenu.</div><div class="row mt8" style="gap:3px" role="img" aria-label="Frise des 12 semaines : semaine ${pos && !pos.fini ? pos.n : "–"} en cours, décharges en semaines 4, 8 et 12">${cases}</div><div class="xs muted mt4">D = décharge (volume divisé par deux) ou tests.</div>
     <div class="row mt12" style="gap:8px;flex-wrap:wrap"><button class="btn btn-line btn-sm" data-a="hyb-test">Noter un test</button><button class="btn btn-line btn-sm" data-a="hyb-nouveau">Changer de bloc</button></div>`);
 }
 
+// État du partage relu sur le serveur à l'ouverture (nouvel appareil, réinstallation)
+let consentementLu = false;
+async function lireConsentement() {
+  if (consentementLu || COACHES.includes(tier()) || isCoach()) return; consentementLu = true;
+  try {
+    const c = await cloud(); if (!c || !(await c.ensureSession().catch(() => null))) { consentementLu = false; return; }
+    const r = await c.hybConsentement(), on = !!(r?.accorde_le && (!r.revoque_le || r.revoque_le < r.accorde_le));
+    const avant = hyb().partage; update(st => { const h = prepare(st); h.partage = on; h.partageConnu = true; });
+    if (avant !== on && location.hash.startsWith("#/hybride")) rerender();
+  } catch { consentementLu = false; }
+}
 function carteConsentement() {
   if (COACHES.includes(tier()) || isCoach()) return "";
   const on = !!hyb().partage;
+  if (!hyb().partageConnu) return carte("Partager avec Thomas", `<p class="small" style="margin:6px 0 0">Par défaut, Thomas ne voit rien de ton module hybride. Ton choix sera vérifié à ta prochaine connexion ; tu peux le fixer ici.</p><div class="row mt8" style="gap:8px;flex-wrap:wrap"><button class="btn btn-line btn-sm" data-a="hyb-partage" data-v="1">Partager ma progression</button><button class="btn btn-line btn-sm" data-a="hyb-partage" data-v="0">Ne pas partager</button></div>`);
   return carte("Partager avec Thomas", `<p class="small" style="margin:6px 0 0">${on ? "Thomas voit ton bloc, tes quêtes et ton XP du module hybride. Tu peux arrêter quand tu veux." : "Par défaut, Thomas ne voit rien de ton module hybride. Tu peux lui ouvrir ton bloc, tes quêtes et ton XP, et revenir en arrière quand tu veux."}</p><button class="btn btn-line btn-sm mt8" data-a="hyb-partage" data-v="${on ? 0 : 1}">${on ? "Arrêter le partage" : "Partager ma progression"}</button>`);
 }
 
 // ---------- Choix du bloc ----------
 function formBloc() {
-  const p = S().profile || {}, n = Math.min(6, Math.max(3, +p.days || 3)), b = hyb().bloc;
+  const p = S().profile || {}, n = Math.min(6, Math.max(3, +p.days || 3)), b = blocValide(hyb().bloc) ? hyb().bloc : null;
   return `<form data-f="hyb-bloc" class="card"><div class="lbl">Ton bloc de 12 semaines</div>
     <p class="small" style="margin:6px 0 0">Deux qualités progressent, les autres sont entretenues. Une semaine sur quatre est allégée.</p>
     <label class="lbl mt12" for="hyb-macro">Priorités</label><select id="hyb-macro" name="macro">${D.macros.map(m => `<option value="${m.id}" ${(b?.macroId || "M1") === m.id ? "selected" : ""}>${esc(m.id)} · ${esc(m.nom)} : ${m.dev.map(QLT).map(esc).join(" et ")}</option>`).join("")}</select>
     <label class="lbl mt12" for="hyb-n">Séances par semaine</label><select id="hyb-n" name="n">${[3, 4, 5, 6].map(k => `<option value="${k}" ${k === (b?.nbSeances || n) ? "selected" : ""}>${k} séances</option>`).join("")}</select>
     <label class="lbl mt12" for="hyb-debut">Début (un lundi)</label><input id="hyb-debut" type="date" name="debut" value="${lundiProchain()}">
     <label class="lbl mt12" for="hyb-vma">VMA en km/h (facultatif)</label><input id="hyb-vma" name="vma" inputmode="decimal" placeholder="Après ton test de semaine 4">
-    <label class="check mt12"><input type="checkbox" name="reprise" ${b?.reprise ?? true ? "checked" : ""}> Je reprends la course : 4 semaines en zone 2 d'abord</label>
+    <label class="check mt12"><input type="checkbox" name="reprise" ${b?.reprise ? "checked" : ""}> Commencer par 4 semaines de course en zone 2 (conseillé après un arrêt)</label>
     <label class="check mt8"><input type="checkbox" name="halterophilie" ${b?.halterophilie ? "checked" : ""}> Je maîtrise l'épaulé et l'arraché (sinon : kettlebell)</label>
     <button class="btn btn-red mt16" type="submit">Valider ce bloc</button></form>`;
 }
@@ -136,9 +166,10 @@ function formBloc() {
 // ---------- Écrans ----------
 routes.hybride = () => {
   if (!accesHybride()) { $app.innerHTML = header("Athlète hybride", "", { back: "home", offers: false }) + `<main class="page"><div class="card"><p class="small" style="margin:0">Le module athlète hybride est ouvert pendant l'essai, avec l'abonnement et pour les personnes coachées.</p></div></main>${tabbar("carnet")}`; return; }
-  if (!D) { $app.innerHTML = header("Athlète hybride", "", { back: "home", offers: false }) + `<main class="page"><p class="small muted">Chargement…</p></main>${tabbar("carnet")}`; charger().then(() => { if (location.hash.startsWith("#/hybride")) rerender(); }); return; }
-  if (!hyb().bloc) { $app.innerHTML = header("Athlète hybride", "Choisis ton bloc", { back: "home", offers: false }) + `<main class="page">${formBloc()}</main>${tabbar("carnet")}`; return; }
-  const e = etat();
+  if (!D) { $app.innerHTML = header("Athlète hybride", "", { back: "home", offers: false }) + ecranAttente() + tabbar("carnet"); if (!echec) charger().then(() => { if ((D || echec) && location.hash.startsWith("#/hybride")) rerender(); }); return; }
+  lireConsentement();
+  if (!blocCourant()) { $app.innerHTML = header("Athlète hybride", "Choisis ton bloc", { back: "home", offers: false }) + `<main class="page">${formBloc()}</main>${tabbar("carnet")}`; return; }
+  let e; try { e = etat(); } catch (err) { console.warn("Hybride :", err.message); $app.innerHTML = header("Athlète hybride", "", { back: "home", offers: false }) + `<main class="page"><div class="card"><p class="small" style="margin:0">Cet écran n'a pas pu s'afficher. Ton bloc est gardé : tu peux en choisir un autre.</p><button class="btn btn-line btn-sm mt8" data-a="hyb-nouveau">Choisir un bloc</button></div></main>${tabbar("carnet")}`; return; }
   $app.innerHTML = header("Athlète hybride", "", { back: "home", offers: false }) + `<main class="page">${cartePerso(e)}${carteJour(e)}${carteQuetes(e)}${carteRadar(e)}${carteFrise(e)}${carteConsentement()}</main>${tabbar("carnet")}`;
   synchroniser();
 };
@@ -147,7 +178,7 @@ const OBJ = (id) => D.objets.find(o => o.id === id);
 const condition = (o) => { const c = o.condition || {}; return c.rang ? `Rang ${D.rangs.find(r => r.id === c.rang)?.nom}` : c.quete ? `Quête : ${D.quetes.find(q => q.id === c.quete)?.titre}` : c.serie ? `Série de ${c.serie} jours` : ""; };
 routes["hybride-perso"] = () => {
   if (!accesHybride()) return go("hybride");
-  if (!D) { charger().then(() => rerender()); $app.innerHTML = header("Ton personnage", "", { back: "hybride" }) + `<main class="page"><p class="small muted">Chargement…</p></main>${tabbar("carnet")}`; return; }
+  if (!D) { if (!echec) charger().then(() => { if ((D || echec) && location.hash.startsWith("#/hybride-perso")) rerender(); }); $app.innerHTML = header("Ton personnage", "", { back: "hybride", offers: false }) + ecranAttente() + tabbar("carnet"); return; }
   const h = hyb(), deb = new Set(["tenue-base", "decor-salle", ...(h.debloques || []), ...Q.bilan(D, Q.journalDepuisEtat(D, S(), exDe), today(), { precedents: h.debloques || [], xpBase: h.xpServeur ?? null }).debloques]);
   const a = P.normaliser(h.apparence, [...deb]);
   const choix = (k, opts) => `<div class="chips wrap mt8" role="group" aria-label="${esc(k)}">${opts.map(([v, l, on, off]) => `<button type="button" class="chip ${on ? "on" : ""}" style="min-height:44px;white-space:normal;text-align:left;max-width:100%;height:auto;${off ? "opacity:.6" : ""}" data-a="hyb-app" data-k="${k}" data-v="${esc(String(v))}" ${off ? "disabled" : ""} aria-pressed="${on}">${l}</button>`).join("")}</div>`;
@@ -166,43 +197,46 @@ routes["hybride-perso"] = () => {
 
 // ---------- Actions ----------
 let envoiApparence = null;
+actions["hyb-reessayer"] = () => { echec = false; rerender(); };
 actions["hyb-app"] = (b, d) => {
   if (b.disabled) return;
   update(st => {
-    st.hybride = st.hybride || {}; const a = { ...P.DEFAUT, ...(st.hybride.apparence || {}) };
+    const h = prepare(st); const a = { ...P.DEFAUT, ...(estObjet(h.apparence) ? h.apparence : {}) };
     if (d.k === "accessoires") a.accessoires = (a.accessoires || []).includes(d.v) ? a.accessoires.filter(x => x !== d.v) : [...(a.accessoires || []), d.v];
     else a[d.k] = ["peau", "cheveux", "silhouette"].includes(d.k) ? +d.v : d.v;
-    st.hybride.apparence = a;
+    h.apparence = a;
   });
   buzz(); rerender();
   clearTimeout(envoiApparence);
-  envoiApparence = setTimeout(async () => { try { const c = await cloud(); if (c && await c.ensureSession().catch(() => null)) await c.hybApparence(hyb().apparence); } catch (e) { console.warn("Apparence non envoyée :", e.message); } }, 1500);
+  envoiApparence = setTimeout(async () => { try { const c = await cloud(); if (c && await c.ensureSession().catch(() => null)) await c.hybApparence(P.normaliser(hyb().apparence, hyb().debloques || [])); } catch (e) { console.warn("Apparence non envoyée :", e.message); } }, 1500);
 };
 
 forms["hyb-bloc"] = (v) => {
+  if (!D || !D.macros.some(m => m.id === v.macro) || ![3, 4, 5, 6].includes(+v.n)) return toast("Choisis un bloc et un nombre de séances.");
   let debut = /^\d{4}-\d{2}-\d{2}$/.test(v.debut || "") ? v.debut : lundiProchain();
   if (H.dowDe(debut) !== 0) debut = lundiProchain(debut);
   const vma = parseFloat(String(v.vma || "").replace(",", "."));
   const bloc = { macroId: v.macro, debut, nbSeances: +v.n, reprise: !!v.reprise, halterophilie: !!v.halterophilie, vma: vma > 5 && vma < 30 ? vma : null };
   const appliquer = () => {
     update(st => {
-      const r = H.remplacerProgramme({ hybride: { courant: st.hybride?.bloc || null, anciens: st.hybride?.anciens || [] } }, bloc, { accord: true });
-      st.hybride = { ...(st.hybride || {}), bloc: r.etat.hybride.courant, anciens: r.etat.hybride.anciens, blocEnvoye: false };
+      const h = prepare(st);
+      const r = H.remplacerProgramme({ hybride: { courant: h.bloc || null, anciens: Array.isArray(h.anciens) ? h.anciens : [] } }, bloc, { accord: true });
+      h.bloc = r.etat.hybride.courant; h.anciens = r.etat.hybride.anciens; h.blocEnvoye = false;
     });
     closeSheet(); toast(`Bloc enregistré : début le ${fmtDate(debut)}.`); go("hybride"); synchroniser(true);
   };
-  if (hyb().bloc) {
+  if (blocCourant()) {
     sheet(`<h2 class="h2" style="margin:0">Remplacer ton bloc en cours ?</h2><p class="small">Ton bloc actuel est gardé en copie. Tes séances, ton XP et tes objets restent acquis.</p><div class="row mt12" style="gap:8px"><button class="btn btn-red" data-a="hyb-ok">Oui, remplacer</button><button class="btn btn-line" data-a="close-sheet">Garder l'actuel</button></div>`);
     actions["hyb-ok"] = appliquer; return;
   }
   appliquer();
 };
-actions["hyb-nouveau"] = () => { update(st => { st.hybride = { ...(st.hybride || {}) }; }); $app.innerHTML = header("Athlète hybride", "Choisis ton bloc", { back: "hybride", offers: false }) + `<main class="page">${formBloc()}</main>${tabbar("carnet")}`; };
+actions["hyb-nouveau"] = () => { if (!D) return go("hybride"); $app.innerHTML = header("Athlète hybride", "Choisis ton bloc", { back: "hybride", offers: false }) + `<main class="page">${formBloc()}</main>${tabbar("carnet")}`; };
 actions["close-sheet"] = actions["close-sheet"] || (() => closeSheet());
 
 actions["hyb-pause"] = () => {
   const d = today();
-  update(st => { st.hybride = st.hybride || {}; st.hybride.pauses = { ...(st.hybride.pauses || {}), [d]: "imprevu" }; });
+  update(st => { const h = prepare(st); h.pauses = { ...(estObjet(h.pauses) ? h.pauses : {}), [d]: "imprevu" }; });
   buzz(); toast("C'est noté. Ta série ne bouge pas, on reprend demain."); rerender();
 };
 
@@ -212,13 +246,13 @@ actions["hyb-test"] = () => {
   sheet(`<h2 class="h2" style="margin:0">Noter un test</h2><p class="small">Seule la date compte pour tes quêtes : ton résultat reste sur ton téléphone.</p><div class="chips wrap mt8">${types.map(t => `<button type="button" class="chip" style="min-height:44px" data-a="hyb-test-ok" data-v="${t}">${esc(nom[t] || t)}</button>`).join("")}</div>`);
 };
 actions["hyb-test-ok"] = (b, d) => {
-  update(st => { st.hybride = st.hybride || {}; st.hybride.tests = [...(st.hybride.tests || []), { d: today(), type: d.v }].slice(-80); });
+  update(st => { const h = prepare(st); h.tests = [...(Array.isArray(h.tests) ? h.tests : []), { d: today(), type: d.v }].slice(-80); });
   closeSheet(); buzz(); toast("Test noté. Bravo, c'est fait."); rerender(); synchroniser(true);
 };
 
 actions["hyb-partage"] = async (b, d) => {
   const on = d.v === "1";
-  try { const c = await cloud(); if (!c || !(await c.ensureSession().catch(() => null))) return toast("Connecte-toi pour partager."); await c.hybConsentir(on); update(st => { st.hybride = { ...(st.hybride || {}), partage: on }; }); toast(on ? "Partage activé. Tu peux l'arrêter quand tu veux." : "Partage arrêté. Thomas ne voit plus ton module hybride."); rerender(); }
+  try { const c = await cloud(); if (!c || !(await c.ensureSession().catch(() => null))) return toast("Connecte-toi pour partager."); await c.hybConsentir(on); update(st => { const h = prepare(st); h.partage = on; h.partageConnu = true; }); toast(on ? "Partage activé. Tu peux l'arrêter quand tu veux." : "Partage arrêté. Thomas ne voit plus ton module hybride."); rerender(); }
   catch (e) { toast("Impossible pour l'instant, réessaie plus tard."); }
 };
 
@@ -242,12 +276,14 @@ actions["hyb-go"] = () => {
 // ---------- Vue coach (onglet Suivi d'un membre) ----------
 // Les règles d'accès du serveur décident : coaché = visible ; abonné en autonomie = visible seulement avec son accord.
 export function carteCoach(memberId) {
+  if (!echec) charger();
   setTimeout(async () => {
     const el = document.getElementById("hyb-coach"); if (!el) return;
     try {
       const c = await cloud(); const r = await c.hybPourCoach(memberId);
+      const titre = (id) => D?.quetes?.find(q => q.id === id)?.titre || id;
       el.innerHTML = r.vide ? `<p class="small muted" style="margin:6px 0 0">Rien à afficher : module non utilisé, ou abonnement en autonomie sans partage.</p>`
-        : `<div class="small mt4">${r.bloc ? `Bloc ${esc(r.bloc.macro_id)} · ${r.bloc.nb_seances} séances, début le ${esc(fmtDate(r.bloc.debut))}` : "Pas de bloc"} · <b>${r.xp} XP</b></div>${r.quetes.slice(0, 6).map(q => `<div class="xs muted">✅ ${esc(q.quete_id)} · ${esc(String(q.reussie_le || "").slice(0, 10))}</div>`).join("")}`;
+        : `<div class="small mt4">${r.bloc ? `Bloc ${esc(r.bloc.macro_id)} · ${+r.bloc.nb_seances || 0} séances, début le ${esc(fmtDate(r.bloc.debut))}` : "Pas de bloc"} · <b>${+r.xp || 0} XP</b></div>${r.quetes.slice(0, 6).map(q => `<div class="xs muted">✅ ${esc(titre(q.quete_id))} · ${esc(String(q.reussie_le || "").slice(0, 10))}</div>`).join("")}`;
     } catch { el.innerHTML = `<p class="small muted" style="margin:6px 0 0">Indisponible pour l'instant.</p>`; }
   }, 0);
   return `<div class="card"><div class="lbl">Athlète hybride</div><div id="hyb-coach" data-m="${esc(memberId)}"><p class="xs muted" style="margin:6px 0 0">Chargement…</p></div></div>`;

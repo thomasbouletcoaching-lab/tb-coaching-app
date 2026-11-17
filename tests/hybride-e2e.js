@@ -53,7 +53,7 @@ const largeur = (p) => p.evaluate(() => document.documentElement.scrollWidth);
     ok(dow(T) === 6 ? /Repos prévu/.test(t) : /Programme du jour/.test(t) && /Semaine 2 sur 12/.test(t), 'programme du jour, semaine 2');
     ok(/Quêtes/.test(t) && /Cette semaine/.test(t) && /Skills/.test(t), 'quêtes : jour, semaine, bloc, skills');
     ok((await a.p.locator('#app svg[aria-label^="Radar des 7 qualités"]').count()) === 1, 'radar des 7 qualités');
-    ok((await a.p.locator('[aria-label="Frise des 12 semaines"] > div').count()) === 12, 'frise du bloc : 12 semaines');
+    ok((await a.p.locator('[aria-label^="Frise des 12 semaines"] > div').count()) === 12, 'frise du bloc : 12 semaines');
     ok(/Partager avec Thomas/.test(t), 'essai en autonomie : partage proposé, éteint par défaut');
     ok(!/\b(prêt|prête|motivé|motivée|fatigué|fatiguée)\b/i.test(t), 'aucun accord de genre présumé');
     ok(await overflow(a.p) === 0 && await largeur(a.p) <= vp.width, 'rien ne dépasse');
@@ -105,6 +105,28 @@ const largeur = (p) => p.evaluate(() => document.documentElement.scrollWidth);
   ok(s2.hybride.bloc.macroId === 'M1' && s2.hybride.anciens.length === 1 && s2.hybride.anciens[0].macroId === 'M2', 'remplacé après accord, ancien bloc copié');
   ok(r.errs.length === 0, 'zéro erreur JavaScript (remplacement)');
   await r.ctx.close();
+
+  console.log('\nÉtat corrompu et données indisponibles');
+  for (const bloc of [{ macroId: 'ZZ', debut: T, nbSeances: 3 }, { macroId: 'M1', debut: 'abc', nbSeances: 3 }, { macroId: 'M1', debut: T, nbSeances: 9 }, 'texte']) {
+    const k = await page(b, { state: { ...PERSONAS.nouveau, hybride: { bloc } } });
+    const st = await S(k.p);
+    ok(/Ton bloc de 12 semaines/.test(await txt(k.p)) && st.hybride.anciens?.length === 1 && st.hybride.bloc === null, 'bloc illisible ' + JSON.stringify(bloc) + ' : archivé, formulaire proposé');
+    ok(k.errs.length === 0, 'zéro erreur JavaScript (bloc illisible)' + (k.errs.length ? ' : ' + k.errs.join(' | ') : ''));
+    await k.ctx.close();
+  }
+  const z = await page(b, { state: { ...PERSONAS.reprise, hybride: 'texte' }, url: '#/hybride-perso' });
+  await tap(z.p, '[data-a="hyb-app"][data-k="visage"][data-v="rond"]');
+  ok((await S(z.p)).hybride.apparence.visage === 'rond' && z.errs.length === 0, 'état hybride corrompu : réparé à la première action, sans erreur');
+  await z.ctx.close();
+  {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' }); const p = await ctx.newPage(); let n = 0;
+    await p.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ body: SB_NONE, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' } }));
+    await p.route('**/data/hybride.json', r => { n++; r.fulfill({ status: 404, body: '' }); });
+    await p.addInitScript((s) => localStorage.setItem('cxs.v1', s), JSON.stringify({ synced: false, plan: null, ...PERSONAS.reprise }));
+    await p.goto(BASE + 'index.html#/hybride'); await p.waitForTimeout(2500);
+    ok(n <= 2 && /Données indisponibles/.test(await p.textContent('#app')) && (await p.locator('[data-a="hyb-reessayer"]').count()) === 1, 'données en 404 : ' + n + ' requête(s), message et bouton « Réessayer »');
+    await ctx.close();
+  }
 
   console.log('\nEssai terminé sans abonnement');
   const x = await page(b, { state: PERSONAS.expire });

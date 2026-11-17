@@ -92,5 +92,6 @@ Reprise : session 3 = écrans, prototype du personnage (R6), appel de `hybride-x
 ## Hybride · Session 3 — Interface et finition (17/11/2026, branche `claude/hybride-s3-interface`, contient les sessions 1 et 2)
 
 Fait : `js/personnage.js` (2 styles, prototype publié pour Thomas) ; réponses R6 (C58) ; `js/views/hybride.js` (écran principal, personnage, vue coach, carte d'accueil) ; `js/cloud.js` (bloc, apparence, calcul, consentement, lecture coach) ; radar dans `js/hybride-quetes.js` ; échauffement dans la génération ; service worker `cxs-v111` avec les 6 nouveaux fichiers ; `tests/hybride-e2e.js` et `tests/personnage.test.mjs` ; CI.
-Testé : node (hybride 18, quêtes 24, génération 7, serveur 7, personnage 4) ; `tests/hybride-e2e.js` 84 contrôles (iPhone 390×844 et Android 360×740, clair et sombre, mouvement réduit, zéro erreur, zéro débordement) ; `tests/parcours-e2e.js` 440 contrôles (aucune régression) ; `tests/sw.test.mjs`. Pas de test sur un vrai téléphone.
+Relecture indépendante intégrée (2 bloquants : boucle de requêtes si les données manquent, écran figé si le bloc est corrompu ; 5 à corriger).
+Testé : node (65 : hybride, quêtes, génération, serveur, personnage, service worker) ; `tests/hybride-e2e.js` 94 contrôles (iPhone 390×844 et Android 360×740, clair et sombre, mouvement réduit, zéro erreur, zéro débordement) ; `tests/parcours-e2e.js` 440 contrôles (aucune régression) ; `tests/sw.test.mjs`. Pas de test sur un vrai téléphone.
 En attente : « go » de Thomas pour fusionner les 3 PR dans `main` (mise en ligne GitHub Pages).

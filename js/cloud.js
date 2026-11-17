@@ -350,7 +350,7 @@ export async function hybConsentement() { const { data } = await sb.from("cxs_hy
 export async function hybPourCoach(memberId) {
   const [b, x, q] = await Promise.all([
     sb.from("cxs_hyb_bloc").select("macro_id, debut, nb_seances, updated_at").eq("user_id", memberId).maybeSingle(),
-    sb.from("cxs_hyb_xp").select("xp, cree_le").eq("user_id", memberId).order("cree_le", { ascending: false }).limit(1000),
+    (async () => { const out = []; for (let de = 0; de < 20000; de += 1000) { const r = await sb.from("cxs_hyb_xp").select("xp, cree_le").eq("user_id", memberId).order("cree_le", { ascending: false }).range(de, de + 999); if (r.error) return r; out.push(...(r.data || [])); if ((r.data || []).length < 1000) break; } return { data: out }; })(),
     sb.from("cxs_hyb_quetes").select("quete_id, periode, reussie_le").eq("user_id", memberId).order("reussie_le", { ascending: false }).limit(20),
   ]);
   return { bloc: b.data || null, xp: (x.data || []).reduce((t, e) => t + (e.xp || 0), 0), dernier: x.data?.[0]?.cree_le || null, quetes: q.data || [], vide: !b.data && !(x.data || []).length };
