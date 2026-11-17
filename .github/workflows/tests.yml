@@ -47,6 +47,13 @@ jobs:
         run: node --test tests/crise.test.mjs
       - name: Tester le genre choisi et les paliers adaptés au profil
         run: node --test tests/genre.test.mjs
+      - name: Tester le moteur « athlète hybride » (blocs, volume, gabarits, zones, forme du jour)
+        run: node --test tests/hybride.test.mjs
+      - name: Tester les règles d'accès SQL du module hybride (Postgres local, aucune connexion à la production)
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres psql -qc "create role $USER superuser login"
+          PGHOST=/var/run/postgresql PGDATABASE=postgres tests/sql/run-hybride.sh
       - name: Tester la liste hors ligne du service worker (modules réellement chargés)
         run: node --test tests/sw.test.mjs
       - name: Vérifier que la messagerie n'écrit plus dans l'ancienne table

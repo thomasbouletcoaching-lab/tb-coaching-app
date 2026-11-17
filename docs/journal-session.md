@@ -71,3 +71,12 @@ Branche de travail : `claude/modest-rubin-9ywahk` (tout y est, dans l'ordre). Un
 - Lot 0.2 : rapatrier dans le dépôt le code des 9 fonctions serveur et un instantané du schéma (lecture seule en production).
 - Puis préparer la phase 1 (sécurité) en fichiers SQL à relire, sans rien appliquer.
 
+
+## Hybride · Session 1 — Fondations (17/11/2026, branche `claude/hybride-s1-fondations`)
+
+Fait : lecture ciblée (ARCHITECTURE, DECISIONS, quests.js, volume.js, recuperation.js, generateur.js, atelier.js, exercices.json ; schéma de production en lecture seule : `gx_*`, `cxs_profiles`, politiques) ; page Notion lue par le connecteur ; `docs/plan-hybride.md` ; `data/hybride.json` ; `js/hybride.js` + `tests/hybride.test.mjs` (16 tests) ; migration `2026-11-17_cxs_hybride.sql`, retour arrière, `tests/sql/` (63 contrôles, deux sens) ; étapes CI ; dossier R1 `docs/r1-hybride-migration.md` ; `docs/reste-a-faire.md` ; décision C55.
+Relecture indépendante intégrée (1 bloquant : le script SQL masquait les échecs ; 9 à corriger ; 5 remarques, dont 3 traitées).
+Testé : `node --test tests/hybride.test.mjs` (17/17) ; tests existants volume, générateur, récupération, exercices (verts) ; `tests/sql/run-hybride.sh` sur Postgres 16 local (aller, rejouer, accès, retour, aller).
+Réponses de Thomas : C56. « Go » R1 reçu : migration appliquée en production le 17/11 à 19 h 31 et droits vérifiés (voir `docs/r1-hybride-migration.md`). Premier essai interrompu sans effet (confirmation Supabase restée sans réponse).
+Reprise : session 2 = catalogue de quêtes, moteur XP / séries / rangs, branchement aux logs, génération du méso. Le moteur XP doit produire des clés déterministes (`seance:<date>:<id>`) pour `cxs_hyb_xp`.
+Piège : `service_role` n'a pas accès à `auth.users` dans le socle de test (comme en production) : passer par `cxs_profiles`.
