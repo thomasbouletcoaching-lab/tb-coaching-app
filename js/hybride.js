@@ -39,7 +39,8 @@ export function statutsQualites(D, macroId) {
 // Les 12 semaines d'un macrocycle à partir d'un lundi
 export function calendrier(D, { debut, macroId }) {
   const m = macro(D, macroId); if (!m) throw new Error(`Macrocycle inconnu : ${macroId}`);
-  const lundi = lundiDe(debut);
+  // Un bloc commence toujours un lundi : si la date choisie n'en est pas un, on prend le lundi suivant
+  const lundi = dowDe(debut) === 0 ? debut : addJours(lundiDe(debut), 7);
   return Array.from({ length: 12 }, (_, i) => {
     const n = i + 1, meso = Math.floor(i / 4) + 1, sem = (i % 4) + 1;
     const p = D.progression.find(x => x.semaine === sem);
@@ -55,10 +56,19 @@ export function position(cal, iso) {
 }
 
 // ---------- 2. Cibles de volume ----------
-// Groupes en développement : ceux dont la qualité est en développement, ou la liste prioritaire du bloc si elle est donnée
-export function statutGroupes(D, { macroId, prioritaires = null }) {
-  const st = statutsQualites(D, macroId);
-  return Object.fromEntries(D.groupes.map(g => [g.id, (prioritaires ? prioritaires.includes(g.id) : st[g.qualite] === "dev") ? "dev" : "maintien"]));
+// Groupes en développement : la liste prioritaire du bloc si elle est donnée (choix du coach), sinon les groupes
+// dont la qualité est en développement, dans l'ordre de priorité du macrocycle, limités à groupesDevMax.
+export function statutGroupes(D, { macroId, prioritaires = null, nbSeances = 6 }) {
+  let dev;
+  if (prioritaires) dev = new Set(prioritaires);
+  else {
+    const st = statutsQualites(D, macroId), ordre = macro(D, macroId).groupesDev || [];
+    const cands = D.groupes.filter(g => st[g.qualite] === "dev" && !g.sansAlerte).map(g => g.id);
+    const tries = [...ordre.filter(id => cands.includes(id)), ...cands.filter(id => !ordre.includes(id))];
+    const max = D.hypotheses.groupesDevMax?.[String(nbSeances)] ?? tries.length;
+    dev = new Set(tries.slice(0, max));
+  }
+  return Object.fromEntries(D.groupes.map(g => [g.id, dev.has(g.id) ? "dev" : "maintien"]));
 }
 
 // Cible d'un groupe pour une semaine du mésocycle (1 à 4) : { min, max, cible }
@@ -70,12 +80,13 @@ export function cibleGroupe(D, g, statut, semaine, { nbSeances = 6, depart = nul
   if (plaf != null) { hi = Math.min(hi, plaf); lo = Math.min(lo, hi); }
   if (depart != null && statut === "dev") lo = Math.min(Math.max(lo, depart), hi);
   const cible = statut === "dev" ? r05(lo + (hi - lo) * p.vol) : lo;
-  if (p.decharge) { const c = r05(cible * H.coefDecharge); return { min: c, max: c, cible: c, rir: p.rir, decharge: true }; }
+  // Décharge : pas de minimum, une petite marge au-dessus de la cible
+  if (p.decharge) { const c = r05(cible * H.coefDecharge); return { min: 0, max: c + (H.margeDecharge || 0), cible: c, rir: p.rir, decharge: true }; }
   return { min: lo, max: hi, cible, rir: p.rir, decharge: false };
 }
 
 export function cibles(D, { macroId, semaine, nbSeances = 6, prioritaires = null, departs = {} }) {
-  const st = statutGroupes(D, { macroId, prioritaires });
+  const st = statutGroupes(D, { macroId, prioritaires, nbSeances });
   return Object.fromEntries(D.groupes.map(g => [g.id, { statut: st[g.id], ...cibleGroupe(D, g, st[g.id], semaine, { nbSeances, depart: departs[g.id] ?? null }) }]));
 }
 
@@ -153,7 +164,7 @@ export function seriesParPattern(lignes) {
   return p;
 }
 
-const ratioAlerte = (a, b, max) => (a > 0 && (b === 0 || a / b > max));
+const ratioAlerte = (a, b, max, min = 0) => (a >= Math.max(min, 1e-9) && (b === 0 || a / b > max));
 
 export function alertes(D, { lignes, cibles: C, nbSeances = 6 }) {
   const H = D.hypotheses, out = [];
@@ -161,12 +172,12 @@ export function alertes(D, { lignes, cibles: C, nbSeances = 6 }) {
   const P = (c) => p[c] || 0;
   // Poussée / tirage, par plan
   [["PH", "TH", "horizontal"], ["PV", "TV", "vertical"]].forEach(([pou, tir, plan]) => {
-    if (ratioAlerte(P(pou), P(tir), H.ratioPousseeTirageMax)) out.push({ id: `poussee-${plan}`, niveau: "attention", texte: `Plus de poussée que de tirage sur le plan ${plan} (${P(pou)} séries contre ${P(tir)}).` });
+    if (ratioAlerte(P(pou), P(tir), H.ratioPousseeTirageMax, H.seriesMinAlerteRatio)) out.push({ id: `poussee-${plan}`, niveau: "attention", texte: `Plus de poussée que de tirage sur le plan ${plan} (${P(pou)} séries contre ${P(tir)}).` });
   });
   // Genou / hanche
   const genou = P("SG") + P("SH") / 2, hanche = P("CH") + P("FG") + P("SH") / 2;
-  if (ratioAlerte(genou, hanche, H.ratioGenouHancheMax)) out.push({ id: "genou", niveau: "attention", texte: `Plus de travail dominante genou que dominante hanche (${genou} contre ${hanche}).` });
-  else if (ratioAlerte(hanche, genou, H.ratioGenouHancheMax)) out.push({ id: "hanche", niveau: "attention", texte: `Plus de travail dominante hanche que dominante genou (${hanche} contre ${genou}).` });
+  if (ratioAlerte(genou, hanche, H.ratioGenouHancheMax, H.seriesMinAlerteRatio)) out.push({ id: "genou", niveau: "attention", texte: `Plus de travail dominante genou que dominante hanche (${genou} contre ${hanche}).` });
+  else if (ratioAlerte(hanche, genou, H.ratioGenouHancheMax, H.seriesMinAlerteRatio)) out.push({ id: "hanche", niveau: "attention", texte: `Plus de travail dominante hanche que dominante genou (${hanche} contre ${genou}).` });
   // Muscle sous le maintien ou au-dessus du plafond
   if (C) D.groupes.forEach(g => {
     const c = C[g.id]; if (!c || g.sansAlerte) return;
@@ -246,7 +257,8 @@ export function formeDuJour(D, seance, feu) {
   if (feu === "vert") return { seance: s, retires: [], note: null };
   const retires = [];
   s.blocs = s.blocs.filter(b => { if (info[b.id]?.maxEffort) { retires.push(...(b.exercices || []).map(e => e.nom)); return false; } return true; });
-  const acc = s.blocs.flatMap(b => (b.exercices || []).filter(e => e.role !== "principal").map(e => ({ b, e })));
+  // Accessoires = exercices non principaux des blocs qui ne sont pas principaux (l'échauffement, la force, les skills et le cardio restent)
+  const acc = s.blocs.filter(b => !info[b.id]?.principal).flatMap(b => (b.exercices || []).filter(e => e.role !== "principal").map(e => ({ b, e })));
   const n = Math.round(acc.length * part);
   // On retire les derniers accessoires de la séance (ceux qu'on ferait en fin de séance)
   acc.slice(acc.length - n).forEach(({ b, e }) => { b.exercices = b.exercices.filter(x => x !== e); retires.push(e.nom); });

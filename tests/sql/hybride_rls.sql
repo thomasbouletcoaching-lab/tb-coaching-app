@@ -11,7 +11,7 @@ create or replace function tst.ok(c boolean, m text) returns void language plpgs
   $$ begin if c is not true then raise exception 'ÉCHEC : %', m; end if; raise notice 'OK  %', m; end $$;
 create or replace function tst.echoue(q text, m text) returns void language plpgsql as
   $$ begin execute q; raise exception 'ÉCHEC (aurait dû être refusé) : %', m;
-     exception when insufficient_privilege or check_violation or raise_exception or not_null_violation then
+     exception when insufficient_privilege or check_violation or raise_exception or not_null_violation or null_value_not_allowed then
        if sqlerrm like 'ÉCHEC%' then raise; end if; raise notice 'OK  refusé : % (%)', m, sqlerrm; end $$;
 create or replace function tst.n(q text) returns bigint language plpgsql as
   $$ declare r bigint; begin execute 'select count(*) from (' || q || ') x' into r; return r; end $$;
@@ -40,6 +40,9 @@ reset role;
 set role anon;
 select tst.echoue('select * from cxs_hyb_bloc', 'anon lit les blocs');
 select tst.echoue('select * from cxs_hyb_xp', 'anon lit l''XP');
+select tst.echoue('select * from cxs_hyb_personnage', 'anon lit les personnages');
+select tst.echoue('select * from cxs_hyb_quetes', 'anon lit les quêtes');
+select tst.echoue('select * from cxs_hyb_consentement', 'anon lit les consentements');
 select tst.echoue('select cxs_hyb_consentir(true)', 'anon donne un consentement');
 select tst.echoue('select cxs_hyb_effacer_mes_donnees()', 'anon efface');
 reset role;
@@ -62,6 +65,9 @@ select tst.echoue($q$ update cxs_hyb_bloc set nb_seances = 9 $q$, 'bloc à 9 sé
 update cxs_hyb_personnage set apparence = '{"tenue":"sport","coiffure":"courte"}';
 select tst.ok((select apparence->>'coiffure' from cxs_hyb_personnage) = 'courte', 'a1 change l''apparence de son personnage');
 select tst.echoue($q$ update cxs_hyb_personnage set debloques = '["cape-doree"]' $q$, 'a1 se débloque un objet lui-même');
+select tst.echoue($q$ insert into cxs_hyb_personnage (user_id, apparence, debloques) values ('00000000-0000-0000-0000-0000000000a1', '{}', '["cape-doree"]') on conflict (user_id) do update set debloques = excluded.debloques $q$, 'a1 se débloque un objet par un insert ou un upsert');
+delete from cxs_hyb_bloc where user_id = '00000000-0000-0000-0000-0000000000b1';
+select tst.ok(cxs_hyb_coach_peut_lire('00000000-0000-0000-0000-0000000000a1') = false, 'a1 n''a pas les droits du coach sur elle-même');
 select tst.echoue($q$ insert into cxs_hyb_xp (user_id, cle, source, xp) values ('00000000-0000-0000-0000-0000000000a1', 'triche', 'record', 500) $q$, 'a1 s''écrit de l''XP');
 select tst.echoue($q$ update cxs_hyb_xp set xp = 500 $q$, 'a1 modifie son XP');
 select tst.echoue($q$ delete from cxs_hyb_xp $q$, 'a1 supprime son XP en direct (passe par la fonction d''effacement)');
@@ -73,6 +79,10 @@ select tst.echoue($q$ select cxs_hyb_coache('00000000-0000-0000-0000-0000000000a
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b2', false);
 select cxs_hyb_consentir(true);
 select tst.ok(tst.n('select * from cxs_hyb_consentement') = 1, 'b2 donne son consentement et le lit');
+select tst.echoue('select cxs_hyb_consentir(null)', 'consentement sans réponse (null)');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', false);
+select tst.ok(tst.n('select * from cxs_hyb_consentement') = 0, 'b1 ne lit pas le consentement de b2');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b2', false);
 
 -- ---------- Coach ----------
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000c0ac', false);
@@ -86,8 +96,16 @@ select tst.ok(tst.n($q$ select * from cxs_hyb_quetes where user_id = '00000000-0
 select tst.ok(tst.n($q$ select * from cxs_hyb_personnage where user_id = '00000000-0000-0000-0000-0000000000b1' $q$) = 0, 'coach NE lit PAS le personnage sans consentement');
 select tst.echoue($q$ insert into cxs_hyb_xp (user_id, cle, source, xp) values ('00000000-0000-0000-0000-0000000000a1', 'cadeau', 'record', 100) $q$, 'le coach écrit de l''XP à la main');
 update cxs_hyb_bloc set nb_seances = 6 where user_id = '00000000-0000-0000-0000-0000000000a1';
+update cxs_hyb_personnage set apparence = '{"tenue":"imposee"}' where user_id = '00000000-0000-0000-0000-0000000000a1';
+delete from cxs_hyb_bloc where user_id = '00000000-0000-0000-0000-0000000000a2';
+select tst.echoue($q$ update cxs_hyb_quetes set reussie_le = now() $q$, 'le coach valide une quête à la main');
+select cxs_hyb_effacer_mes_donnees();
 reset role;
 select tst.ok((select nb_seances from cxs_hyb_bloc where user_id = '00000000-0000-0000-0000-0000000000a1') = 3, 'le coach ne modifie pas le bloc d''un client (lecture seule, 0 ligne)');
+select tst.ok((select apparence->>'tenue' from cxs_hyb_personnage where user_id = '00000000-0000-0000-0000-0000000000a1') = 'sport', 'le coach ne modifie pas le personnage d''un client');
+select tst.ok((select count(*) from cxs_hyb_bloc where user_id = '00000000-0000-0000-0000-0000000000a2') = 1, 'le coach ne supprime pas le bloc d''un client');
+select tst.ok((select count(*) from cxs_hyb_bloc where user_id = '00000000-0000-0000-0000-0000000000b1') = 1, 'a1 n''a pas supprimé le bloc de b1');
+select tst.ok((select count(*) from cxs_hyb_xp where user_id <> '00000000-0000-0000-0000-00000000c0ac') = 6, 'l''effacement lancé par le coach n''a touché que ses propres lignes');
 set role authenticated;
 
 -- ---------- Retrait du consentement : le coach ne voit plus rien ----------
@@ -110,5 +128,29 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3
 select cxs_hyb_effacer_mes_donnees();
 select tst.ok(tst.n('select * from cxs_hyb_bloc') + tst.n('select * from cxs_hyb_xp') + tst.n('select * from cxs_hyb_quetes') + tst.n('select * from cxs_hyb_personnage') = 0, 'a3 a effacé toutes ses données hybrides');
 reset role;
-select tst.ok((select count(*) from cxs_hyb_xp) = 6, 'l''effacement de a3 n''a touché personne d''autre');
+select tst.ok((select count(*) from cxs_hyb_xp) = 5, 'l''effacement de a3 n''a touché personne d''autre');
 select tst.ok((select count(*) from cxs_hyb_xp where user_id = '00000000-0000-0000-0000-0000000000a3') = 0, 'plus aucune XP pour a3');
+
+-- ---------- Changements de formule et horodatages ----------
+reset role;
+update cxs_profiles set tier = 'premium' where id = '00000000-0000-0000-0000-0000000000a2';
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000c0ac', false);
+select tst.ok(tst.n($q$ select * from cxs_hyb_xp where user_id = '00000000-0000-0000-0000-0000000000a2' $q$) = 0, 'client repassé en autonomie sans consentement : le coach ne lit plus');
+reset role;
+update cxs_profiles set tier = 'avance', tier_until = current_date - 1 where id = '00000000-0000-0000-0000-0000000000a2';
+set role authenticated;
+select tst.ok(tst.n($q$ select * from cxs_hyb_xp where user_id = '00000000-0000-0000-0000-0000000000a2' $q$) = 0, 'formule coachée échue : le coach ne lit plus');
+reset role;
+update cxs_profiles set tier_until = current_date + 30 where id = '00000000-0000-0000-0000-0000000000a2';
+set role authenticated;
+select tst.ok(tst.n($q$ select * from cxs_hyb_xp where user_id = '00000000-0000-0000-0000-0000000000a2' $q$) = 1, 'formule coachée en cours : le coach lit');
+reset role;
+insert into cxs_hyb_consentement (user_id, accorde_le, revoque_le) values ('00000000-0000-0000-0000-0000000000b1', '2026-12-01 10:00', '2026-12-01 10:00')
+  on conflict (user_id) do update set accorde_le = excluded.accorde_le, revoque_le = excluded.revoque_le;
+set role authenticated;
+select tst.ok(tst.n($q$ select * from cxs_hyb_bloc where user_id = '00000000-0000-0000-0000-0000000000b1' $q$) = 0, 'accord et retrait au même instant : consentement inactif');
+reset role;
+select tst.ok(not has_sequence_privilege('authenticated', 'public.cxs_hyb_xp_id_seq', 'USAGE') and not has_sequence_privilege('anon', 'public.cxs_hyb_xp_id_seq', 'USAGE'), 'séquence de l''XP fermée à anon et authenticated');
+select tst.ok(not has_function_privilege('anon', 'public.cxs_hyb_coach_peut_lire(uuid)', 'EXECUTE'), 'anon n''exécute pas cxs_hyb_coach_peut_lire');
+select tst.ok(not has_table_privilege('authenticated', 'public.cxs_hyb_bloc', 'TRUNCATE'), 'aucun TRUNCATE pour authenticated');

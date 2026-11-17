@@ -23,3 +23,8 @@ alter table public.cxs_profiles enable row level security;
 create or replace function public.cxs_is_coach() returns boolean language sql stable security definer set search_path = public as
   $$ select coalesce((select is_coach from public.cxs_profiles where id = auth.uid()), false) $$;
 grant select on public.cxs_profiles to authenticated, service_role;
+-- Droits par défaut de Supabase : tout nouvel objet de public est ouvert à anon et authenticated.
+-- La migration doit donc tout révoquer elle-même : on l'imite pour que les tests le prouvent.
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;

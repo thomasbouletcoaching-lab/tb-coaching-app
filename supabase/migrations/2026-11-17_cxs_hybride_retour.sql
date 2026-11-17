@@ -4,7 +4,9 @@
 -- (invisible pour l'app et pour l'API), les fonctions sont retirées.
 -- Pour revenir en avant : rejouer 2026-11-17_cxs_hybride.sql (crée des tables vides), puis
 -- recopier si besoin les lignes depuis archive_hybride.
--- Testé par tests/sql/hybride_rls.sql (aller, retour, aller).
+-- Testé par tests/sql/run-hybride.sh (aller, retour, aller).
+-- RGPD : après un retour arrière, cxs_hyb_effacer_mes_donnees() n'existe plus. Une demande d'effacement
+-- se traite alors à la main dans archive_hybride (la suppression d'un compte efface en cascade).
 -- =====================================================================
 begin;
 

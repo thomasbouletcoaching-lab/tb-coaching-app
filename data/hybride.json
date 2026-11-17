@@ -14,8 +14,14 @@
     "rirDecharge": 4,
     "plafondGrandGroupe": { "3": 8, "4": 10, "5": 12, "6": null },
     "_plafondGrandGroupe": "Séries par semaine au maximum pour un grand groupe en développement selon le nombre de séances. 3 séances ≈ 8 séries (§8). 4 et 5 : interpolation, pas dans le document. 6 : fourchette complète.",
-    "totalMaxSemaine": { "3": 50, "4": 65, "5": 85, "6": 110 },
-    "_totalMaxSemaine": "Alerte de volume total. 6 séances : 70 à 110 séries (§3). 3 à 5 : proportion du temps, pas dans le document.",
+    "totalMaxSemaine": { "3": 60, "4": 75, "5": 95, "6": 110 },
+    "_totalMaxSemaine": "Alerte de volume total (séries réelles, pas le volume pondéré). 6 séances : 70 à 110 séries (§3). 3 à 5 : environ 3 h pour 3 séances, pas dans le document.",
+    "groupesDevMax": { "3": 2, "4": 3, "5": 4, "6": 5 },
+    "_groupesDevMax": "Nombre de groupes musculaires en développement en même temps. Le document dit que tout développer ensemble n'est pas tenable (§3) sans donner de nombre : hypothèse.",
+    "seriesMinAlerteRatio": 4,
+    "_seriesMinAlerteRatio": "Pas d'alerte de déséquilibre tant que le côté le plus chargé a moins de 4 séries dans la semaine.",
+    "margeDecharge": 1,
+    "_margeDecharge": "En décharge, séries tolérées au-dessus de la cible avant l'alerte.",
     "margePlafond": 0,
     "_margePlafond": "Séries tolérées au-dessus du haut de fourchette avant l'alerte « au-dessus du plafond ».",
     "formeDuJour": { "vert": 0, "orange": 0.34, "rouge": 0.67 },
@@ -54,7 +60,7 @@
     { "id": "lomb", "nom": "Érecteurs et carré des lombes", "qualite": "hypertrophie", "maintien": [0, 2], "dev": [0, 3], "tags": ["Lombaires"], "sansAlerteBas": true },
     { "id": "psoas", "nom": "Psoas", "qualite": "hypertrophie", "maintien": [1, 1], "dev": [2, 4], "re": "relev[ée]s? de (jambes|genoux) suspendu" },
     { "id": "coiffe", "nom": "Coiffe des rotateurs", "qualite": "prevention", "maintien": [2, 2], "dev": [4, 6], "cats": ["coiffe"], "re": "rotation externe|coiffe" },
-    { "id": "cou", "nom": "Cou", "qualite": "prevention", "maintien": [2, 2], "dev": [3, 6], "tags": ["Cou"], "re": "du cou|nuque" }
+    { "id": "cou", "nom": "Cou", "qualite": "prevention", "maintien": [2, 2], "dev": [3, 6], "tags": ["Cou"], "re": "du cou(?!\\p{L})|nuque" }
   ],
 
   "_progression": "Mésocycle de 4 semaines (§3). vol : 0 = bas de fourchette (S1), 0,5 = milieu (S2), 1 = haut (S3). S4 : décharge, volume × coefDecharge, intensité conservée.",
@@ -65,12 +71,12 @@
     { "semaine": 4, "rir": 4, "vol": 1, "decharge": true, "nom": "Décharge ou tests" }
   ],
 
-  "_macros": "Plan annuel (§6) : 4 macrocycles de 12 semaines = 3 mésocycles de 4 semaines. 2 qualités en développement au maximum par bloc ; les autres en maintien.",
+  "_macros": "Plan annuel (§6) : 4 macrocycles de 12 semaines = 3 mésocycles de 4 semaines. 2 qualités en développement au maximum par bloc ; les autres en maintien. groupesDev : ordre de priorité des muscles quand l'hypertrophie est en développement (on en garde groupesDevMax selon le nombre de séances).",
   "macros": [
-    { "id": "M1", "nom": "Base", "dev": ["hypertrophie", "endurance"], "note": "Reprise de la course en zone 2 (tendons). Force jusqu'à 85 %, skills et haltérophilie en technique.", "tests": { "4": ["vma"], "12": ["vma", "5rm"] }, "repriseCourse": true },
+    { "id": "M1", "nom": "Base", "dev": ["hypertrophie", "endurance"], "groupesDev": ["quad", "dos", "pecs", "isch", "dlat", "fess", "hautdos"], "note": "Reprise de la course en zone 2 (tendons). Force jusqu'à 85 %, skills et haltérophilie en technique.", "tests": { "4": ["vma"], "12": ["vma", "5rm"] }, "repriseCourse": true },
     { "id": "M2", "nom": "Force", "dev": ["force", "skills"], "note": "SBD et street (muscle-up lesté, tractions, dips), squat en priorité. Hypertrophie à la moitié du volume.", "tests": { "4": ["vma"], "12": ["vma", "1rm"] } },
     { "id": "M3", "nom": "Athlète", "dev": ["vitesse", "puissance"], "note": "Vitesse, puissance, haltérophilie, VO2max. Force : 1 à 2 séries lourdes par mouvement. Hypertrophie au tiers du volume.", "tests": { "4": ["vma"], "12": ["100m", "400m", "5km", "sauts"] } },
-    { "id": "M4", "nom": "Hybride et skills", "dev": ["hypertrophie", "skills"], "note": "Hypertrophie 2 et skills (front lever, HSPU). Force et endurance en maintien.", "tests": { "4": ["vma"], "12": ["vma", "1rm", "100m", "400m", "5km"] } }
+    { "id": "M4", "nom": "Hybride et skills", "dev": ["hypertrophie", "skills"], "groupesDev": ["pecs", "dos", "dlat", "hautdos", "bic", "tri", "quad"], "note": "Hypertrophie 2 et skills (front lever, HSPU). Force et endurance en maintien.", "tests": { "4": ["vma"], "12": ["vma", "1rm", "100m", "400m", "5km"] } }
   ],
 
   "_zones": "Zones cardio en % de VMA (§4). Ne pas mélanger avec % FCmax. Z2 pilotée au cardio, Z4-Z5 à l'allure.",
@@ -142,7 +148,7 @@
         { "jour": 2, "nom": "Basse", "type": "basse", "blocs": ["echauffement", "cardio", "skills", "hypertrophie", "prevention"], "contenu": "Zone 2 course 30 min, handstand 10 min, abdos, cou, avant-bras", "cardio": { "zone": "Z2", "modalite": "course", "min": 30, "modaliteApresReprise": "velo" }, "min": 60 },
         { "jour": 3, "nom": "Haute · bas du corps", "type": "haute", "jambesLourdes": true, "blocs": ["echauffement", "halterophilie", "force", "hypertrophie", "prevention"], "contenu": "Arraché technique, soulevé de terre ou RDL, fente bulgare, nordic, adducteurs, farmer walk", "min": 90 },
         { "jour": 4, "nom": "Moyenne · haut du corps", "type": "moyenne", "blocs": ["echauffement", "force", "skills", "hypertrophie", "prevention"], "contenu": "Dips lestés, incliné haltères, front lever, tractions prise neutre, face pull, triceps, curl incliné", "min": 75 },
-        { "jour": 5, "nom": "Cardio et volume léger", "type": "basse", "blocs": ["echauffement", "cardio", "hypertrophie", "prevention"], "contenu": "Zone 2 vélo (reprise) puis intervalles 5 × 3 min, mollets assis, deltoïde latéral, curl marteau, suitcase carry", "cardio": { "zone": "Z2", "modalite": "velo", "min": 45, "apresReprise": "Z5" }, "min": 65 }
+        { "jour": 5, "nom": "Cardio et volume léger", "type": "basse", "blocs": ["echauffement", "cardio", "hypertrophie", "prevention"], "contenu": "Zone 2 vélo (reprise) puis intervalles 5 × 3 min, mollets assis, deltoïde latéral, curl marteau, suitcase carry", "cardio": { "zone": "Z2", "modalite": "velo", "min": 45, "apresReprise": "Z5", "modaliteApresReprise": "course" }, "min": 65 }
       ]
     }
   },

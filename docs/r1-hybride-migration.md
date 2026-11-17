@@ -7,24 +7,24 @@
 
 ## Ce qu'il change
 - Crée 5 tables nouvelles : `cxs_hyb_bloc`, `cxs_hyb_personnage`, `cxs_hyb_quetes`, `cxs_hyb_xp`, `cxs_hyb_consentement`.
-- Crée 5 fonctions : `cxs_hyb_coache`, `cxs_hyb_coach_peut_lire`, `cxs_hyb_consentir`, `cxs_hyb_effacer_mes_donnees` (et aucune modification des fonctions existantes).
+- Crée 4 fonctions : `cxs_hyb_coache`, `cxs_hyb_coach_peut_lire`, `cxs_hyb_consentir`, `cxs_hyb_effacer_mes_donnees` (aucune fonction existante n'est modifiée).
 - **Ne modifie aucune table ni aucune fonction existante.** Ne lit ni ne modifie aucune ligne de client.
 - Vérifié en lecture seule le 17/11/2026 : aucun objet de ce nom n'existe déjà en production.
 
 ## Règles d'accès (en une phrase chacune)
 - Un membre ne voit que ses propres lignes.
-- Le coach voit un client coaché ; un abonné en autonomie seulement s'il a donné son accord (séparé, révocable à tout moment).
+- Le coach voit un client coaché (formule non échue) ; un abonné en autonomie seulement s'il a donné son accord (séparé, révocable à tout moment).
 - Le téléphone ne peut jamais écrire d'XP, de quête réussie ni d'objet débloqué : seul le serveur le peut.
 - Un membre peut tout effacer d'un geste.
 
 ## Test sur branche
-Pas de branche Supabase payante : la migration est testée sur un Postgres local qui imite Supabase (`tests/sql/run-hybride.sh`), aussi lancé par la CI sur chaque PR. Résultat le 17/11/2026 : 44 contrôles passés (16 refus attendus, 28 accès ou cloisonnements attendus), migration rejouée deux fois sans erreur, retour arrière puis réapplication réussis. Limite : Postgres 16 en local, 17 en production (aucune fonction propre à une version n'est utilisée).
+Pas de branche Supabase payante : la migration est testée sur un Postgres local qui imite Supabase (`tests/sql/run-hybride.sh`), aussi lancé par la CI sur chaque PR. Résultat le 17/11/2026 : 63 contrôles passés (22 refus attendus, 41 accès ou cloisonnements attendus), avec les droits par défaut de Supabase imités, migration rejouée deux fois sans erreur, retour arrière puis réapplication réussis. Limite : Postgres 16 en local, 17 en production (aucune fonction propre à une version n'est utilisée).
 
 ## Sauvegarde
 La migration ne touche que des objets nouveaux. Avant application : (1) je relance en lecture seule la vérification « aucun objet `cxs_hyb_*` » ; (2) je note l'heure de la dernière sauvegarde quotidienne du plan Pro (Supabase › Database › Backups) ; (3) j'exporte la liste des politiques et fonctions existantes dans `docs/migration-sql/` pour comparaison après coup.
 
 ## Retour arrière (testé)
-`supabase/migrations/2026-11-17_cxs_hybride_retour.sql` : retire les fonctions et les politiques, déplace les 5 tables dans un schéma `archive_hybride` invisible de l'app. **Aucune donnée supprimée.**
+`supabase/migrations/2026-11-17_cxs_hybride_retour.sql` : retire les fonctions et les politiques, déplace les 5 tables dans un schéma `archive_hybride` invisible de l'app. **Aucune donnée supprimée.** Après un retour arrière, une demande d'effacement RGPD se traite à la main dans `archive_hybride`.
 
 ## Impact clients
 Aucun tant que l'app n'utilise pas ces tables (session 3). Les 16 comptes actuels sont en formule « surmesure » ou « invité » : tous comptent comme coachés, le coach les voit comme aujourd'hui.

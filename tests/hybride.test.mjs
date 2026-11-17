@@ -25,14 +25,16 @@ test("données : 7 qualités, hypothèses en tête, groupes complets", () => {
 test("calendrier : 12 semaines, 3 mésos, S4 décharge, tests VMA en S4 et S12", () => {
   const c = H.calendrier(D, { debut: "2026-12-02", macroId: "M1" });
   assert.equal(c.length, 12);
-  assert.equal(c[0].du, "2026-11-30"); // ramené au lundi
+  assert.equal(c[0].du, "2026-12-07"); // un mercredi : on commence le lundi suivant
+  assert.equal(H.calendrier(D, { debut: "2026-12-07", macroId: "M1" })[0].du, "2026-12-07");
+  assert.equal(H.calendrier(D, { debut: "2026-12-06", macroId: "M1" })[0].du, "2026-12-07", "un dimanche : pas de semaine 1 réduite à un jour");
   assert.deepEqual(c.map(s => s.meso), [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]);
   assert.deepEqual(c.map(s => s.rir), [3, 2, 1, 4, 3, 2, 1, 4, 3, 2, 1, 4]);
   assert.deepEqual(c.filter(s => s.decharge).map(s => s.n), [4, 8, 12]);
   assert.ok(c[3].tests.includes("vma") && c[11].tests.includes("vma"));
-  assert.equal(H.position(c, "2026-11-29"), null);
-  assert.equal(H.position(c, "2026-12-09").n, 2);
-  assert.equal(H.position(c, "2026-12-09").jour, 2);
+  assert.equal(H.position(c, "2026-12-06"), null);
+  assert.equal(H.position(c, "2026-12-16").n, 2);
+  assert.equal(H.position(c, "2026-12-16").jour, 2);
   assert.deepEqual(H.position(c, "2027-03-01"), { fini: true });
   assert.throws(() => H.calendrier(D, { debut: "2026-12-01", macroId: "M9" }));
 });
@@ -43,6 +45,11 @@ test("statuts : 2 qualités en développement au maximum, les autres en maintien
   assert.equal(s.force, "dev"); assert.equal(s.hypertrophie, "maintien");
   const gr = H.statutGroupes(D, { macroId: "M1" });
   assert.equal(gr.quad, "dev"); assert.equal(gr.coiffe, "maintien");
+  assert.equal(Object.values(gr).filter(x => x === "dev").length, D.hypotheses.groupesDevMax["6"]);
+  const g3 = H.statutGroupes(D, { macroId: "M1", nbSeances: 3 });
+  assert.deepEqual(Object.keys(g3).filter(k => g3[k] === "dev"), ["quad", "dos"]);
+  const m2 = H.statutGroupes(D, { macroId: "M2" });
+  assert.equal(Object.values(m2).filter(x => x === "dev").length, 0, "bloc force : l'hypertrophie est en maintien");
   const pr = H.statutGroupes(D, { macroId: "M1", prioritaires: ["quad", "dos"] });
   assert.equal(pr.quad, "dev"); assert.equal(pr.pecs, "maintien");
 });
@@ -54,6 +61,7 @@ test("progression du méso : S1 bas, S2 milieu, S3 haut, S4 volume ÷ 2", () => 
   assert.equal(H.cibleGroupe(D, q, "dev", 3).cible, 14);
   const s4 = H.cibleGroupe(D, q, "dev", 4);
   assert.equal(s4.cible, 7); assert.ok(s4.decharge); assert.equal(s4.rir, 4);
+  assert.equal(s4.min, 0); assert.equal(s4.max, 7 + D.hypotheses.margeDecharge);
   assert.equal(H.cibleGroupe(D, q, "maintien", 3).cible, 4);
   assert.equal(H.cibleGroupe(D, q, "maintien", 4).cible, 2);
   assert.throws(() => H.cibleGroupe(D, q, "dev", 5));
@@ -86,7 +94,17 @@ test("volume pondéré : 1 principal, 0,5 synergistes, groupes « directs »", (
   assert.equal(v.dant, 0);
 });
 
-test("petits muscles reconnus : tibial, coiffe, psoas, cou", () => {
+test("cibles tenables : la somme des cibles en S3 ne dépasse pas le plafond total", () => {
+  for (const m of D.macros) for (const n of [3, 4, 5, 6]) {
+    const c = H.cibles(D, { macroId: m.id, semaine: 3, nbSeances: n });
+    const somme = Object.values(c).reduce((t, x) => t + x.cible, 0);
+    assert.ok(somme <= D.hypotheses.totalMaxSemaine[String(n)], `${m.id}, ${n} séances : ${somme} > ${D.hypotheses.totalMaxSemaine[String(n)]}`);
+  }
+});
+
+test("petits muscles reconnus : tibial, coiffe, psoas, cou (et pas le coude)", () => {
+  assert.equal(H.poidsExercice(D, { nom: "Extension du coude à la poulie", muscles: ["Triceps"] }).cou, undefined);
+  assert.equal(H.poidsExercice(D, { nom: "Extension du cou", muscles: [] }).cou, 1);
   assert.equal(H.poidsExercice(D, ex("tibial-raise-releveurs")).tib, 1);
   assert.equal(H.poidsExercice(D, ex("tibial-raise-releveurs")).mol, 0.5);
   assert.equal(H.poidsExercice(D, ex("rotation-externe-elastique")).coiffe, 1);
@@ -107,7 +125,7 @@ test("lignes depuis les séances terminées : échauffements et séries non fait
 
 test("alertes : poussée / tirage, genou / hanche, sous le maintien, plafond, total", () => {
   const C = H.cibles(D, { macroId: "M1", semaine: 3 });
-  const L = [{ ex: ex("developpe-couche-barre"), series: 16 }, { ex: ex("rowing-barre-prise-snatch"), series: 4 }, { ex: ex("pompes-en-equilibre-handstand-push-up"), series: 3 }];
+  const L = [{ ex: ex("developpe-couche-barre"), series: 16 }, { ex: ex("rowing-barre-prise-snatch"), series: 4 }, { ex: ex("pompes-en-equilibre-handstand-push-up"), series: 4 }];
   const a = H.alertes(D, { lignes: L, cibles: C });
   const ids = a.map(x => x.id);
   assert.ok(ids.includes("poussee-horizontal"));
@@ -119,7 +137,11 @@ test("alertes : poussée / tirage, genou / hanche, sous le maintien, plafond, to
   assert.ok(genou.some(x => x.id === "genou"));
   const eq = H.alertes(D, { lignes: [{ ex: ex("developpe-couche-barre"), series: 6 }, { ex: ex("rowing-barre-prise-snatch"), series: 6 }] });
   assert.ok(!eq.some(x => x.id.startsWith("poussee")));
-  const tot = H.alertes(D, { lignes: [{ ex: { nom: "x" }, series: 60 }], nbSeances: 3 });
+  const peu = H.alertes(D, { lignes: [{ ex: ex("pompes-en-equilibre-handstand-push-up"), series: 3 }] });
+  assert.ok(!peu.some(x => x.id.startsWith("poussee")), "moins de 4 séries : pas d'alerte de déséquilibre");
+  const dech = H.alertes(D, { lignes: [{ ex: { nom: "Squat", muscles: ["Quadriceps"] }, series: 3 }], cibles: H.cibles(D, { macroId: "M2", semaine: 4 }) });
+  assert.ok(!dech.some(x => x.groupe === "quad"), "décharge : une série de plus ne déclenche rien");
+  const tot = H.alertes(D, { lignes: [{ ex: { nom: "x" }, series: 61 }], nbSeances: 3 });
   assert.ok(tot.some(x => x.id === "total"));
 });
 
@@ -181,6 +203,14 @@ test("forme du jour : on retire des accessoires, on garde les principaux, pas de
   assert.equal(r.seance.blocs.find(b => b.id === "hypertrophie").exercices.length, 1);
   assert.equal(seance.blocs.length, 4, "l'original n'est pas modifié");
   assert.throws(() => H.formeDuJour(D, seance, "bleu"));
+  const nonMarque = { blocs: [
+    { id: "echauffement", exercices: [{ nom: "Mobilité" }] },
+    { id: "cardio", exercices: [{ nom: "Vélo Z2 30 min" }] },
+    { id: "prevention", exercices: [{ nom: "Coiffe" }, { nom: "Cou" }, { nom: "Tibial" }] },
+  ] };
+  const r2 = H.formeDuJour(D, nonMarque, "rouge").seance.blocs.flatMap(b => b.exercices.map(e => e.nom));
+  assert.ok(r2.includes("Mobilité") && r2.includes("Vélo Z2 30 min"), "échauffement et cardio gardés même sans marque");
+  assert.equal(r2.length, 3);
 });
 
 test("programme en cours : jamais remplacé sans accord, l'ancien est gardé en copie", () => {

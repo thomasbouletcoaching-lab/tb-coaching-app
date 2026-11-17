@@ -9,12 +9,13 @@
 --     cxs_hyb_quetes        progression des quêtes : écrite par le serveur seulement
 --     cxs_hyb_xp            événements d'XP, une clé unique par événement (idempotent) : serveur seulement
 --     cxs_hyb_consentement  consentement d'un abonné en autonomie au suivi par le coach : séparé, révocable
---   Et 3 fonctions : cxs_hyb_coache(uid), cxs_hyb_coach_peut_lire(uid), cxs_hyb_consentir(bool),
+--   Et 4 fonctions : cxs_hyb_coache(uid), cxs_hyb_coach_peut_lire(uid), cxs_hyb_consentir(bool),
 --   cxs_hyb_effacer_mes_donnees().
 --
 -- RÈGLES D'ACCÈS (testées par tests/sql/hybride_rls.sql)
 --   · Un membre ne lit que ses lignes.
---   · Le coach lit un client coaché (formule essentiel, suivi, avance, surmesure ou invité).
+--   · Le coach lit un client coaché (formule essentiel, suivi, avance, surmesure ou invité,
+--     non échue : tier_until vide ou à venir).
 --   · Le coach lit un abonné en autonomie seulement si son consentement est actif.
 --   · Personne d'autre ne lit rien (anon : aucun droit).
 --   · XP, quêtes et objets débloqués : jamais écrits par le téléphone (aucun droit d'écriture
@@ -35,9 +36,10 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   select coalesce((select p.tier in ('essentiel', 'suivi', 'avance', 'surmesure', 'invite')
+                       and (p.tier_until is null or p.tier_until >= current_date)
                    from public.cxs_profiles p where p.id = p_uid), false)
 $$;
 
@@ -56,7 +58,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   select public.cxs_is_coach()
      and (public.cxs_hyb_coache(p_uid)
@@ -70,17 +72,18 @@ create or replace function public.cxs_hyb_consentir(p_accord boolean)
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare uid uuid := auth.uid();
 begin
   if uid is null then raise exception 'Connexion requise' using errcode = '42501'; end if;
+  if p_accord is null then raise exception 'Réponse attendue : oui ou non' using errcode = '22004'; end if;
   insert into public.cxs_hyb_consentement (user_id, accorde_le, revoque_le)
   values (uid, case when p_accord then clock_timestamp() end, case when not p_accord then clock_timestamp() end)
   on conflict (user_id) do update
     set accorde_le = case when p_accord then clock_timestamp() else cxs_hyb_consentement.accorde_le end,
         revoque_le = case when not p_accord then clock_timestamp() else cxs_hyb_consentement.revoque_le end,
-        updated_at = now();
+        updated_at = clock_timestamp();
 end
 $$;
 
@@ -139,11 +142,12 @@ grant insert (user_id, macro_id, debut, nb_seances, data), update (macro_id, deb
 grant insert (user_id, apparence), update (apparence, updated_at) on public.cxs_hyb_personnage to authenticated;
 grant all on public.cxs_hyb_consentement, public.cxs_hyb_bloc, public.cxs_hyb_personnage,
              public.cxs_hyb_quetes, public.cxs_hyb_xp to service_role;
+revoke all on sequence public.cxs_hyb_xp_id_seq from anon, authenticated;
 
 -- ---------- Politiques ----------
 drop policy if exists "hyb consentement : soi ou coach lit" on public.cxs_hyb_consentement;
 create policy "hyb consentement : soi ou coach lit" on public.cxs_hyb_consentement
-  for select to authenticated using (user_id = (select auth.uid()) or public.cxs_is_coach());
+  for select to authenticated using (user_id = (select auth.uid()) or (select public.cxs_is_coach()));
 
 drop policy if exists "hyb bloc : lire" on public.cxs_hyb_bloc;
 create policy "hyb bloc : lire" on public.cxs_hyb_bloc
@@ -181,7 +185,7 @@ create or replace function public.cxs_hyb_effacer_mes_donnees()
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare uid uuid := auth.uid();
 begin
@@ -196,6 +200,7 @@ $$;
 
 -- ---------- Droits d'exécution des fonctions ----------
 revoke all on function public.cxs_hyb_coache(uuid) from public, anon, authenticated;
+grant execute on function public.cxs_hyb_coache(uuid) to service_role;
 revoke all on function public.cxs_hyb_coach_peut_lire(uuid) from public, anon;
 grant execute on function public.cxs_hyb_coach_peut_lire(uuid) to authenticated;
 revoke all on function public.cxs_hyb_consentir(boolean) from public, anon;

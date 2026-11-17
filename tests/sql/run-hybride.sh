@@ -11,14 +11,18 @@ $P -f tests/sql/supabase-minimal.sql
 $P -f supabase/migrations/2026-11-17_cxs_hybride.sql
 $P -f supabase/migrations/2026-11-17_cxs_hybride.sql          # rejouée : idempotente
 $P -f tests/sql/personas.sql
-PGOPTIONS="-c client_min_messages=notice" $P -f tests/sql/hybride_rls.sql -tA 2>&1 | sed 's/^psql:[^ ]* NOTICE:  //' | grep -E '^(OK|ÉCHEC)|ERROR' || true
-test "$($P -tAc "select 1")" = 1
+OUT=$(mktemp)
+if ! PGOPTIONS="-c client_min_messages=notice" $P -tA -f tests/sql/hybride_rls.sql >"$OUT" 2>&1; then
+  sed 's/^psql:[^ ]* NOTICE:  //' "$OUT" | grep -E '^(OK|ÉCHEC)|ERROR|ÉCHEC'; echo "ÉCHEC : un contrôle d'accès n'est pas passé"; exit 1
+fi
+sed 's/^psql:[^ ]* NOTICE:  //' "$OUT" | grep -E '^(OK|ÉCHEC)|ERROR'
+if grep -qE 'ÉCHEC|ERROR' "$OUT"; then echo "ÉCHEC : erreur dans les contrôles d'accès"; exit 1; fi
 echo "--- retour arrière"
 $P -f supabase/migrations/2026-11-17_cxs_hybride_retour.sql
 $P -tAc "select count(*) from information_schema.tables where table_schema='public' and table_name like 'cxs_hyb_%'" | grep -qx 0
 $P -tAc "select count(*) from information_schema.tables where table_schema='archive_hybride'" | grep -qx 5
 T=$($P -tAc "select tablename from pg_tables where schemaname='archive_hybride' and tablename like 'cxs_hyb_xp_%'")
-$P -tAc "select count(*) from archive_hybride.$T" | grep -qx 6
+$P -tAc "select count(*) from archive_hybride.$T" | grep -qx 5
 echo "OK  retour arrière : 5 tables archivées avec leurs lignes, rien de supprimé"
 $P -f supabase/migrations/2026-11-17_cxs_hybride.sql
 $P -tAc "select count(*) from information_schema.tables where table_schema='public' and table_name like 'cxs_hyb_%'" | grep -qx 5
