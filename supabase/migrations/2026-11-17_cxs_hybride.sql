@@ -1,6 +1,6 @@
 -- =====================================================================
 -- 2026-11-17 · Programme « athlète hybride », quêtes, personnage
--- NON APPLIQUÉE. Point d'arrêt R1 : à appliquer seulement après « go » de Thomas.
+-- APPLIQUÉE en production le 2026-11-17 à 19 h 31 (migration Supabase « cxs_hybride_20261117 »), après « go » de Thomas.
 --
 -- CE QUE ÇA CHANGE
 --   Crée 5 tables nouvelles (aucune table existante n'est modifiée) :

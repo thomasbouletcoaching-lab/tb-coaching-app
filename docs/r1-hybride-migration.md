@@ -1,6 +1,8 @@
 # Dossier R1 · Migration « hybride » (à valider par Thomas avant toute application)
 
-**Statut : non appliquée.** Rien n'a été écrit en production. J'attends « go ».
+**Statut : APPLIQUÉE le 17/11/2026 à 19 h 31** après « go » de Thomas (migration Supabase `cxs_hybride_20261117`).
+
+Vérifié juste après, en production (lecture des droits, aucune ligne de client lue) : RLS active sur les 5 tables ; anon ne lit rien ; authenticated n'a aucun droit d'écriture sur XP, quêtes et consentement, et seulement les colonnes prévues sur bloc et personnage ; pas de TRUNCATE ; séquence de l'XP fermée ; `cxs_hyb_coache` non exécutable par un membre. L'outil de conseils de sécurité Supabase signale les 3 fonctions appelables par un membre connecté (`cxs_hyb_coach_peut_lire`, `cxs_hyb_consentir`, `cxs_hyb_effacer_mes_donnees`) : c'est voulu, chacune n'agit que sur la personne connectée.
 
 ## Fichier exact
 `supabase/migrations/2026-11-17_cxs_hybride.sql`
