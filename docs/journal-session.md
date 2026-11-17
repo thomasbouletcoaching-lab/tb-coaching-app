@@ -84,6 +84,7 @@ Piège : `service_role` n'a pas accès à `auth.users` dans le socle de test (co
 ## Hybride · Session 2 — Quêtes et progression (17/11/2026, branche `claude/hybride-s2-quetes`, contient la session 1)
 
 Fait : catalogue de quêtes, XP, rangs, objets et paliers de skills dans `data/hybride.json` ; `js/hybride-quetes.js` (journal dérivé des logs, quêtes, XP idempotente, série tolérante, rangs, objets) ; `js/hybride-generation.js` (semaine concrète via le générateur existant) ; `js/hybride-serveur.js` + fonction `supabase/functions/hybride-xp` (copies synchronisées par `tools/sync-fonction-hybride.sh`) ; instantané : `hybride` (tests et pauses) ; CI ; décision C57.
-Testé : `node --test` sur hybride (18), hybride-quetes (13), hybride-generation (6), hybride-serveur (6) ; syntaxe de l'app et de la fonction (esbuild). Deno indisponible ici : la fonction n'a pas été exécutée.
+Relecture indépendante intégrée (5 bloquants sur l'XP gonflable et la série, 9 à corriger : tous traités et couverts par des tests).
+Testé : `node --test` sur hybride (18), hybride-quetes (22), hybride-generation (7), hybride-serveur (8) ; syntaxe de l'app et de la fonction (esbuild). Deno indisponible ici : la fonction n'a pas été exécutée.
 En attente : « go » R1 pour déployer la fonction `hybride-xp` (écriture en production).
 Reprise : session 3 = écrans, prototype du personnage (R6), appel de `hybride-xp` après chaque séance synchronisée, Playwright, service worker.

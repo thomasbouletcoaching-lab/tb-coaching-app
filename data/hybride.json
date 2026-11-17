@@ -1,5 +1,5 @@
 {
- "v": 1,
+ "v": 2,
  "source": "Page Notion « Programme Athlète Hybride — Thomas Boulet » (version du 17/11/2026), sections 2 à 9. Aucune donnée personnelle (records, poids, situation) n'est copiée ici : ce dépôt est public.",
  "hypotheses": {
   "_note": "Choix de conception à ajuster avec de vraies données clients. Ce ne sont pas des valeurs scientifiques. Chaque clé est lue par js/hybride.js.",
@@ -63,7 +63,21 @@
    "cardio",
    "mobilite"
   ],
-  "_categoriesSansVolume": "Ne comptent pas dans le volume musculaire : sauts, haltérophilie, sprints, cardio et mobilité ne sont pas des séries menées près de l'échec (§3, séries effectives)."
+  "_categoriesSansVolume": "Ne comptent pas dans le volume musculaire : sauts, haltérophilie, sprints, cardio et mobilité ne sont pas des séries menées près de l'échec (§3, séries effectives).",
+  "seancesXpParJour": 2,
+  "_seancesXpParJour": "Au plus 2 séances par jour rapportent de l'XP (matin et soir) : au-delà, ce serait récompenser le volume.",
+  "pausesParSemaine": 1,
+  "_pausesParSemaine": "Pauses « imprévu ou mauvaise nuit » prises en compte par semaine. Au-delà, le jour reste prévu (le jour de grâce peut encore le couvrir).",
+  "fenetreBloc": 28,
+  "_fenetreBloc": "Une quête de bloc (mésocycle terminé, décharge) au plus par fenêtre fixe de 28 jours, et un boss par fenêtre de 84 jours, même si le bloc est modifié.",
+  "fenetreTest": 28,
+  "_fenetreTest": "Un même test (VMA, 1RM…) rapporte de l'XP au plus une fois par fenêtre fixe de 28 jours.",
+  "zonesSansSprint": [
+   "genou",
+   "cheville",
+   "hanche"
+  ],
+  "_zonesSansSprint": "Gênes déclarées qui retirent les sprints et font passer la course à vélo dans la génération."
  },
  "qualites": [
   {

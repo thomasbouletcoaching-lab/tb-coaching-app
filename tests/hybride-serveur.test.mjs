@@ -52,3 +52,14 @@ test("copies de la fonction serveur identiques aux modules de l'app", () => {
     assert.equal(readFileSync(new URL(`../supabase/functions/hybride-xp/${f}`, import.meta.url), "utf8"), readFileSync(new URL(`../js/${f}`, import.meta.url), "utf8"), `${f} : lancer tools/sync-fonction-hybride.sh`);
   }
 });
+
+test("objets : débloqués sur l'XP totale en base (pas seulement l'instantané), jamais retirés", () => {
+  const r = S.aEcrire(D, { data, blocLigne: ligne, debloquesAvant: ["cape"] }, exDe, "2026-12-08");
+  const o = S.objetsApres(D, r, 4500, ["cape"]);
+  assert.ok(o.includes("tenue-diamant")); assert.ok(o.includes("cape"));
+  assert.ok(!S.objetsApres(D, r, 0, []).includes("tenue-or"));
+});
+
+test("données embarquées dans la fonction identiques à data/", () => {
+  for (const f of ["hybride.json", "exercices.json"]) assert.equal(readFileSync(new URL(`../supabase/functions/hybride-xp/${f}`, import.meta.url), "utf8"), readFileSync(new URL(`../data/${f}`, import.meta.url), "utf8"), f);
+});

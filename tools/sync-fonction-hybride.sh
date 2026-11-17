@@ -3,4 +3,5 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 for f in hybride.js hybride-quetes.js hybride-serveur.js; do cp "js/$f" "supabase/functions/hybride-xp/$f"; done
+for f in hybride.json exercices.json; do cp "data/$f" "supabase/functions/hybride-xp/$f"; done
 echo "Copies à jour dans supabase/functions/hybride-xp/"

@@ -46,7 +46,7 @@ test("XP : séance, technique, forme ; jamais pour une séance faite malgré une
   const ev = Q.evenements(D, j, "2026-12-13");
   const seances = ev.filter(e => e.source === "regularite").map(e => e.d);
   assert.deepEqual(seances, ["2026-12-07"]);
-  assert.ok(ev.some(e => e.cle === "complete:2026-12-07:2026-12-07"));
+  assert.ok(ev.some(e => e.cle === "complete:2026-12-07"));
   assert.ok(!ev.some(e => e.d === "2026-12-09" && e.source !== "recuperation"));
   assert.ok(ev.some(e => e.cle === "forme:2026-12-11"), "noter sa forme rapporte, même un jour de fatigue");
   assert.ok(ev.every(e => e.xp > 0 && ["regularite", "technique", "recuperation", "decharge", "test", "record", "quete"].includes(e.source)));
@@ -160,4 +160,81 @@ test("bilan : XP totale = somme des événements, le tout sans erreur sur un jou
   const b = Q.bilan(D, J([complete("2026-12-07")]), "2026-12-07");
   assert.equal(b.xp, b.evenements.reduce((t, e) => t + e.xp, 0));
   assert.ok(b.quetes.some(q => q.id === "seance-du-jour" && q.reussie));
+});
+
+// ---------- Corrections de la relecture indépendante (session 2) ----------
+const xpTotal = (j, auj) => Q.evenements(D, j, auj).reduce((t, e) => t + e.xp, 0);
+const cles = (j, auj) => new Set(Q.evenements(D, j, auj).map(e => e.cle));
+const mois = () => { const w = []; for (let k = 0; k < 12; k++) for (const j of [0, 2, 4]) { const d = new Date(Date.UTC(2026, 11, 7 + k * 7 + j)).toISOString().slice(0, 10); w.push(complete(d, { suffixe: d })); } return w; };
+const avecBloc = (w, bloc, o = {}) => Q.journalDepuisEtat(D, { workouts: w, daily: o.daily || {}, hybride: { bloc, tests: o.tests || [], pauses: o.pauses || {} } }, exDe);
+
+test("changer de bloc ne redonne pas l'XP des quêtes de bloc (fenêtres fixes)", () => {
+  const w = mois(), auj = "2027-03-08";
+  const a = cles(avecBloc(w, BLOC), auj);
+  for (const b of [{ ...BLOC, debut: "2026-12-14" }, { ...BLOC, macroId: "M2" }, { ...BLOC, debut: "2026-12-21", macroId: "M3" }]) {
+    const nouvelles = [...cles(avecBloc(w, b), auj)].filter(k => !a.has(k) && /meso-termine|decharge|boss/.test(k));
+    assert.ok(nouvelles.length <= 1, `${JSON.stringify(b)} : ${nouvelles.join(", ")}`);
+  }
+});
+
+test("plusieurs séances le même jour : au plus 2 rapportent, et l'ordre ou les identifiants n'y changent rien", () => {
+  const cinq = Array.from({ length: 5 }, (_, i) => complete("2026-12-07", { id: "x" + i, end: `2026-12-07T1${i}:00:00Z` }));
+  const ev = Q.evenements(D, J(cinq), "2026-12-08");
+  assert.equal(ev.filter(e => e.source === "regularite").length, 2);
+  assert.equal(ev.filter(e => e.source === "technique").length, 1);
+  const melange = Q.evenements(D, J([...cinq].reverse().map((w, i) => ({ ...w, id: undefined }))), "2026-12-08");
+  assert.deepEqual(melange.map(e => e.cle), ev.map(e => e.cle));
+});
+
+test("séances avec douleur ou fatigue : aucune XP de quête non plus", () => {
+  const w = ["2026-12-07", "2026-12-09", "2026-12-11"].map(d => complete(d, { suffixe: d }));
+  w.forEach(x => { x.exercises[0].sets[1].pain = true; });
+  const ev = Q.evenements(D, J(w), "2026-12-13");
+  assert.ok(!ev.some(e => e.source === "quete" || e.source === "regularite" || e.source === "technique"), ev.map(e => e.cle).join(","));
+});
+
+test("tests : seulement les types connus, une fois par type et par fenêtre de 28 jours", () => {
+  const tests = [...Array.from({ length: 40 }, (_, i) => ({ d: "2026-12-08", type: "invente" + i })), { d: "2026-12-08", type: "vma" }, { d: "2026-12-09", type: "vma" }];
+  const ev = Q.evenements(D, J([], { tests }), "2026-12-10");
+  assert.equal(ev.filter(e => e.source === "test").length, 1);
+});
+
+test("pauses plafonnées : une par semaine, au-delà le jour reste prévu", () => {
+  const pauses = Object.fromEntries(["2026-12-07", "2026-12-09", "2026-12-11"].map(d => [d, "imprevu"]));
+  const j = J([], { pauses });
+  assert.equal(Object.values(j.jours).filter(x => x.pause).length, 1);
+  const unique = J([complete("2026-12-07")], { pauses: Object.fromEntries(["2026-12-09", "2026-12-11", "2026-12-14", "2026-12-16", "2026-12-18", "2026-12-21", "2026-12-23", "2026-12-25", "2026-12-28", "2026-12-30", "2027-01-01"].map(d => [d, "nuit"])) });
+  assert.ok(!Q.reussites(D, unique, "2027-01-04").some(r => r.id === "meso-termine"), "une séance et des pauses ne terminent pas un mésocycle");
+});
+
+test("séances décalées dans la semaine : la série tient", () => {
+  const w = [];
+  for (let k = 0; k < 3; k++) for (const j of [-1, 1, 3]) { const d = new Date(Date.UTC(2026, 11, 7 + k * 7 + j)).toISOString().slice(0, 10); w.push(complete(d, { suffixe: d })); }
+  const s = Q.serie(D, J(w), "2026-12-25");
+  assert.ok(s.jours >= 18, JSON.stringify(s));
+});
+
+test("absence : le record ne monte pas sans activité, l'accueil « On reprend » s'affiche aussi après la fin du bloc", () => {
+  const sans = Q.journalDepuisEtat(D, { workouts: [complete("2026-09-01")] }, exDe);
+  const s = Q.serie(D, sans, "2026-12-10");
+  assert.ok(s.record <= D.hypotheses.absenceRetour, JSON.stringify(s));
+  assert.ok(s.retour);
+  assert.ok(!Q.debloques(D, { serieRecord: s.record }).includes("cape"));
+  const finie = Q.serie(D, J([complete("2027-02-26")]), "2027-06-01");
+  assert.ok(finie.retour); assert.equal(finie.jours, 0);
+});
+
+test("dates : séance finie à 0 h 30 à Paris comptée ce jour-là ; dates invalides ignorées sans erreur", () => {
+  assert.equal(Q.dateParis("2026-12-07T23:30:00Z"), "2026-12-08");
+  const j = J([{ id: "n", end: "2026-12-07T23:30:00Z", exercises: [] }, { id: "num", end: 1763400000000, exercises: [] }, { id: "bad", end: "pas une date" }], { daily: { "2026-1-5": { feel: { energy: 5 } } } });
+  assert.deepEqual(j.seances.map(s => s.d), ["2026-12-08"]);
+  assert.equal(Object.keys(j.jours).length, 0);
+  assert.doesNotThrow(() => Q.bilan(D, j, "2026-12-10"));
+});
+
+test("le mot « normal » n'est pas pris pour une douleur", () => {
+  const w = complete("2026-12-07"); w.exercises[0].sets[1].note = "tempo normal";
+  assert.equal(J([w]).seances[0].douleur, false);
+  w.exercises[0].sets[1].note = "un peu mal au genou";
+  assert.equal(J([w]).seances[0].douleur, true);
 });

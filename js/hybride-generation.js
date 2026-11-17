@@ -49,7 +49,8 @@ export function semaine(D, rows, opts) {
   // 1. Blocs fixes (vitesse, pliométrie, haltérophilie, force, skills, cardio)
   const seances = gab.seances.map(s => {
     const blocs = s.blocs.map(id => ({ id, items: [] })), B = (id) => blocs.find(b => b.id === id);
-    if (B("vitesse") && !dech) B("vitesse").items.push(synthetique(reprise && semaineMacro <= D.cardio.repriseSemaines ? `${G.vitesse.nom} à 90 %` : G.vitesse.nom, G.vitesse.n, G.vitesse.reps, G.vitesse.repos, "vitesse"));
+    const sansSprint = (answers.zones || []).some(z => (D.hypotheses.zonesSansSprint || []).includes(z));
+    if (B("vitesse") && !dech && !sansSprint) B("vitesse").items.push(synthetique(reprise && semaineMacro <= D.cardio.repriseSemaines ? `${G.vitesse.nom} à 90 %` : G.vitesse.nom, G.vitesse.n, G.vitesse.reps, G.vitesse.repos, "vitesse"));
     if (B("plio") && !dech) { const e = parSlug(rows, G.plio.slug); if (faisable(e, ctx)) B("plio").items.push({ ...ligne(e, G.plio.n, answers, pf), lo: G.plio.reps, hi: G.plio.reps, rpe: null }); }
     if (B("halterophilie")) { const e = parSlug(rows, halterophilie ? G.halterophilie.technique : G.halterophilie.sinon); if (faisable(e, ctx)) B("halterophilie").items.push({ ...ligne(e, moitie(G.halterophilie.n), answers, pf), lo: G.halterophilie.reps, hi: G.halterophilie.reps, rpe: null, note: halterophilie ? "Technique : 70 à 85 %, jamais à l'échec." : "Haltérophilie remplacée tant que la technique n'est pas acquise." }); }
     (s.slots?.force || []).forEach(code => {
@@ -68,7 +69,9 @@ export function semaine(D, rows, opts) {
         B("skills").items.push({ ...l, lo: cible, hi: cible, unite: p.sec ? "s" : "reps", note: `Objectif : ${p.nom}.`, rpe: null });
       }
     });
-    const c = H.cardioEffectif(D, s, { semaineMacro, reprise });
+    const c0 = H.cardioEffectif(D, s, { semaineMacro, reprise });
+    // Gêne au genou, à la cheville ou à la hanche : la course passe à vélo (moins d'impacts)
+    const c = c0 && sansSprint && (c0.modalite === "course" || c0.modalite === "libre") ? { ...c0, modalite: "velo" } : c0;
     if (c && B("cardio")) {
       const z = D.zones.find(x => x.id === c.zone), al = vma ? H.allures(D, vma).find(x => x.id === c.zone) : null;
       const mod = { velo: "à vélo", rameur: "au rameur", course: "en course", libre: "" }[c.modalite] || "";

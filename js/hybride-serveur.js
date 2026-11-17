@@ -5,9 +5,9 @@
 // Entrées : l'instantané envoyé par le téléphone (cxs_member_data.data), le bloc en cours (table cxs_hyb_bloc)
 // et les objets déjà débloqués (cxs_hyb_personnage.debloques). Sortie : lignes à insérer, sans doublon possible
 // (clés déterministes, « on conflict do nothing »), et objets débloqués (union : jamais rien de retiré).
-import { journalDepuisEtat, evenements, reussites, bilan } from "./hybride-quetes.js";
+import { journalDepuisEtat, bilan, debloques } from "./hybride-quetes.js";
 
-export const VERSION = 1;
+export const VERSION = 2;
 export const MAX_EVENEMENTS = 2000;
 
 // Date du jour à Paris (AAAA-MM-JJ)
@@ -19,12 +19,16 @@ export function blocDepuisLigne(l) {
 }
 
 export function aEcrire(D, { data = {}, blocLigne = null, debloquesAvant = [] } = {}, exDe = () => null, auj = aujourdhuiParis()) {
+  data = data && typeof data === "object" ? data : {};
   // Le bloc vient de la table (source de vérité côté serveur), pas de l'instantané
-  const etat = { workouts: Array.isArray(data.workouts) ? data.workouts : [], daily: data.daily && typeof data.daily === "object" ? data.daily : {}, hybride: { ...(data.hybride || {}), bloc: blocDepuisLigne(blocLigne) } };
+  const etat = { workouts: data.workouts, daily: data.daily, hybride: { ...(data.hybride && typeof data.hybride === "object" ? data.hybride : {}), bloc: blocDepuisLigne(blocLigne) } };
   const J = journalDepuisEtat(D, etat, exDe);
-  const ev = evenements(D, J, auj).slice(-MAX_EVENEMENTS);
-  const xp = ev.map(e => ({ cle: String(e.cle).slice(0, 200), source: e.source, xp: Math.max(0, Math.min(500, Math.round(e.xp))), cree_le: e.d + "T12:00:00Z" }));
-  const quetes = reussites(D, J, auj).map(r => ({ quete_id: r.id, periode: String(r.periode).slice(0, 100), progres: r.palier ? { palier: r.palier } : {}, reussie_le: r.d + "T12:00:00Z" }));
-  const b = bilan(D, J, auj, { precedents: Array.isArray(debloquesAvant) ? debloquesAvant : [] });
-  return { xp, quetes, debloques: b.debloques, resume: { xp: b.xp, rang: b.rang, serie: b.serie } };
+  const b = bilan(D, J, auj, { precedents: debloquesAvant });
+  const xp = b.evenements.slice(-MAX_EVENEMENTS).map(e => ({ cle: String(e.cle).slice(0, 200), source: e.source, xp: Math.max(0, Math.min(500, Math.round(e.xp))), cree_le: e.d + "T12:00:00Z" }));
+  const quetes = b.reussites.map(r => ({ quete_id: r.id, periode: String(r.periode).slice(0, 100), progres: r.palier ? { palier: r.palier } : {}, reussie_le: r.d + "T12:00:00Z" }));
+  return { xp, quetes, reussiteIds: [...new Set(b.reussites.map(r => r.id))], debloques: b.debloques, resume: { xp: b.xp, rang: b.rang, serie: b.serie } };
 }
+
+// Objets débloqués une fois l'XP totale relue en base (elle ne baisse jamais, même si l'instantané a oublié de vieilles séances)
+export const objetsApres = (D, r, xpTotal, debloquesAvant = []) =>
+  debloques(D, { xp: Math.max(xpTotal || 0, r.resume.xp), quetes: r.reussiteIds, serieRecord: r.resume.serie.record }, [...(Array.isArray(debloquesAvant) ? debloquesAvant : []), ...r.debloques]);

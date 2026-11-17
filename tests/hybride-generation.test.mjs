@@ -79,3 +79,9 @@ test("conversion vers le moteur de séances existant", () => {
   assert.equal(prog.custom, true);
   assert.equal(prog.hybride.semaineMacro, 2);
 });
+
+test("gêne au genou : pas de sprint, la course passe à vélo", () => {
+  const p = GH.semaine(D, R, { bloc: bloc(6), semaineMacro: 6, answers: { level: "advanced", materiel: ["salle_complete"], zones: ["genou"] } });
+  assert.ok(!items(p).some(l => l.categorie === "vitesse"));
+  assert.ok(!items(p).some(l => l.categorie === "cardio" && /course/.test(l.nom)));
+});
