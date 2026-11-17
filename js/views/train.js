@@ -11,6 +11,7 @@ import { kbSection } from "./more.js";
 import { pushStats } from "../sync.js";
 import * as RM from "../roadmap.js";
 import { seasonBody } from "./season.js";
+import { carteAccueil } from "./hybride.js";
 
 const kgTxt = (v) => v == null || v === "" ? "" : E.fmtKg(v);
 const adv = () => S().settings.adv ?? (S().profile?.level === "advanced");
@@ -63,7 +64,7 @@ routes.carnet = async () => {
       ${carnetMain === "seances" ? `<div class="mt8">${chips([["remplir", "✍️ À remplir"], ["faites", "🕘 Historique"]], carnetTab, "carnet-tab")}</div>` : ""}${inner}
       <button class="link small mt12" data-a="go" data-r="train" data-p="outils">🧮 Records, 1RM et outils →</button>`;
   }
-  $app.innerHTML = header("Entraînement", ns ? `Semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)}` : "") + `<main class="page">${modeBar([["carnet", "Carnet"], ["explorer", "Explorer"], ["savoir", "Connaissances"]], tMode, "train-mode")}${body}</main>${tabbar("carnet")}`;
+  $app.innerHTML = header("Entraînement", ns ? `Semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)}` : "") + `<main class="page">${modeBar([["carnet", "Carnet"], ["explorer", "Explorer"], ["savoir", "Connaissances"]], tMode, "train-mode")}${tMode === "carnet" ? carteAccueil() : ""}${body}</main>${tabbar("carnet")}`;
   if (tMode === "explorer") { bindBankSearch(); bindExoSearch(); }
 };
 actions["train-mode"] = (b, d) => { tMode = d.v; R.param = null; history.replaceState(null, "", "#/carnet" + (d.v === "carnet" ? "" : "/" + d.v)); rerender(false); window.scrollTo(0, 0); };
