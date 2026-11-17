@@ -2,17 +2,14 @@
 // Le téléphone n'écrit jamais l'XP : il appelle cette fonction, qui relit son instantané (cxs_member_data)
 // et son bloc (cxs_hyb_bloc), puis insère des événements à clé unique (rejouable sans doublon).
 // Authentification : jeton de session vérifié via auth.getUser (comme « billing »).
-// Les fichiers .js et .json de ce dossier sont des copies de js/ et data/ (tools/sync-fonction-hybride.sh) : ne pas les modifier ici.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { aEcrire, aujourdhuiParis, objetsApres } from "./hybride-serveur.js";
-// Données embarquées (copies de data/ faites par tools/sync-fonction-hybride.sh) : les règles d'XP ne changent
-// qu'au déploiement de la fonction, jamais par une simple publication du site.
-import D from "./hybride.json" with { type: "json" };
-import E from "./exercices.json" with { type: "json" };
+// moteur.js : modules purs de js/ et données utiles de data/, en un fichier généré par tools/build-fonction-hybride.mjs.
+// Les règles d'XP ne changent qu'au déploiement de la fonction, jamais par une simple publication du site.
+import { aEcrire, aujourdhuiParis, objetsApres, D, EX as EXL } from "./moteur.js";
 
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...CORS, "Content-Type": "application/json" } });
-const EX = new Map(((E as any).ex || []).map((e: any) => [e.nom, e]));
+const EX = new Map((EXL as any[]).map((e: any) => [e.nom, e]));
 const ok = <T>(r: { data: T; error: unknown }) => { if (r.error) throw r.error; return r.data; };
 
 Deno.serve(async (req) => {

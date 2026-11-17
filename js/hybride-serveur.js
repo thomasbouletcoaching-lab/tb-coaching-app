@@ -1,6 +1,6 @@
 // Ce que la fonction serveur « hybride-xp » écrit pour un membre (décision C56 : l'XP est calculée par le serveur).
 // Module pur, testé par `node --test tests/hybride-serveur.test.mjs`. Copié tel quel dans supabase/functions/hybride-xp/
-// (tools/sync-fonction-hybride.sh ; un test vérifie que les copies sont identiques).
+// (sous forme regroupée par tools/build-fonction-hybride.mjs ; un test vérifie que le fichier généré est à jour).
 //
 // Entrées : l'instantané envoyé par le téléphone (cxs_member_data.data), le bloc en cours (table cxs_hyb_bloc)
 // et les objets déjà débloqués (cxs_hyb_personnage.debloques). Sortie : lignes à insérer, sans doublon possible

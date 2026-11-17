@@ -47,12 +47,6 @@ test("date du jour à Paris", () => {
   assert.equal(S.aujourdhuiParis(new Date("2026-07-07T21:59:00Z")), "2026-07-07");
 });
 
-test("copies de la fonction serveur identiques aux modules de l'app", () => {
-  for (const f of ["hybride.js", "hybride-quetes.js", "hybride-serveur.js"]) {
-    assert.equal(readFileSync(new URL(`../supabase/functions/hybride-xp/${f}`, import.meta.url), "utf8"), readFileSync(new URL(`../js/${f}`, import.meta.url), "utf8"), `${f} : lancer tools/sync-fonction-hybride.sh`);
-  }
-});
-
 test("objets : débloqués sur l'XP totale en base (pas seulement l'instantané), jamais retirés", () => {
   const r = S.aEcrire(D, { data, blocLigne: ligne, debloquesAvant: ["cape"] }, exDe, "2026-12-08");
   const o = S.objetsApres(D, r, 4500, ["cape"]);
@@ -60,6 +54,13 @@ test("objets : débloqués sur l'XP totale en base (pas seulement l'instantané)
   assert.ok(!S.objetsApres(D, r, 0, []).includes("tenue-or"));
 });
 
-test("données embarquées dans la fonction identiques à data/", () => {
-  for (const f of ["hybride.json", "exercices.json"]) assert.equal(readFileSync(new URL(`../supabase/functions/hybride-xp/${f}`, import.meta.url), "utf8"), readFileSync(new URL(`../data/${f}`, import.meta.url), "utf8"), f);
+test("moteur de la fonction serveur à jour (sinon : node tools/build-fonction-hybride.mjs)", async () => {
+  const { empreinte, donnees } = await import("../tools/build-fonction-hybride.mjs");
+  const racine = new URL("..", import.meta.url).pathname;
+  const m = readFileSync(new URL("../supabase/functions/hybride-xp/moteur.js", import.meta.url), "utf8");
+  assert.match(m, new RegExp(`empreinte:${empreinte(racine)}`));
+  // Les exercices gardés suffisent : même XP qu'avec la bibliothèque complète
+  const { ex } = donnees(racine), mini = new Map(ex.map(e => [e.nom, e]));
+  const w = { workouts: [{ end: "2026-12-07T18:00:00Z", exercises: [{ name: "Squat barre", sets: [set({ type: "W" }), set()] }, { name: "Copenhagen plank", sets: [set(), set(), set()] }, { name: "Muscle-up strict", sets: [set({ reps: 2 }), set({ reps: 2 }), set({ reps: 2 })] }] }] };
+  assert.deepEqual(S.aEcrire(D, { data: w, blocLigne: ligne }, n => mini.get(n) || null, "2026-12-08").xp, S.aEcrire(D, { data: w, blocLigne: ligne }, exDe, "2026-12-08").xp);
 });
