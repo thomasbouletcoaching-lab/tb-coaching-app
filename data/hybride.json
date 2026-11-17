@@ -1,0 +1,159 @@
+{
+  "v": 1,
+  "source": "Page Notion « Programme Athlète Hybride — Thomas Boulet » (version du 17/11/2026), sections 2 à 9. Aucune donnée personnelle (records, poids, situation) n'est copiée ici : ce dépôt est public.",
+
+  "hypotheses": {
+    "_note": "Choix de conception à ajuster avec de vraies données clients. Ce ne sont pas des valeurs scientifiques. Chaque clé est lue par js/hybride.js.",
+    "ratioPousseeTirageMax": 1.3,
+    "_ratioPousseeTirageMax": "Alerte si la poussée (horizontale ou verticale) dépasse 1,3 fois le tirage du même plan. Repris du document (§9).",
+    "ratioGenouHancheMax": 1.3,
+    "_ratioGenouHancheMax": "Alerte si dominante genou > 1,3 × dominante hanche, ou l'inverse. Valeur reprise par symétrie avec la poussée / tirage : pas dans le document.",
+    "semainesSansProgres": 3,
+    "_semainesSansProgres": "3 semaines sans progrès du 1RM estimé → proposer une autre variante (§9).",
+    "coefDecharge": 0.5,
+    "rirDecharge": 4,
+    "plafondGrandGroupe": { "3": 8, "4": 10, "5": 12, "6": null },
+    "_plafondGrandGroupe": "Séries par semaine au maximum pour un grand groupe en développement selon le nombre de séances. 3 séances ≈ 8 séries (§8). 4 et 5 : interpolation, pas dans le document. 6 : fourchette complète.",
+    "totalMaxSemaine": { "3": 50, "4": 65, "5": 85, "6": 110 },
+    "_totalMaxSemaine": "Alerte de volume total. 6 séances : 70 à 110 séries (§3). 3 à 5 : proportion du temps, pas dans le document.",
+    "margePlafond": 0,
+    "_margePlafond": "Séries tolérées au-dessus du haut de fourchette avant l'alerte « au-dessus du plafond ».",
+    "formeDuJour": { "vert": 0, "orange": 0.34, "rouge": 0.67 },
+    "_formeDuJour": "Part des accessoires retirée. Orange = « nuit très mauvaise » du document (un tiers). Rouge = deux tiers : hypothèse.",
+    "decalageVeilleJambes": 1,
+    "_decalageVeilleJambes": "Jours entre une séance d'intervalles et des jambes lourdes : interdit si l'écart vaut 1 (la veille)."
+  },
+
+  "qualites": [
+    { "id": "hypertrophie", "nom": "Hypertrophie" },
+    { "id": "force", "nom": "Force" },
+    { "id": "puissance", "nom": "Puissance" },
+    { "id": "vitesse", "nom": "Vitesse" },
+    { "id": "endurance", "nom": "Endurance aérobie" },
+    { "id": "skills", "nom": "Skills de calisthénie" },
+    { "id": "prevention", "nom": "Prévention" }
+  ],
+
+  "_groupes": "Séries effectives par semaine (RIR 0 à 3). Comptage : 1 pour le muscle principal, 0,5 pour les synergistes (Pelland). maintien = [bas, haut] ; dev = [S1, S3]. direct = seules les séries où le groupe est principal comptent. tags = étiquettes muscles de data/exercices.json ; cats = catégories ; re = motif sur le nom (prioritaire). grand = grand groupe (plafond selon le nombre de séances).",
+  "groupes": [
+    { "id": "quad", "nom": "Quadriceps", "qualite": "hypertrophie", "maintien": [4, 6], "dev": [8, 14], "grand": true, "tags": ["Quadriceps"] },
+    { "id": "isch", "nom": "Ischio-jambiers", "qualite": "hypertrophie", "maintien": [3, 4], "dev": [6, 10], "grand": true, "tags": ["Ischios"] },
+    { "id": "fess", "nom": "Fessiers", "qualite": "hypertrophie", "maintien": [2, 4], "dev": [4, 8], "direct": true, "tags": ["Fessiers"] },
+    { "id": "add", "nom": "Adducteurs", "qualite": "prevention", "maintien": [2, 2], "dev": [3, 6], "tags": ["Adducteurs"] },
+    { "id": "pecs", "nom": "Pectoraux", "qualite": "hypertrophie", "maintien": [4, 6], "dev": [8, 14], "grand": true, "tags": ["Pecs"] },
+    { "id": "dos", "nom": "Dos (grand dorsal, ronds)", "qualite": "hypertrophie", "maintien": [5, 6], "dev": [10, 16], "grand": true, "tags": ["Dos-largeur"] },
+    { "id": "hautdos", "nom": "Trapèzes moyens et inférieurs, deltoïde postérieur", "qualite": "hypertrophie", "maintien": [2, 3], "dev": [4, 8], "tags": ["Dos-épaisseur", "Épaules-arrière", "Trapèzes"] },
+    { "id": "dlat", "nom": "Deltoïde latéral", "qualite": "hypertrophie", "maintien": [3, 4], "dev": [6, 12], "tags": ["Épaules-latéral"] },
+    { "id": "dant", "nom": "Deltoïde antérieur", "qualite": "hypertrophie", "maintien": [0, 0], "dev": [0, 0], "direct": true, "tags": ["Épaules-avant"], "sansAlerte": true },
+    { "id": "tri", "nom": "Triceps", "qualite": "hypertrophie", "maintien": [2, 2], "dev": [4, 8], "direct": true, "tags": ["Triceps"] },
+    { "id": "bic", "nom": "Biceps et brachial", "qualite": "hypertrophie", "maintien": [2, 2], "dev": [4, 8], "direct": true, "tags": ["Biceps"] },
+    { "id": "mol", "nom": "Mollets", "qualite": "hypertrophie", "maintien": [3, 3], "dev": [6, 10], "tags": ["Mollets"] },
+    { "id": "tib", "nom": "Tibial antérieur", "qualite": "prevention", "maintien": [1, 2], "dev": [2, 4], "re": "tibia|tibial|releveurs" },
+    { "id": "avb", "nom": "Avant-bras", "qualite": "prevention", "maintien": [2, 2], "dev": [4, 6], "tags": ["Avant-bras"] },
+    { "id": "abs", "nom": "Abdos et obliques", "qualite": "hypertrophie", "maintien": [3, 4], "dev": [6, 10], "tags": ["Abdos"] },
+    { "id": "lomb", "nom": "Érecteurs et carré des lombes", "qualite": "hypertrophie", "maintien": [0, 2], "dev": [0, 3], "tags": ["Lombaires"], "sansAlerteBas": true },
+    { "id": "psoas", "nom": "Psoas", "qualite": "hypertrophie", "maintien": [1, 1], "dev": [2, 4], "re": "relev[ée]s? de (jambes|genoux) suspendu" },
+    { "id": "coiffe", "nom": "Coiffe des rotateurs", "qualite": "prevention", "maintien": [2, 2], "dev": [4, 6], "cats": ["coiffe"], "re": "rotation externe|coiffe" },
+    { "id": "cou", "nom": "Cou", "qualite": "prevention", "maintien": [2, 2], "dev": [3, 6], "tags": ["Cou"], "re": "du cou|nuque" }
+  ],
+
+  "_progression": "Mésocycle de 4 semaines (§3). vol : 0 = bas de fourchette (S1), 0,5 = milieu (S2), 1 = haut (S3). S4 : décharge, volume × coefDecharge, intensité conservée.",
+  "progression": [
+    { "semaine": 1, "rir": 3, "vol": 0, "nom": "Accumulation" },
+    { "semaine": 2, "rir": 2, "vol": 0.5, "nom": "Montée" },
+    { "semaine": 3, "rir": 1, "vol": 1, "nom": "Pic" },
+    { "semaine": 4, "rir": 4, "vol": 1, "decharge": true, "nom": "Décharge ou tests" }
+  ],
+
+  "_macros": "Plan annuel (§6) : 4 macrocycles de 12 semaines = 3 mésocycles de 4 semaines. 2 qualités en développement au maximum par bloc ; les autres en maintien.",
+  "macros": [
+    { "id": "M1", "nom": "Base", "dev": ["hypertrophie", "endurance"], "note": "Reprise de la course en zone 2 (tendons). Force jusqu'à 85 %, skills et haltérophilie en technique.", "tests": { "4": ["vma"], "12": ["vma", "5rm"] }, "repriseCourse": true },
+    { "id": "M2", "nom": "Force", "dev": ["force", "skills"], "note": "SBD et street (muscle-up lesté, tractions, dips), squat en priorité. Hypertrophie à la moitié du volume.", "tests": { "4": ["vma"], "12": ["vma", "1rm"] } },
+    { "id": "M3", "nom": "Athlète", "dev": ["vitesse", "puissance"], "note": "Vitesse, puissance, haltérophilie, VO2max. Force : 1 à 2 séries lourdes par mouvement. Hypertrophie au tiers du volume.", "tests": { "4": ["vma"], "12": ["100m", "400m", "5km", "sauts"] } },
+    { "id": "M4", "nom": "Hybride et skills", "dev": ["hypertrophie", "skills"], "note": "Hypertrophie 2 et skills (front lever, HSPU). Force et endurance en maintien.", "tests": { "4": ["vma"], "12": ["vma", "1rm", "100m", "400m", "5km"] } }
+  ],
+
+  "_zones": "Zones cardio en % de VMA (§4). Ne pas mélanger avec % FCmax. Z2 pilotée au cardio, Z4-Z5 à l'allure.",
+  "zones": [
+    { "id": "Z1", "nom": "Récupération", "vma": [0, 60], "fc": [0, 65], "repere": "Très facile" },
+    { "id": "Z2", "nom": "Fondamentale", "vma": [60, 72], "fc": [65, 78], "repere": "Tu parles en phrases" },
+    { "id": "Z3", "nom": "Tempo", "vma": [75, 85], "fc": [78, 87], "repere": "Entre les deux seuils" },
+    { "id": "Z4", "nom": "Seuil", "vma": [85, 92], "fc": [87, 92], "repere": "20 à 40 min cumulées" },
+    { "id": "Z5", "nom": "VO2max", "vma": [95, 105], "fc": [92, 100], "repere": "Intervalles de 30 s à 4 min" },
+    { "id": "V", "nom": "Vitesse", "vma": [110, 140], "fc": null, "repere": "Sprints, 200 à 400 m" }
+  ],
+  "cardio": {
+    "testsVma": [4, 12],
+    "repriseSemaines": 4,
+    "_reprise": "Après un long arrêt de la course : semaines 1 à 4 en zone 2 uniquement, intervalles à partir de la semaine 5 et après le test de VMA.",
+    "z2ParSemaine": 2,
+    "intervallesParSemaine": 1
+  },
+
+  "_blocs": "Blocs d'une séance, dans l'ordre conseillé. nerveux = toujours en début de séance (après l'échauffement). principal = gardé par la Forme du jour.",
+  "blocs": [
+    { "id": "echauffement", "nom": "Échauffement", "rang": 0, "principal": true },
+    { "id": "vitesse", "nom": "Vitesse (sprints, accélérations)", "rang": 1, "nerveux": true, "principal": true, "maxEffort": true },
+    { "id": "plio", "nom": "Pliométrie", "rang": 2, "nerveux": true, "principal": true, "maxEffort": true },
+    { "id": "halterophilie", "nom": "Haltérophilie", "rang": 3, "nerveux": true, "principal": true },
+    { "id": "force", "nom": "Force (mouvements principaux)", "rang": 4, "principal": true },
+    { "id": "skills", "nom": "Skills de calisthénie", "rang": 5, "principal": true },
+    { "id": "hypertrophie", "nom": "Hypertrophie (accessoires)", "rang": 6 },
+    { "id": "prevention", "nom": "Prévention (petits muscles)", "rang": 7 },
+    { "id": "cardio", "nom": "Cardio", "rang": 8, "principal": true }
+  ],
+
+  "_gabarits": "Semaines types (§7 et §8). jour : 0 = lundi. type : haute, moyenne, basse. jambesLourdes : séance qui interdit des intervalles la veille. cardio : { zone, modalite, min } ; intervalles = Z5.",
+  "gabarits": {
+    "3": {
+      "nom": "3 séances (environ 3 h)",
+      "seances": [
+        { "jour": 0, "nom": "Full body A", "type": "haute", "jambesLourdes": true, "blocs": ["echauffement", "force", "hypertrophie", "prevention"], "contenu": "Squat, développé couché, rowing, abdos" },
+        { "jour": 2, "nom": "Full body B", "type": "moyenne", "jambesLourdes": true, "blocs": ["echauffement", "force", "hypertrophie", "prevention"], "contenu": "Charnière de hanche, développé militaire, tractions, portage" },
+        { "jour": 4, "nom": "Full body C", "type": "haute", "blocs": ["echauffement", "vitesse", "plio", "force", "hypertrophie", "cardio"], "contenu": "Sauts et accélérations, fente, dips ou pompes, finisher intervalles 10 à 12 min", "cardio": { "zone": "Z5", "modalite": "libre", "min": 12, "finisher": true } }
+      ],
+      "horsSalle": "Si possible, 2 marches rapides ou vélo en zone 2 de 30 min"
+    },
+    "4": {
+      "nom": "4 séances",
+      "seances": [
+        { "jour": 0, "nom": "Haut A · force", "type": "haute", "blocs": ["echauffement", "force", "skills", "hypertrophie", "prevention"] },
+        { "jour": 1, "nom": "Bas A · force et pliométrie", "type": "haute", "jambesLourdes": true, "blocs": ["echauffement", "plio", "force", "hypertrophie", "prevention"] },
+        { "jour": 3, "nom": "Haut B · hypertrophie", "type": "moyenne", "blocs": ["echauffement", "skills", "hypertrophie", "prevention", "cardio"], "cardio": { "zone": "Z2", "modalite": "velo", "min": 20 } },
+        { "jour": 5, "nom": "Bas B · volume", "type": "moyenne", "jambesLourdes": true, "blocs": ["echauffement", "force", "hypertrophie", "prevention", "cardio"], "cardio": { "zone": "Z5", "modalite": "libre", "min": 10, "finisher": true } }
+      ],
+      "horsSalle": "1 séance de zone 2 en plus (30 min)"
+    },
+    "5": {
+      "nom": "5 séances",
+      "seances": [
+        { "jour": 0, "nom": "Haut 1", "type": "haute", "blocs": ["echauffement", "force", "skills", "hypertrophie", "prevention"] },
+        { "jour": 1, "nom": "Bas 1", "type": "haute", "jambesLourdes": true, "blocs": ["echauffement", "vitesse", "plio", "force", "hypertrophie", "prevention"] },
+        { "jour": 3, "nom": "Haut 2", "type": "moyenne", "blocs": ["echauffement", "skills", "hypertrophie", "prevention"] },
+        { "jour": 4, "nom": "Bas 2", "type": "moyenne", "jambesLourdes": true, "blocs": ["echauffement", "halterophilie", "force", "hypertrophie", "prevention"] },
+        { "jour": 5, "nom": "Cardio", "type": "basse", "blocs": ["echauffement", "cardio", "skills"], "cardio": { "zone": "Z2", "modalite": "velo", "min": 45, "alterne": "Z5" } }
+      ]
+    },
+    "6": {
+      "nom": "6 séances",
+      "seances": [
+        { "jour": 0, "nom": "Haute · bas du corps", "type": "haute", "jambesLourdes": true, "blocs": ["echauffement", "vitesse", "plio", "halterophilie", "force", "hypertrophie", "prevention"], "contenu": "Accélérations, box jumps, épaulé-jeté technique, squat, leg curl assis, mollets, tibial", "min": 90 },
+        { "jour": 1, "nom": "Haute · haut du corps", "type": "haute", "blocs": ["echauffement", "force", "skills", "hypertrophie", "prevention"], "contenu": "Couché, tractions lestées, muscle-up, militaire ou HSPU, rowing, élévations latérales, coiffe", "min": 85 },
+        { "jour": 2, "nom": "Basse", "type": "basse", "blocs": ["echauffement", "cardio", "skills", "hypertrophie", "prevention"], "contenu": "Zone 2 course 30 min, handstand 10 min, abdos, cou, avant-bras", "cardio": { "zone": "Z2", "modalite": "course", "min": 30, "modaliteApresReprise": "velo" }, "min": 60 },
+        { "jour": 3, "nom": "Haute · bas du corps", "type": "haute", "jambesLourdes": true, "blocs": ["echauffement", "halterophilie", "force", "hypertrophie", "prevention"], "contenu": "Arraché technique, soulevé de terre ou RDL, fente bulgare, nordic, adducteurs, farmer walk", "min": 90 },
+        { "jour": 4, "nom": "Moyenne · haut du corps", "type": "moyenne", "blocs": ["echauffement", "force", "skills", "hypertrophie", "prevention"], "contenu": "Dips lestés, incliné haltères, front lever, tractions prise neutre, face pull, triceps, curl incliné", "min": 75 },
+        { "jour": 5, "nom": "Cardio et volume léger", "type": "basse", "blocs": ["echauffement", "cardio", "hypertrophie", "prevention"], "contenu": "Zone 2 vélo (reprise) puis intervalles 5 × 3 min, mollets assis, deltoïde latéral, curl marteau, suitcase carry", "cardio": { "zone": "Z2", "modalite": "velo", "min": 45, "apresReprise": "Z5" }, "min": 65 }
+      ]
+    }
+  },
+
+  "_skills": "Paliers de skills (§5), utilisés par les quêtes de skills (session 2). Chaque palier = un critère observable.",
+  "skills": {
+    "muscleup": ["Muscle-up avec élan", "Muscle-up strict 3 × 2", "Muscle-up strict 3 × 3", "Muscle-up lesté +2,5 kg", "Muscle-up lesté +5 kg", "Muscle-up lesté +10 kg", "Muscle-up lesté +15 kg", "Muscle-up lesté +20 kg"],
+    "frontlever": ["Front lever groupé (tuck) 8 s", "Front lever groupé avancé 8 s", "Front lever une jambe 8 s", "Front lever straddle 8 s", "Front lever complet 5 s"],
+    "handstand": ["Handstand face au mur 30 s, gainage creux", "Handstand face au mur 60 s", "Handstand libre 10 s", "Handstand libre 30 s"],
+    "hspu": ["HSPU au mur, amplitude partielle", "HSPU au mur, amplitude complète 3 × 3", "HSPU au mur 3 × 5", "HSPU en déficit 3 × 3"]
+  },
+
+  "quetes": []
+}
