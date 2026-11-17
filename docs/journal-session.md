@@ -80,3 +80,10 @@ Testé : `node --test tests/hybride.test.mjs` (17/17) ; tests existants volume, 
 Réponses de Thomas : C56. « Go » R1 reçu : migration appliquée en production le 17/11 à 19 h 31 et droits vérifiés (voir `docs/r1-hybride-migration.md`). Premier essai interrompu sans effet (confirmation Supabase restée sans réponse).
 Reprise : session 2 = catalogue de quêtes, moteur XP / séries / rangs, branchement aux logs, génération du méso. Le moteur XP doit produire des clés déterministes (`seance:<date>:<id>`) pour `cxs_hyb_xp`.
 Piège : `service_role` n'a pas accès à `auth.users` dans le socle de test (comme en production) : passer par `cxs_profiles`.
+
+## Hybride · Session 2 — Quêtes et progression (17/11/2026, branche `claude/hybride-s2-quetes`, contient la session 1)
+
+Fait : catalogue de quêtes, XP, rangs, objets et paliers de skills dans `data/hybride.json` ; `js/hybride-quetes.js` (journal dérivé des logs, quêtes, XP idempotente, série tolérante, rangs, objets) ; `js/hybride-generation.js` (semaine concrète via le générateur existant) ; `js/hybride-serveur.js` + fonction `supabase/functions/hybride-xp` (copies synchronisées par `tools/sync-fonction-hybride.sh`) ; instantané : `hybride` (tests et pauses) ; CI ; décision C57.
+Testé : `node --test` sur hybride (18), hybride-quetes (13), hybride-generation (6), hybride-serveur (6) ; syntaxe de l'app et de la fonction (esbuild). Deno indisponible ici : la fonction n'a pas été exécutée.
+En attente : « go » R1 pour déployer la fonction `hybride-xp` (écriture en production).
+Reprise : session 3 = écrans, prototype du personnage (R6), appel de `hybride-xp` après chaque séance synchronisée, Playwright, service worker.

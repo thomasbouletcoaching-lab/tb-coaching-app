@@ -9,6 +9,12 @@ import { myAdherence, lastCheckin, defiDay } from "./progress.js";
 import { pourCoach } from "./programme.js";
 import { resume as recupResume } from "./recuperation.js";
 import { detecter as detecterProfils, pourCoach as profilsPourCoach, enReprise as enRepriseProfil } from "./profils.js";
+// Module hybride : seulement les tests et les jours de pause (sans leur motif), pour le calcul de l'XP côté serveur.
+// Le bloc en cours a sa propre table (cxs_hyb_bloc). Rien de sensible : ni poids, ni santé.
+export const hybridePourServeur = (h) => !h ? null : {
+  tests: (h.tests || []).filter(t => t?.d && t?.type).slice(-40).map(t => ({ d: t.d, type: t.type })),
+  pauses: Object.fromEntries(Object.keys(h.pauses || {}).filter(d => h.pauses[d]).sort().slice(-60).map(d => [d, "pause"])),
+};
 
 export async function syncProfile() {
   const c = await cloud(); if (!c || !S().profile) return;
@@ -46,7 +52,7 @@ export function snapshot() {
   const lifts = Object.fromEntries(Object.entries(st.lifts || {}).map(([k, h]) => [k, h.slice(-25)]));
   const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, skips: st.skips, swaps: st.swaps, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin },
     // Suivi : bilans, anamnèse, témoignage, photos envoyées volontairement, essai
-    checkins: (st.checkins || []).slice(-26), anamnese: st.anamnese || null, programme: pourCoach(st.programme, !!st.anamnese?.consent), testimonial: st.testimonial || null, sharedPhotos: st.sharedPhotos || [], trialStart: st.trialStart || null, defi: st.defi || null,
+    checkins: (st.checkins || []).slice(-26), hybride: hybridePourServeur(st.hybride), anamnese: st.anamnese || null, programme: pourCoach(st.programme, !!st.anamnese?.consent), testimonial: st.testimonial || null, sharedPhotos: st.sharedPhotos || [], trialStart: st.trialStart || null, defi: st.defi || null,
     // Journal « Je craque » : uniquement avec l'accord explicite du membre ; sinon null, ce qui efface aussi une copie envoyée avant un retrait d'accord
     crises: st.criseShare ? (st.crises || []).slice(-PARTAGE_MAX) : null, criseShare: st.criseShare || null, profileCreatedAt: st.profile?.createdAt || null };
   let ag = null, ns = null; try { ag = E.agenda(t, t)[t]; ns = E.nextSession(); } catch { }

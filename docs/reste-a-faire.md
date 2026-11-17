@@ -7,3 +7,5 @@ Liste tenue pendant les sessions « athlète hybride » (17/11/2026). Rien de ce
 3. Tables `gx_events`, `gx_member`, `gx_reactions` : RLS activée sans politique (fermées, accès par fonctions `SECURITY DEFINER`). `gx_calc` lit le poids (`mesures`) pour des points : contraire à « jamais de points pour le poids ». Concerne l'ancienne app.
 4. Production en Postgres 17, tests locaux en Postgres 16 : prévoir un test sur la même version.
 5. Fusionner plus tard les trophées et niveaux actuels (`js/quests.js`) avec les quêtes et rangs du module hybride (décision C56, Q4).
+6. Fonction serveur `hybride-xp` : un membre motivé peut toujours inventer des séances dans son instantané (le téléphone écrit ses propres logs). Le calcul serveur empêche seulement d'écrire de l'XP directement. Renforcement possible : plafonner l'XP par jour, ou ne compter que les séances synchronisées dans les 48 h.
+7. Le coach lit aujourd'hui l'instantané complet de tous les membres (point 1) : il contient désormais aussi les dates de test et de pause du module hybride.

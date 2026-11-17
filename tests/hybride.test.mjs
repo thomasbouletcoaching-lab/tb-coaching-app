@@ -125,12 +125,12 @@ test("lignes depuis les séances terminées : échauffements et séries non fait
 
 test("alertes : poussée / tirage, genou / hanche, sous le maintien, plafond, total", () => {
   const C = H.cibles(D, { macroId: "M1", semaine: 3 });
-  const L = [{ ex: ex("developpe-couche-barre"), series: 16 }, { ex: ex("rowing-barre-prise-snatch"), series: 4 }, { ex: ex("pompes-en-equilibre-handstand-push-up"), series: 4 }];
+  const L = [{ ex: ex("developpe-couche-barre"), series: 18 }, { ex: ex("rowing-barre-prise-snatch"), series: 4 }, { ex: ex("pompes-en-equilibre-handstand-push-up"), series: 4 }];
   const a = H.alertes(D, { lignes: L, cibles: C });
   const ids = a.map(x => x.id);
   assert.ok(ids.includes("poussee-horizontal"));
   assert.ok(ids.includes("poussee-vertical"), "HSPU sans tirage vertical");
-  assert.ok(ids.includes("plafond-pecs"), "16 séries > 14");
+  assert.ok(ids.includes("plafond-pecs"), "18 séries > 14 + marge");
   assert.ok(ids.includes("sous-quad"));
   assert.ok(!ids.some(i => i.endsWith("dant")), "deltoïde antérieur : jamais d'alerte");
   const genou = H.alertes(D, { lignes: [{ ex: { nom: "Squat", pattern_principal: "SG", muscles: ["Quadriceps"] }, series: 10 }, { ex: { nom: "RDL", pattern_principal: "CH", muscles: ["Ischios"] }, series: 3 }] });
@@ -141,7 +141,7 @@ test("alertes : poussée / tirage, genou / hanche, sous le maintien, plafond, to
   assert.ok(!peu.some(x => x.id.startsWith("poussee")), "moins de 4 séries : pas d'alerte de déséquilibre");
   const dech = H.alertes(D, { lignes: [{ ex: { nom: "Squat", muscles: ["Quadriceps"] }, series: 3 }], cibles: H.cibles(D, { macroId: "M2", semaine: 4 }) });
   assert.ok(!dech.some(x => x.groupe === "quad"), "décharge : une série de plus ne déclenche rien");
-  const tot = H.alertes(D, { lignes: [{ ex: { nom: "x" }, series: 61 }], nbSeances: 3 });
+  const tot = H.alertes(D, { lignes: [{ ex: { nom: "x" }, series: D.hypotheses.totalMaxSemaine["3"] + 1 }], nbSeances: 3 });
   assert.ok(tot.some(x => x.id === "total"));
 });
 
@@ -225,4 +225,9 @@ test("programme en cours : jamais remplacé sans accord, l'ancien est gardé en 
   const vieux = { macroId: "M1", debut: "2026-12-01" };
   const lu = H.lire(vieux);
   assert.equal(lu.courant.migreDe, 0); assert.equal(vieux.v, undefined, "ancien format lu sans être modifié");
+});
+
+test("sauts, haltérophilie, sprints et cardio ne comptent pas dans le volume musculaire", () => {
+  const v = H.volume(D, [{ ex: ex("sauts-sur-box-box-jump"), series: 5 }, { ex: ex("epaule-en-force-power-clean"), series: 5 }, { ex: ex("velo-zone-2"), series: 1 }]);
+  assert.ok(Object.values(v).every(x => x === 0));
 });
