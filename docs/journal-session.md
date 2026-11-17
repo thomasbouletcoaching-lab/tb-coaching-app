@@ -88,3 +88,10 @@ Relecture indépendante intégrée (5 bloquants sur l'XP gonflable et la série,
 Testé : `node --test` sur hybride (18), hybride-quetes (22), hybride-generation (7), hybride-serveur (8) ; syntaxe de l'app et de la fonction (esbuild). Deno indisponible ici : la fonction n'a pas été exécutée.
 « Go » R1 bis reçu : fonction `hybride-xp` déployée (version 1, moteur épinglé sur le commit 7a08c4f), refuse les appels sans session (401). Voir `docs/r1-hybride-migration.md`.
 Reprise : session 3 = écrans, prototype du personnage (R6), appel de `hybride-xp` après chaque séance synchronisée, Playwright, service worker.
+
+## Hybride · Session 3 — Interface et finition (17/11/2026, branche `claude/hybride-s3-interface`, contient les sessions 1 et 2)
+
+Fait : `js/personnage.js` (2 styles, prototype publié pour Thomas) ; réponses R6 (C58) ; `js/views/hybride.js` (écran principal, personnage, vue coach, carte d'accueil) ; `js/cloud.js` (bloc, apparence, calcul, consentement, lecture coach) ; radar dans `js/hybride-quetes.js` ; échauffement dans la génération ; service worker `cxs-v111` avec les 6 nouveaux fichiers ; `tests/hybride-e2e.js` et `tests/personnage.test.mjs` ; CI.
+Relecture indépendante intégrée (2 bloquants : boucle de requêtes si les données manquent, écran figé si le bloc est corrompu ; 5 à corriger).
+Testé : node (65 : hybride, quêtes, génération, serveur, personnage, service worker) ; `tests/hybride-e2e.js` 94 contrôles (iPhone 390×844 et Android 360×740, clair et sombre, mouvement réduit, zéro erreur, zéro débordement) ; `tests/parcours-e2e.js` 440 contrôles (aucune régression) ; `tests/sw.test.mjs`. Pas de test sur un vrai téléphone.
+En attente : « go » de Thomas pour fusionner les 3 PR dans `main` (mise en ligne GitHub Pages).

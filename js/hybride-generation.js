@@ -50,6 +50,7 @@ export function semaine(D, rows, opts) {
   const seances = gab.seances.map(s => {
     const blocs = s.blocs.map(id => ({ id, items: [] })), B = (id) => blocs.find(b => b.id === id);
     const sansSprint = (answers.zones || []).some(z => (D.hypotheses.zonesSansSprint || []).includes(z));
+    if (B("echauffement")) B("echauffement").items.push({ ...synthetique("Échauffement général", 1, 1, 0, "mobilite"), unite: "min", note: s.type === "haute" ? "10 min : cardio léger, mobilité, gammes, puis séries de montée" : "8 min : cardio léger et mobilité" });
     if (B("vitesse") && !dech && !sansSprint) B("vitesse").items.push(synthetique(reprise && semaineMacro <= D.cardio.repriseSemaines ? `${G.vitesse.nom} à 90 %` : G.vitesse.nom, G.vitesse.n, G.vitesse.reps, G.vitesse.repos, "vitesse"));
     if (B("plio") && !dech) { const e = parSlug(rows, G.plio.slug); if (faisable(e, ctx)) B("plio").items.push({ ...ligne(e, G.plio.n, answers, pf), lo: G.plio.reps, hi: G.plio.reps, rpe: null }); }
     if (B("halterophilie")) { const e = parSlug(rows, halterophilie ? G.halterophilie.technique : G.halterophilie.sinon); if (faisable(e, ctx)) B("halterophilie").items.push({ ...ligne(e, moitie(G.halterophilie.n), answers, pf), lo: G.halterophilie.reps, hi: G.halterophilie.reps, rpe: null, note: halterophilie ? "Technique : 70 à 85 %, jamais à l'échec." : "Haltérophilie remplacée tant que la technique n'est pas acquise." }); }

@@ -9,3 +9,7 @@ Liste tenue pendant les sessions « athlète hybride » (17/11/2026). Rien de ce
 5. Fusionner plus tard les trophées et niveaux actuels (`js/quests.js`) avec les quêtes et rangs du module hybride (décision C56, Q4).
 6. Fonction serveur `hybride-xp` : un membre motivé peut toujours inventer des séances dans son instantané (le téléphone écrit ses propres logs). Le calcul serveur empêche seulement d'écrire de l'XP directement. Renforcement possible : plafonner l'XP par jour, ou ne compter que les séances synchronisées dans les 48 h.
 7. Le coach lit aujourd'hui l'instantané complet de tous les membres (point 1) : il contient désormais aussi les dates de test et de pause du module hybride.
+8. Redéployer `hybride-xp` sur le dernier `moteur.js` (le moteur déployé le 17/11, commit 7a08c4f, calcule la même XP ; seules des données d'affichage ont été ajoutées depuis).
+9. Tests sur un vrai téléphone (seulement en émulation Playwright pour l'instant).
+10. Point d'entrée « Athlète hybride » : aujourd'hui une carte sur l'accueil ; à placer aussi dans l'onglet Entraînement si Thomas le souhaite.
+11. Le résultat chiffré des tests (VMA, 1RM…) n'est pas demandé : seule la date compte pour les quêtes. Un champ facultatif pourrait alimenter les allures (VMA) automatiquement.

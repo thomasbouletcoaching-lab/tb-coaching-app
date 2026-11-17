@@ -13,7 +13,7 @@
 //     une séance décalée dans la semaine compte (on compare la semaine, pas le jour exact).
 //   · Retour après une absence : accueil positif, jamais de reproche.
 //   · Le personnage ne régresse jamais : un objet débloqué le reste.
-import { calendrier, addJours, ecartJours, lundiDe, dowDe, gabarit, poidsExercice, macro } from "./hybride.js";
+import { calendrier, addJours, ecartJours, lundiDe, dowDe, gabarit, poidsExercice, macro, volume } from "./hybride.js";
 
 export const VERSION = 2;
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -59,7 +59,7 @@ export function journalDepuisEtat(D, st = {}, exDe = () => null) {
       if (principal && D.groupes.find(g => g.id === principal)?.qualite === "prevention") prevention += travail.length;
       if (row.categorie === "skills" && travail.length) skills = true;
       if (row.categorie === "cardio" && Z2_NOM.test(nom) && !INTENSE.test(nom)) z2Min += travail.reduce((t, s) => t + (+s.min || (+s.sec || 0) / 60), 0);
-      return { nom, series: travail.map(s => ({ reps: +s.reps || 0, kg: +s.kg || 0, sec: +s.sec || 0 })) };
+      return { nom, categorie: row.categorie || null, pattern: row.couche === "squelette" ? row.pattern_principal || null : null, muscles: row.muscles || [], series: travail.map(s => ({ reps: +s.reps || 0, kg: +s.kg || 0, sec: +s.sec || 0 })) };
     });
     const heure = String(w.end || w.start);
     return { d, heure, exercices, echauffement, prevention, skills, z2Min, douleur, fatigue: fatigueLe(d), records: Array.isArray(w.records) ? w.records.length : 0 };
@@ -249,4 +249,27 @@ export function bilan(D, J, auj, { precedents = [], xpBase = null } = {}) {
   const xp = Math.max(xpBase ?? 0, ev.reduce((t, e) => t + e.xp, 0));
   return { xp, rang: rang(D, xp), serie: s, quetes: quetesDuMoment(D, J, auj, R), evenements: ev, reussites: R,
     debloques: debloques(D, { xp, quetes: R.map(r => r.id), serieRecord: s.record }, precedents) };
+}
+
+// ---------- Radar des 7 qualités (0 à 100), calculé sur les 4 dernières semaines de vraies données ----------
+// Chaque axe compare ce qui a été fait à un repère hebdomadaire (data/hybride.json, clé « radar ») : c'est un
+// reflet de l'entraînement, pas une mesure du corps ni un niveau.
+export function radar(D, J, auj, C = null) {
+  const R = D.radar, du = addJours(auj, -27), sem = 4, ss = J.seances.filter(s => s.d >= du && s.d <= auj);
+  const ex = ss.flatMap(s => s.exercices);
+  const pct = (x, ref) => Math.max(0, Math.min(100, Math.round(x / sem / ref * 100)));
+  const lourdes = ex.filter(e => e.pattern).reduce((t, e) => t + e.series.filter(x => x.reps > 0 && x.reps <= R.repsLourdes).length, 0);
+  const puissance = ex.filter(e => e.categorie === "puissance").reduce((t, e) => t + e.series.length, 0);
+  const vitesse = ex.filter(e => /sprint|accélération|acceleration|côte/i.test(e.nom)).reduce((t, e) => t + e.series.length, 0);
+  const z2 = ss.reduce((t, s) => t + s.z2Min, 0) + J.cardio.filter(c => c.d >= du && c.d <= auj && c.z2).reduce((t, c) => t + c.min, 0);
+  const skills = ex.filter(e => e.categorie === "skills").reduce((t, e) => t + e.series.length, 0);
+  const lignes = ex.map(e => ({ ex: { nom: e.nom, muscles: e.muscles, categorie: e.categorie }, series: e.series.length }));
+  const v = volume(D, lignes);
+  const part = (ids) => { const l = ids.map(id => { const g = D.groupes.find(x => x.id === id), ref = C?.[id]?.min || g.maintien[0] || 1; return Math.min(1, v[id] / sem / ref); }); return Math.round(l.reduce((a, b) => a + b, 0) / l.length * 100); };
+  const hyp = D.groupes.filter(g => g.qualite === "hypertrophie" && !g.sansAlerte && g.maintien[0] > 0).map(g => g.id);
+  const prev = D.groupes.filter(g => g.qualite === "prevention").map(g => g.id);
+  return [
+    { id: "hypertrophie", v: part(hyp) }, { id: "force", v: pct(lourdes, R.seriesLourdes) }, { id: "puissance", v: pct(puissance, R.seriesPuissance) },
+    { id: "vitesse", v: pct(vitesse, R.seriesVitesse) }, { id: "endurance", v: pct(z2, R.minutesZ2) }, { id: "skills", v: pct(skills, R.seriesSkills) }, { id: "prevention", v: part(prev) },
+  ].map(x => ({ ...x, nom: D.qualites.find(q => q.id === x.id).nom }));
 }
