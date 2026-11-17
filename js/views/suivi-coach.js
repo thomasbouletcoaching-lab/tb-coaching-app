@@ -10,6 +10,7 @@ import { checkinText } from "./checkin.js";
 import { scoreRing } from "./suivi.js";
 import { resume } from "../programme.js";
 import { declencheurs, resume as resumeCrise, PARTAGE_MAX } from "../crise.js";
+import { carteCoach } from "./hybride.js";
 
 const ZL = { epaule: "Épaule", coude: "Coude", poignet: "Poignet", nuque: "Nuque", lombaires: "Bas du dos", hanche: "Hanche", genou: "Genou", cheville: "Cheville" };
 const YL = { 0: "Jamais vraiment", 1: "Moins d'1 an", 3: "1 à 3 ans", 5: "Plus de 3 ans" };
@@ -47,6 +48,7 @@ export function memberSuivi(D, m) {
     <h2 class="sec">💬 Témoignage</h2>
     ${t?.ok ? `<div class="card small"><p style="margin:0">« ${esc(t.quote)} »</p><p class="xs muted mt8" style="margin:0">Accord du ${fmtDate(t.at.slice(0, 10), { day: "numeric", month: "long", year: "numeric" })} · ${t.anon === "anonyme" ? "anonyme" : t.anon === "initiale" ? "initiale seulement" : "prénom"} · ${t.photos ? "photos autorisées" : "sans photos"}${t.summary ? ` · ${t.summary.days} j, ${t.summary.weight != null ? `${t.summary.weight > 0 ? "+" : ""}${fr(t.summary.weight, 1)} kg, ` : ""}${t.summary.sessions} séances` : ""}</p></div>`
       : t?.revokedAt ? `<p class="small muted">Accord retiré le ${fmtDate(t.revokedAt.slice(0, 10), { day: "numeric", month: "long" })} : ne plus utiliser.</p>` : `<p class="small muted">Pas de témoignage autorisé.</p>`}
+    ${m?.id ? carteCoach(m.id) : ""}
     ${craquages(D)}
     <h2 class="sec">📸 Photos envoyées <small>${(S().sharedPhotos || []).length}</small></h2>
     ${(S().sharedPhotos || []).length ? `<div class="photo-grid">${S().sharedPhotos.slice(-9).map(p => `<figure><img alt="Photo du ${esc(p.d)}" data-ppath="${esc(p.path)}" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" style="background:var(--line)"><figcaption>${fmtDate(p.d, { day: "numeric", month: "short" })} · ${esc(p.view)}</figcaption></figure>`).join("")}</div>`

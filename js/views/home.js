@@ -12,6 +12,7 @@ import * as E from "../engine.js";
 import * as N from "../nutrition.js";
 import * as EN from "../energy.js";
 import { $app, esc, num, fr, toast, buzz, routes, R, actions, changes, go, I, header, tabbar, seg, ring, gradDef, lineChart, barChart, greet, wordOn, fmtDate, addDays, isCoach, rank, premium, badges, msgQuotaText, weekOpen, rerender, canMsg } from "../core.js";
+import { carteAccueil } from "./hybride.js";
 import { pushStats } from "../sync.js";
 import { liveBanner } from "./live.js";
 import { coachFoodCard } from "./coachfood.js";
@@ -170,7 +171,7 @@ routes.home = async () => {
     <button class="card tap" data-a="go" data-r="food">${caloriesCard(d, true)}</button>
     ${recoveryMini(d)}
     ${fs ? `<button class="card tap mt12" data-a="go" data-r="recup"><div class="row"><span style="font-size:30px">${fs.stage[1]}</span><div class="grow"><div class="lbl">⏳ Jeûne en cours</div><b class="h3">${Math.floor(fs.hours)} h ${String(Math.floor(fs.hours % 1 * 60)).padStart(2, "0")}</b><div class="xs muted">${esc(fs.stage[2])}</div></div>${I.chev}</div></button>` : ""}
-    ${d === today() ? `<h2 class="sec">🎮 Quêtes et régularité</h2>` + triadeCard() + gamCard() : ""}
+    ${d === today() ? `<h2 class="sec">🎮 Quêtes et régularité</h2>` + triadeCard() + gamCard() + carteAccueil() : ""}
     ${d === today() ? liveBanner() + coachFoodCard() : ""}
     ${routineCard(d)}
     ${d === today() && rank() < 1 ? offersCard() : ""}

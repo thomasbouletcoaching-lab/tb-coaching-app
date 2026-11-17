@@ -327,3 +327,31 @@ export async function progressPhotoUrls(paths) {
   if (error) throw error;
   return Object.fromEntries((data || []).filter(x => x.signedUrl).map(x => [x.path, x.signedUrl]));
 }
+
+// ---------- Module « athlète hybride » (tables cxs_hyb_*, fonction hybride-xp) ----------
+// Les règles d'accès sont côté serveur : un membre n'écrit que son bloc et l'apparence de son personnage ;
+// l'XP, les quêtes et les objets débloqués ne sont écrits que par la fonction hybride-xp.
+export async function hybBlocSave(b) {
+  const { error } = await sb.from("cxs_hyb_bloc").upsert({ user_id: uid, macro_id: b.macroId, debut: b.debut, nb_seances: b.nbSeances, data: { reprise: !!b.reprise, vma: b.vma || null, halterophilie: !!b.halterophilie } }, { onConflict: "user_id" });
+  if (error) throw error;
+}
+export async function hybApparence(apparence) {
+  const { error } = await sb.from("cxs_hyb_personnage").upsert({ user_id: uid, apparence }, { onConflict: "user_id" });
+  if (error) throw error;
+}
+export async function hybCalcul() {
+  const { data, error } = await sb.functions.invoke("hybride-xp", { body: {} });
+  if (error) throw error;
+  return data;
+}
+export async function hybConsentir(accord) { const { error } = await sb.rpc("cxs_hyb_consentir", { p_accord: !!accord }); if (error) throw error; }
+export async function hybConsentement() { const { data } = await sb.from("cxs_hyb_consentement").select("accorde_le, revoque_le").eq("user_id", uid).maybeSingle(); return data || null; }
+// Vue coach : les règles d'accès renvoient des lignes vides pour un abonné en autonomie sans consentement
+export async function hybPourCoach(memberId) {
+  const [b, x, q] = await Promise.all([
+    sb.from("cxs_hyb_bloc").select("macro_id, debut, nb_seances, updated_at").eq("user_id", memberId).maybeSingle(),
+    sb.from("cxs_hyb_xp").select("xp, cree_le").eq("user_id", memberId).order("cree_le", { ascending: false }).limit(1000),
+    sb.from("cxs_hyb_quetes").select("quete_id, periode, reussie_le").eq("user_id", memberId).order("reussie_le", { ascending: false }).limit(20),
+  ]);
+  return { bloc: b.data || null, xp: (x.data || []).reduce((t, e) => t + (e.xp || 0), 0), dernier: x.data?.[0]?.cree_le || null, quetes: q.data || [], vide: !b.data && !(x.data || []).length };
+}

@@ -1504,19 +1504,21 @@
  ],
  "_rangs": "Seuils d'XP (hypothèse) : environ 4 séances par semaine donnent 150 à 200 XP, soit Argent en 2 semaines, Or en 5, Platine après un macrocycle, Maître vers un an.",
  "_quetes": "Catalogue des quêtes. type : jour, semaine, bloc, skill, boss. regle : nom de la règle calculée par js/hybride-quetes.js. Les textes s'adressent à la personne sans accord de genre.",
- "_objets": "Objets du personnage, débloqués pour toujours (jamais repris). condition : rang atteint, quête réussie au moins une fois, ou série de jours. Noms provisoires : le style est un point d'arrêt R6 (session 3).",
+ "_objets": "Objets du personnage, débloqués pour toujours (jamais repris). condition : rang atteint, quête réussie au moins une fois, ou série de jours. Noms provisoires : le style est un point d'arrêt R6 (session 3). prix : null pour tous aujourd'hui. Thomas a choisi (C58) de garder la possibilité d'objets payants plus tard : rien n'est vendu tant que ce champ reste vide.",
  "objets": [
   {
    "id": "tenue-base",
    "type": "tenue",
    "nom": "Tenue d'entraînement",
-   "condition": {}
+   "condition": {},
+   "prix": null
   },
   {
    "id": "decor-salle",
    "type": "decor",
    "nom": "Salle de sport",
-   "condition": {}
+   "condition": {},
+   "prix": null
   },
   {
    "id": "bandeau",
@@ -1524,7 +1526,8 @@
    "nom": "Bandeau",
    "condition": {
     "serie": 7
-   }
+   },
+   "prix": null
   },
   {
    "id": "tenue-argent",
@@ -1532,7 +1535,8 @@
    "nom": "Tenue Argent",
    "condition": {
     "rang": "argent"
-   }
+   },
+   "prix": null
   },
   {
    "id": "decor-piste",
@@ -1540,7 +1544,8 @@
    "nom": "Piste d'athlétisme",
    "condition": {
     "quete": "zone-2"
-   }
+   },
+   "prix": null
   },
   {
    "id": "gants",
@@ -1548,7 +1553,8 @@
    "nom": "Gants de barre",
    "condition": {
     "quete": "skill-muscleup"
-   }
+   },
+   "prix": null
   },
   {
    "id": "tenue-or",
@@ -1556,7 +1562,8 @@
    "nom": "Tenue Or",
    "condition": {
     "rang": "or"
-   }
+   },
+   "prix": null
   },
   {
    "id": "chrono",
@@ -1564,7 +1571,8 @@
    "nom": "Chronomètre",
    "condition": {
     "quete": "boss"
-   }
+   },
+   "prix": null
   },
   {
    "id": "decor-parc",
@@ -1572,7 +1580,8 @@
    "nom": "Parc de street workout",
    "condition": {
     "quete": "meso-termine"
-   }
+   },
+   "prix": null
   },
   {
    "id": "tenue-platine",
@@ -1580,7 +1589,8 @@
    "nom": "Tenue Platine",
    "condition": {
     "rang": "platine"
-   }
+   },
+   "prix": null
   },
   {
    "id": "cape",
@@ -1588,7 +1598,8 @@
    "nom": "Cape",
    "condition": {
     "serie": 60
-   }
+   },
+   "prix": null
   },
   {
    "id": "tenue-diamant",
@@ -1596,7 +1607,8 @@
    "nom": "Tenue Diamant",
    "condition": {
     "rang": "diamant"
-   }
+   },
+   "prix": null
   },
   {
    "id": "decor-stade",
@@ -1604,7 +1616,8 @@
    "nom": "Stade",
    "condition": {
     "rang": "maitre"
-   }
+   },
+   "prix": null
   },
   {
    "id": "tenue-maitre",
@@ -1612,7 +1625,8 @@
    "nom": "Tenue Maître",
    "condition": {
     "rang": "maitre"
-   }
+   },
+   "prix": null
   }
  ],
  "generation": {
@@ -1638,5 +1652,14 @@
    "n": 5,
    "reps": 2
   }
+ },
+ "_radar": "Repères hebdomadaires du radar des 7 qualités (hypothèses) : 100 = repère atteint en moyenne sur 4 semaines. Hypertrophie et prévention : part des groupes au niveau du maintien (ou de la cible du bloc).",
+ "radar": {
+  "repsLourdes": 6,
+  "seriesLourdes": 12,
+  "seriesPuissance": 6,
+  "seriesVitesse": 5,
+  "minutesZ2": 60,
+  "seriesSkills": 6
  }
 }

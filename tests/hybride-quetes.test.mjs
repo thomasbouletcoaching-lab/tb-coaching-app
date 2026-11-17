@@ -238,3 +238,16 @@ test("le mot « normal » n'est pas pris pour une douleur", () => {
   w.exercises[0].sets[1].note = "un peu mal au genou";
   assert.equal(J([w]).seances[0].douleur, true);
 });
+
+test("radar des 7 qualités : 0 sans données, monte avec les vraies séances, borné à 100", () => {
+  const vide = Q.radar(D, J([]), "2026-12-20");
+  assert.equal(vide.length, 7); assert.ok(vide.every(x => x.v === 0));
+  const w = [];
+  for (let k = 0; k < 4; k++) for (const j of [0, 2, 4]) { const d = new Date(Date.UTC(2026, 10, 23 + k * 7 + j)).toISOString().slice(0, 10); const s = complete(d, { suffixe: d }); s.exercises.push({ name: "Muscle-up strict", sets: [set({ reps: 2 }), set({ reps: 2 }), set({ reps: 2 })] }); w.push(s); }
+  const r = Object.fromEntries(Q.radar(D, J(w), "2026-12-20").map(x => [x.id, x.v]));
+  assert.ok(r.force > 0 && r.skills > 0 && r.prevention > 0);
+  assert.ok(Object.values(r).every(v => v >= 0 && v <= 100));
+  assert.equal(r.vitesse, 0);
+});
+
+test("objets : aucun prix aujourd'hui (C58)", () => { assert.ok(D.objets.every(o => o.prix === null)); });
