@@ -120,8 +120,9 @@ export function poidsExercice(D, ex) {
 // Pour un groupe « direct », seules les séries où il est principal comptent.
 export function volume(D, lignes) {
   const v = Object.fromEntries(D.groupes.map(g => [g.id, 0]));
+  const sans = new Set(D.hypotheses.categoriesSansVolume || []);
   (lignes || []).forEach(({ ex, series }) => {
-    const n = +series || 0; if (!n) return;
+    const n = +series || 0; if (!n || sans.has(ex?.categorie)) return;
     Object.entries(poidsExercice(D, ex)).forEach(([id, c]) => {
       const g = D.groupes.find(x => x.id === id);
       if (g.direct && c < 1) return;

@@ -30,3 +30,12 @@ La migration ne touche que des objets nouveaux. Avant application : (1) je relan
 
 ## Impact clients
 Aucun tant que l'app n'utilise pas ces tables (session 3). Les 16 comptes actuels sont en formule « surmesure » ou « invité » : tous comptent comme coachés (décision C56), le coach les voit comme aujourd'hui.
+
+## R1 bis · Fonction serveur `hybride-xp`
+
+**Déployée le 17/11/2026** après « go » de Thomas (version 1, `verify_jwt` désactivé comme `billing` : la fonction vérifie elle-même la session par `auth.getUser`).
+- Source : `supabase/functions/hybride-xp/index.ts`. Version déployée identique, sauf l'import du moteur, épinglé sur le commit `7a08c4f` : `https://raw.githubusercontent.com/thomasbouletcoaching-lab/tb-coaching-app/7a08c4f86a9f49d5cedb8294b169f5d55ea1049a/supabase/functions/hybride-xp/moteur.js` (fichier figé : les règles ne changent qu'à un nouveau déploiement).
+- Vérifié juste après : appel sans jeton → 401 ; jeton invalide → 401 avec message générique ; GET → 405. Aucun appel avec un vrai compte (aucune donnée de client lue).
+- N'agit que sur la personne connectée (identifiant tiré du jeton, jamais de la requête). Écrit `cxs_hyb_xp` et `cxs_hyb_quetes` sans jamais écraser (« on conflict do nothing »), et `cxs_hyb_personnage.debloques` (union, jamais de retrait ; l'apparence n'est pas touchée).
+- Retour arrière : supprimer la fonction dans Supabase › Edge Functions. Aucune donnée n'est perdue.
+- Pour redéployer après une modification : `node tools/build-fonction-hybride.mjs`, commit et push, puis déployer `index.ts` en remplaçant `./moteur.js` par l'adresse brute du nouveau commit.
