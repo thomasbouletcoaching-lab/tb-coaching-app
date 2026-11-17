@@ -18,7 +18,7 @@
 - Un membre peut tout effacer d'un geste.
 
 ## Test sur branche
-Pas de branche Supabase payante : la migration est testée sur un Postgres local qui imite Supabase (`tests/sql/run-hybride.sh`), aussi lancé par la CI sur chaque PR. Résultat le 17/11/2026 : 63 contrôles passés (22 refus attendus, 41 accès ou cloisonnements attendus), avec les droits par défaut de Supabase imités, migration rejouée deux fois sans erreur, retour arrière puis réapplication réussis. Limite : Postgres 16 en local, 17 en production (aucune fonction propre à une version n'est utilisée).
+Pas de branche Supabase payante : la migration est testée sur un Postgres local qui imite Supabase (`tests/sql/run-hybride.sh`), aussi lancé par la CI sur chaque PR. Résultat le 17/11/2026 : 64 contrôles passés (22 refus attendus, 42 accès ou cloisonnements attendus), avec les droits par défaut de Supabase imités, migration rejouée deux fois sans erreur, retour arrière puis réapplication réussis. Limite : Postgres 16 en local, 17 en production (aucune fonction propre à une version n'est utilisée).
 
 ## Sauvegarde
 La migration ne touche que des objets nouveaux. Avant application : (1) je relance en lecture seule la vérification « aucun objet `cxs_hyb_*` » ; (2) je note l'heure de la dernière sauvegarde quotidienne du plan Pro (Supabase › Database › Backups) ; (3) j'exporte la liste des politiques et fonctions existantes dans `docs/migration-sql/` pour comparaison après coup.
@@ -27,4 +27,4 @@ La migration ne touche que des objets nouveaux. Avant application : (1) je relan
 `supabase/migrations/2026-11-17_cxs_hybride_retour.sql` : retire les fonctions et les politiques, déplace les 5 tables dans un schéma `archive_hybride` invisible de l'app. **Aucune donnée supprimée.** Après un retour arrière, une demande d'effacement RGPD se traite à la main dans `archive_hybride`.
 
 ## Impact clients
-Aucun tant que l'app n'utilise pas ces tables (session 3). Les 16 comptes actuels sont en formule « surmesure » ou « invité » : tous comptent comme coachés, le coach les voit comme aujourd'hui.
+Aucun tant que l'app n'utilise pas ces tables (session 3). Les 16 comptes actuels sont en formule « surmesure » ou « invité » : tous comptent comme coachés (décision C56), le coach les voit comme aujourd'hui.

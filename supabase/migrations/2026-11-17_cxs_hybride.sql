@@ -14,7 +14,7 @@
 --
 -- RÈGLES D'ACCÈS (testées par tests/sql/hybride_rls.sql)
 --   · Un membre ne lit que ses lignes.
---   · Le coach lit un client coaché (formule essentiel, suivi, avance, surmesure ou invité,
+--   · Le coach lit un client coaché (formule avance, surmesure ou invité,
 --     non échue : tier_until vide ou à venir).
 --   · Le coach lit un abonné en autonomie seulement si son consentement est actif.
 --   · Personne d'autre ne lit rien (anon : aucun droit).
@@ -30,7 +30,7 @@
 begin;
 
 -- ---------- Qui est coaché ? ----------
--- Hypothèse à valider par Thomas : formules de rang ≥ 2 (messagerie avec Thomas) et invité.
+-- Décision de Thomas (17/11/2026, Q2) : Coaching personnalisé (avance), Élite (surmesure) et Invité.
 create or replace function public.cxs_hyb_coache(p_uid uuid)
 returns boolean
 language sql
@@ -38,7 +38,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select coalesce((select p.tier in ('essentiel', 'suivi', 'avance', 'surmesure', 'invite')
+  select coalesce((select p.tier in ('avance', 'surmesure', 'invite')
                        and (p.tier_until is null or p.tier_until >= current_date)
                    from public.cxs_profiles p where p.id = p_uid), false)
 $$;

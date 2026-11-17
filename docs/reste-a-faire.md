@@ -6,3 +6,4 @@ Liste tenue pendant les sessions « athlète hybride » (17/11/2026). Rien de ce
 2. `cxs_tiers` en production n'a pas de ligne « invite », alors que `js/config.js` en a une (rang 3). À aligner.
 3. Tables `gx_events`, `gx_member`, `gx_reactions` : RLS activée sans politique (fermées, accès par fonctions `SECURITY DEFINER`). `gx_calc` lit le poids (`mesures`) pour des points : contraire à « jamais de points pour le poids ». Concerne l'ancienne app.
 4. Production en Postgres 17, tests locaux en Postgres 16 : prévoir un test sur la même version.
+5. Fusionner plus tard les trophées et niveaux actuels (`js/quests.js`) avec les quêtes et rangs du module hybride (décision C56, Q4).
