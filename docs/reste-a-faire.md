@@ -13,3 +13,5 @@ Liste tenue pendant les sessions « athlète hybride » (17/11/2026). Rien de ce
 9. Tests sur un vrai téléphone (seulement en émulation Playwright pour l'instant).
 10. Point d'entrée « Athlète hybride » : aujourd'hui une carte sur l'accueil ; à placer aussi dans l'onglet Entraînement si Thomas le souhaite.
 11. Le résultat chiffré des tests (VMA, 1RM…) n'est pas demandé : seule la date compte pour les quêtes. Un champ facultatif pourrait alimenter les allures (VMA) automatiquement.
+12. Personnage 3D : rendre les tenues Or, Platine, Diamant et Maître, les accessoires (bandeau, gants, chrono, cape) et des couleurs de cheveux (`tools/personnage-3d/`).
+13. Visage à partir d'une photo (décision C59) : prototype sur le téléphone, photo jamais envoyée ni gardée, accord explicite ; à montrer à Thomas avant toute mise en ligne.

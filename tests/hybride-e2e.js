@@ -71,11 +71,22 @@ const largeur = (p) => p.evaluate(() => document.documentElement.scrollWidth);
     // Personnage : personnalisation, objets verrouillés
     const c = await page(b, { state: PERSONAS.avance, url: '#/hybride-perso', vp, scheme });
     t = await txt(c.p);
-    ok(/ne dit rien de ton corps/.test(t), 'silhouette présentée comme un choix de dessin');
-    await tap(c.p, '[data-a="hyb-app"][data-k="coiffure"][data-v="tresses"]');
-    ok((await S(c.p)).hybride.apparence.coiffure === 'tresses', 'coiffure changée et gardée');
+    ok(/Choisis une base/.test(t) && !/Musculature/.test(t), 'aucune base imposée : on choisit d\'abord');
+    await tap(c.p, '[data-a="hyb-app"][data-k="base"][data-v="b"]');
+    t = await txt(c.p);
+    ok(/ne dit rien de ton corps/.test(t) && /Musculature/.test(t) && /Masse grasse/.test(t), 'base choisie : musculature, masse grasse, coiffure');
+    await tap(c.p, '[data-a="hyb-app"][data-k="muscle"][data-v="3"]');
+    await tap(c.p, '[data-a="hyb-app"][data-k="graisse"][data-v="0"]');
+    await tap(c.p, '[data-a="hyb-app"][data-k="coiffure3d"][data-v="tresse"]');
+    const ap = (await S(c.p)).hybride.apparence;
+    ok(ap.base === 'b' && ap.muscle === 3 && ap.graisse === 0 && ap.coiffure3d === 'tresse', 'choix gardés');
+    const imgs = await c.p.$$eval('.perso3d img', l => l.map(i => ({ src: i.getAttribute('src'), ok: i.complete && i.naturalWidth > 0 })));
+    ok(imgs.length >= 3 && imgs.some(i => /b-m3-g0/.test(i.src)), 'calques du personnage réaliste affichés (' + imgs.length + ')');
+    await c.p.waitForTimeout(800);
+    ok((await c.p.$$eval('.perso3d img', l => l.every(i => i.complete && i.naturalWidth > 0))), 'toutes les images chargées');
     ok(await c.p.locator('[data-a="hyb-app"][data-k="tenue"][data-v="tenue-maitre"]').isDisabled(), 'tenue Maître verrouillée');
     ok(!(await c.p.locator('[data-a="hyb-app"][data-k="tenue"][data-v="tenue-argent"]').isDisabled()), 'tenue Argent débloquée disponible');
+    if (SHOTS) await c.p.screenshot({ path: `${SHOTS}/perso-${vp.width}-${scheme}.png`, fullPage: true });
     ok(await overflow(c.p) === 0 && await largeur(c.p) <= vp.width, 'rien ne dépasse (personnage)');
     ok(c.errs.length === 0, 'zéro erreur JavaScript (personnage)' + (c.errs.length ? ' : ' + c.errs.join(' | ') : ''));
     await c.ctx.close();
@@ -115,8 +126,8 @@ const largeur = (p) => p.evaluate(() => document.documentElement.scrollWidth);
     await k.ctx.close();
   }
   const z = await page(b, { state: { ...PERSONAS.reprise, hybride: 'texte' }, url: '#/hybride-perso' });
-  await tap(z.p, '[data-a="hyb-app"][data-k="visage"][data-v="rond"]');
-  ok((await S(z.p)).hybride.apparence.visage === 'rond' && z.errs.length === 0, 'état hybride corrompu : réparé à la première action, sans erreur');
+  await tap(z.p, '[data-a="hyb-app"][data-k="base"][data-v="a"]');
+  ok((await S(z.p)).hybride.apparence.base === 'a' && z.errs.length === 0, 'état hybride corrompu : réparé à la première action, sans erreur');
   await z.ctx.close();
   {
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' }); const p = await ctx.newPage(); let n = 0;

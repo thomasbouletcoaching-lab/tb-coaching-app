@@ -1,0 +1,119 @@
+{
+ "samples": 20,
+ "res": [
+  400,
+  600
+ ],
+ "hauteur_cadre": 1.86,
+ "bases": {
+  "a": {
+   "gender": 1.0,
+   "height": 0.55,
+   "age": 0.5,
+   "caucasian": 0.34,
+   "african": 0.33,
+   "asian": 0.33
+  },
+  "b": {
+   "gender": 0.0,
+   "height": 0.55,
+   "age": 0.5,
+   "caucasian": 0.34,
+   "african": 0.33,
+   "asian": 0.33
+  }
+ },
+ "muscle": [
+  0.35,
+  0.6,
+  0.8,
+  1.0
+ ],
+ "graisse": {
+  "a": [
+   0.2,
+   0.45,
+   0.7,
+   0.95
+  ],
+  "b": [
+   0.2,
+   0.45,
+   0.7,
+   0.95
+  ]
+ },
+ "peaux": {
+  "p1": {
+   "a": "young_caucasian_male.mhmat",
+   "b": "young_caucasian_female.mhmat"
+  },
+  "p2": {
+   "a": "middleage_caucasian_male.mhmat",
+   "b": "middleage_caucasian_female.mhmat"
+  },
+  "p3": {
+   "a": "young_asian_male.mhmat",
+   "b": "young_asian_female.mhmat"
+  },
+  "p4": {
+   "a": "middleage_asian_male.mhmat",
+   "b": "middleage_asian_female.mhmat"
+  },
+  "p5": {
+   "a": "middleage_african_male.mhmat",
+   "b": "middleage_african_female.mhmat"
+  },
+  "p6": {
+   "a": "young_african_male.mhmat",
+   "b": "young_african_female.mhmat"
+  }
+ },
+ "tenues": {
+  "a": {
+   "base": [
+    "elvs_crude_t-shirt_male.mhclo",
+    "cortu_jeans_shorts.mhclo",
+    "shoes02.mhclo"
+   ],
+   "argent": [
+    "namuhekam_male_polo_shirt.mhclo",
+    "toigo_wool_pants.mhclo",
+    "shoes02.mhclo"
+   ]
+  },
+  "b": {
+   "base": [
+    "joepal_crude_t-shirt_female.mhclo",
+    "cortu_jeans_shorts.mhclo",
+    "shoes03.mhclo"
+   ],
+   "argent": [
+    "female_sportsuit01.mhclo",
+    "shoes03.mhclo"
+   ]
+  }
+ },
+ "coiffures": {
+  "rase": null,
+  "courte": "short02.mhclo",
+  "courte2": "short04.mhclo",
+  "afro": "afro01.mhclo",
+  "carre": "bob01.mhclo",
+  "queue": "ponytail01.mhclo",
+  "tresse": "braid01.mhclo",
+  "longue": "long01.mhclo"
+ },
+ "muscle_local": [
+  0.0,
+  0.35,
+  0.7,
+  1.0
+ ],
+ "graisse_local": [
+  -0.6,
+  0.0,
+  0.45,
+  1.0
+ ]
+}
