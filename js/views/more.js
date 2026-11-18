@@ -66,6 +66,12 @@ routes.profile = async () => {
       ${tile("anamnese", "🩺", "Mon point de départ", S().anamnese?.at ? "Santé, motivation" : "À compléter · 3 min")}
       ${S().trialStart && !S().defi?.closed ? tile("defi", "🔥", "Défi 30 jours", "Mes étapes") : ""}
     </div>
+    <h2 class="sec">Communauté</h2>
+    <div class="tiles">
+      ${tile("communaute", "🏟️", "Communauté", "Séances des membres, encouragements")}
+      ${tile("amis", "🫂", "Mes amis", "Vos séances, le podium de la semaine")}
+      ${tile("parrainage", "🎁", "Inviter et gagner", "1 mois offert par ami abonné")}
+    </div>
     <h2 class="sec">Entraînements</h2>
     ${last.length ? `<div class="list">${last.map(w => `<button class="li" data-a="ag-day" data-v="${today(new Date(w.end))}"><span class="em">🏋️</span><span class="grow"><b>${esc(w.title)}</b><br><span class="xs muted">${new Date(w.end).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "short" })} · ${Math.round((new Date(w.end) - new Date(w.start)) / 6e4)} min · ${fr((w.volume || 0) / 1000, 1)} t</span></span>${I.chev}</button>`).join("")}</div>` : `<p class="empty small">Ta première séance apparaîtra ici.</p>`}
   </main>${tabbar("profile")}`;

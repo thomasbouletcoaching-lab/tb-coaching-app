@@ -56,6 +56,10 @@ jobs:
           sudo systemctl start postgresql.service
           sudo -u postgres psql -qc "create role $USER superuser login"
           PGHOST=/var/run/postgresql PGDATABASE=postgres tests/sql/run-hybride.sh
+      - name: Tester le partage, le parrainage et la communauté (liens, filtre anti-contacts, paliers, jeu) et la récompense du webhook Stripe
+        run: node --test tests/social.test.mjs tests/parrainage-webhook.test.mjs
+      - name: Tester les règles d'accès SQL de la communauté et du parrainage (Postgres local, aucune connexion à la production)
+        run: PGHOST=/var/run/postgresql PGDATABASE=postgres tests/sql/run-social.sh
       - name: Tester la liste hors ligne du service worker (modules réellement chargés)
         run: node --test tests/sw.test.mjs
       - name: Vérifier que la messagerie n'écrit plus dans l'ancienne table
@@ -84,5 +88,6 @@ jobs:
           node tests/crise-e2e.js
           node tests/genre-e2e.js
           node tests/hybride-e2e.js
+          node tests/social-e2e.js
         env:
           BASE_URL: http://localhost:8765/

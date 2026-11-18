@@ -2,6 +2,7 @@
 // Met à jour cxs_profiles.tier / tier_until. Ne touche JAMAIS un compte coach ni une formule autre que free/premium
 // (Invité, coaching…) : ces accès sont gérés à la main par le coach.
 import { stripe, periodEnd } from "./stripe.ts";
+import { recompenserParrain } from "./parrainage.js";
 
 const LIVE = ["active", "trialing", "past_due"];
 const isUuid = (x: unknown) => typeof x === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
@@ -33,5 +34,9 @@ export async function cxsHandle(sb: any, ev: any, fetchSub = (id: string) => str
   const patch = live ? { tier: "premium", tier_until: pe ? new Date(pe * 1000).toISOString().slice(0, 10) : null } : { tier: "free", tier_until: null };
   const { error } = await sb.from("cxs_profiles").update(patch).eq("id", uid);
   if (error) throw error;
+  // Premier passage au Bâtisseur payé : récompense du parrain (s'il y en a un). Une erreur ici ne bloque pas l'abonnement.
+  if (live && (p.tier || "free") === "free") {
+    try { await recompenserParrain(sb, uid, stripe); } catch (e) { console.error("parrainage", (e as Error)?.message); }
+  }
   return true;
 }

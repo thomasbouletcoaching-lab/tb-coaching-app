@@ -355,3 +355,44 @@ export async function hybPourCoach(memberId) {
   ]);
   return { bloc: b.data || null, xp: (x.data || []).reduce((t, e) => t + (e.xp || 0), 0), dernier: x.data?.[0]?.cree_le || null, quetes: q.data || [], vide: !b.data && !(x.data || []).length };
 }
+
+// ---------- Partage, amis, communauté, parrainage (migration 2026-11-18_cxs_social.sql) ----------
+// Sans la migration, les fonctions n'existent pas : erreur « SOCIAL_ABSENT », l'écran affiche « bientôt disponible ».
+export class SocialAbsent extends Error { constructor() { super("SOCIAL_ABSENT"); this.name = "SocialAbsent"; } }
+async function soc(fn, args = {}) {
+  if (!uid) await ensureSession();
+  const { data, error } = await sb.rpc(fn, args);
+  if (error) { if (error.code === "PGRST202" || error.code === "42883" || error.code === "PGRST205" || /Could not find the function|does not exist/i.test(error.message || "")) throw new SocialAbsent(); throw error; }
+  return data;
+}
+export const socMoi = (depuis = null) => soc("cxs_soc_moi", { p_depuis: depuis });
+export const socProfil = (pseudo, avatar, communaute, visibilite) => soc("cxs_soc_profil_enregistrer", { p_pseudo: pseudo, p_avatar: avatar, p_communaute: communaute, p_visibilite: visibilite });
+export const socCode = (pseudo = null) => soc("cxs_soc_mon_code", { p_pseudo: pseudo });
+export const socPublier = (cle, data, visibilite, type = "seance") => soc("cxs_soc_publier", { p_cle: cle, p_type: type, p_data: data, p_visibilite: visibilite });
+export const socRetirer = (id) => soc("cxs_soc_retirer", { p_id: id });
+export const socFil = (portee, avant = null, limite = 30) => soc("cxs_soc_fil", { p_portee: portee, p_avant: avant, p_limite: limite });
+export const socReagir = (id, emoji, on = true) => soc("cxs_soc_reagir", { p_activite: id, p_emoji: emoji, p_on: on });
+export const socSignaler = (id, motif) => soc("cxs_soc_signaler", { p_activite: id, p_motif: motif });
+export const socAmiDemander = (code) => soc("cxs_soc_ami_demander", { p_code: code });
+export const socAmiRepondre = (autre, oui) => soc("cxs_soc_ami_repondre", { p_demandeur: autre, p_accepte: oui });
+export const socAmiRetirer = (autre) => soc("cxs_soc_ami_retirer", { p_autre: autre });
+export const socAmis = () => soc("cxs_soc_amis_liste");
+export const parrainageLier = (code) => soc("cxs_parrainage_lier", { p_code: code });
+export const socEffacer = () => soc("cxs_soc_effacer_mes_donnees");
+// Coach : modération, signalements, parrainages et récompenses
+export const socModerer = (id, masque) => soc("cxs_soc_moderer", { p_activite: id, p_masque: masque });
+export const recompenseTraiter = (id, oui, note = null) => soc("cxs_recompense_traiter", { p_id: id, p_accorde: oui, p_note: note });
+export async function socCoach() {
+  if (!uid) await ensureSession();
+  const [sig, rec, par, prof] = await Promise.all([
+    sb.from("cxs_soc_signalements").select("id,activite_id,motif,created_at,traite_le").is("traite_le", null).order("created_at", { ascending: false }).limit(50),
+    sb.from("cxs_recompenses").select("id,parrain_id,filleul_id,mode,statut,note,created_at").order("created_at", { ascending: false }).limit(100),
+    sb.from("cxs_parrainages").select("filleul_id,parrain_id,lie_le,premium_le").order("lie_le", { ascending: false }).limit(500),
+    sb.from("cxs_soc_profils").select("user_id,pseudo,avatar,communaute,masque").limit(1000),
+  ]);
+  const e = sig.error || rec.error || par.error || prof.error;
+  if (e) { if (e.code === "42P01" || e.code === "PGRST205" || /does not exist|Could not find the table/i.test(e.message || "")) throw new SocialAbsent(); throw e; }
+  const ids = [...new Set((sig.data || []).map(s => s.activite_id))];
+  const acts = ids.length ? (await sb.from("cxs_soc_activites").select("id,user_id,data,visibilite,masque,created_at").in("id", ids)).data || [] : [];
+  return { signalements: sig.data || [], recompenses: rec.data || [], parrainages: par.data || [], profils: prof.data || [], activites: acts };
+}

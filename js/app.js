@@ -35,6 +35,7 @@ import "./views/soutenabilite.js";
 import "./views/fatigue.js";
 import "./views/profil.js";
 import "./views/hybride.js";
+import { captureInvitation, pullSocial } from "./views/social.js";
 import { pullLive } from "./views/live.js";
 import { pullCoachFood } from "./views/coachfood.js";
 import { cloud as cloudMod } from "./core.js";
@@ -49,6 +50,7 @@ window.addEventListener("hashchange", render);
   await Promise.all([E.loadPrograms(), N.loadModels()]).catch(() => { });
   if (S().profile && !S().trialStart) update(st => st.trialStart = today());
   if (S().demoTier) update(st => st.demoTier = null); // plus de mode démo : essai de TRIAL_DAYS jours (Défi 30 jours)
+  try { captureInvitation(); } catch (e) { console.warn("Lien d'invitation illisible :", e.message); }
   render();
   refreshMe().then(() => { if (["home", "coach", "account", "offers"].includes(R.route) && !document.querySelector(".sheet-wrap, .composer, input:focus, textarea:focus")) render(); });
   setInterval(refreshMe, 60000);
@@ -59,13 +61,15 @@ window.addEventListener("hashchange", render);
   const pullFood = async () => { try { const c = await cloudMod(); if (c && S().profile && !S().me?.isCoach) { await pullCoachFood(c); if (R.route === "home") render(); } } catch { } };
   pullFood(); setInterval(pullFood, 5 * 60000);
   pullLive(); setInterval(pullLive, 15000);
+  // Communauté : encouragements reçus, demandes d'ami, invitation reçue à lier au compte (toutes les 5 min)
+  setTimeout(pullSocial, 4000); setInterval(pullSocial, 5 * 60000);
   // Programme perdu sur le téléphone (plan vide) alors qu'il existe sur le serveur : on le recharge tout seul
   setTimeout(async () => { try { if (!S().profile || S().me?.isCoach) return;
     let done = false; try { done = localStorage.getItem("cxs.progHeal") === "2"; } catch { }
     if (S().plan?.programId && (done || (S().customPrograms || []).some(p => p.id === "tb-main"))) return;
     const { restoreMigrated } = await import("./views/account.js"); const r = await restoreMigrated(); if (r?.p) { try { localStorage.setItem("cxs.progHeal", "2"); } catch { } } if (r?.p && ["home", "train", "workout"].includes(R.route)) render(); } catch (e) { console.warn("Programme non rechargé :", e.message); } }, 2500);
   // Quand l'app revient au premier plan : programme et séance du coach tout de suite (pas d'attente de 5 min)
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { pullCoachPlan(); pullFood(); pullLive(); } });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { pullCoachPlan(); pullFood(); pullLive(); pullSocial(); } });
   // Pas de menu « lien » sur un appui long dans la barre du bas ou sur les liens internes
   document.addEventListener("contextmenu", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });
   document.addEventListener("dragstart", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });

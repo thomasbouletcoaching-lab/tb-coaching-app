@@ -12,6 +12,7 @@ import { pushStats } from "../sync.js";
 import * as RM from "../roadmap.js";
 import { seasonBody } from "./season.js";
 import { carteAccueil } from "./hybride.js";
+import { blocPartageSeance, autoPublier } from "./social.js";
 
 const kgTxt = (v) => v == null || v === "" ? "" : E.fmtKg(v);
 const adv = () => S().settings.adv ?? (S().profile?.level === "advanced");
@@ -91,7 +92,8 @@ function programBody(ns) {
   const chipsW = Array.from({ length: ns.weeks }, (_, i) => i + 1).map(w => { const n = weekDone(w), all = n >= p.s.length;
     return `<button class="chip ${w === vw ? "on" : ""}" data-a="cy-week" data-v="${w}" style="${w === ns.week && w !== vw ? "box-shadow:0 0 0 2px var(--red) inset" : ""}">S${w}${all ? " ✓" : n ? ` ${n}/${p.s.length}` : ""}</button>`; }).join("");
   return `<div class="card grad mt12"><div class="lbl">🎯 Ton programme · cycle ${cyc}</div><h2 class="h2 mt4">${esc(p.name)}</h2>
-      <p class="small mt8">Tu es en <b>semaine ${ns.week}</b> sur ${ns.weeks} · ${esc(ns.phase)}</p><div class="gauge mt8" style="background:rgba(255,255,255,.25)"><i style="width:${Math.round((ns.week - 1 + weekDone(ns.week) / p.s.length) / ns.weeks * 100)}%;background:#fff"></i></div></div>
+      <p class="small mt8">Tu es en <b>semaine ${ns.week}</b> sur ${ns.weeks} · ${esc(ns.phase)}</p><div class="gauge mt8" style="background:rgba(255,255,255,.25)"><i style="width:${Math.round((ns.week - 1 + weekDone(ns.week) / p.s.length) / ns.weeks * 100)}%;background:#fff"></i></div>
+      <button class="btn btn-sm mt12" style="background:rgba(255,255,255,.2);color:#fff;width:auto" data-a="soc-prog" data-id="${esc(p.id)}">📤 Montrer mon programme</button></div>
     ${(S().customPrograms || []).some(x => x.id === "tb-main") ? "" : `<button class="btn btn-line btn-sm mt8" style="width:100%" data-a="prog-restore">🔄 Restaurer mon programme TB my Coach</button>`}
     ${alerts.length ? `<div class="card mt12" style="box-shadow:0 0 0 2px var(--warn) inset"><div class="lbl">⚠️ Alertes blessure</div>${alerts.map(a => `<p class="small mt8" style="margin-bottom:0"><b>${esc(a.name)}</b> · ${a.count} fois en 3 semaines<br><span class="muted">${esc(a.last.note)}</span></p>`).join("")}<p class="xs muted mt8">Réduis la charge, change d'exercice (🔄 dans la séance) ou parles-en à Thomas. Si la douleur persiste, consulte un professionnel de santé.</p></div>` : ""}
     <h2 class="sec">🗓️ Mon cycle <small>touche une semaine</small></h2>
@@ -875,6 +877,7 @@ actions.finish = () => {
   if (!confirm("Terminer la séance et enregistrer tes séries ?")) return;
   actions["rest-skip"](); clearInterval(clockT);
   E.finishSession(cur); pushStats(); go("done");
+  autoPublier(S().workouts.at(-1)).catch(() => { });
 };
 routes.done = () => {
   const w = S().workouts.at(-1); if (!w) return go("home");
@@ -891,6 +894,7 @@ routes.done = () => {
     ${recsAll.length ? `<div style="width:100%;max-width:560px;text-align:left;background:rgba(255,255,255,.12);border-radius:18px;padding:14px"><b>🏆 Records battus pendant la séance</b>${recsAll.map(r => `<div class="row between small mt8"><span>${esc(r.name)} · ${recLabel(r.k)[1]}</span><b>${esc(r.txt)}</b></div>`).join("")}</div>` : ""}
     ${w.records.length ? `<div style="width:100%;max-width:560px;text-align:left;background:rgba(255,255,255,.12);border-radius:18px;padding:14px"><b>🏆 Nouveau${w.records.length > 1 ? "x" : ""} record${w.records.length > 1 ? "s" : ""}</b>${w.records.map(r => `<div class="row between small mt8"><span>${esc(r.name)}</span><b>${Math.round(r.after)} kg <span style="opacity:.7;font-weight:400">1RM estimé</span></b></div>`).join("")}</div>` : ""}
     ${adj.length ? `<div style="width:100%;max-width:560px;text-align:left;background:rgba(255,255,255,.12);border-radius:18px;padding:14px"><b>🎯 Pour la prochaine séance</b>${premium() ? adj.map(a => `<div class="small mt8"><b>${esc(a.n)}</b><br><span style="opacity:.85">${esc(a.s.txt)}</span></div>`).join("") : `<p class="small mt8" style="opacity:.85">Tes charges sont recalculées. Les conseils détaillés (charge ou reps à viser selon ton RPE) sont dans Premium.</p>`}</div>` : ""}
+    ${blocPartageSeance(w)}
     <button class="btn" style="max-width:560px;background:#fff;color:var(--red)" data-a="go" data-r="home">Retour à l'accueil</button></section>`;
 };
 

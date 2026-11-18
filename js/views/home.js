@@ -13,6 +13,7 @@ import * as N from "../nutrition.js";
 import * as EN from "../energy.js";
 import { $app, esc, num, fr, toast, buzz, routes, R, actions, changes, go, I, header, tabbar, seg, ring, gradDef, lineChart, barChart, greet, wordOn, fmtDate, addDays, isCoach, rank, premium, badges, msgQuotaText, weekOpen, rerender, canMsg } from "../core.js";
 import { carteAccueil } from "./hybride.js";
+import { carteSociale } from "./social.js";
 import { pushStats } from "../sync.js";
 import { liveBanner } from "./live.js";
 import { coachFoodCard } from "./coachfood.js";
@@ -164,6 +165,7 @@ routes.home = async () => {
     ${d === today() ? await suiviCards() : ""}
     ${d === today() ? cycleCard(ns) : ""}
     ${trainingCard(d)}
+    ${d === today() ? carteSociale() : ""}
     ${d === today() ? carteAccueil() : ""}
     ${d === today() ? quickActions() : ""}
     ${d === today() ? strengthCard() : ""}

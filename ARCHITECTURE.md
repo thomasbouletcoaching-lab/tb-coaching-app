@@ -47,6 +47,7 @@ Ancienne app coach : coach/index.html (monolithe)        │ webhooks
 | `js/crise.js`, `js/views/crise.js` | « Je craque » : règles de réponse à une envie, déclencheurs du journal (pur, testé) et écran. Journal dans `S().crises`, envoyé au coach seulement si `S().criseShare` (accord explicite) |
 | `js/library.js` | Bibliothèque partagée par le coach (`cxs_library`) |
 | `js/exercices.js`, `js/views/bibliotheque.js` | Bibliothèque d'exercices classée selon les 8 patterns (`cxs_exercices`, version embarquée `data/exercices.json`) : voir `docs/bibliotheque-exercices.md` |
+| `js/social.js`, `js/views/social.js` | Partage (story, ami, programme), parrainage, amis et communauté : voir `docs/partage-communaute.md`. Tables `cxs_soc_*`, `cxs_parrainages`, `cxs_recompenses` (migration `2026-11-18_cxs_social.sql`) ; l'app marche sans |
 | `js/views/*.js` | Écrans (voir § 4) |
 | `data/*.json` | Programmes, fiches d'exercices, aliments (Ciqual, Open Food Facts, fast-food) |
 | `supabase/functions/` | Sources des Edge Functions `billing` et `stripe-webhook` |

@@ -1,6 +1,7 @@
 // Noyau d'interface : état partagé, routeur, en-tête, barre d'onglets, feuilles, graphiques, formules.
 import { S, update, today, APP_MODE } from "./store.js";
 import { CONFIG, offer, MSGS_PER_WEEK, FREE_PROGRAMS, FREE_WEEKS, ALL_FREE, TRIAL_DAYS } from "./config.js";
+import { joursEssai } from "./social.js";
 
 export const $app = document.getElementById("app");
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -14,8 +15,11 @@ export const hhmm = (d = new Date()) => d.toTimeString().slice(0, 5);
 
 // ---------- Formules ----------
 // Essai : les 7 premiers jours, l'app complète (Bâtisseur) est ouverte
-export const trialLeft = () => { const t = S().trialStart; if (!t || (S().me?.tier && S().me.tier !== "free")) return 0; return Math.max(0, TRIAL_DAYS - Math.floor((Date.now() - new Date(t + "T00:00:00").getTime()) / 864e5)); };
-export const tier = () => (S().me?.isCoach ? "surmesure" : null) || (S().me?.tier && S().me.tier !== "free" ? S().me.tier : trialLeft() > 0 ? "premium" : "free");
+export const trialLeft = () => { const t = S().trialStart; if (!t || (S().me?.tier && S().me.tier !== "free" && !echu(S().me))) return 0; return Math.max(0, joursEssai(TRIAL_DAYS, S().invite) - Math.floor((Date.now() - new Date(t + "T00:00:00").getTime()) / 864e5)); };
+// Bâtisseur offert jusqu'à une date (mois de parrainage, accès donné par Thomas) : fermé 3 jours après la date.
+// Les abonnés Stripe ne sont pas concernés en pratique : chaque renouvellement repousse la date (webhook).
+const echu = (me) => me?.tier === "premium" && !!me.until && me.until < addDays(today(), -3);
+export const tier = () => (S().me?.isCoach ? "surmesure" : null) || (S().me?.tier && S().me.tier !== "free" && !echu(S().me) ? S().me.tier : trialLeft() > 0 ? "premium" : "free");
 export const rank = () => offer(tier()).rank;
 // Plus de formule gratuite : essai terminé et pas d'abonnement ni d'accès Invité = app verrouillée sur les offres.
 // Sécurité : tant que le lien de paiement n'est pas configuré, rien n'est verrouillé.
@@ -146,7 +150,7 @@ export function header(title, sub = "", { back = null, actions = "", offers = tr
 export function tabbar(active) {
   if (APP_MODE === "coach") return adminTabbar("admin");
   // Chaque écran secondaire allume l'onglet auquel il appartient
-  const PARENT = { train: "carnet", workout: "carnet", builder: "carnet", fiche: "carnet", simu: "profile", settings: "profile", stats: "profile", body: "profile", chat: "coach", offers: "coach", apply: "coach", bilan: "coach", bilans: "coach", regularite: "profile", rapport: "profile", compare: "profile", anamnese: "profile", defi: "home" };
+  const PARENT = { train: "carnet", workout: "carnet", builder: "carnet", fiche: "carnet", simu: "profile", settings: "profile", stats: "profile", body: "profile", chat: "coach", offers: "coach", apply: "coach", bilan: "coach", bilans: "coach", regularite: "profile", rapport: "profile", compare: "profile", anamnese: "profile", defi: "home", communaute: "profile", amis: "profile", parrainage: "profile", partage: "home" };
   const act = PARENT[active] || active;
   const t = [["home", "Accueil", I.home], ["carnet", "Entraînement", I.bar], ["food", "Nutrition", I.fork], ["recup", "Récupération", I.moon], ["coach", "Coaching", I.clip], ["profile", "Profil", I.user]];
   const cur = S().current ? `<div class="card" style="position:fixed;left:12px;right:12px;bottom:calc(92px + var(--safe-b));z-index:29;width:auto;max-width:616px;margin:0 auto;box-sizing:border-box;padding:6px 8px 6px 16px;display:flex;align-items:center;gap:8px;box-shadow:0 0 0 2px var(--red) inset,var(--shadow)"><button data-a="resume" class="tap" style="display:flex;align-items:center;gap:12px;text-align:left;flex:1;min-width:0;padding:6px 0;background:none;border:0;color:inherit"><span style="font-size:26px">🏋️</span><span class="grow" style="min-width:0"><b>Séance en cours</b><br><span class="small muted">${esc(S().current.title)}</span></span><span class="red" style="font-weight:700">Reprendre</span></button><button data-a="abandon" class="icon-btn" aria-label="Abandonner la séance" title="Abandonner la séance" style="font-size:20px;flex:none">🗑️</button></div>` : "";
@@ -216,8 +220,8 @@ export function render() {
   R.route = h[0] || "home"; R.param = h[1] ? decodeURIComponent(h[1]) : null; R.param2 = h[2] ? decodeURIComponent(h[2]) : null;
   // L'app coach s'ouvre sur l'espace coach, seulement pour un compte coach (sinon : accueil client, sans boucle)
   if (APP_MODE === "coach" && R.route === "home") R.route = isCoach() ? "admin-today" : "account"; // app coach : connexion directe, sans onboarding
-  if (!S().profile && !["onboarding", "x", "privacy", "account"].includes(R.route)) R.route = "onboarding";
-  if (locked() && !["offers", "account", "privacy", "x", "onboarding", "apply"].includes(R.route)) R.route = "offers";
+  if (!S().profile && !["onboarding", "x", "privacy", "account", "partage"].includes(R.route)) R.route = "onboarding";
+  if (locked() && !["offers", "account", "privacy", "x", "onboarding", "apply", "parrainage", "partage"].includes(R.route)) R.route = "offers";
   if (S().current && !["workout", "x", "fiche", "simu"].includes(R.route) && sessionStorage.getItem("cxs.min") !== "1") R.route = "workout";
   stops.forEach(f => f()); stops.clear(); closeSheet(); document.getElementById("hlb")?.remove();
   Promise.resolve((routes[R.route] || routes.home)()).then(centerChips);

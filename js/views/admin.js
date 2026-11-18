@@ -358,7 +358,7 @@ routes["admin-biz"] = async () => {
       <button class="btn btn-red btn-sm mt12" style="width:100%">Enregistrer</button></form>
       <p class="xs muted mt8">Ces données restent dans ton espace coach, sur le serveur : tu les retrouves sur tous tes appareils. Je ne suis pas expert-comptable : vérifie toujours tes taux auprès de l'URSSAF.</p>`;
   }
-  frame("admin-biz", `<h1 class="h1 mt8">Business</h1><div class="chips wrap mt8">${[["dash", "Tableau de bord"], ["enc", "Encaissements"], ["cyc", "Cycles clients"], ["set", "Réglages"]].map(([k, l]) => `<button class="chip ${bizTab === k ? "on" : ""}" data-a="biz-tab" data-v="${k}">${l}</button>`).join("")}</div>${body}`);
+  frame("admin-biz", `<h1 class="h1 mt8">Business</h1><div class="chips wrap mt8">${[["dash", "Tableau de bord"], ["enc", "Encaissements"], ["cyc", "Cycles clients"], ["set", "Réglages"]].map(([k, l]) => `<button class="chip ${bizTab === k ? "on" : ""}" data-a="biz-tab" data-v="${k}">${l}</button>`).join("")}<button class="chip" data-a="go" data-r="admin-social">🤝 Parrainage et communauté</button></div>${body}`);
 };
 actions["biz-tab"] = (b, d) => { bizTab = d.v; rerender(); };
 actions["biz-y"] = (b, d) => { bizYear += +d.v; rerender(); };
