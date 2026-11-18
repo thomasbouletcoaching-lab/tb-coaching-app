@@ -7,7 +7,7 @@
 // Deux directions artistiques en prototype (point d'arrêt R6) : « geo » (formes pleines, géométriques) et « trait »
 // (trait continu inspiré des figures des vases grecs, en écho au logo).
 
-export const VERSION = 1;
+export const VERSION = 2;
 export const PEAUX = ["#F6D7C3", "#E8B896", "#C98E66", "#A86B47", "#7A4A2E", "#4E2E1C"];
 export const CHEVEUX_COULEURS = ["#1E1B18", "#4A3020", "#8A5A2B", "#C9A15B", "#B4B4B4", "#1F4FB5"];
 export const COIFFURES = ["rase", "courte", "boucles", "chignon", "tresses", "longue"];
@@ -31,6 +31,7 @@ export function normaliser(a = {}, debloques = []) {
     tenue: TENUES[x.tenue] && ok.has(x.tenue) ? x.tenue : "tenue-base",
     decor: DECORS[x.decor] && ok.has(x.decor) ? x.decor : "decor-salle",
     accessoires: (Array.isArray(x.accessoires) ? x.accessoires : []).filter(id => ["bandeau", "gants", "chrono", "cape"].includes(id) && ok.has(id)),
+    ...(() => { const r = normaliserRealiste(x, debloques); return r.base ? { base: r.base, muscle: r.muscle, graisse: r.graisse, peau3d: r.peau3d, coiffure3d: r.coiffure3d } : {}; })(),
   };
 }
 
@@ -109,4 +110,50 @@ function trait(a) {
 export function svg(apparence, { style = "geo", debloques = [], titre = "Ton personnage", taille = 160 } = {}) {
   const a = normaliser(apparence, debloques), t = style === "trait";
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" width="${taille}" height="${Math.round(taille * 1.2)}" role="img" aria-label="${esc(titre)}"><title>${esc(titre)}</title>${decor(a.decor, t)}${t ? trait(a) : geo(a)}</svg>`;
+}
+
+// ---------- Personnage réaliste (décision C59) : calques rendus en 3D à l'avance ----------
+// Corps (base × musculature × masse grasse × peau), tenue et coiffure sont des images transparentes superposées.
+// Rendus avec Blender à partir des modèles MakeHuman (licence CC0) : voir tools/personnage-3d/.
+// La silhouette est un choix libre parmi des paliers : elle n'est jamais calculée à partir des données du corps.
+export const R3D = {
+  bases: ["a", "b"],
+  muscles: ["Légère", "Athlétique", "Marquée", "Très marquée"],
+  graisses: ["Très basse", "Basse", "Moyenne", "Haute"],
+  peaux: { p1: "#EBC4A8", p2: "#D9A887", p3: "#D7B08C", p4: "#B98B66", p5: "#7B4E33", p6: "#5A3826" },
+  coiffures: { rase: "Rasée", courte: "Courte", courte2: "Courte 2", afro: "Afro", carre: "Carré", queue: "Queue-de-cheval", tresse: "Tresse", longue: "Longue" },
+  tenues: { "tenue-base": "base", "tenue-argent": "argent" },
+};
+const DECORS_CSS = { "decor-salle": "linear-gradient(180deg,#24427E,#121B33)", "decor-piste": "linear-gradient(180deg,#7A3B1F,#2A1710)", "decor-parc": "linear-gradient(180deg,#24563A,#10241A)", "decor-stade": "linear-gradient(180deg,#3A2C7E,#120F2B)" };
+
+export const estRealiste = (a) => !!a && R3D.bases.includes(a.base);
+
+export function normaliserRealiste(a = {}, debloques = []) {
+  const ok = new Set(["tenue-base", "decor-salle", ...(Array.isArray(debloques) ? debloques : [])]);
+  const x = a && typeof a === "object" ? a : {};
+  const ent = (v, n, d) => Number.isInteger(v) && v >= 0 && v < n ? v : d;
+  const tenue = R3D.tenues[x.tenue] && ok.has(x.tenue) ? x.tenue : "tenue-base";
+  return {
+    base: R3D.bases.includes(x.base) ? x.base : null,
+    muscle: ent(x.muscle, 4, 1), graisse: ent(x.graisse, 4, 1),
+    peau3d: R3D.peaux[x.peau3d] ? x.peau3d : "p2",
+    coiffure3d: R3D.coiffures[x.coiffure3d] ? x.coiffure3d : "courte",
+    tenue, decor: DECORS[x.decor] && ok.has(x.decor) ? x.decor : "decor-salle",
+    accessoires: (Array.isArray(x.accessoires) ? x.accessoires : []).filter(id => ["bandeau", "gants", "chrono", "cape"].includes(id) && ok.has(id)),
+  };
+}
+
+// Chemins des calques, du fond vers le dessus
+export function calques(a, debloques = [], racine = "assets/perso") {
+  const r = normaliserRealiste(a, debloques); if (!r.base) return [];
+  const corps = `${r.base}-m${r.muscle}-g${r.graisse}`;
+  return [`${racine}/corps/${corps}-${r.peau3d}.webp`, `${racine}/tenue/${corps}-${R3D.tenues[r.tenue]}.webp`, ...(r.coiffure3d === "rase" ? [] : [`${racine}/cheveux/${corps}-${r.coiffure3d}.webp`])];
+}
+
+// Personnage réaliste en HTML (images superposées) ; dessin géométrique si aucune base n'a encore été choisie
+export function rendu(apparence, { debloques = [], titre = "Ton personnage", taille = 160 } = {}) {
+  const a = normaliserRealiste(apparence, debloques);
+  if (!a.base) return svg(apparence, { debloques, titre, taille });
+  const h = Math.round(taille * 1.5);
+  return `<div class="perso3d" role="img" aria-label="${esc(titre)}" style="position:relative;width:${taille}px;height:${h}px;background:${DECORS_CSS[a.decor]};border-radius:16px;overflow:hidden">${calques(a, debloques).map(src => `<img src="${esc(src)}" alt="" width="${taille}" height="${h}" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`).join("")}</div>`;
 }

@@ -69,11 +69,11 @@ const barre = (pct, lbl) => `<div class="gauge mt4" role="progressbar" aria-valu
 function cartePerso({ b }) {
   const h = hyb(), r = b.rang, s = b.serie;
   return `<div class="card grad"><div class="row" style="gap:14px;align-items:center">
-    <div style="flex:none;border-radius:16px;overflow:hidden;line-height:0">${P.svg(h.apparence, { debloques: b.debloques, taille: 96 })}</div>
+    <div style="flex:none;border-radius:16px;overflow:hidden;line-height:0">${P.rendu(h.apparence, { debloques: b.debloques, taille: 96 })}</div>
     <div class="grow"><div class="lbl">Rang</div><b class="h2">${esc(r.nom)}</b><div class="small muted mt4">${b.xp} XP${r.suivant ? ` · ${r.reste} avant ${esc(r.suivant.nom)}` : ""}</div>${barre(r.pct, "Progression vers le rang suivant")}
     <div class="xs muted mt8">${s.retour ? "" : s.jours ? `🔥 Série : ${s.jours} jour${s.jours > 1 ? "s" : ""}${s.graceRestante ? " · 1 jour de grâce disponible" : ""}` : esc(s.message || "")}</div></div></div>
     ${s.retour ? `<p class="mt8" style="margin:8px 0 0"><b>${esc(s.message)}</b></p>` : ""}
-    <div class="row mt12" style="gap:8px"><button class="btn btn-sm" style="background:var(--paper);color:var(--ink);min-height:44px" data-a="go" data-r="hybride-perso">Personnaliser</button></div></div>`;
+    <div class="row mt12" style="gap:8px"><button class="btn btn-sm" style="background:var(--paper);color:var(--ink);min-height:44px" data-a="go" data-r="hybride-perso">${P.estRealiste(h.apparence) ? "Personnaliser" : "Créer ton personnage"}</button></div></div>`;
 }
 
 // Séance du jour : générée pour la semaine du bloc, puis ajustée selon la Forme du jour
@@ -180,18 +180,22 @@ routes["hybride-perso"] = () => {
   if (!accesHybride()) return go("hybride");
   if (!D) { if (!echec) charger().then(() => { if ((D || echec) && location.hash.startsWith("#/hybride-perso")) rerender(); }); $app.innerHTML = header("Ton personnage", "", { back: "hybride", offers: false }) + ecranAttente() + tabbar("carnet"); return; }
   const h = hyb(), deb = new Set(["tenue-base", "decor-salle", ...(h.debloques || []), ...Q.bilan(D, Q.journalDepuisEtat(D, S(), exDe), today(), { precedents: h.debloques || [], xpBase: h.xpServeur ?? null }).debloques]);
-  const a = P.normaliser(h.apparence, [...deb]);
+  const a = P.normaliser(h.apparence, [...deb]), r = P.normaliserRealiste(h.apparence, [...deb]);
   const choix = (k, opts) => `<div class="chips wrap mt8" role="group" aria-label="${esc(k)}">${opts.map(([v, l, on, off]) => `<button type="button" class="chip ${on ? "on" : ""}" style="min-height:44px;white-space:normal;text-align:left;max-width:100%;height:auto;${off ? "opacity:.6" : ""}" data-a="hyb-app" data-k="${k}" data-v="${esc(String(v))}" ${off ? "disabled" : ""} aria-pressed="${on}">${l}</button>`).join("")}</div>`;
-  const objets = (type) => D.objets.filter(o => o.type === type).map(o => [o.id, deb.has(o.id) ? esc(o.nom) : `🔒 ${esc(o.nom)}<span class="xs" style="display:block;font-weight:400">${esc(condition(o))}</span>`, type === "accessoire" ? a.accessoires.includes(o.id) : a[type] === o.id, !deb.has(o.id)]);
+  const objets = (type) => D.objets.filter(o => o.type === type).map(o => {
+    const dispo = type !== "tenue" || P.R3D.tenues[o.id];
+    return [o.id, !deb.has(o.id) ? `🔒 ${esc(o.nom)}<span class="xs" style="display:block;font-weight:400">${esc(condition(o))}</span>` : dispo ? esc(o.nom) : `${esc(o.nom)}<span class="xs" style="display:block;font-weight:400">Bientôt en 3D</span>`, type === "accessoire" ? a.accessoires.includes(o.id) : a[type] === o.id, !deb.has(o.id) || !dispo];
+  });
+  const vignette = (base) => `<button type="button" class="card tap" style="padding:8px;flex:1;min-width:0;${r.base === base ? "box-shadow:0 0 0 3px var(--red) inset" : ""}" data-a="hyb-app" data-k="base" data-v="${base}" aria-pressed="${r.base === base}" aria-label="Base ${base === "a" ? 1 : 2}">${P.rendu({ base, muscle: r.muscle, graisse: r.graisse, peau3d: r.peau3d, coiffure3d: "rase" }, { taille: 120, titre: `Base ${base === "a" ? 1 : 2}` })}<div class="small mt4">Base ${base === "a" ? 1 : 2}</div></button>`;
   $app.innerHTML = header("Ton personnage", "Il évolue avec ta régularité, jamais en arrière", { back: "hybride", offers: false }) + `<main class="page">
-    <div class="card" style="text-align:center"><div style="display:inline-block;border-radius:20px;overflow:hidden;line-height:0">${P.svg(a, { debloques: [...deb], taille: 180 })}</div></div>
-    <div class="card"><div class="lbl">Peau</div><div class="chips wrap mt8" role="group" aria-label="Peau">${P.PEAUX.map((c, i) => `<button type="button" class="chip ${a.peau === i ? "on" : ""}" style="min-height:44px;min-width:44px;background:${c}" data-a="hyb-app" data-k="peau" data-v="${i}" aria-label="Teinte ${i + 1}" aria-pressed="${a.peau === i}"></button>`).join("")}</div>
-      <div class="lbl mt12">Coiffure</div>${choix("coiffure", P.COIFFURES.map(c => [c, { rase: "Rasée", courte: "Courte", boucles: "Boucles", chignon: "Chignon", tresses: "Tresses", longue: "Longue" }[c], a.coiffure === c]))}
-      <div class="lbl mt12">Couleur des cheveux</div><div class="chips wrap mt8" role="group" aria-label="Couleur des cheveux">${P.CHEVEUX_COULEURS.map((c, i) => `<button type="button" class="chip ${a.cheveux === i ? "on" : ""}" style="min-height:44px;min-width:44px;background:${c}" data-a="hyb-app" data-k="cheveux" data-v="${i}" aria-label="Couleur ${i + 1}" aria-pressed="${a.cheveux === i}"></button>`).join("")}</div>
-      <div class="lbl mt12">Visage</div>${choix("visage", P.VISAGES.map(v => [v, { rond: "Rond", ovale: "Ovale", carre: "Carré" }[v], a.visage === v]))}
-      <div class="lbl mt12">Silhouette</div>${choix("silhouette", P.SILHOUETTES.map(v => [v, `Forme ${v}`, a.silhouette === v]))}
-      <p class="xs muted mt8" style="margin:8px 0 0">La silhouette est un simple choix de dessin : elle ne dit rien de ton corps et ne change jamais avec tes données.</p></div>
-    <div class="card"><div class="lbl">Tenue</div>${choix("tenue", objets("tenue"))}<div class="lbl mt12">Accessoires</div>${choix("accessoires", objets("accessoire"))}<div class="lbl mt12">Décor</div>${choix("decor", objets("decor"))}</div>
+    ${r.base ? `<div class="card" style="text-align:center"><div style="display:inline-block">${P.rendu(h.apparence, { debloques: [...deb], taille: 200 })}</div></div>` : ""}
+    <div class="card"><div class="lbl">${r.base ? "Base" : "Choisis une base pour commencer"}</div><div class="row mt8" style="gap:8px">${vignette("a")}${vignette("b")}</div></div>
+    ${r.base ? `<div class="card"><div class="lbl">Peau</div><div class="chips wrap mt8" role="group" aria-label="Peau">${Object.entries(P.R3D.peaux).map(([id, c], i) => `<button type="button" class="chip ${r.peau3d === id ? "on" : ""}" style="min-height:44px;min-width:44px;background:${c}" data-a="hyb-app" data-k="peau3d" data-v="${id}" aria-label="Teinte ${i + 1}" aria-pressed="${r.peau3d === id}"></button>`).join("")}</div>
+      <div class="lbl mt12">Musculature</div>${choix("muscle", P.R3D.muscles.map((l, i) => [i, l, r.muscle === i]))}
+      <div class="lbl mt12">Masse grasse</div>${choix("graisse", P.R3D.graisses.map((l, i) => [i, l, r.graisse === i]))}
+      <div class="lbl mt12">Coiffure</div>${choix("coiffure3d", Object.entries(P.R3D.coiffures).map(([id, l]) => [id, l, r.coiffure3d === id]))}
+      <p class="xs muted mt8" style="margin:8px 0 0">La silhouette est un libre choix : elle ne dit rien de ton corps et ne change jamais avec tes données.</p></div>
+    <div class="card"><div class="lbl">Tenue</div>${choix("tenue", objets("tenue"))}<div class="lbl mt12">Décor</div>${choix("decor", objets("decor"))}<div class="lbl mt12">Accessoires</div>${choix("accessoires", objets("accessoire"))}<p class="xs muted mt8" style="margin:8px 0 0">Les accessoires apparaîtront sur le personnage 3D dans une prochaine version.</p></div>` : ""}
   </main>${tabbar("carnet")}`;
 };
 
@@ -203,7 +207,7 @@ actions["hyb-app"] = (b, d) => {
   update(st => {
     const h = prepare(st); const a = { ...P.DEFAUT, ...(estObjet(h.apparence) ? h.apparence : {}) };
     if (d.k === "accessoires") a.accessoires = (a.accessoires || []).includes(d.v) ? a.accessoires.filter(x => x !== d.v) : [...(a.accessoires || []), d.v];
-    else a[d.k] = ["peau", "cheveux", "silhouette"].includes(d.k) ? +d.v : d.v;
+    else a[d.k] = ["peau", "cheveux", "silhouette", "muscle", "graisse"].includes(d.k) ? +d.v : d.v;
     h.apparence = a;
   });
   buzz(); rerender();
