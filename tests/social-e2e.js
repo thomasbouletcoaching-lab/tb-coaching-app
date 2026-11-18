@@ -114,7 +114,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     t = await txt(a.p);
     ok(/Partage ta séance/.test(t) && /Story/.test(t) && /À un ami/.test(t), 'fin de séance : bloc de partage');
     await shot(a.p, 'fin');
-    await a.p.click('[data-a="soc-story-w"]'); await a.p.waitForTimeout(2500);
+    await a.p.click('[data-a="soc-story-w"]'); await a.p.waitForFunction(() => window.__shared.length >= 1, null, { timeout: 15000 }).catch(() => { });
     let sh = await a.p.evaluate(() => window.__shared);
     ok(sh[0]?.type === 'image/png' && sh[0]?.dim?.[0] === 1080 && sh[0]?.dim?.[1] === 1920, 'story : image PNG 1080×1920 partagée');
     ok(/r=K7M2QX/.test(sh[0]?.text || '') && /k=seance/.test(sh[0]?.text || ''), 'story : lien d\'invitation avec le code');
@@ -209,7 +209,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     a = await page(b, { state: avecProfil, url: '#/carnet', vp, scheme, mode: { connecte: true, profil: avecProfil.social.profil } });
     await tap(a.p, '[data-a="soc-prog"]');
     ok(/Montrer mon programme/.test(await a.p.textContent('#sheet')), 'carnet : feuille « Montrer mon programme »');
-    await a.p.click('[data-a="soc-prog-story"]'); await a.p.waitForTimeout(2500);
+    await a.p.click('[data-a="soc-prog-story"]'); await a.p.waitForFunction(() => window.__shared.length >= 1, null, { timeout: 15000 }).catch(() => { });
     sh = await a.p.evaluate(() => window.__shared);
     ok(sh[0]?.dim?.[1] === 1920 && /k=programme&prog=tb-rep3/.test(sh[0]?.text || ''), 'programme du catalogue : story + lien par identifiant');
     ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
