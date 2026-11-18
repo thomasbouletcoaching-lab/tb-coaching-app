@@ -386,7 +386,7 @@ export async function socCoach() {
   if (!uid) await ensureSession();
   const [sig, rec, par, prof] = await Promise.all([
     sb.from("cxs_soc_signalements").select("id,activite_id,motif,created_at,traite_le").is("traite_le", null).order("created_at", { ascending: false }).limit(50),
-    sb.from("cxs_recompenses").select("id,parrain_id,filleul_id,mode,statut,note,created_at").order("created_at", { ascending: false }).limit(100),
+    sb.from("cxs_recompenses").select("id,parrain_id,filleul_id,type,mode,statut,note,created_at").order("created_at", { ascending: false }).limit(100),
     sb.from("cxs_parrainages").select("filleul_id,parrain_id,lie_le,premium_le").order("lie_le", { ascending: false }).limit(500),
     sb.from("cxs_soc_profils").select("user_id,pseudo,avatar,communaute,masque").limit(1000),
   ]);

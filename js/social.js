@@ -6,15 +6,16 @@
 export const PARRAINAGE = {
   bonusFilleulJours: 7,     // jours d'essai en plus pour la personne invitée (30 → 37)
   moisParFilleul: 1,        // mois de Bâtisseur offert au parrain par filleul qui passe Bâtisseur
-  plafondAnnuel: 12,        // au plus 12 mois offerts par an
+  plafondAnnuel: 6,         // au plus 6 mois offerts par an (rentabilité : on récompense l'apport, pas la gratuité)
   lienJours: 30,            // le code se lie dans les 30 jours qui suivent la création du compte
 };
-// Paliers : badge + cadeau en plus des mois offerts. « Légende » : une visio de 30 min avec Thomas (à valider par lui).
+// Paliers : des badges, et un seul cadeau de valeur (analyse vidéo de la technique au palier 3).
+// Décision de Thomas (18/11/2026) : pas de cadeau qui lui prend du temps, peu de mois gratuits.
 export const PALIERS = [
-  { n: 1, id: "recruteur", nom: "Recruteur", em: "🤝", cadeau: "1 mois de Bâtisseur offert" },
-  { n: 3, id: "ambassadeur", nom: "Ambassadeur", em: "🎖️", cadeau: "1 mois offert en bonus" },
-  { n: 5, id: "mentor", nom: "Mentor", em: "🏅", cadeau: "Ton programme relu par Thomas" },
-  { n: 10, id: "legende", nom: "Légende", em: "👑", cadeau: "Une visio de 30 min avec Thomas" },
+  { n: 1, id: "recruteur", nom: "Recruteur", em: "🤝", cadeau: "Badge Recruteur" },
+  { n: 3, id: "ambassadeur", nom: "Ambassadeur", em: "🎖️", cadeau: "Analyse vidéo de ta technique sur un exercice, par un regard de coach expert" },
+  { n: 5, id: "mentor", nom: "Mentor", em: "🏅", cadeau: "Badge Mentor" },
+  { n: 10, id: "legende", nom: "Légende", em: "👑", cadeau: "Badge Légende" },
 ];
 
 // Réactions possibles : un geste, jamais un texte (pas de message, pas d'échange de contacts)
@@ -72,8 +73,7 @@ export function badgesSociaux({ donnes = 0, recus = 0, serie = 0, amis = 0, publ
 export function progressionParrainage(nPremium = 0, nInscrits = 0) {
   const n = Math.max(0, nPremium | 0);
   const atteints = PALIERS.filter(p => n >= p.n), prochain = PALIERS.find(p => n < p.n) || null;
-  const bonus = n >= 3 ? 1 : 0; // mois bonus de l'Ambassadeur
-  const mois = Math.min(PARRAINAGE.plafondAnnuel, n * PARRAINAGE.moisParFilleul + bonus);
+  const mois = Math.min(PARRAINAGE.plafondAnnuel, n * PARRAINAGE.moisParFilleul);
   return { n, inscrits: Math.max(n, nInscrits | 0), atteints, prochain, manque: prochain ? prochain.n - n : 0, mois, badge: atteints.at(-1) || null };
 }
 // Essai : la personne invitée gagne quelques jours (si un code d'invitation a été reçu)

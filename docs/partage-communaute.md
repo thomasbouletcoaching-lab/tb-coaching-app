@@ -19,18 +19,18 @@ Chaque lien partagé porte le code d'invitation du membre (`?r=CODE`). La person
 
 ## Récompense du parrain
 
-- **1 mois de Bâtisseur offert par filleul qui passe Bâtisseur** (premier paiement), 12 mois au plus par an.
+- **1 mois de Bâtisseur offert par filleul qui passe Bâtisseur** (premier paiement), 6 mois au plus par an.
 - Parrain abonné sur Stripe : **crédit de 19,99 € sur sa prochaine facture** (solde client Stripe), posé une seule fois même si Stripe rejoue l'événement.
 - Parrain sans abonnement (essai en cours, essai fini) : **30 jours de Bâtisseur en plus**, après la fin de son essai s'il court encore.
 - Parrain coaché ou Invité : rien d'automatique, la récompense arrive dans « à traiter » chez Thomas, qui choisit un geste équivalent.
-- Paliers (badges) : Recruteur (1), Ambassadeur (3, + 1 mois bonus), Mentor (5, programme relu par Thomas), Légende (10, visio de 30 min avec Thomas).
+- Paliers : badges Recruteur (1), Ambassadeur (3), Mentor (5), Légende (10). Au palier Ambassadeur, une **analyse vidéo de la technique sur un exercice** (arrive dans « à traiter » chez Thomas). Décision de Thomas : pas de cadeau qui lui prend du temps, peu de mois gratuits.
 
 ## Règles de la communauté
 
 - **Aucun échange** : pas de messages, pas de commentaires, pas de profil consultable. On ne voit que le pseudo, l'avatar (emoji) et des chiffres d'entraînement.
 - **Filtre anti-contacts** côté téléphone et côté serveur : liens, e-mails, @comptes, numéros de téléphone et noms de réseaux sont retirés des titres, des records et des pseudos.
 - **Rien de sensible n'est publié** : ni poids, ni mensurations, ni nutrition, ni santé, ni notes de séance.
-- Visibilité au choix : moi seul, mes amis, toute la communauté. La communauté est **à rejoindre** (opt-in) et on la voit seulement si on en fait partie.
+- Visibilité au choix : moi seul, mes amis, toute la communauté (par défaut : toute la communauté, choix de Thomas). La communauté est **à rejoindre** (opt-in) et on la voit seulement si on en fait partie.
 - **Amis seulement par code** (des gens qu'on connaît) avec acceptation.
 - Signalement en un geste ; masquage automatique à 3 signalements, en attendant Thomas.
 - On ne peut pas encourager sa propre séance ; 300 gestes par jour au plus, 20 publications par jour au plus.
@@ -53,7 +53,7 @@ Pas de mécanique d'argent, pas de classement public de tous les membres (seulem
 | S1 | Les liens de séance et de programme **portent leurs données** (encodées dans l'adresse) au lieu d'être stockés sur le serveur. Un programme du catalogue voyage par son identifiant. | Partage instantané, même hors connexion ou sans compte ; aucune page publique hébergée. |
 | S2 | Bonus du filleul : **+7 jours d'essai** (37 au lieu de 30). Calculé sur le téléphone, comme l'essai actuel. | Raison concrète de passer par le lien ; ne coûte rien. |
 | S3 | Récompense du parrain au **premier paiement** du filleul (pas à l'inscription). | Ne récompense que ce qui rapporte ; évite les faux comptes. |
-| S4 | Les paliers Mentor et Légende promettent ton temps (relecture, visio). | À valider ou changer : une ligne dans `js/social.js` (`PALIERS`). |
+| S4 | Paliers : badges + analyse vidéo au 3e ami abonné ; plafond 6 mois offerts par an. | Choix de Thomas (18/11) : récompenser l'apport de valeur, pas la gratuité. Réglable dans `js/social.js` et la migration. |
 | S5 | Un Bâtisseur offert jusqu'à une date (parrainage, accès donné par toi) se ferme **3 jours après** cette date côté app. | Rien ne faisait expirer `tier_until` jusqu'ici. Les abonnés Stripe ne sont pas touchés : chaque renouvellement repousse la date. |
 | S6 | Amis par code seulement, pas depuis la communauté. | Ta règle « pas d'échange de contacts » ; on ne peut pas aborder un inconnu. |
 | S7 | Le partage ne publie rien dans la communauté tant que le membre n'a pas choisi un pseudo et une visibilité ; ensuite, publication automatique (désactivable). | Consentement explicite avant toute publication. |

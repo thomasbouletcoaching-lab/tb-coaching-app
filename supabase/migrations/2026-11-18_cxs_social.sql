@@ -1,6 +1,6 @@
 -- =====================================================================
 -- 2026-11-18 · Partage, parrainage, amis et communauté
--- À RELIRE puis appliquer après « go » de Thomas. NON appliquée en production.
+-- APPLIQUÉE en production le 2026-11-18 (migration Supabase « cxs_social_20261118 »), après « go » de Thomas.
 --
 -- CE QUE ÇA CHANGE
 --   Crée 6 tables nouvelles (aucune table existante n'est modifiée) :
@@ -10,7 +10,7 @@
 --     cxs_soc_reactions     encouragements (5 gestes possibles, aucun texte)
 --     cxs_soc_signalements  signalements d'une publication, lus par le coach
 --     cxs_parrainages       qui a invité qui, date d'inscription et de passage au Bâtisseur
---     cxs_recompenses       mois offerts au parrain (un par filleul), avec leur mode d'application
+--     cxs_recompenses       mois offerts au parrain (un par filleul, 6 par an au plus) et analyse vidéo au palier 3
 --   Le téléphone n'écrit JAMAIS directement dans ces tables : tout passe par des fonctions qui
 --   vérifient les règles (lecture directe : ses propres lignes seulement ; le coach lit tout).
 --
@@ -25,7 +25,7 @@
 --   · Amis : par code d'invitation uniquement (des gens qu'on connaît), acceptation obligatoire.
 --   · Parrainage : un seul parrain, lié dans les 30 jours après la création du compte, jamais soi-même.
 --     La récompense n'est créée que par le serveur (webhook Stripe, service_role), une fois par filleul,
---     12 par an au plus.
+--     6 mois par an au plus ; au 3e filleul abonné, une analyse vidéo « à traiter » chez le coach.
 --   · RGPD : cxs_soc_effacer_mes_donnees() efface profil social, amis, publications, gestes.
 --
 -- DONNÉES DE SANTÉ : aucune (pas de poids, de mensurations, de douleur, de nutrition).
@@ -53,7 +53,7 @@ create table if not exists public.cxs_soc_profils (
   avatar      text not null default '🦁' check (char_length(avatar) <= 8),
   code        text unique check (code ~ '^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$'),
   communaute  boolean not null default false,
-  visibilite  text not null default 'amis' check (visibilite in ('prive', 'amis', 'communaute')),
+  visibilite  text not null default 'communaute' check (visibilite in ('prive', 'amis', 'communaute')),
   masque      boolean not null default false,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
@@ -143,7 +143,7 @@ alter table public.cxs_parrainages enable row level security;
 create table if not exists public.cxs_recompenses (
   id          bigint generated always as identity primary key,
   parrain_id  uuid not null references auth.users (id) on delete cascade,
-  filleul_id  uuid not null unique references auth.users (id) on delete cascade,
+  filleul_id  uuid not null references auth.users (id) on delete cascade,
   type        text not null default 'mois_offert' check (type in ('mois_offert', 'bonus_palier')),
   mode        text check (mode in ('prolongation', 'credit_stripe', 'coach')),
   statut      text not null default 'a_appliquer' check (statut in ('a_appliquer', 'accordee', 'a_traiter', 'refusee')),
@@ -152,6 +152,8 @@ create table if not exists public.cxs_recompenses (
   applique_le timestamptz
 );
 create index if not exists cxs_recompenses_parrain on public.cxs_recompenses (parrain_id);
+-- Une récompense de chaque type par filleul (le mois offert ; l'analyse vidéo du palier 3 est rattachée au 3e filleul)
+create unique index if not exists cxs_recompenses_unique on public.cxs_recompenses (filleul_id, type);
 alter table public.cxs_recompenses enable row level security;
 
 -- ---------- Droits : rien par défaut, lecture de ses lignes, le coach lit tout ----------
@@ -404,7 +406,7 @@ begin
 end $$;
 
 -- Appelée par le webhook Stripe (service_role) quand un filleul passe Bâtisseur pour la première fois.
--- Crée au plus une récompense par filleul, 12 par an et par parrain. Renvoie ce qu'il faut appliquer.
+-- Crée au plus un mois offert par filleul, 6 par an et par parrain. Renvoie ce qu'il faut appliquer.
 create or replace function public.cxs_parrainage_premium(p_filleul uuid) returns json
 language plpgsql security definer set search_path = '' as $$
 declare pr public.cxs_parrainages; par public.cxs_profiles; rid bigint;
@@ -412,9 +414,15 @@ begin
   select * into pr from public.cxs_parrainages where filleul_id = p_filleul for update;
   if pr.filleul_id is null then return json_build_object('recompense', false, 'raison', 'sans_parrain'); end if;
   update public.cxs_parrainages set premium_le = coalesce(premium_le, now()) where filleul_id = p_filleul;
-  if exists (select 1 from public.cxs_recompenses where filleul_id = p_filleul) then return json_build_object('recompense', false, 'raison', 'deja'); end if;
-  if (select count(*) from public.cxs_recompenses where parrain_id = pr.parrain_id and created_at > now() - interval '365 days' and statut <> 'refusee') >= 12 then
-    insert into public.cxs_recompenses (parrain_id, filleul_id, statut, note) values (pr.parrain_id, p_filleul, 'refusee', 'Plafond de 12 mois offerts par an atteint');
+  if exists (select 1 from public.cxs_recompenses where filleul_id = p_filleul and type = 'mois_offert') then return json_build_object('recompense', false, 'raison', 'deja'); end if;
+  -- Palier Ambassadeur : au 3e filleul abonné, une analyse vidéo de la technique, à traiter par le coach (une seule fois)
+  if (select count(*) from public.cxs_parrainages where parrain_id = pr.parrain_id and premium_le is not null) >= 3
+     and not exists (select 1 from public.cxs_recompenses where parrain_id = pr.parrain_id and type = 'bonus_palier') then
+    insert into public.cxs_recompenses (parrain_id, filleul_id, type, mode, statut, note)
+      values (pr.parrain_id, p_filleul, 'bonus_palier', 'coach', 'a_traiter', 'Palier Ambassadeur : analyse vidéo de la technique sur un exercice');
+  end if;
+  if (select count(*) from public.cxs_recompenses where parrain_id = pr.parrain_id and type = 'mois_offert' and created_at > now() - interval '365 days' and statut <> 'refusee') >= 6 then
+    insert into public.cxs_recompenses (parrain_id, filleul_id, statut, note) values (pr.parrain_id, p_filleul, 'refusee', 'Plafond de 6 mois offerts par an atteint');
     return json_build_object('recompense', false, 'raison', 'plafond');
   end if;
   select * into par from public.cxs_profiles where id = pr.parrain_id;
@@ -433,7 +441,7 @@ language plpgsql security definer set search_path = '' as $$
 declare r public.cxs_recompenses; par public.cxs_profiles; base date;
 begin
   if p_mode not in ('credit_stripe', 'prolongation') then raise exception 'Mode inconnu' using errcode = '22023'; end if;
-  select * into r from public.cxs_recompenses where id = p_id and statut = 'a_appliquer' for update;
+  select * into r from public.cxs_recompenses where id = p_id and statut = 'a_appliquer' and type = 'mois_offert' for update;
   if r.id is null then return; end if;
   if p_mode = 'prolongation' then
     select * into par from public.cxs_profiles where id = r.parrain_id;

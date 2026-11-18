@@ -211,9 +211,12 @@ delete from cxs_recompenses where parrain_id = '00000000-0000-0000-0000-00000000
 insert into auth.users (id, email) select ('00000000-0000-0000-0000-0000000010' || lpad(i::text, 2, '0'))::uuid, 'f' || i || '@exemple.invalid' from generate_series(1, 13) i on conflict do nothing;
 insert into cxs_parrainages (filleul_id, parrain_id, code) select ('00000000-0000-0000-0000-0000000010' || lpad(i::text, 2, '0'))::uuid, '00000000-0000-0000-0000-0000000000b1', 'XXXXXX' from generate_series(1, 13) i on conflict do nothing;
 set role service_role;
-select cxs_parrainage_premium(('00000000-0000-0000-0000-0000000010' || lpad(i::text, 2, '0'))::uuid) from generate_series(1, 12) i;
-select tst.ok((cxs_parrainage_premium('00000000-0000-0000-0000-000000001013')->>'raison') = 'plafond', '13e filleul de l''année : plafond de 12 mois');
+select cxs_parrainage_premium(('00000000-0000-0000-0000-0000000010' || lpad(i::text, 2, '0'))::uuid) from generate_series(1, 6) i;
+select tst.ok((cxs_parrainage_premium('00000000-0000-0000-0000-000000001007')->>'raison') = 'plafond', '7e filleul de l''année : plafond de 6 mois');
 reset role;
+select tst.ok((select count(*) from cxs_recompenses where parrain_id = '00000000-0000-0000-0000-0000000000b1' and type = 'bonus_palier' and statut = 'a_traiter') = 1, 'palier Ambassadeur : une seule analyse vidéo, à traiter par le coach');
+select tst.ok((select count(*) from cxs_recompenses where parrain_id = '00000000-0000-0000-0000-0000000000b1' and type = 'mois_offert' and statut <> 'refusee') = 6, '6 mois offerts au plus');
+
 
 -- ---------- RGPD ----------
 set role authenticated;

@@ -103,10 +103,12 @@ test("parrainage : mois offerts, paliers, plafond annuel", () => {
   assert.equal(SO.progressionParrainage(0, 2).inscrits, 2);
   assert.equal(SO.progressionParrainage(1).mois, 1);
   assert.equal(SO.progressionParrainage(2).mois, 2);
-  assert.equal(SO.progressionParrainage(3).mois, 4, "3 filleuls : 3 mois + 1 mois bonus Ambassadeur");
+  assert.equal(SO.progressionParrainage(3).mois, 3, "3 filleuls : 3 mois, pas de mois bonus");
   assert.equal(SO.progressionParrainage(3).badge.id, "ambassadeur");
   assert.equal(SO.progressionParrainage(4).manque, 1);
-  assert.equal(SO.progressionParrainage(25).mois, 12, "plafond de 12 mois par an");
+  assert.equal(SO.progressionParrainage(25).mois, 6, "plafond de 6 mois par an");
+  assert.match(SO.PALIERS.find(p => p.n === 3).cadeau, /Analyse vidéo/);
+  assert.ok(!SO.PALIERS.some(p => /visio|relu/i.test(p.cadeau)), "aucun cadeau qui prend du temps de coaching");
   assert.equal(SO.progressionParrainage(25).prochain, null);
   assert.equal(SO.joursEssai(30, { code: "K7M2QX" }), 37);
   assert.equal(SO.joursEssai(30, null), 30);
