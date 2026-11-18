@@ -1,6 +1,6 @@
 // Parrainage : quand un filleul passe Bâtisseur pour la première fois, le parrain reçoit 1 mois offert.
 // JavaScript simple (sans Deno ni TypeScript) pour être testé par node --test (tests/parrainage-webhook.test.mjs).
-//   · Le serveur décide (fonction SQL cxs_parrainage_premium, service_role) : une récompense par filleul, 12 par an.
+//   · Le serveur décide (fonction SQL cxs_parrainage_premium, service_role) : un mois offert par filleul, 6 par an.
 //   · Parrain abonné sur Stripe : crédit d'un mois sur sa prochaine facture (solde client négatif), une seule fois.
 //   · Parrain sans abonnement Stripe (essai, Bâtisseur offert) : 30 jours de Bâtisseur en plus (cxs_recompense_appliquer).
 //   · Parrain coaché ou coach : rien d'automatique, la récompense attend le coach (statut « a_traiter »).
