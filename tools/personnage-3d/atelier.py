@@ -1,9 +1,12 @@
 # Production des calques du personnage réaliste (MakeHuman CC0, Blender Cycles).
 # Pour chaque corps (base × musculature × masse grasse) : 6 peaux, les tenues, les coiffures, en PNG transparents superposables.
 # Usage : python atelier.py lot.json   (lot = liste de corps ; les fichiers déjà faits sont sautés)
+# Variables : POSE=repos|biceps (pose du personnage) ; SAMPLES=12 (qualité de rendu, 20 par défaut) ; PEAUX=p1,p5,p6 (textures de peau à rendre, le teint est ensuite nuancé dans l'app) ; SEUL=corps (pour un essai rapide, ne rend que la première peau)
 import bpy, sys, json, importlib, math, os
 from mathutils import Vector
-L = json.load(open(sys.argv[1])); S = json.load(open("/home/claude/rendu/reglages.json")); OUT = "/home/claude/rendu/calques2"
+L = json.load(open(sys.argv[1])); S = json.load(open("/home/claude/rendu/reglages.json")); POSE = os.environ.get("POSE", "repos"); FLEX = float(os.environ.get("FLEX", "75")); SEUL = os.environ.get("SEUL")
+if os.environ.get("PEAUX"): S["peaux"] = {k: v for k, v in S["peaux"].items() if k in os.environ["PEAUX"].split(",")}
+OUT = "/home/claude/rendu/calques2" if POSE == "repos" else f"/home/claude/rendu/calques_{POSE}"
 bpy.ops.preferences.addon_enable(module="bl_ext.user_default.mpfb")
 def imp(pkg, key):
     for m in list(sys.modules):
@@ -15,7 +18,7 @@ P = lambda nom, sous: AS.find_asset_absolute_path(nom, asset_subdir=sous)
 
 def scene_commune(h):
     sc = bpy.context.scene
-    sc.render.engine = "CYCLES"; sc.cycles.device = "CPU"; sc.cycles.samples = S["samples"]; sc.cycles.use_denoising = True
+    sc.render.engine = "CYCLES"; sc.cycles.device = "CPU"; sc.cycles.samples = int(os.environ.get("SAMPLES", S["samples"])); sc.cycles.use_denoising = True
     sc.render.resolution_x, sc.render.resolution_y = S["res"]; sc.render.film_transparent = True
     sc.render.image_settings.file_format = "PNG"; sc.render.image_settings.color_mode = "RGBA"
     sc.view_settings.view_transform = "AgX"; sc.view_settings.look = "AgX - Base Contrast"
@@ -46,8 +49,22 @@ def poser(rig):
         b = rig.pose.bones.get(nom); b.rotation_mode = "QUATERNION"; bpy.context.view_layer.update()
         m = rig.matrix_world.to_3x3() @ b.matrix.to_3x3(); q = (m @ Vector((0, 1, 0))).normalized().rotation_difference(Vector(cible).normalized())
         b.rotation_quaternion = b.rotation_quaternion @ (b.matrix.to_3x3().inverted() @ q.to_matrix() @ b.matrix.to_3x3()).to_quaternion(); bpy.context.view_layer.update()
-    orienter("upperarm01.L", (ec, -av, -1)); orienter("upperarm01.R", (-ec, -av, -1))
-    suivre("lowerarm01.L", (ec * 0.8, -av - fl, -1)); suivre("lowerarm01.R", (-ec * 0.8, -av - fl, -1))
+    if POSE == "biceps":
+        # Double biceps de face : bras à l'horizontale, avant-bras vers le haut, poings près des oreilles
+        orienter("upperarm01.L", (1, -0.12, 0.08)); orienter("upperarm01.R", (-1, -0.12, 0.08))
+        orienter("upperarm01.L", (1, -0.15, 0.18)); orienter("upperarm01.R", (-1, -0.15, 0.18))
+        suivre("lowerarm01.L", (-0.5, -0.25, 1)); suivre("lowerarm01.R", (0.5, -0.25, 1))
+        # Poings fermés : chaque phalange se replie sur son axe X local
+        for b in rig.pose.bones:
+            n = b.name
+            if n.startswith("finger") and n[6] in "2345":
+                b.rotation_mode = "XYZ"; b.rotation_euler = (math.radians(FLEX), 0, 0)
+            elif n.startswith("finger1"):
+                b.rotation_mode = "XYZ"; b.rotation_euler = (math.radians(FLEX * 0.4), 0, 0)
+        bpy.context.view_layer.update()
+    else:
+        orienter("upperarm01.L", (ec, -av, -1)); orienter("upperarm01.R", (-ec, -av, -1))
+        suivre("lowerarm01.L", (ec * 0.8, -av - fl, -1)); suivre("lowerarm01.R", (-ec * 0.8, -av - fl, -1))
     bpy.ops.object.mode_set(mode="OBJECT")
 
 def rendre(sc, chemin, visibles, caches):
@@ -104,6 +121,8 @@ for c in L:
         if os.path.exists(f"{OUT}/corps/{nom}-{pid}.png"): continue
         HS.set_character_skin(P(fichiers[c["base"]], "skins"), h, skin_type="ENHANCED_SSS")
         rendre(sc, f"{OUT}/corps/{nom}-{pid}.png", ["corps"], [])
+        if SEUL: break
+    if SEUL: continue
     # Calque tenue : le corps sert de cache, mais sans les zones couvertes par cette tenue (sinon la peau perce le tissu)
     for tid in S["tenues"][c["base"]]:
         for m in h.modifiers:

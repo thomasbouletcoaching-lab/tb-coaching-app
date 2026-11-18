@@ -8,6 +8,8 @@ let fails = 0, passed = 0;
 const ok = (c, msg) => { if (c) { passed++; console.log('  ✓', msg); } else { fails++; console.log('  ✗', msg); } };
 const SB_NONE = `const chain = () => new Proxy(function () {}, { get: (t, k) => k === "then" ? (res) => res({ data: null, error: null }) : chain(), apply: () => chain() });
 export function createClient() { return { auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signOut: async () => ({}) }, from: () => chain(), rpc: () => chain(), channel: () => chain(), removeChannel() {}, functions: { invoke: async () => ({ data: null, error: null }) }, storage: { from: () => chain() } }; }`;
+// Selfie fictif (SVG) : fond, cheveux noirs, visage foncé placé dans l'ovale guide (300 × 400, décalé de 16 px vers le haut)
+const SELFIE_FICTIF = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="300" height="400" fill="#3060A0"/><ellipse cx="150" cy="176" rx="99" ry="148" fill="#1C1916"/><ellipse cx="150" cy="192" rx="81" ry="120" fill="#5A3E30"/></svg>`;
 const iso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
 const T = iso(new Date());
 const addD = (n) => iso(new Date(Date.now() + n * 864e5));
@@ -55,6 +57,11 @@ const largeur = (p) => p.evaluate(() => document.documentElement.scrollWidth);
     ok((await a.p.locator('#app svg[aria-label^="Radar des 7 qualités"]').count()) === 1, 'radar des 7 qualités');
     ok((await a.p.locator('[aria-label^="Frise des 12 semaines"] > div').count()) === 12, 'frise du bloc : 12 semaines');
     ok(/Partager avec Thomas/.test(t), 'essai en autonomie : partage proposé, éteint par défaut');
+    const bulle1 = await a.p.textContent('#perso-bulle');
+    ok(bulle1 && bulle1.length > 8, 'le personnage parle : « ' + bulle1 + ' »');
+    await tap(a.p, '[data-a="hyb-tape"]');
+    ok((await a.p.textContent('#perso-bulle')) !== bulle1, 'il réagit quand on le touche');
+    ok((await S(a.p)).hybride.rangVu === 'bronze', 'premier passage : rang mémorisé, pas de fête');
     ok(!/\b(prêt|prête|motivé|motivée|fatigué|fatiguée)\b/i.test(t), 'aucun accord de genre présumé');
     ok(await overflow(a.p) === 0 && await largeur(a.p) <= vp.width, 'rien ne dépasse');
     if (SHOTS) await a.p.screenshot({ path: `${SHOTS}/hybride-${vp.width}-${scheme}.png`, fullPage: true });
@@ -86,10 +93,55 @@ const largeur = (p) => p.evaluate(() => document.documentElement.scrollWidth);
     ok((await c.p.$$eval('.perso3d img', l => l.every(i => i.complete && i.naturalWidth > 0))), 'toutes les images chargées');
     ok(await c.p.locator('[data-a="hyb-app"][data-k="tenue"][data-v="tenue-maitre"]').isDisabled(), 'tenue Maître verrouillée');
     ok(!(await c.p.locator('[data-a="hyb-app"][data-k="tenue"][data-v="tenue-argent"]').isDisabled()), 'tenue Argent débloquée disponible');
+    // Teint et couleur des cheveux (nuancés dans l'app)
+    ok((await c.p.locator('[data-k="teint"]').count()) === 10 && (await c.p.locator('[data-k="cheveuxTeinte"]').count()) === 8, '10 teints et 8 couleurs de cheveux proposés');
+    await tap(c.p, '[data-a="hyb-app"][data-k="teint"][data-v="8"]');
+    await tap(c.p, '[data-a="hyb-app"][data-k="cheveuxTeinte"][data-v="#E2C690"]');
+    let ap2 = (await S(c.p)).hybride.apparence;
+    ok(ap2.teint === 8 && ap2.cheveuxTeinte === '#E2C690', 'teint et couleur gardés');
+    ok((await c.p.locator('#perso-apercu i[style*="multiply"]').count()) === 2, 'peau et cheveux nuancés (2 calques de couleur)');
+    await c.p.fill('#hyb-c', '#336699'); await tap(c.p, 'form[data-f="hyb-couleur"] button[type="submit"]');
+    ok((await S(c.p)).hybride.apparence.cheveuxTeinte === '#336699', 'couleur de cheveux libre');
+    // Pose de victoire à la demande, puis retour au repos
+    await tap(c.p, '[data-a="hyb-pose"]');
+    ok((await c.p.$$eval('#perso-apercu img', l => l.every(i => /\/biceps\//.test(i.getAttribute('src'))))), 'pose de victoire affichée');
+    await c.p.waitForTimeout(800);
+    ok((await c.p.$$eval('#perso-apercu img', l => l.every(i => i.complete && i.naturalWidth > 0))), 'images de la pose de victoire chargées');
+    ok((await c.p.locator('.confettis').count()) === 0, 'mouvement réduit : pas de confettis');
+    await c.p.waitForTimeout(2200);
+    ok((await c.p.$$eval('#perso-apercu img', l => l.every(i => !/\/biceps\//.test(i.getAttribute('src'))))), 'retour à la pose de repos');
+    // Photo : lue sur le téléphone, proposition à accepter (image fictive dessinée, aucun visage réel)
+    await tap(c.p, '[data-a="hyb-selfie"]');
+    ok(/ni envoyée ni enregistrée/.test(await c.p.textContent('#sheet')), 'photo : promesse de confidentialité affichée avant tout');
+    await c.p.setInputFiles('#sf-gal', { name: 'fictif.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(SELFIE_FICTIF) });
+    await c.p.waitForTimeout(700);
+    ok((await c.p.locator('#sf-c').count()) === 1 && (await overflow(c.p)) === 0, 'cadrage dans l\'ovale');
+    await tap(c.p, '#sf-ok');
+    const prop = await c.p.textContent('#sheet');
+    ok(/Proposition/.test(prop) && /déjà été effacée/.test(prop) && /Noir/.test(prop), 'proposition : teint et cheveux noirs, photo effacée');
+    ok((await S(c.p)).hybride.apparence.cheveuxTeinte === '#336699', 'rien n\'est appliqué sans accord');
+    await tap(c.p, '#sf-oui');
+    ap2 = (await S(c.p)).hybride.apparence;
+    ok(ap2.cheveuxTeinte === '#2A2622' && ap2.teint >= 6, 'proposition appliquée après accord (teint ' + ap2.teint + ')');
+    ok(!JSON.stringify(await S(c.p)).includes('data:image') && !JSON.stringify(await S(c.p)).includes('blob:'), 'aucune image gardée dans les données');
     if (SHOTS) await c.p.screenshot({ path: `${SHOTS}/perso-${vp.width}-${scheme}.png`, fullPage: true });
     ok(await overflow(c.p) === 0 && await largeur(c.p) <= vp.width, 'rien ne dépasse (personnage)');
     ok(c.errs.length === 0, 'zéro erreur JavaScript (personnage)' + (c.errs.length ? ' : ' + c.errs.join(' | ') : ''));
     await c.ctx.close();
+  }
+
+  console.log('\nSéance validée aujourd\'hui : le personnage fête, une seule fois');
+  {
+    const st = { ...PERSONAS.reprise, workouts: [seance(T), ...PERSONAS.reprise.workouts], hybride: { ...PERSONAS.reprise.hybride, apparence: { base: 'a', teint: 3 }, rangVu: 'bronze' } };
+    const f = await page(b, { state: st });
+    ok((await f.p.$$eval('#perso-hyb img', l => l.length > 0 && l.every(i => /\/biceps\//.test(i.getAttribute('src'))))), 'pose de victoire le jour d\'une séance');
+    ok(/Séance validée|dans la boîte|brique/.test(await f.p.textContent('#perso-bulle')), 'phrase de séance validée');
+    const vu = (await S(f.p)).hybride.feteVue;
+    ok(vu === 'seance:' + T, 'fête marquée comme vue');
+    await f.p.reload(); await f.p.waitForTimeout(1500);
+    ok((await S(f.p)).hybride.feteVue === vu && !/Séance validée/.test((await f.p.textContent('.toast, #toast').catch(() => '')) || ''), 'pas de deuxième fête au retour');
+    ok(f.errs.length === 0, 'zéro erreur JavaScript (fête)' + (f.errs.length ? ' : ' + f.errs.join(' | ') : ''));
+    await f.ctx.close();
   }
 
   console.log('\nNouveau membre : choix du bloc');
