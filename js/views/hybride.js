@@ -10,6 +10,8 @@ import * as H from "../hybride.js";
 import * as Q from "../hybride-quetes.js";
 import * as GH from "../hybride-generation.js";
 import * as P from "../personnage.js";
+import * as V from "../personnage-vie.js";
+import { ouvrirSelfie } from "./hybride-selfie.js";
 import { $app, esc, routes, actions, forms, header, tabbar, toast, buzz, go, sheet, closeSheet, rerender, tier, isCoach, cloud, fmtDate } from "../core.js";
 import { etatDuJour } from "./fatigue.js";
 
@@ -66,15 +68,48 @@ async function synchroniser(force = false) {
 const carte = (titre, corps, extra = "") => `<div class="card" ${extra}><div class="lbl">${titre}</div>${corps}</div>`;
 const barre = (pct, lbl) => `<div class="gauge mt4" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(lbl)}"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div>`;
 
-function cartePerso({ b }) {
+// Le personnage vit : pose et phrase selon la journée, fête une fois par séance validée ou nouveau rang, réplique au toucher
+function cartePerso({ b, J, auj, bloc }) {
   const h = hyb(), r = b.rang, s = b.serie;
+  const hu = V.humeur({ auj, seanceAujourdhui: J.seances.some(x => x.d === auj), jourPrevu: !!bloc && Q.joursPrevus(D, bloc, auj, auj).has(auj), pause: !!J.jours[auj]?.pause, serie: s, rang: { id: r.id, nom: r.nom }, rangVu: h.rangVu || null, feteVue: h.feteVue || null });
+  if (hu.fete || !h.rangVu) setTimeout(() => feter(hu.fete, r.id), 350);
   return `<div class="card grad"><div class="row" style="gap:14px;align-items:center">
-    <div style="flex:none;border-radius:16px;overflow:hidden;line-height:0">${P.rendu(h.apparence, { debloques: b.debloques, taille: 96 })}</div>
-    <div class="grow"><div class="lbl">Rang</div><b class="h2">${esc(r.nom)}</b><div class="small muted mt4">${b.xp} XP${r.suivant ? ` · ${r.reste} avant ${esc(r.suivant.nom)}` : ""}</div>${barre(r.pct, "Progression vers le rang suivant")}
+    <button type="button" data-a="hyb-tape" aria-label="Faire réagir ton personnage" style="flex:none;border:0;padding:0;background:none;border-radius:16px;overflow:hidden;line-height:0;position:relative">${P.rendu(h.apparence, { debloques: b.debloques, taille: 104, pose: hu.pose, anime: true, id: "perso-hyb" })}</button>
+    <div class="grow" style="min-width:0"><div class="bulle" id="perso-bulle" aria-live="polite">${esc(hu.phrase)}</div>
+    <div class="lbl mt8">Rang</div><b class="h2">${esc(r.nom)}</b><div class="small muted mt4">${b.xp} XP${r.suivant ? ` · ${r.reste} avant ${esc(r.suivant.nom)}` : ""}</div>${barre(r.pct, "Progression vers le rang suivant")}
     <div class="xs muted mt8">${s.retour ? "" : s.jours ? `🔥 Série : ${s.jours} jour${s.jours > 1 ? "s" : ""}${s.graceRestante ? " · 1 jour de grâce disponible" : ""}` : esc(s.message || "")}</div></div></div>
-    ${s.retour ? `<p class="mt8" style="margin:8px 0 0"><b>${esc(s.message)}</b></p>` : ""}
     <div class="row mt12" style="gap:8px"><button class="btn btn-sm" style="background:var(--paper);color:var(--ink);min-height:44px" data-a="go" data-r="hybride-perso">${P.estRealiste(h.apparence) ? "Personnaliser" : "Créer ton personnage"}</button></div></div>`;
 }
+// Fête : saut et confettis (sauf si l'appareil demande moins d'animations), puis l'événement est marqué comme vu
+const moinsAnime = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+function sauter(el, confettis = false) {
+  if (!el || moinsAnime()) return;
+  el.classList.remove("saute"); void el.offsetWidth; el.classList.add("saute"); clearTimeout(el._saut); el._saut = setTimeout(() => el.classList.remove("saute"), 750);
+  if (confettis) {
+    const c = document.createElement("div"); c.className = "confettis"; c.setAttribute("aria-hidden", "true");
+    const couleurs = ["#E9AE00", "#E0312B", "#1F4FB5", "#FFFFFF", "#2EAD6B"];
+    c.innerHTML = Array.from({ length: 18 }, (_, i) => `<i style="left:${(i * 37) % 100}%;background:${couleurs[i % 5]};animation-delay:${(i % 6) * 0.08}s"></i>`).join("");
+    el.appendChild(c); setTimeout(() => c.remove(), 2200);
+  }
+}
+const J0 = () => { try { return Q.journalDepuisEtat(D, S(), exDe); } catch { return { seances: [] }; } };
+// Image de la pose de victoire absente (hors ligne, jamais chargée) : on revient à la pose de repos
+if (typeof document !== "undefined") document.addEventListener("error", (e) => {
+  const im = e.target; if (!(im instanceof HTMLImageElement) || !im.closest(".perso3d") || !/\/biceps\//.test(im.getAttribute("src") || "")) return;
+  im.closest(".perso3d").querySelectorAll("img, i").forEach(x => { if (x.tagName === "IMG") x.src = x.getAttribute("src").replace("/biceps/", "/"); else x.style.cssText = x.style.cssText.replace(/\/biceps\//g, "/"); });
+}, true);
+const cible = () => document.getElementById("perso-hyb") || document.querySelector('[data-a="hyb-tape"]');
+function feter(fete, rangId) {
+  if (fete && !cible()) return; // écran quitté entre-temps : la fête attendra la prochaine visite
+  const h0 = hyb(); if (fete ? h0.feteVue === fete.cle || (fete.cle.startsWith("rang:") && h0.rangVu === rangId) : h0.rangVu) return; // déjà fêté (deux rendus rapprochés)
+  // Un nouveau rang le jour d'une séance compte aussi comme la fête de la séance : une seule fête
+  const seanceDuJourFaite = J0().seances.some(x => x.d === today());
+  update(st => { const h = prepare(st); h.rangVu = rangId; if (fete) h.feteVue = fete.cle.startsWith("rang:") && seanceDuJourFaite ? `seance:${today()}` : fete.cle; });
+  if (!fete) return;
+  sauter(cible(), true); toast(`🎉 ${fete.titre}`);
+}
+let nTape = 0;
+actions["hyb-tape"] = () => { sauter(cible()); const b = document.getElementById("perso-bulle"); if (b) b.textContent = V.replique(nTape++); buzz(); };
 
 // Séance du jour : générée pour la semaine du bloc, puis ajustée selon la Forme du jour
 function seanceDuJour({ auj, pos, bloc }) {
@@ -176,6 +211,7 @@ routes.hybride = () => {
 
 const OBJ = (id) => D.objets.find(o => o.id === id);
 const condition = (o) => { const c = o.condition || {}; return c.rang ? `Rang ${D.rangs.find(r => r.id === c.rang)?.nom}` : c.quete ? `Quête : ${D.quetes.find(q => q.id === c.quete)?.titre}` : c.serie ? `Série de ${c.serie} jours` : ""; };
+let poseApercu = "repos";
 routes["hybride-perso"] = () => {
   if (!accesHybride()) return go("hybride");
   if (!D) { if (!echec) charger().then(() => { if ((D || echec) && location.hash.startsWith("#/hybride-perso")) rerender(); }); $app.innerHTML = header("Ton personnage", "", { back: "hybride", offers: false }) + ecranAttente() + tabbar("carnet"); return; }
@@ -186,11 +222,14 @@ routes["hybride-perso"] = () => {
     const dispo = type !== "tenue" || P.R3D.tenues[o.id];
     return [o.id, !deb.has(o.id) ? `🔒 ${esc(o.nom)}<span class="xs" style="display:block;font-weight:400">${esc(condition(o))}</span>` : dispo ? esc(o.nom) : `${esc(o.nom)}<span class="xs" style="display:block;font-weight:400">Bientôt en 3D</span>`, type === "accessoire" ? a.accessoires.includes(o.id) : a[type] === o.id, !deb.has(o.id) || !dispo];
   });
-  const vignette = (base) => `<button type="button" class="card tap" style="padding:8px;flex:1;min-width:0;${r.base === base ? "box-shadow:0 0 0 3px var(--red) inset" : ""}" data-a="hyb-app" data-k="base" data-v="${base}" aria-pressed="${r.base === base}" aria-label="Base ${base === "a" ? 1 : 2}">${P.rendu({ base, muscle: r.muscle, graisse: r.graisse, peau3d: r.peau3d, coiffure3d: "rase" }, { taille: 120, titre: `Base ${base === "a" ? 1 : 2}` })}<div class="small mt4">Base ${base === "a" ? 1 : 2}</div></button>`;
+  const vignette = (base) => `<button type="button" class="card tap" style="padding:8px;flex:1;min-width:0;${r.base === base ? "box-shadow:0 0 0 3px var(--red) inset" : ""}" data-a="hyb-app" data-k="base" data-v="${base}" aria-pressed="${r.base === base}" aria-label="Base ${base === "a" ? 1 : 2}">${P.rendu({ base, muscle: r.muscle, graisse: r.graisse, teint: r.teint, coiffure3d: "rase" }, { taille: 120, titre: `Base ${base === "a" ? 1 : 2}` })}<div class="small mt4">Base ${base === "a" ? 1 : 2}</div></button>`;
   $app.innerHTML = header("Ton personnage", "Il évolue avec ta régularité, jamais en arrière", { back: "hybride", offers: false }) + `<main class="page">
-    ${r.base ? `<div class="card" style="text-align:center"><div style="display:inline-block">${P.rendu(h.apparence, { debloques: [...deb], taille: 200 })}</div></div>` : ""}
+    ${r.base ? `<div class="card" style="text-align:center"><button type="button" data-a="hyb-pose" aria-label="Faire prendre la pose de victoire" style="display:inline-block;border:0;padding:0;background:none;line-height:0;border-radius:16px;overflow:hidden;position:relative">${P.rendu(h.apparence, { debloques: [...deb], taille: 200, anime: true, pose: poseApercu, id: "perso-apercu" })}</button><div class="xs muted mt8">Touche le personnage pour la pose de victoire.</div></div>` : ""}
     <div class="card"><div class="lbl">${r.base ? "Base" : "Choisis une base pour commencer"}</div><div class="row mt8" style="gap:8px">${vignette("a")}${vignette("b")}</div></div>
-    ${r.base ? `<div class="card"><div class="lbl">Peau</div><div class="chips wrap mt8" role="group" aria-label="Peau">${Object.entries(P.R3D.peaux).map(([id, c], i) => `<button type="button" class="chip ${r.peau3d === id ? "on" : ""}" style="min-height:44px;min-width:44px;background:${c}" data-a="hyb-app" data-k="peau3d" data-v="${id}" aria-label="Teinte ${i + 1}" aria-pressed="${r.peau3d === id}"></button>`).join("")}</div>
+    ${r.base ? `<div class="card"><button class="btn btn-red btn-sm" style="min-height:44px;width:100%" data-a="hyb-selfie">📷 Me ressembler avec une photo</button><p class="xs muted" style="margin:6px 0 0">La photo reste sur ton téléphone : ni envoyée, ni enregistrée.</p>
+      <div class="lbl mt12">Teint</div><div class="chips wrap mt8" role="group" aria-label="Teint">${P.R3D.teints.map((t, i) => `<button type="button" class="chip ${r.teint === i ? "on" : ""}" style="min-height:44px;min-width:44px;background:${t.vu}" data-a="hyb-app" data-k="teint" data-v="${i}" aria-label="Teint ${i + 1} sur 10" aria-pressed="${r.teint === i}"></button>`).join("")}</div>
+      <div class="lbl mt12">Couleur des cheveux</div><div class="chips wrap mt8" role="group" aria-label="Couleur des cheveux">${Object.entries(P.R3D.cheveux).map(([c, l]) => `<button type="button" class="chip ${r.cheveuxTeinte === c ? "on" : ""}" style="min-height:44px;min-width:44px;background:${c}" data-a="hyb-app" data-k="cheveuxTeinte" data-v="${c}" aria-label="${esc(l)}" aria-pressed="${r.cheveuxTeinte === c}"></button>`).join("")}</div>
+      <form data-f="hyb-couleur" class="row mt8" style="gap:8px;align-items:center"><label class="small" for="hyb-c">Autre couleur</label><input id="hyb-c" type="color" name="c" value="${r.cheveuxTeinte.toLowerCase()}" style="width:52px;height:44px;padding:2px;border-radius:10px"><button class="btn btn-line btn-sm" type="submit" style="min-height:44px">Utiliser</button></form>
       <div class="lbl mt12">Musculature</div>${choix("muscle", P.R3D.muscles.map((l, i) => [i, l, r.muscle === i]))}
       <div class="lbl mt12">Masse grasse</div>${choix("graisse", P.R3D.graisses.map((l, i) => [i, l, r.graisse === i]))}
       <div class="lbl mt12">Coiffure</div>${choix("coiffure3d", Object.entries(P.R3D.coiffures).map(([id, l]) => [id, l, r.coiffure3d === id]))}
@@ -207,12 +246,29 @@ actions["hyb-app"] = (b, d) => {
   update(st => {
     const h = prepare(st); const a = { ...P.DEFAUT, ...(estObjet(h.apparence) ? h.apparence : {}) };
     if (d.k === "accessoires") a.accessoires = (a.accessoires || []).includes(d.v) ? a.accessoires.filter(x => x !== d.v) : [...(a.accessoires || []), d.v];
-    else a[d.k] = ["peau", "cheveux", "silhouette", "muscle", "graisse"].includes(d.k) ? +d.v : d.v;
+    else a[d.k] = ["peau", "cheveux", "silhouette", "muscle", "graisse", "teint"].includes(d.k) ? +d.v : d.v;
     h.apparence = a;
   });
-  buzz(); rerender();
+  buzz(); rerender(); envoyerApparence();
+};
+function envoyerApparence() {
   clearTimeout(envoiApparence);
   envoiApparence = setTimeout(async () => { try { const c = await cloud(); if (c && await c.ensureSession().catch(() => null)) await c.hybApparence(P.normaliser(hyb().apparence, hyb().debloques || [])); } catch (e) { console.warn("Apparence non envoyée :", e.message); } }, 1500);
+};
+
+// Réglages venant d'ailleurs (photo, couleur libre) : mêmes règles que les boutons
+function changerApparence(champs) {
+  update(st => { const h = prepare(st); h.apparence = { ...P.DEFAUT, ...(estObjet(h.apparence) ? h.apparence : {}), ...champs }; });
+  rerender(); envoyerApparence();
+}
+actions["hyb-selfie"] = () => ouvrirSelfie(changerApparence);
+forms["hyb-couleur"] = (v) => { if (/^#[0-9a-f]{6}$/i.test(v.c || "")) { buzz(); changerApparence({ cheveuxTeinte: v.c.toUpperCase() }); } };
+// Aperçu : la pose de victoire pendant 2,5 secondes
+let finPose = null;
+actions["hyb-pose"] = () => {
+  poseApercu = "biceps"; rerender(); buzz(); document.querySelector('[data-a="hyb-pose"]')?.focus();
+  requestAnimationFrame(() => sauter(document.getElementById("perso-apercu"), true));
+  clearTimeout(finPose); finPose = setTimeout(() => { poseApercu = "repos"; if (location.hash.startsWith("#/hybride-perso")) { rerender(); document.querySelector('[data-a="hyb-pose"]')?.focus(); } }, 2500);
 };
 
 forms["hyb-bloc"] = (v) => {

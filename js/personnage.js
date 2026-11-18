@@ -31,7 +31,7 @@ export function normaliser(a = {}, debloques = []) {
     tenue: TENUES[x.tenue] && ok.has(x.tenue) ? x.tenue : "tenue-base",
     decor: DECORS[x.decor] && ok.has(x.decor) ? x.decor : "decor-salle",
     accessoires: (Array.isArray(x.accessoires) ? x.accessoires : []).filter(id => ["bandeau", "gants", "chrono", "cape"].includes(id) && ok.has(id)),
-    ...(() => { const r = normaliserRealiste(x, debloques); return r.base ? { base: r.base, muscle: r.muscle, graisse: r.graisse, peau3d: r.peau3d, coiffure3d: r.coiffure3d } : {}; })(),
+    ...(() => { const r = normaliserRealiste(x, debloques); return r.base ? { base: r.base, muscle: r.muscle, graisse: r.graisse, teint: r.teint, cheveuxTeinte: r.cheveuxTeinte, coiffure3d: r.coiffure3d } : {}; })(),
   };
 }
 
@@ -112,18 +112,32 @@ export function svg(apparence, { style = "geo", debloques = [], titre = "Ton per
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" width="${taille}" height="${Math.round(taille * 1.2)}" role="img" aria-label="${esc(titre)}"><title>${esc(titre)}</title>${decor(a.decor, t)}${t ? trait(a) : geo(a)}</svg>`;
 }
 
-// ---------- Personnage réaliste (décision C59) : calques rendus en 3D à l'avance ----------
-// Corps (base × musculature × masse grasse × peau), tenue et coiffure sont des images transparentes superposées.
+// ---------- Personnage réaliste (décisions C59 et C60) : calques rendus en 3D à l'avance ----------
+// Corps (base × musculature × masse grasse), tenue et coiffure sont des images transparentes superposées.
 // Rendus avec Blender à partir des modèles MakeHuman (licence CC0) : voir tools/personnage-3d/.
-// La silhouette est un choix libre parmi des paliers : elle n'est jamais calculée à partir des données du corps.
+// Le teint de peau et la couleur des cheveux sont nuancés dans l'app (multiplication de couleur) : choix libre, illimité.
+// Deux poses : « repos » et « biceps » (célébration). La silhouette est un choix libre parmi des paliers :
+// elle n'est jamais calculée à partir des données du corps.
 export const R3D = {
   bases: ["a", "b"],
   muscles: ["Légère", "Athlétique", "Marquée", "Très marquée"],
   graisses: ["Très basse", "Basse", "Moyenne", "Haute"],
-  peaux: { p1: "#EBC4A8", p2: "#D9A887", p3: "#D7B08C", p4: "#B98B66", p5: "#7B4E33", p6: "#5A3826" },
+  // 10 teints : texture de base rendue + couleur de nuance ; « vu » = couleur obtenue, pour les pastilles
+  teints: [
+    { p: "p1", m: "#FFFFFF", vu: "#E2C9BD" }, { p: "p1", m: "#FAE8DA", vu: "#DDB7A1" }, { p: "p1", m: "#F2D6BC", vu: "#D6A98B" },
+    { p: "p1", m: "#E8C6A4", vu: "#CD9C79" }, { p: "p1", m: "#D8AE88", vu: "#BF8964" }, { p: "p5", m: "#FFFFFF", vu: "#B88578" },
+    { p: "p5", m: "#F2DECC", vu: "#AE7460" }, { p: "p6", m: "#E2CCB8", vu: "#9A6A56" }, { p: "p6", m: "#C4A894", vu: "#855745" },
+    { p: "p6", m: "#9C8474", vu: "#6A4436" },
+  ],
+  // Couleurs de cheveux proposées (une couleur libre est aussi possible)
+  cheveux: { "#2A2622": "Noir", "#4A3020": "Brun foncé", "#7A5030": "Châtain", "#A27648": "Châtain clair", "#E2C690": "Blond", "#C05A30": "Roux", "#B8B8B8": "Gris", "#FFFFFF": "Blanc" },
   coiffures: { rase: "Rasée", courte: "Courte", courte2: "Courte 2", afro: "Afro", carre: "Carré", queue: "Queue-de-cheval", tresse: "Tresse", longue: "Longue" },
   tenues: { "tenue-base": "base", "tenue-argent": "argent" },
+  poses: ["repos", "biceps"],
 };
+// Anciennes peaux (version précédente) : converties en teint
+const PEAU_VERS_TEINT = { p1: 0, p2: 1, p3: 2, p4: 3, p5: 6, p6: 8 };
+const HEX = /^#[0-9A-F]{6}$/i;
 const DECORS_CSS = { "decor-salle": "linear-gradient(180deg,#24427E,#121B33)", "decor-piste": "linear-gradient(180deg,#7A3B1F,#2A1710)", "decor-parc": "linear-gradient(180deg,#24563A,#10241A)", "decor-stade": "linear-gradient(180deg,#3A2C7E,#120F2B)" };
 
 export const estRealiste = (a) => !!a && R3D.bases.includes(a.base);
@@ -136,24 +150,40 @@ export function normaliserRealiste(a = {}, debloques = []) {
   return {
     base: R3D.bases.includes(x.base) ? x.base : null,
     muscle: ent(x.muscle, 4, 1), graisse: ent(x.graisse, 4, 1),
-    peau3d: R3D.peaux[x.peau3d] ? x.peau3d : "p2",
+    teint: ent(x.teint, R3D.teints.length, PEAU_VERS_TEINT[x.peau3d] ?? 1),
+    cheveuxTeinte: HEX.test(String(x.cheveuxTeinte || "")) ? String(x.cheveuxTeinte).toUpperCase() : "#4A3020",
     coiffure3d: R3D.coiffures[x.coiffure3d] ? x.coiffure3d : "courte",
     tenue, decor: DECORS[x.decor] && ok.has(x.decor) ? x.decor : "decor-salle",
     accessoires: (Array.isArray(x.accessoires) ? x.accessoires : []).filter(id => ["bandeau", "gants", "chrono", "cape"].includes(id) && ok.has(id)),
   };
 }
 
-// Chemins des calques, du fond vers le dessus
-export function calques(a, debloques = [], racine = "assets/perso") {
+const racineDe = (pose, racine) => pose === "biceps" ? `${racine}/biceps` : racine;
+// Calques du fond vers le dessus : { src, teinte } (teinte = couleur multipliée sur ce calque, ou null)
+export function couches(a, debloques = [], { racine = "assets/perso", pose = "repos" } = {}) {
   const r = normaliserRealiste(a, debloques); if (!r.base) return [];
-  const corps = `${r.base}-m${r.muscle}-g${r.graisse}`;
-  return [`${racine}/corps/${corps}-${r.peau3d}.webp`, `${racine}/tenue/${corps}-${R3D.tenues[r.tenue]}.webp`, ...(r.coiffure3d === "rase" ? [] : [`${racine}/cheveux/${corps}-${r.coiffure3d}.webp`])];
+  const R = racineDe(R3D.poses.includes(pose) ? pose : "repos", racine), corps = `${r.base}-m${r.muscle}-g${r.graisse}`, t = R3D.teints[r.teint];
+  return [
+    { src: `${R}/corps/${corps}-${t.p}.webp`, teinte: t.m === "#FFFFFF" ? null : t.m },
+    { src: `${R}/tenue/${corps}-${R3D.tenues[r.tenue]}.webp`, teinte: null },
+    ...(r.coiffure3d === "rase" ? [] : [{ src: `${R}/cheveux/${corps}-${r.coiffure3d}.webp`, teinte: r.cheveuxTeinte }]),
+  ];
 }
+// Chemins seuls (tests, préchargement)
+export const calques = (a, debloques = [], racine = "assets/perso", pose = "repos") => couches(a, debloques, { racine, pose }).map(c => c.src);
 
-// Personnage réaliste en HTML (images superposées) ; dessin géométrique si aucune base n'a encore été choisie
-export function rendu(apparence, { debloques = [], titre = "Ton personnage", taille = 160 } = {}) {
+// Une couche : l'image, puis (si teinte) un aplat de couleur multiplié, découpé à la forme de l'image
+const couche = ({ src, teinte }, taille, h) => {
+  const s = esc(src), pos = "position:absolute;inset:0;width:100%;height:100%";
+  return `<img src="${s}" alt="" width="${taille}" height="${h}" decoding="async" style="${pos};object-fit:cover">`
+    + (teinte ? `<i style="${pos};background:${teinte};mix-blend-mode:multiply;-webkit-mask:url('${s}') center/100% 100% no-repeat;mask:url('${s}') center/100% 100% no-repeat"></i>` : "");
+};
+
+// Personnage réaliste en HTML (images superposées) ; dessin géométrique si aucune base n'a encore été choisie.
+// anime : respiration légère (désactivée si l'appareil demande moins d'animations, voir css/app.css)
+export function rendu(apparence, { debloques = [], titre = "Ton personnage", taille = 160, pose = "repos", anime = false, id = "" } = {}) {
   const a = normaliserRealiste(apparence, debloques);
   if (!a.base) return svg(apparence, { debloques, titre, taille });
   const h = Math.round(taille * 1.5);
-  return `<div class="perso3d" role="img" aria-label="${esc(titre)}" style="position:relative;width:${taille}px;height:${h}px;background:${DECORS_CSS[a.decor]};border-radius:16px;overflow:hidden">${calques(a, debloques).map(src => `<img src="${esc(src)}" alt="" width="${taille}" height="${h}" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`).join("")}</div>`;
+  return `<div class="perso3d${anime ? " vit" : ""}" ${id ? `id="${esc(id)}"` : ""} role="img" aria-label="${esc(titre)}" style="position:relative;width:${taille}px;height:${h}px;background:${DECORS_CSS[a.decor]};border-radius:16px;overflow:hidden;isolation:isolate"><div class="perso3d-corps" style="position:absolute;inset:0">${couches(a, debloques, { pose }).map(c => couche(c, taille, h)).join("")}</div></div>`;
 }

@@ -50,7 +50,7 @@ jobs:
       - name: Tester le moteur « athlète hybride » (blocs, volume, gabarits, zones, forme du jour)
         run: node --test tests/hybride.test.mjs
       - name: Tester les quêtes, l'XP, la série, les rangs, la génération et la fonction serveur du module hybride
-        run: node --test tests/hybride-quetes.test.mjs tests/hybride-generation.test.mjs tests/hybride-serveur.test.mjs tests/personnage.test.mjs
+        run: node --test tests/hybride-quetes.test.mjs tests/hybride-generation.test.mjs tests/hybride-serveur.test.mjs tests/personnage.test.mjs tests/personnage-vie.test.mjs tests/selfie.test.mjs
       - name: Tester les règles d'accès SQL du module hybride (Postgres local, aucune connexion à la production)
         run: |
           sudo systemctl start postgresql.service
