@@ -79,15 +79,16 @@ const F = (w, px) => `${w} ${px}px Barlow, system-ui, -apple-system, "Segoe UI",
 function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
 function lignes(c, txt, w, max) { const out = []; let l = ""; for (const m of String(txt).split(/\s+/)) { const t = l ? l + " " + m : m; if (c.measureText(t).width > w && l) { out.push(l); l = m; if (out.length === max) break; } else l = t; } if (out.length < max && l) out.push(l); else if (l && out.length === max) out[max - 1] = out[max - 1].replace(/\s*\S*$/, " …"); return out; }
 function fond(c, W, H) {
-  const g = c.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#22090F"); g.addColorStop(.55, "#3B1210"); g.addColorStop(1, "#0F0507"); c.fillStyle = g; c.fillRect(0, 0, W, H);
-  const r = c.createRadialGradient(W * .85, H * .12, 20, W * .85, H * .12, 760); r.addColorStop(0, "rgba(238,138,69,.55)"); r.addColorStop(1, "rgba(238,138,69,0)"); c.fillStyle = r; c.fillRect(0, 0, W, H);
-  const r2 = c.createRadialGradient(W * .1, H * .9, 20, W * .1, H * .9, 700); r2.addColorStop(0, "rgba(194,84,31,.35)"); r2.addColorStop(1, "rgba(194,84,31,0)"); c.fillStyle = r2; c.fillRect(0, 0, W, H);
+  // Couleurs de TB my Coach : le bleu de l'app (--gradbtn : #173C8A → #2E5FC9 → #4F82E0)
+  const g = c.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#0E2560"); g.addColorStop(.5, "#173C8A"); g.addColorStop(1, "#0A1838"); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  const r = c.createRadialGradient(W * .85, H * .12, 20, W * .85, H * .12, 760); r.addColorStop(0, "rgba(79,130,224,.6)"); r.addColorStop(1, "rgba(79,130,224,0)"); c.fillStyle = r; c.fillRect(0, 0, W, H);
+  const r2 = c.createRadialGradient(W * .1, H * .9, 20, W * .1, H * .9, 700); r2.addColorStop(0, "rgba(46,95,201,.45)"); r2.addColorStop(1, "rgba(46,95,201,0)"); c.fillStyle = r2; c.fillRect(0, 0, W, H);
 }
-function marque(c, x, y) { c.font = F(800, 54); c.fillStyle = "#fff"; c.fillText("TB my ", x, y); const w = c.measureText("TB my ").width; c.fillStyle = "#EE8A45"; c.fillText("Coach", x + w, y); }
+function marque(c, x, y) { c.font = F(800, 54); c.fillStyle = "#fff"; c.fillText("TB my ", x, y); const w = c.measureText("TB my ").width; c.fillStyle = "#8FB4FF"; c.fillText("Coach", x + w, y); }
 function pied(c, W, H, code) {
   const y = H - 470; c.fillStyle = "rgba(255,255,255,.1)"; rr(c, 80, y, W - 160, 230, 40); c.fill();
   c.fillStyle = "#fff"; c.font = F(800, 50); c.fillText("Viens t'entraîner avec moi", 130, y + 90);
-  c.fillStyle = "#F6C9A5"; c.font = F(600, 36); c.fillText(code ? `Code ${code} · ${joursOfferts()} jours offerts` : `TB my Coach · ${TRIAL_DAYS} jours offerts`, 130, y + 150);
+  c.fillStyle = "#C9DAFF"; c.font = F(600, 36); c.fillText(code ? `Code ${code} · ${joursOfferts()} jours offerts` : `TB my Coach · ${TRIAL_DAYS} jours offerts`, 130, y + 150);
   c.fillStyle = "rgba(255,255,255,.7)"; c.font = F(500, 30); c.fillText(`${CONFIG.coachName} · ${CONFIG.coachTitle}`, 130, y + 200);
 }
 export async function imageStory(type, d, { code = monCode(), qui = profil()?.pseudo || prenom() } = {}) {
@@ -97,22 +98,30 @@ export async function imageStory(type, d, { code = monCode(), qui = profil()?.ps
     fond(c, W, H); marque(c, 80, 190);
     const X = 80, LW = W - 160; let y = 330;
     if (type === "seance") {
-      c.fillStyle = "#EE8A45"; c.font = F(700, 34); c.fillText(`SÉANCE TERMINÉE${d.d ? " · " + fmtDate(d.d, { day: "numeric", month: "long" }).toUpperCase() : ""}`, X, y);
+      c.fillStyle = "#8FB4FF"; c.font = F(700, 34); c.fillText(`SÉANCE TERMINÉE${d.d ? " · " + fmtDate(d.d, { day: "numeric", month: "long" }).toUpperCase() : ""}`, X, y);
       c.fillStyle = "#fff"; c.font = F(800, 92); lignes(c, d.titre, LW, 2).forEach((l, i) => c.fillText(l, X, y + 110 + i * 100)); y += 110 + Math.min(2, lignes(c, d.titre, LW, 2).length) * 100;
       if (qui) { c.fillStyle = "rgba(255,255,255,.75)"; c.font = F(600, 38); c.fillText(`par ${qui}`, X, y); y += 40; }
       y += 50;
       const tuiles = [[d.min ?? "–", "minutes"], [d.series || 0, "séries"], [d.tonnes ? fr(d.tonnes, 1) : "0", "tonnes"]], tw = (LW - 40) / 3;
-      tuiles.forEach(([v, l], i) => { const x = X + i * (tw + 20); c.fillStyle = "rgba(255,255,255,.1)"; rr(c, x, y, tw, 250, 36); c.fill(); c.fillStyle = "#fff"; c.font = F(800, 96); c.fillText(String(v), x + 34, y + 140, tw - 50); c.fillStyle = "#F6C9A5"; c.font = F(600, 36); c.fillText(l, x + 34, y + 205); });
+      tuiles.forEach(([v, l], i) => { const x = X + i * (tw + 20); c.fillStyle = "rgba(255,255,255,.1)"; rr(c, x, y, tw, 250, 36); c.fill(); c.fillStyle = "#fff"; c.font = F(800, 96); c.fillText(String(v), x + 34, y + 140, tw - 50); c.fillStyle = "#C9DAFF"; c.font = F(600, 36); c.fillText(l, x + 34, y + 205); });
       y += 310;
       const g = d.medaille ? GRADES.find(x => x.name === d.medaille) : null;
-      if (g) { const t = `${g.icon}  Grade ${g.name}`; c.font = F(800, 46); const w = c.measureText(t).width + 80; const gr = c.createLinearGradient(X, y, X + w, y); gr.addColorStop(0, "#8F3510"); gr.addColorStop(1, "#EE8A45"); c.fillStyle = gr; rr(c, X, y, w, 96, 48); c.fill(); c.fillStyle = "#fff"; c.fillText(t, X + 40, y + 64); y += 140; }
-      if (d.records?.length) { c.fillStyle = "#fff"; c.font = F(800, 46); c.fillText("🏆 Record battu", X, y + 40); c.font = F(600, 40); c.fillStyle = "#F6C9A5"; d.records.slice(0, 2).forEach((r, i) => c.fillText(r, X, y + 100 + i * 54, LW)); y += 100 + Math.min(2, d.records.length) * 54 + 30; }
+      if (g) { const t = `${g.icon}  Grade ${g.name}`; c.font = F(800, 46); const w = c.measureText(t).width + 80; const gr = c.createLinearGradient(X, y, X + w, y); gr.addColorStop(0, "#2E5FC9"); gr.addColorStop(1, "#4F82E0"); c.fillStyle = gr; rr(c, X, y, w, 96, 48); c.fill(); c.fillStyle = "#fff"; c.fillText(t, X + 40, y + 64); y += 140; }
+      if (d.records?.length) { c.fillStyle = "#fff"; c.font = F(800, 46); c.fillText("🏆 Record battu", X, y + 40); c.font = F(600, 40); c.fillStyle = "#C9DAFF"; d.records.slice(0, 2).forEach((r, i) => c.fillText(r, X, y + 100 + i * 54, LW)); y += 100 + Math.min(2, d.records.length) * 54 + 30; }
       if (d.top?.length && y < H - 640) { c.fillStyle = "rgba(255,255,255,.55)"; c.font = F(700, 30); c.fillText("AU PROGRAMME", X, y + 30); c.fillStyle = "#fff"; c.font = F(600, 40); d.top.slice(0, Math.max(1, Math.floor((H - 640 - y - 60) / 56))).forEach((t, i) => c.fillText("• " + t, X, y + 90 + i * 56, LW)); }
     } else {
-      c.fillStyle = "#EE8A45"; c.font = F(700, 34); c.fillText("MON PROGRAMME D'ENTRAÎNEMENT", X, y);
+      c.fillStyle = "#8FB4FF"; c.font = F(700, 34); c.fillText(d.routine ? "MA SÉANCE" : "MON PROGRAMME D'ENTRAÎNEMENT", X, y);
       c.fillStyle = "#fff"; c.font = F(800, 80); const tl = lignes(c, d.n || "Mon programme", LW, 2); tl.forEach((l, i) => c.fillText(l, X, y + 100 + i * 90)); y += 100 + tl.length * 90;
-      const meta = [d.split, d.lvl, d.s?.length ? `${d.s.length} séances / semaine` : null, d.sem ? `${d.sem} semaines` : null].filter(Boolean).join(" · ");
-      if (meta) { c.fillStyle = "#F6C9A5"; c.font = F(600, 36); c.fillText(meta, X, y, LW); y += 60; }
+      const meta = [d.split, d.lvl, d.s?.length && !d.routine ? `${d.s.length} séances / semaine` : null, d.routine && d.s?.[0]?.[2]?.length ? `${d.s[0][2].length} exercices` : null, d.sem ? `${d.sem} semaines` : null].filter(Boolean).join(" · ");
+      if (meta) { c.fillStyle = "#C9DAFF"; c.font = F(600, 36); c.fillText(meta, X, y, LW); y += 60; }
+      if (d.routine && d.s?.[0]) {
+        const exs = d.s[0][2] || [], n = Math.min(exs.length, Math.max(1, Math.floor((H - 560 - y) / 92)));
+        exs.slice(0, n).forEach((e, k) => { const yy = y + k * 92; c.fillStyle = "rgba(255,255,255,.09)"; rr(c, X, yy, LW, 78, 24); c.fill();
+          c.fillStyle = "#fff"; c.font = F(700, 38); c.fillText(e[0], X + 30, yy + 51, LW - (e[2] ? 300 : 60));
+          if (e[2]) { c.fillStyle = "#C9DAFF"; c.font = F(700, 36); c.textAlign = "right"; c.fillText(e[2], X + LW - 30, yy + 51, 250); c.textAlign = "left"; } });
+        if (exs.length > n) { c.fillStyle = "rgba(255,255,255,.6)"; c.font = F(600, 32); c.fillText(`+ ${exs.length - n} autre${exs.length - n > 1 ? "s" : ""} exercice${exs.length - n > 1 ? "s" : ""}`, X, y + n * 92 + 30); }
+        pied(c, W, H, code); return await new Promise(res => cv.toBlob(res, "image/png"));
+      }
       const ses = (d.s || []).slice(0, 5), place = H - 560 - y, h1 = Math.min(250, Math.floor(place / Math.max(1, ses.length)) - 20);
       ses.forEach(([nom, jour, exs]) => { c.fillStyle = "rgba(255,255,255,.09)"; rr(c, X, y, LW, h1, 30); c.fill();
         c.fillStyle = "#fff"; c.font = F(800, 42); c.fillText(nom + (jour ? ` · ${jour}` : ""), X + 34, y + 62, LW - 60);
@@ -163,26 +172,37 @@ export function blocPartageSeance(w) {
     <button class="btn btn-sm mt8" style="width:100%;background:rgba(255,255,255,.2);color:#fff" data-a="soc-pub-w">${pub ? `✅ Publiée · ${esc(vis || "")} · changer` : "🏟️ Publier dans la communauté"}</button></div>`;
 }
 const derniere = () => S().workouts.at(-1);
-actions["soc-story-w"] = async () => { const w = derniere(); if (!w) return; toast("Image en préparation…"); const code = await assurerCode(), r = recapDe(w);
+// Séance à partager : celle de l'historique désignée par sa clé (data-k), sinon la dernière terminée
+const seanceDe = (d) => (d?.k && S().workouts.find(w => cleSeance(w) === d.k)) || (d?.k ? null : derniere());
+actions["soc-story-w"] = async (b, d) => { const w = seanceDe(d); if (!w) return; closeSheet(); toast("Image en préparation…"); const code = await assurerCode(), r = recapDe(w);
   const blob = await imageStory("seance", r, { code }); if (!blob) return; await partagerImage(blob, "ma-seance-tb-my-coach.png", SO.texteSeance(r, await lienDe({ code, seance: r }))); buzz(15); };
-actions["soc-ami-w"] = async () => { const w = derniere(); if (!w) return; const code = await assurerCode(), r = recapDe(w);
+actions["soc-ami-w"] = async (b, d) => { const w = seanceDe(d); if (!w) return; closeSheet(); const code = await assurerCode(), r = recapDe(w);
   await partagerTexte(SO.texteSeance(r, await lienDe({ code, seance: r })), "Ma séance"); };
-actions["soc-pub-w"] = async () => {
-  const w = derniere(); if (!w) return; await charger();
+actions["soc-pub-w"] = async (b, d) => {
+  const w = seanceDe(d); if (!w) return; await charger();
   if (!ETAT.connecte) return sheet(`<h2 class="h2">Publier ta séance</h2><p class="small muted mt8">Crée ton compte TB my Coach (gratuit) pour publier tes séances et encourager les autres membres.</p><button class="btn btn-red mt12" data-a="go" data-r="account">Créer mon compte</button>`);
   if (ETAT.absent) return toast("La communauté arrive très bientôt");
-  if (!profil()) return feuilleProfil(() => go("done"));
+  if (!profil()) return feuilleProfil(() => d?.k ? actions["soc-pub-w"](b, d) : go("done"));
   const pub = (S().socialPubs || {})[cleSeance(w)];
   sheet(`<h2 class="h2">Qui voit cette séance ?</h2><p class="xs muted mt4">Seuls des chiffres d'entraînement sont publiés : titre, durée, séries, tonnage, records. Jamais ton poids ni ta santé.</p>
-    <div class="list mt12">${SO.VISIBILITES.map(([v, l]) => `<button class="li" data-a="soc-pub-vis" data-v="${v}"><span class="em">${v === "prive" ? "🔒" : v === "amis" ? "🫂" : "🏟️"}</span><span class="grow"><b>${l}</b>${v === "prive" && pub ? `<br><span class="xs muted">Retire la publication</span>` : ""}</span>${(pub?.vis || "prive") === v ? "✓" : ""}</button>`).join("")}</div>`);
+    <div class="list mt12">${SO.VISIBILITES.map(([v, l]) => `<button class="li" data-a="soc-pub-vis" data-v="${v}" data-k="${esc(cleSeance(w))}"><span class="em">${v === "prive" ? "🔒" : v === "amis" ? "🫂" : "🏟️"}</span><span class="grow"><b>${l}</b>${v === "prive" && pub ? `<br><span class="xs muted">Retire la publication</span>` : ""}</span>${(pub?.vis || "prive") === v ? "✓" : ""}</button>`).join("")}</div>`);
 };
 actions["soc-pub-vis"] = async (b, d) => {
-  const w = derniere(), pub = (S().socialPubs || {})[cleSeance(w)];
+  const w = seanceDe(d); if (!w) return closeSheet(); const pub = (S().socialPubs || {})[cleSeance(w)];
   try {
     if (d.v === "prive") { if (pub) { const c = await cloud(); await c.socRetirer(pub.id); update(st => { delete st.socialPubs[cleSeance(w)]; }); FIL.amis = FIL.communaute = FIL.moi = null; } toast("Séance gardée pour toi"); }
     else { await publier(w, d.v); buzz(20); toast(d.v === "amis" ? "Publiée pour tes amis 🫂" : "Publiée dans la communauté 🏟️"); }
   } catch (e) { toast("Publication impossible : " + e.message); }
   closeSheet(); if (R.route === "done") go("done");
+};
+// Historique : partager une séance faite il y a des jours ou des semaines
+actions["soc-hist"] = (b, d) => {
+  const w = seanceDe(d); if (!w) return toast("Séance introuvable");
+  const pub = (S().socialPubs || {})[cleSeance(w)], quand = new Date(w.end || w.start).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  sheet(`<h2 class="h2">📤 Partager cette séance</h2><p class="small muted mt4">${esc(w.title)} · ${esc(quand)}</p>
+    <button class="btn btn-red mt12" data-a="soc-story-w" data-k="${esc(d.k)}">📸 En story (image)</button>
+    <button class="btn btn-line mt8" data-a="soc-ami-w" data-k="${esc(d.k)}">💬 Envoyer à un ami</button>
+    <button class="btn btn-line mt8" data-a="soc-pub-w" data-k="${esc(d.k)}">${pub ? "✅ Publiée dans la communauté · changer" : "🏟️ Publier dans la communauté"}</button>`);
 };
 
 // ---------- Programme : story et lien ----------
@@ -201,6 +221,25 @@ actions["soc-prog-story"] = async (b, d) => { const x = await progDonnees(d.id);
   const blob = await imageStory("programme", x.vue, { code }); if (!blob) return; await partagerImage(blob, "mon-programme-tb-my-coach.png", SO.texteProgramme(x.p.name, await lienDe({ code, programme: x.pub }))); };
 actions["soc-prog-lien"] = async (b, d) => { const x = await progDonnees(d.id); if (!x) return; closeSheet(); const code = await assurerCode();
   await partagerTexte(SO.texteProgramme(x.p.name, await lienDe({ code, programme: x.pub })), "Mon programme"); };
+
+// ---------- Routine : une séance précise du programme (pas tout le programme) ----------
+async function routineDonnees(id, sem, i) {
+  await E.loadPrograms(); const p = E.program(id), se = p?.s?.[i]; if (!se) return null;
+  const pub = SO.programmePublic({ name: se[0], lvl: p.lvl, routine: 1, s: [se] }, { schema: (r) => { try { return E.schemeFor(p, r, sem || 1); } catch { return ""; } } });
+  pub.s = pub.s.map(([n, , exs]) => [n, null, exs.map(e => [S().swaps?.[e[0]] || e[0], ...e.slice(1)])]);
+  return { p, se, pub };
+}
+actions["soc-routine"] = async (b, d) => {
+  const x = await routineDonnees(d.id, +d.w, +d.i); if (!x) return toast("Séance introuvable");
+  sheet(`<h2 class="h2">📤 Partager cette séance</h2><p class="small muted mt4">« ${esc(x.se[0])} » : ${x.pub.s[0][2].length} exercices, avec les séries et répétitions. Juste cette séance, pas tout le programme.</p>
+    <button class="btn btn-red mt12" data-a="soc-rout-story" data-id="${esc(d.id)}" data-w="${esc(d.w)}" data-i="${esc(d.i)}">📸 En story (image)</button>
+    <button class="btn btn-line mt8" data-a="soc-rout-lien" data-id="${esc(d.id)}" data-w="${esc(d.w)}" data-i="${esc(d.i)}">💬 Envoyer à un ami</button>
+    <button class="btn btn-ghost mt8" data-a="soc-prog" data-id="${esc(d.id)}">Partager tout le programme</button>`);
+};
+actions["soc-rout-story"] = async (b, d) => { const x = await routineDonnees(d.id, +d.w, +d.i); if (!x) return; closeSheet(); toast("Image en préparation…"); const code = await assurerCode();
+  const blob = await imageStory("programme", x.pub, { code }); if (!blob) return; await partagerImage(blob, "ma-seance-tb-my-coach.png", SO.texteRoutine(x.pub.n, await lienDe({ code, programme: x.pub }))); buzz(15); };
+actions["soc-rout-lien"] = async (b, d) => { const x = await routineDonnees(d.id, +d.w, +d.i); if (!x) return; closeSheet(); const code = await assurerCode();
+  await partagerTexte(SO.texteRoutine(x.pub.n, await lienDe({ code, programme: x.pub })), "Ma séance"); };
 
 // ---------- Page d'arrivée d'une personne invitée ----------
 routes.partage = async () => {
@@ -224,9 +263,9 @@ routes.partage = async () => {
   } else {
     const pr = inv.programme; let vue = pr;
     if (pr.id && !pr.s) { await E.loadPrograms(); const p = E.program(pr.id); vue = p ? { ...SO.programmePublic(p, { schema: (r) => { try { return E.schemeFor(p, r, 1); } catch { return ""; } } }), desc: p.desc } : { n: "Programme introuvable", s: [] }; }
-    corps = `<div class="card grad mt12"><div class="lbl">📋 Programme partagé${de ? " par " + de : ""}</div><h2 class="h2 mt4">${esc(vue.n)}</h2><p class="small mt4" style="opacity:.9">${esc([vue.split, vue.lvl, vue.s?.length ? vue.s.length + " séances / semaine" : null].filter(Boolean).join(" · "))}</p>${vue.desc ? `<p class="small mt8" style="opacity:.9;margin-bottom:0">${esc(vue.desc)}</p>` : ""}</div>
+    corps = `<div class="card grad mt12"><div class="lbl">${vue.routine ? "🏋️ Séance partagée" : "📋 Programme partagé"}${de ? " par " + de : ""}</div><h2 class="h2 mt4">${esc(vue.n)}</h2><p class="small mt4" style="opacity:.9">${esc([vue.split, vue.lvl, vue.s?.length && !vue.routine ? vue.s.length + " séances / semaine" : null].filter(Boolean).join(" · "))}</p>${vue.desc ? `<p class="small mt8" style="opacity:.9;margin-bottom:0">${esc(vue.desc)}</p>` : ""}</div>
       ${(vue.s || []).map(([n, j, exs]) => `<div class="card mt12"><div class="row between"><b>${esc(n)}</b>${j ? `<span class="tag">${esc(j)}</span>` : ""}</div>${exs.map(e => `<div class="row between small mt8"><span>${esc(e[0])}</span>${e[2] ? `<span class="muted">${esc(e[2])}</span>` : ""}</div>`).join("")}</div>`).join("")}
-      ${moi ? `<button class="btn btn-red mt16" data-a="soc-prog-suivre">✅ Ajouter à mes programmes et le suivre</button>` : `<p class="small muted mt12">Crée ton profil : ce programme t'attendra sur ton accueil, prêt à suivre.</p>`}`;
+      ${moi ? `<button class="btn btn-red mt16" data-a="soc-prog-suivre">✅ ${vue.routine ? "Ajouter cette séance à mes programmes" : "Ajouter à mes programmes et le suivre"}</button>` : `<p class="small muted mt12">Crée ton profil : ce programme t'attendra sur ton accueil, prêt à suivre.</p>`}`;
   }
   $app.innerHTML = (moi ? header("Partage", "", { back: "home" }) : `<header class="top"><div class="row1"><h1>TB my <span style="color:var(--red)">Coach</span></h1></div></header>`) + `<main class="page">${corps}${cta}
     ${moi ? `<button class="btn btn-ghost mt8" data-a="soc-arrivee-fin">Fermer</button>` : ""}</main>${moi ? tabbar("home") : ""}`;

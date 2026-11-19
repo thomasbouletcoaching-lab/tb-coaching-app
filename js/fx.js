@@ -4,7 +4,7 @@ import { esc } from "./core.js";
 // Logo « TB » qui se dessine trait par trait (remplace l'ancienne croix)
 export function tbLogo(size = 110) {
   return `<svg class="tb-draw" width="${size}" height="${size * .72}" viewBox="0 0 76 54" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-label="TB">
-    <defs><linearGradient id="tbg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#8F3510"/><stop offset=".6" stop-color="#C2541F"/><stop offset="1" stop-color="#EE8A45"/></linearGradient></defs>
+    <defs><linearGradient id="tbg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#173C8A"/><stop offset=".6" stop-color="#2E5FC9"/><stop offset="1" stop-color="#4F82E0"/></linearGradient></defs>
     <path class="t1" pathLength="1" d="M5 8H31" stroke="#fff" stroke-width="7"/>
     <path class="t2" pathLength="1" d="M18 8V46" stroke="#fff" stroke-width="7"/>
     <path class="t3" pathLength="1" d="M43 8V46" stroke="url(#tbg)" stroke-width="7"/>
@@ -55,7 +55,7 @@ export function celebrate(name, recs) {
   if (!recs?.length) return;
   document.getElementById("rec-fx")?.remove(); clearTimeout(fxT);
   const el = document.createElement("div"); el.id = "rec-fx";
-  const parts = Array.from({ length: 36 }, (_, i) => `<i style="--x:${(Math.random() * 100).toFixed(0)}vw;--d:${(Math.random() * .8).toFixed(2)}s;--r:${Math.round(Math.random() * 720 - 360)}deg;--c:${["#EE8A45", "#fff", "#e6b422", "#5aa7ff", "#C2541F"][i % 5]}"></i>`).join("");
+  const parts = Array.from({ length: 36 }, (_, i) => `<i style="--x:${(Math.random() * 100).toFixed(0)}vw;--d:${(Math.random() * .8).toFixed(2)}s;--r:${Math.round(Math.random() * 720 - 360)}deg;--c:${["#4F82E0", "#fff", "#e6b422", "#8FB4FF", "#2E5FC9"][i % 5]}"></i>`).join("");
   el.innerHTML = `${parts}<div class="rec-card"><div class="rec-trophy">🏆</div><div class="rec-title">NOUVEAU RECORD</div><div class="rec-ex">${esc(name)}</div>
     ${recs.map(r => `<div class="rec-line"><span>${REC_LBL[r.k][0]} ${REC_LBL[r.k][1]}</span><b>${esc(r.txt)}</b></div>`).join("")}</div>`;
   el.onclick = () => { el.remove(); clearTimeout(fxT); };

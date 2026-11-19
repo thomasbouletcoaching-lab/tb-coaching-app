@@ -683,3 +683,6 @@ a.card{text-decoration:none;color:inherit}
 .soc-burst { position: fixed; z-index: 99; pointer-events: none; font-size: 28px; line-height: 1; animation: socUp .95s cubic-bezier(.2,.8,.2,1) forwards; }
 @keyframes socUp { 0% { transform: translateY(0) scale(.6); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-90px) scale(1.35); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .soc-burst { display: none; } }
+
+/* Fin de séance : sur le fond bleu, le « B » du logo passe en bleu clair pour rester lisible */
+.loader.done .tb-draw .t3,.loader.done .tb-draw .t4,.loader.done .tb-draw .t5{stroke:#A9C6FF}

@@ -59,7 +59,7 @@ async function page(b, { state = null, url = '#/home', vp, scheme, mode = {}, in
   await p.route('https://fonts.googleapis.com/**', r => r.fulfill({ body: '', contentType: 'text/css' }));
   // Feuille de partage simulée : on garde ce qui est partagé (fichier image, texte)
   await p.addInitScript(() => { window.__shared = []; navigator.canShare = () => true; navigator.share = async (d) => { const f = d.files?.[0]; let dim = null;
-    if (f) { const bm = await createImageBitmap(f); dim = [bm.width, bm.height]; } window.__shared.push({ text: d.text || '', file: f ? f.name : null, type: f?.type, dim }); }; });
+    let rgb = null; if (f) { const bm = await createImageBitmap(f); dim = [bm.width, bm.height]; const cv = new OffscreenCanvas(40, 72), cx = cv.getContext('2d'); cx.drawImage(bm, 0, 0, 40, 72); const px = cx.getImageData(0, 0, 40, 72).data; rgb = [0, 0, 0]; for (let i = 0; i < px.length; i += 4) { rgb[0] += px[i]; rgb[1] += px[i + 1]; rgb[2] += px[i + 2]; } rgb = rgb.map(v => Math.round(v / (px.length / 4))); } window.__shared.push({ text: d.text || '', file: f ? f.name : null, type: f?.type, dim, rgb }); }; });
   if (init) await p.addInitScript(init);
   if (state) await p.addInitScript((s) => { if (!localStorage.getItem('cxs.v1')) localStorage.setItem('cxs.v1', s); }, JSON.stringify(state));
   await p.goto(BASE + 'index.html' + url, { waitUntil: 'load' }); await p.waitForTimeout(1600);
@@ -232,6 +232,50 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     sh = await a.p.evaluate(() => window.__shared);
     ok(sh[0]?.dim?.[1] === 1920 && /\?p=K7m2Qx90/.test(sh[0]?.text || '') && (await a.p.evaluate(() => window.__db.partages.K7m2Qx90.data.id)) === 'tb-rep3', 'programme du catalogue : story + lien court');
     ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
+    await a.ctx.close();
+
+    // 10 bis. Une séance précise du programme (routine), pas tout le programme
+    a = await page(b, { state: avecProfil, url: '#/carnet', vp, scheme, mode: { connecte: true, profil: avecProfil.social.profil } });
+    ok(await a.p.locator('[data-a="soc-routine"]').count() >= 3, 'carnet : bouton 📤 sur chaque séance du programme');
+    await tap(a.p, '[data-a="soc-routine"][data-i="1"]');
+    ok(/Juste cette séance, pas tout le programme/.test(await a.p.textContent('#sheet')), 'feuille « Partager cette séance »');
+    await a.p.click('[data-a="soc-rout-story"]'); await a.p.waitForFunction(() => window.__shared.length >= 1, null, { timeout: 15000 }).catch(() => { });
+    sh = await a.p.evaluate(() => window.__shared);
+    const rout = await a.p.evaluate(() => Object.values(window.__db.partages || {})[0]);
+    ok(sh[0]?.dim?.[1] === 1920 && /Ma séance « Full body B »/.test(sh[0]?.text || '') && /\?p=/.test(sh[0]?.text || ''), 'routine : story + message « Ma séance » + lien court');
+    ok(rout?.data?.routine === 1 && rout.data.s.length === 1 && rout.data.s[0][2].length >= 5 && rout.data.s[0][2][0][2], 'routine : une seule séance, exercices avec séries × répétitions');
+    ok(sh[0]?.rgb && sh[0].rgb[2] > sh[0].rgb[0] + 30, 'story aux couleurs bleues de l\'app (moyenne RVB ' + (sh[0]?.rgb || []).join(',') + ')');
+    ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
+    await a.ctx.close();
+    // la personne qui reçoit la routine
+    a = await page(b, { state: base, url: '?p=Rout1234', vp, scheme, init: () => { window.__partages = { Rout1234: { type: 'programme', code: 'K7M2QX', data: { n: 'Full body B', routine: 1, s: [['Full body B', null, [['Goblet squat', 'P', '3x10-12'], ['Rowing assis machine', 'P', '3x10-12']]]], de: 'Tom' } } }; } });
+    t = await txt(a.p);
+    ok(/Séance partagée par Tom/.test(t) && /Goblet squat/.test(t) && /3x10-12/.test(t) && /Ajouter cette séance/.test(t) && !/séances \/ semaine/.test(t), 'arrivée : séance partagée (pas un programme)');
+    a.p.on('dialog', dd => dd.accept());
+    await tap(a.p, '[data-a="soc-prog-suivre"]');
+    st = await St(a.p);
+    ok((st.customPrograms || []).some(x => x.name === 'Full body B' && x.s.length === 1), 'séance reçue ajoutée à mes programmes');
+    await a.ctx.close();
+
+    // 10 ter. Historique : partager une séance faite il y a 2 semaines
+    const vieille = { ...seanceFaite, id: 2, title: 'Jambes du lundi', start: new Date(Date.now() - 14 * 864e5 - 3600e3).toISOString(), end: new Date(Date.now() - 14 * 864e5).toISOString(), records: [] };
+    a = await page(b, { state: { ...avecProfil, workouts: [vieille, seanceFaite] }, url: '#/carnet', vp, scheme, mode: { connecte: true, profil: avecProfil.social.profil } });
+    await tap(a.p, '[data-a="carnet-tab"][data-v="faites"]');
+    ok(await a.p.locator('[data-a="soc-hist"]').count() === 2, 'historique : bouton 📤 sur chaque séance faite');
+    await tap(a.p, '[data-a="soc-hist"][data-k^="w:' + vieille.start.slice(0, 10) + '"]');
+    ok(/Jambes du lundi/.test(await a.p.textContent('#sheet')), 'feuille de partage de la séance d\'il y a 2 semaines');
+    await tap(a.p, '#sheet [data-a="soc-ami-w"]');
+    sh = await a.p.evaluate(() => window.__shared);
+    ok(/💪 Jambes du lundi/.test(sh[0]?.text || '') && !/Full body A/.test(sh[0]?.text || ''), 'c\'est bien la séance choisie qui est partagée, pas la dernière');
+    await tap(a.p, '[data-a="soc-hist"][data-k^="w:' + vieille.start.slice(0, 10) + '"]');
+    await tap(a.p, '#sheet [data-a="soc-pub-w"]');
+    await tap(a.p, '[data-a="soc-pub-vis"][data-v="amis"]');
+    ok((await a.p.evaluate(() => window.__db.publies.map(x => x.data.titre))).includes('Jambes du lundi'), 'séance ancienne publiée pour les amis');
+    ok(await overflow(a.p) === 0, 'historique : rien ne dépasse');
+    ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
+    await a.ctx.close();
+    a = await page(b, { state: { ...avecProfil, workouts: [vieille, seanceFaite] }, url: '#/profile', vp, scheme });
+    ok(await a.p.locator('[data-a="soc-hist"]').count() === 2, 'profil : bouton 📤 sur les dernières séances');
     await a.ctx.close();
 
     // 11. Profil : tuiles Communauté

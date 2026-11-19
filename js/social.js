@@ -144,6 +144,7 @@ export function programmePublic(p, { catalogue = false, schema = null } = {}) {
   if (catalogue) return { id: String(p.id).slice(0, 60), n: sansContact(p.name, 70) };
   return {
     n: sansContact(p.name || p.n || "Mon programme", 70) || "Mon programme",
+    ...(p.routine ? { routine: 1 } : {}),
     split: splitLisible(p.split), lvl: sansContact(p.lvl || "", 20) || null,
     sem: nb(p.weeks ?? p.sem, 52),
     s: (p.s || []).slice(0, 7).map(([nom, jourS, exs]) => [sansContact(nom, 60) || "Séance", JOURS.includes(jourS) ? jourS : null,
@@ -237,6 +238,7 @@ export function texteSeance(r, lien) {
   const bits = [r.min ? `${r.min} min` : null, r.series ? `${r.series} séries` : null, r.tonnes ? `${String(r.tonnes).replace(".", ",")} t` : null].filter(Boolean).join(" · ");
   return `💪 ${r.titre}${bits ? ` : ${bits}` : ""}${r.records?.length ? `\n🏆 Record : ${r.records[0]}` : ""}\nViens t'entraîner avec moi 👉 ${lien}`;
 }
+export const texteRoutine = (n, lien) => `🏋️ Ma séance « ${n} », à faire gratuitement 👉 ${lien}`;
 export const texteProgramme = (n, lien) => `📋 Mon programme d'entraînement${n && !/^mon programme$/i.test(n) ? ` « ${n} »` : ""}, à suivre gratuitement 👉 ${lien}`;
 // Résumé compact des réactions : [{ id, em, n }] triées, seulement celles reçues
 export function resumeReactions(compte = {}) {
