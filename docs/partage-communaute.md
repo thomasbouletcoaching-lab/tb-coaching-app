@@ -63,7 +63,7 @@ Pas de mécanique d'argent, pas de classement public de tous les membres (seulem
 1. **Relire et appliquer** `supabase/migrations/2026-11-18_cxs_social.sql` (7 tables nouvelles, aucune table existante modifiée). Retour arrière : `2026-11-18_cxs_social_retour.sql` (archive, ne supprime rien).
 2. **Redéployer** l'Edge Function `stripe-webhook` (nouveau fichier `parrainage.js`, appel ajouté dans `cxs.ts`).
 3. Vérifier que les liens de paiement Stripe posent bien `metadata.app = tb-my-coach` sur l'abonnement (c'est déjà ce que le webhook attend) : la recherche du parrain sur Stripe s'en sert.
-4. Mettre à jour les CGV : règles du parrainage (ci-dessus) et de la communauté.
+4. ~~Mettre à jour les CGV~~ : fait le 19/11 (articles 13 Parrainage et 14 Communauté de `cgv.html`).
 
 ## Fichiers
 
