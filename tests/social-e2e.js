@@ -77,12 +77,12 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     console.log(`\n${nom} · ${scheme === 'light' ? 'clair' : 'sombre'}`);
     const shot = async (p, n) => { if (SHOTS) await p.screenshot({ path: `${SHOTS}/social-${n}-${vp.width}-${scheme}.png`, fullPage: true }); };
 
-    // 1. Personne invitée, sans profil : lien de séance → page d'arrivée, code gardé, 37 jours
+    // 1. Personne invitée, sans profil : lien de séance → page d'arrivée, code gardé, 30 jours comme tout le monde
     const lien = `?r=K7M2QX&k=seance&d=${b64({ titre: 'Push A', min: 62, series: 18, tonnes: 8.4, records: ['Développé couché'], medaille: 'Or', de: 'Tom B.', top: ['Développé couché', 'Dips'] })}`;
     let a = await page(b, { url: lien, vp, scheme });
     let t = await txt(a.p);
     ok(/Push A/.test(t) && /par Tom B\./.test(t) && /62/.test(t) && /Développé couché/.test(t), 'arrivée : la séance partagée est affichée');
-    ok(/37 jours offerts/.test(t), 'arrivée : 37 jours offerts grâce au code');
+    ok(/30 jours offerts/.test(t) && !/37/.test(t), 'arrivée : 30 jours offerts, comme tout le monde');
     let st = await St(a.p);
     ok(st.invite?.code === 'K7M2QX' && st.invite?.seance?.titre === 'Push A', 'code d\'invitation gardé sur le téléphone');
     ok(!/[?&]r=/.test(await a.p.evaluate(() => location.search)) && /#\/partage/.test(await a.p.evaluate(() => location.hash)), 'adresse nettoyée (plus de code dans la barre)');
@@ -96,7 +96,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     // 1 bis. Lien court ?p=… : le partage est lu sur le serveur, sans compte
     a = await page(b, { url: '?p=AbCd2345', vp, scheme, init: () => { window.__partages = { AbCd2345: { type: 'seance', code: 'K7M2QX', data: { titre: 'Jambes lourdes', min: 70, series: 20, tonnes: 12.5, de: 'Tom B.' } } }; } });
     t = await txt(a.p); st = await St(a.p);
-    ok(/Jambes lourdes/.test(t) && /par Tom B\./.test(t) && /37 jours offerts/.test(t) && st.invite?.code === 'K7M2QX', 'lien court : séance lue sur le serveur, code d\'invitation repris');
+    ok(/Jambes lourdes/.test(t) && /par Tom B\./.test(t) && /30 jours offerts/.test(t) && st.invite?.code === 'K7M2QX', 'lien court : séance lue sur le serveur, code d\'invitation repris');
     ok(!/[?&]p=/.test(await a.p.evaluate(() => location.search)), 'lien court : adresse nettoyée');
     ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
     await a.ctx.close();
@@ -210,7 +210,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     ok(/3\s*inscrits/.test(t) && /1\s*passés Bâtisseur/.test(t), 'parrainage : compteurs (3 inscrits, 1 Bâtisseur)');
     await tap(a.p, '[data-a="soc-inviter"]');
     sh = await a.p.evaluate(() => window.__shared);
-    ok(/Alex M\. t'invite/.test(sh[0]?.text || '') && /37 jours offerts/.test(sh[0]?.text || '') && /\?r=K7M2QX/.test(sh[0]?.text || ''), 'invitation partagée avec le lien et le code');
+    ok(/Alex M\. t'invite/.test(sh[0]?.text || '') && /30 jours offerts/.test(sh[0]?.text || '') && /\?r=K7M2QX/.test(sh[0]?.text || ''), 'invitation partagée avec le lien et le code');
     await shot(a.p, 'parrainage');
     ok(await overflow(a.p) === 0, 'parrainage : rien ne dépasse');
     ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));

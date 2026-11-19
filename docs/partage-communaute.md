@@ -9,13 +9,13 @@ Travail du 18 novembre 2026, branche `claude/sharing-community-features-jr179m`.
 | **Story de séance** (image 1080 × 1920 : titre, minutes, séries, tonnes, grade, records) | Écran « Séance terminée » → 📸 Story | ✓ | ✓ |
 | **Envoyer sa séance à un ami** (texte + lien) | « Séance terminée » → 💬 À un ami | ✓ | ✓ |
 | **Montrer son programme** (story + lien ; la personne peut le suivre) | Entraînement › Carnet → 📤 Montrer mon programme | ✓ | ✓ |
-| **Page d'arrivée** de la personne qui reçoit le lien (séance ou programme, puis « Commencer mes 37 jours offerts ») | Lien reçu | ✓ | ✓ |
+| **Page d'arrivée** de la personne qui reçoit le lien (séance ou programme, puis « Commencer mes 30 jours offerts ») | Lien reçu | ✓ | ✓ |
 | **Inviter et gagner** (code, lien, paliers, compteurs) | Profil › Communauté › Inviter et gagner | lien sans code | lien avec code, compteurs « bientôt » |
 | **Amis** (par code, acceptation, podium de la semaine) | Profil › Mes amis | — | « bientôt disponible » |
 | **Communauté** (fil, 5 gestes d'encouragement, quête du jour, série, niveaux) | Profil › Communauté | — | « bientôt disponible » |
 | **Coach** : signalements, récompenses à traiter, meilleurs parrains | Business › 🤝 Parrainage et communauté | — | message « migration à appliquer » |
 
-Chaque lien partagé porte le code d'invitation du membre (`?r=CODE`). La personne qui l'ouvre garde ce code sur son téléphone, a **37 jours d'essai au lieu de 30**, et le code est lié à son compte dès qu'elle en crée un : parrain et filleul deviennent amis d'office.
+Chaque lien partagé porte le code d'invitation du membre (`?r=CODE`). La personne qui l'ouvre garde ce code sur son téléphone, a les 30 jours d'essai comme tout le monde, et le code est lié à son compte dès qu'elle en crée un : parrain et filleul deviennent amis d'office.
 
 ## Récompense du parrain
 
@@ -51,7 +51,7 @@ Pas de mécanique d'argent, pas de classement public de tous les membres (seulem
 | # | Décision | Pourquoi |
 |---|---|---|
 | S1 | Les liens de séance et de programme **portent leurs données** (encodées dans l'adresse) au lieu d'être stockés sur le serveur. Un programme du catalogue voyage par son identifiant. | Partage instantané, même hors connexion ou sans compte ; aucune page publique hébergée. |
-| S2 | Bonus du filleul : **+7 jours d'essai** (37 au lieu de 30). Calculé sur le téléphone, comme l'essai actuel. | Raison concrète de passer par le lien ; ne coûte rien. |
+| S2 | ~~Bonus du filleul +7 jours~~ retiré le 19/11 à la demande de Thomas : 30 jours pour tous. | Raison concrète de passer par le lien ; ne coûte rien. |
 | S3 | Récompense du parrain au **premier paiement** du filleul (pas à l'inscription). | Ne récompense que ce qui rapporte ; évite les faux comptes. |
 | S4 | Paliers : badges + analyse vidéo au 3e ami abonné ; plafond 6 mois offerts par an. | Choix de Thomas (18/11) : récompenser l'apport de valeur, pas la gratuité. Réglable dans `js/social.js` et la migration. |
 | S5 | Un Bâtisseur offert jusqu'à une date (parrainage, accès donné par toi) se ferme **3 jours après** cette date côté app. | Rien ne faisait expirer `tier_until` jusqu'ici. Les abonnés Stripe ne sont pas touchés : chaque renouvellement repousse la date. |

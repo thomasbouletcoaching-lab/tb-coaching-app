@@ -110,7 +110,7 @@ test("parrainage : mois offerts, paliers, plafond annuel", () => {
   assert.match(SO.PALIERS.find(p => p.n === 3).cadeau, /Analyse vidéo/);
   assert.ok(!SO.PALIERS.some(p => /visio|relu/i.test(p.cadeau)), "aucun cadeau qui prend du temps de coaching");
   assert.equal(SO.progressionParrainage(25).prochain, null);
-  assert.equal(SO.joursEssai(30, { code: "K7M2QX" }), 37);
+  assert.equal(SO.joursEssai(30, { code: "K7M2QX" }), 30, "pas de bonus d'essai pour la personne invitée");
   assert.equal(SO.joursEssai(30, null), 30);
 });
 
@@ -157,8 +157,8 @@ test("réactions : un geste parmi une liste fermée, résumé trié", () => {
 });
 
 test("textes d'invitation : lien et code, jamais d'e-mail", () => {
-  const t = SO.texteInvitation({ prenom: "Tom", code: "K7M2QX", lien: "https://x.invalid/?r=K7M2QX", jours: 37 });
-  assert.match(t, /Tom t'invite/); assert.match(t, /37 jours offerts/); assert.match(t, /K7M2QX/);
+  const t = SO.texteInvitation({ prenom: "Tom", code: "K7M2QX", lien: "https://x.invalid/?r=K7M2QX", jours: 30 });
+  assert.match(t, /Tom t'invite/); assert.match(t, /30 jours offerts/); assert.match(t, /K7M2QX/);
   const s = SO.texteSeance({ titre: "Push", min: 60, series: 18, tonnes: 8.5, records: ["Squat"] }, "L");
   assert.match(s, /60 min · 18 séries · 8,5 t/); assert.match(s, /Record : Squat/); assert.ok(s.length < 120, "message court : " + s.length);
 });
