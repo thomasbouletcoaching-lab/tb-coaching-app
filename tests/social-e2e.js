@@ -32,6 +32,8 @@ const R = {
   cxs_soc_amis_liste: () => db.amis,
   cxs_soc_ami_demander: (a) => { db.demande = a.p_code; return "envoye"; },
   cxs_soc_ami_repondre: (a) => { const x = db.amis.find(f => f.autre === a.p_demandeur); if (x) x.statut = "accepte"; return null; },
+  cxs_soc_partage_creer: (a) => { db.partages = db.partages || {}; const id = "K7m2Qx9" + Object.keys(db.partages).length; db.partages[id] = { type: a.p_type, data: a.p_data, code: "K7M2QX" }; return id; },
+  cxs_soc_partage_lire: (a) => (window.__partages || {})[a.p_id] || null,
   cxs_parrainage_lier: (a) => { db.liens.push(a.p_code); return "lie"; },
 };
 const chain = (v) => new Proxy(function () {}, { get: (t, k) => k === "then" ? (res) => res(v || { data: null, error: null }) : chain(v), apply: () => chain(v) });
@@ -48,7 +50,7 @@ const seanceFaite = { id: 1, title: 'Full body A', start: new Date(Date.now() - 
   exercises: [{ name: 'Squat barre', sets: [{ done: true, kg: 100, reps: 5 }, { done: true, kg: 100, reps: 5 }] }, { name: 'Tractions', bw: true, sets: [{ done: true, reps: 8 }] }] };
 const base = { profile: profil, trialStart: T, plan: { programId: 'tb-rep3', startedAt: T, week: 1, idx: 0, cycle: 1 }, workouts: [seanceFaite], synced: true, me: { tier: 'free', isCoach: false } };
 
-async function page(b, { state = null, url = '#/home', vp, scheme, mode = {} }) {
+async function page(b, { state = null, url = '#/home', vp, scheme, mode = {}, init = null }) {
   const ctx = await b.newContext({ viewport: vp, hasTouch: true, isMobile: true, deviceScaleFactor: 2, serviceWorkers: 'block', colorScheme: scheme, reducedMotion: 'reduce' });
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', e => errs.push(e.message));
@@ -58,6 +60,7 @@ async function page(b, { state = null, url = '#/home', vp, scheme, mode = {} }) 
   // Feuille de partage simulée : on garde ce qui est partagé (fichier image, texte)
   await p.addInitScript(() => { window.__shared = []; navigator.canShare = () => true; navigator.share = async (d) => { const f = d.files?.[0]; let dim = null;
     if (f) { const bm = await createImageBitmap(f); dim = [bm.width, bm.height]; } window.__shared.push({ text: d.text || '', file: f ? f.name : null, type: f?.type, dim }); }; });
+  if (init) await p.addInitScript(init);
   if (state) await p.addInitScript((s) => { if (!localStorage.getItem('cxs.v1')) localStorage.setItem('cxs.v1', s); }, JSON.stringify(state));
   await p.goto(BASE + 'index.html' + url, { waitUntil: 'load' }); await p.waitForTimeout(1600);
   return { p, ctx, errs };
@@ -90,6 +93,18 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
     await a.ctx.close();
 
+    // 1 bis. Lien court ?p=… : le partage est lu sur le serveur, sans compte
+    a = await page(b, { url: '?p=AbCd2345', vp, scheme, init: () => { window.__partages = { AbCd2345: { type: 'seance', code: 'K7M2QX', data: { titre: 'Jambes lourdes', min: 70, series: 20, tonnes: 12.5, de: 'Tom B.' } } }; } });
+    t = await txt(a.p); st = await St(a.p);
+    ok(/Jambes lourdes/.test(t) && /par Tom B\./.test(t) && /37 jours offerts/.test(t) && st.invite?.code === 'K7M2QX', 'lien court : séance lue sur le serveur, code d\'invitation repris');
+    ok(!/[?&]p=/.test(await a.p.evaluate(() => location.search)), 'lien court : adresse nettoyée');
+    ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
+    await a.ctx.close();
+    a = await page(b, { url: '?p=Inconnu9', vp, scheme });
+    ok(/onboarding/.test(await a.p.evaluate(() => location.hash)) || /Bienvenue|TB my Coach/.test(await txt(a.p)), 'lien court inconnu : on continue vers l\'app, sans erreur');
+    ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
+    await a.ctx.close();
+
     // 2. Lien fabriqué avec un contact : nettoyé
     a = await page(b, { url: `?k=seance&d=${b64({ titre: 'Appelle-moi 0612345678 insta @x', series: 1e9 })}`, vp, scheme });
     t = await txt(a.p);
@@ -117,10 +132,11 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     await a.p.click('[data-a="soc-story-w"]'); await a.p.waitForFunction(() => window.__shared.length >= 1, null, { timeout: 15000 }).catch(() => { });
     let sh = await a.p.evaluate(() => window.__shared);
     ok(sh[0]?.type === 'image/png' && sh[0]?.dim?.[0] === 1080 && sh[0]?.dim?.[1] === 1920, 'story : image PNG 1080×1920 partagée');
-    ok(/r=K7M2QX/.test(sh[0]?.text || '') && /k=seance/.test(sh[0]?.text || ''), 'story : lien d\'invitation avec le code');
+    ok(/\?p=K7m2Qx9\d\b/.test(sh[0]?.text || '') && (sh[0]?.text || '').length < 140, 'story : lien court (?p=…) et message court (' + (sh[0]?.text || '').length + ' caractères)');
+    ok((await a.p.evaluate(() => window.__db.partages.K7m2Qx90.data.titre)) === 'Full body A', 'partage enregistré sur le serveur (séance + pseudo)');
     await tap(a.p, '[data-a="soc-ami-w"]');
     sh = await a.p.evaluate(() => window.__shared);
-    ok(/Séance faite : Full body A/.test(sh[1]?.text || '') && /K7M2QX/.test(sh[1]?.text || '') && !/80 ?kg|alex@/i.test(sh[1]?.text || ''), 'à un ami : texte + lien, sans poids ni e-mail');
+    ok(/💪 Full body A : /.test(sh[1]?.text || '') && /\?p=K7m2Qx9\d/.test(sh[1]?.text || '') && !/80 ?kg|alex@/i.test(sh[1]?.text || ''), 'à un ami : texte + lien, sans poids ni e-mail');
     await tap(a.p, '[data-a="soc-pub-w"]');
     await tap(a.p, '[data-a="soc-pub-vis"][data-v="communaute"]');
     st = await St(a.p);
@@ -165,6 +181,9 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     await a.ctx.close();
     a = await page(b, { state: base, url: '#/communaute', vp, scheme, mode: { connecte: true, absent: true } });
     ok(/Bientôt disponible/.test(await txt(a.p)), 'sans la migration : « bientôt disponible », sans erreur');
+    await a.p.evaluate(() => { location.hash = '#/done'; }); await a.p.waitForTimeout(800);
+    await a.p.click('[data-a="soc-ami-w"]'); await a.p.waitForFunction(() => window.__shared.length >= 1, null, { timeout: 15000 }).catch(() => { });
+    ok(/k=seance&d=/.test((await a.p.evaluate(() => window.__shared))[0]?.text || ''), 'serveur sans liens courts : le lien long marche toujours');
     ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
     await a.ctx.close();
 
@@ -211,7 +230,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     ok(/Montrer mon programme/.test(await a.p.textContent('#sheet')), 'carnet : feuille « Montrer mon programme »');
     await a.p.click('[data-a="soc-prog-story"]'); await a.p.waitForFunction(() => window.__shared.length >= 1, null, { timeout: 15000 }).catch(() => { });
     sh = await a.p.evaluate(() => window.__shared);
-    ok(sh[0]?.dim?.[1] === 1920 && /k=programme&prog=tb-rep3/.test(sh[0]?.text || ''), 'programme du catalogue : story + lien par identifiant');
+    ok(sh[0]?.dim?.[1] === 1920 && /\?p=K7m2Qx90/.test(sh[0]?.text || '') && (await a.p.evaluate(() => window.__db.partages.K7m2Qx90.data.id)) === 'tb-rep3', 'programme du catalogue : story + lien court');
     ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
     await a.ctx.close();
 

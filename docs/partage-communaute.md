@@ -72,3 +72,7 @@ Pas de mécanique d'argent, pas de classement public de tous les membres (seulem
 - `supabase/migrations/2026-11-18_cxs_social.sql` (+ `_retour.sql`), testée par `tests/sql/run-social.sh` (Postgres local).
 - `supabase/functions/stripe-webhook/parrainage.js`, testé par `tests/parrainage-webhook.test.mjs`.
 - `tests/social-e2e.js` : parcours complets, iPhone et Android, clair et sombre.
+
+## Liens courts (19 novembre 2026)
+
+Les liens partagés ne portent plus toute la séance ou tout le programme : le partage est enregistré dans `cxs_soc_partages` et le lien ne contient que son identifiant (`…/tb-coaching-app/?p=K7m2Qx9a`). La personne qui l'ouvre lit le partage sans compte (`cxs_soc_partage_lire`), avec le code d'invitation de l'auteur. Sans connexion ou sans compte, l'app retombe sur l'ancien lien long, qui marche toujours. Message raccourci : « 💪 Dos + épaules : 150 min · 46 séries · 11,4 t / 🏆 Record : … / Viens t'entraîner avec moi 👉 lien ». Migration : `supabase/migrations/2026-11-19_cxs_partages.sql`.

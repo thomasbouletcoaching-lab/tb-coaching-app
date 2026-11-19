@@ -144,14 +144,16 @@ export function programmePublic(p, { catalogue = false, schema = null } = {}) {
   if (catalogue) return { id: String(p.id).slice(0, 60), n: sansContact(p.name, 70) };
   return {
     n: sansContact(p.name || p.n || "Mon programme", 70) || "Mon programme",
-    split: sansContact(p.split || "", 30) || null, lvl: sansContact(p.lvl || "", 20) || null,
+    split: splitLisible(p.split), lvl: sansContact(p.lvl || "", 20) || null,
     sem: nb(p.weeks ?? p.sem, 52),
-    s: (p.s || []).slice(0, 7).map(([nom, jourS, exs]) => [sansContact(nom, 40) || "Séance", JOURS.includes(jourS) ? jourS : null,
+    s: (p.s || []).slice(0, 7).map(([nom, jourS, exs]) => [sansContact(nom, 60) || "Séance", JOURS.includes(jourS) ? jourS : null,
       (exs || []).slice(0, 14).map(e => { const r = Array.isArray(e) ? e : [e?.name, e?.kind];
         const sch = schema ? sansContact(schema(r), 24) : sansContact(r[2] && /^\d/.test(r[2]) ? r[2] : "", 24);
         return [sansContact(r[0], 50), /^[A-Z]$/.test(r[1] || "") ? r[1] : "P", ...(sch ? [sch] : [])]; }).filter(e => e[0])]),
   };
 }
+// Type de split lisible (« Full body », « PPL »…) ; une liste de noms de séances (« Séance / Séance D / … ») n'en est pas un
+function splitLisible(x) { const t = sansContact(x || "", 30); return !t || t.includes("/") || /^séance/i.test(t) ? null : t; }
 export const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 // Programme reçu → programme personnel prêt à suivre (nouvel identifiant, marqué comme reçu)
 export function programmeImportable(pub, { id, de = "" } = {}) {
@@ -189,10 +191,26 @@ export function lienPartage(base, { code = null, seance = null, programme = null
   else if (programme) { u.searchParams.set("k", "programme"); u.searchParams.set("d", versB64({ ...programme, de: sansContact(de, 30) })); }
   return u.toString();
 }
+// Lien court : le partage est enregistré sur le serveur, le lien ne porte que son identifiant (8 caractères)
+export const ID_PARTAGE = /^[A-Za-z0-9]{8}$/;
+export function lienCourt(base, id) { const u = new URL(base); u.hash = ""; u.search = ""; u.searchParams.set("p", id); return u.toString(); }
+// Partage relu depuis le serveur : revérifié comme un lien (il a pu être enregistré par une version modifiée de l'app)
+export function lirePartage(row) {
+  if (!row || typeof row !== "object") return null;
+  const out = {}, code = normCode(row.code); if (codeValide(code)) out.code = code;
+  const d = row.data && typeof row.data === "object" ? row.data : null; if (!d) return null;
+  if (row.type === "seance") out.seance = nettoyerRecap(d);
+  else if (row.type === "programme") {
+    if (d.id && !d.s && /^[\w-]{1,60}$/.test(d.id)) out.programme = { id: d.id, n: null, de: sansContact(d.de, 30) };
+    else { const p = programmePublic(d); if (!p?.s?.length) return null; out.programme = { ...p, de: sansContact(d.de, 30) }; }
+  } else return null;
+  return out;
+}
 // Lecture d'un lien reçu (search = location.search). Tout est revérifié : un lien peut être fabriqué à la main.
 export function lireLien(search) {
   const q = new URLSearchParams(search || ""), out = {};
   const code = normCode(q.get("r")); if (codeValide(code)) out.code = code;
+  const pid = q.get("p"); if (pid && ID_PARTAGE.test(pid)) out.partage = pid;
   const k = q.get("k");
   if (k === "seance") {
     const d = depuisB64(q.get("d"));
@@ -216,10 +234,10 @@ function nettoyerRecap(d) {
 export const texteInvitation = ({ prenom = "", code = null, lien = "", jours = 37 } = {}) =>
   `${prenom ? prenom + " t'invite" : "Je t'invite"} sur TB my Coach, l'app d'entraînement et de nutrition de Thomas Boulet. ${jours} jours offerts, sans carte bancaire${code ? ` (code ${code})` : ""} : ${lien}`;
 export function texteSeance(r, lien) {
-  const bits = [r.min ? `${r.min} min` : null, r.series ? `${r.series} séries` : null, r.tonnes ? `${String(r.tonnes).replace(".", ",")} t soulevées` : null].filter(Boolean).join(" · ");
-  return `💪 Séance faite : ${r.titre}${bits ? ` (${bits})` : ""}${r.records?.length ? `. Record battu : ${r.records[0]} 🏆` : ""}. Viens t'entraîner avec moi sur TB my Coach : ${lien}`;
+  const bits = [r.min ? `${r.min} min` : null, r.series ? `${r.series} séries` : null, r.tonnes ? `${String(r.tonnes).replace(".", ",")} t` : null].filter(Boolean).join(" · ");
+  return `💪 ${r.titre}${bits ? ` : ${bits}` : ""}${r.records?.length ? `\n🏆 Record : ${r.records[0]}` : ""}\nViens t'entraîner avec moi 👉 ${lien}`;
 }
-export const texteProgramme = (n, lien) => `📋 Voici mon programme d'entraînement « ${n} ». Tu peux le voir et le suivre gratuitement sur TB my Coach : ${lien}`;
+export const texteProgramme = (n, lien) => `📋 Mon programme d'entraînement${n && !/^mon programme$/i.test(n) ? ` « ${n} »` : ""}, à suivre gratuitement 👉 ${lien}`;
 // Résumé compact des réactions : [{ id, em, n }] triées, seulement celles reçues
 export function resumeReactions(compte = {}) {
   return REACTIONS.map(r => ({ ...r, n: Math.max(0, compte?.[r.id] | 0) })).filter(r => r.n > 0).sort((a, b) => b.n - a.n);

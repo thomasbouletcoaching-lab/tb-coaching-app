@@ -218,6 +218,26 @@ select tst.ok((select count(*) from cxs_recompenses where parrain_id = '00000000
 select tst.ok((select count(*) from cxs_recompenses where parrain_id = '00000000-0000-0000-0000-0000000000b1' and type = 'mois_offert' and statut <> 'refusee') = 6, '6 mois offerts au plus');
 
 
+-- ---------- Liens de partage courts ----------
+set role authenticated;
+select tst.qui('00000000-0000-0000-0000-0000000000b1');
+create temp table if not exists lien (id text);
+reset role; grant all on lien to authenticated, anon; set role authenticated;
+select tst.qui('00000000-0000-0000-0000-0000000000b1');
+insert into lien select cxs_soc_partage_creer('seance', '{"titre":"Push","series":18,"email":"x@y.fr"}');
+select tst.ok((select id from lien) ~ '^[A-Za-z0-9]{8}$', 'partage créé : identifiant de 8 caractères');
+select tst.echoue($q$ select cxs_soc_partage_creer('autre', '{}') $q$, 'type de partage inconnu');
+select tst.echoue('select * from cxs_soc_partages', 'lecture directe de la table des partages');
+reset role;
+set role anon;
+select set_config('request.jwt.claim.role', 'anon', false), set_config('request.jwt.claim.sub', '', false);
+select tst.ok((cxs_soc_partage_lire((select id from lien))->'data'->>'titre') = 'Push', 'une personne sans compte lit le partage par son lien');
+select tst.ok((cxs_soc_partage_lire((select id from lien))->>'code') ~ '^[A-Z2-9]{6}$', 'le code d''invitation de l''auteur accompagne le partage');
+select tst.ok(((cxs_soc_partage_lire((select id from lien))->'data')::jsonb ? 'email') is false, 'aucun e-mail stocké dans le partage');
+select tst.ok(cxs_soc_partage_lire('ZZZZZZZZ') is null and cxs_soc_partage_lire('../etc') is null, 'identifiant inconnu ou fabriqué : rien');
+select tst.echoue($q$ select cxs_soc_partage_creer('seance', '{}') $q$, 'anon crée un partage');
+reset role;
+
 -- ---------- RGPD ----------
 set role authenticated;
 select tst.qui('00000000-0000-0000-0000-0000000000b2');

@@ -39,9 +39,9 @@ export async function pullSocial() { try { if (!S().profile || isCoach()) return
 // Lue au démarrage, avant tout écran : le code est gardé même si la personne n'a pas encore de profil.
 export function captureInvitation() {
   const lu = SO.lireLien(location.search); if (!lu) return false;
-  update(st => { st.invite = { ...(st.invite || {}), ...(lu.code ? { code: lu.code } : {}), ...(lu.seance ? { seance: lu.seance, programme: null } : {}), ...(lu.programme ? { programme: lu.programme, seance: null } : {}), at: new Date().toISOString(), vu: false }; });
-  const u = new URL(location.href); ["r", "k", "d", "prog", "de"].forEach(k => u.searchParams.delete(k));
-  history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams : "") + (lu.seance || lu.programme ? "#/partage" : u.hash));
+  update(st => { st.invite = { ...(st.invite || {}), ...(lu.code ? { code: lu.code } : {}), ...(lu.seance ? { seance: lu.seance, programme: null } : {}), ...(lu.programme ? { programme: lu.programme, seance: null } : {}), ...(lu.partage ? { partageId: lu.partage, seance: null, programme: null } : {}), at: new Date().toISOString(), vu: false }; });
+  const u = new URL(location.href); ["r", "k", "d", "prog", "de", "p"].forEach(k => u.searchParams.delete(k));
+  history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams : "") + (lu.seance || lu.programme || lu.partage ? "#/partage" : u.hash));
   return true;
 }
 // Le code reçu est lié au compte dès qu'il existe (une fois) : c'est ce qui permet la récompense du parrain
@@ -142,6 +142,18 @@ async function publier(w, vis) {
   update(st => { st.socialPubs = { ...(st.socialPubs || {}), [cleSeance(w)]: { id, vis } }; });
   FIL.amis = FIL.communaute = FIL.moi = null; return id;
 }
+// Lien à partager : court (enregistré sur le serveur, ?p=XXXXXXXX), sinon le lien long qui porte les données (hors connexion, sans compte)
+async function lienDe({ code, seance = null, programme = null }) {
+  const de = profil()?.pseudo && profil().pseudo !== "Membre" ? profil().pseudo : prenom();
+  try {
+    const c = await cloud();
+    if (c && await c.currentSession()) {
+      const id = await c.partageCreer(seance ? "seance" : "programme", { ...(seance || programme), de: SO.sansContact(de, 30) });
+      if (SO.ID_PARTAGE.test(id || "")) return SO.lienCourt(baseApp(), id);
+    }
+  } catch (e) { console.warn("Lien court indisponible :", e.message); }
+  return SO.lienPartage(baseApp(), { code, seance, programme, de });
+}
 // Bloc affiché sur l'écran « Séance terminée »
 export function blocPartageSeance(w) {
   const pub = (S().socialPubs || {})[cleSeance(w)], vis = SO.VISIBILITES.find(v => v[0] === pub?.vis)?.[1];
@@ -152,9 +164,9 @@ export function blocPartageSeance(w) {
 }
 const derniere = () => S().workouts.at(-1);
 actions["soc-story-w"] = async () => { const w = derniere(); if (!w) return; toast("Image en préparation…"); const code = await assurerCode(), r = recapDe(w);
-  const blob = await imageStory("seance", r, { code }); if (!blob) return; await partagerImage(blob, "ma-seance-tb-my-coach.png", SO.texteSeance(r, SO.lienPartage(baseApp(), { code, seance: r, de: profil()?.pseudo || prenom() }))); buzz(15); };
+  const blob = await imageStory("seance", r, { code }); if (!blob) return; await partagerImage(blob, "ma-seance-tb-my-coach.png", SO.texteSeance(r, await lienDe({ code, seance: r }))); buzz(15); };
 actions["soc-ami-w"] = async () => { const w = derniere(); if (!w) return; const code = await assurerCode(), r = recapDe(w);
-  await partagerTexte(SO.texteSeance(r, SO.lienPartage(baseApp(), { code, seance: r, de: profil()?.pseudo || prenom() })), "Ma séance"); };
+  await partagerTexte(SO.texteSeance(r, await lienDe({ code, seance: r })), "Ma séance"); };
 actions["soc-pub-w"] = async () => {
   const w = derniere(); if (!w) return; await charger();
   if (!ETAT.connecte) return sheet(`<h2 class="h2">Publier ta séance</h2><p class="small muted mt8">Crée ton compte TB my Coach (gratuit) pour publier tes séances et encourager les autres membres.</p><button class="btn btn-red mt12" data-a="go" data-r="account">Créer mon compte</button>`);
@@ -186,12 +198,18 @@ actions["soc-prog"] = async (b, d) => {
 };
 async function progDonnees(id) { await E.loadPrograms(); const p = E.program(id); if (!p) return null; const pub = programmePourPartage(p); const vue = pub.s ? pub : { ...SO.programmePublic(p, { schema: (r) => { try { return E.schemeFor(p, r, 1); } catch { return ""; } } }), id: p.id }; return { p, pub, vue }; }
 actions["soc-prog-story"] = async (b, d) => { const x = await progDonnees(d.id); if (!x) return; closeSheet(); toast("Image en préparation…"); const code = await assurerCode();
-  const blob = await imageStory("programme", x.vue, { code }); if (!blob) return; await partagerImage(blob, "mon-programme-tb-my-coach.png", SO.texteProgramme(x.p.name, SO.lienPartage(baseApp(), { code, programme: x.pub, de: profil()?.pseudo || prenom() }))); };
+  const blob = await imageStory("programme", x.vue, { code }); if (!blob) return; await partagerImage(blob, "mon-programme-tb-my-coach.png", SO.texteProgramme(x.p.name, await lienDe({ code, programme: x.pub }))); };
 actions["soc-prog-lien"] = async (b, d) => { const x = await progDonnees(d.id); if (!x) return; closeSheet(); const code = await assurerCode();
-  await partagerTexte(SO.texteProgramme(x.p.name, SO.lienPartage(baseApp(), { code, programme: x.pub, de: profil()?.pseudo || prenom() })), "Mon programme"); };
+  await partagerTexte(SO.texteProgramme(x.p.name, await lienDe({ code, programme: x.pub })), "Mon programme"); };
 
 // ---------- Page d'arrivée d'une personne invitée ----------
 routes.partage = async () => {
+  if (S().invite?.partageId) {
+    $app.innerHTML = `<main class="page"><p class="empty small">Chargement du partage…</p></main>`;
+    let lu = null; try { const c = await cloud(); lu = SO.lirePartage(await c.partageLire(S().invite.partageId)); } catch (e) { console.warn("Partage illisible :", e.message); }
+    update(st => { st.invite = { ...st.invite, partageId: null, ...(lu?.code && !st.invite.code ? { code: lu.code } : {}), ...(lu?.seance ? { seance: lu.seance } : {}), ...(lu?.programme ? { programme: lu.programme } : {}) }; });
+    if (!lu) { toast("Ce lien de partage n'existe plus"); return go(S().profile ? "home" : "onboarding"); }
+  }
   const inv = S().invite || {}, moi = !!S().profile;
   if (!inv.seance && !inv.programme) return go(moi ? "home" : "onboarding");
   const de = esc(inv.seance?.de || inv.programme?.de || ""), cta = moi ? "" : `<button class="btn btn-red mt16" data-a="soc-arrivee">🚀 Commencer mes ${joursOfferts()} jours offerts</button><p class="xs muted center mt8">Sans carte bancaire. Programme, charges calculées, nutrition.</p>`;

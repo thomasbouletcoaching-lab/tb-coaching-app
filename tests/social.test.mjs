@@ -160,5 +160,27 @@ test("textes d'invitation : lien et code, jamais d'e-mail", () => {
   const t = SO.texteInvitation({ prenom: "Tom", code: "K7M2QX", lien: "https://x.invalid/?r=K7M2QX", jours: 37 });
   assert.match(t, /Tom t'invite/); assert.match(t, /37 jours offerts/); assert.match(t, /K7M2QX/);
   const s = SO.texteSeance({ titre: "Push", min: 60, series: 18, tonnes: 8.5, records: ["Squat"] }, "L");
-  assert.match(s, /60 min · 18 séries · 8,5 t soulevées/); assert.match(s, /Record battu : Squat/);
+  assert.match(s, /60 min · 18 séries · 8,5 t/); assert.match(s, /Record : Squat/); assert.ok(s.length < 120, "message court : " + s.length);
+});
+
+test("lien court : identifiant de 8 caractères, partage relu et revérifié", () => {
+  const l = SO.lienCourt("https://exemple.invalid/app/index.html#/done", "K7m2Qx9a");
+  assert.equal(l, "https://exemple.invalid/app/index.html?p=K7m2Qx9a");
+  assert.ok(l.length < 60);
+  assert.equal(SO.lireLien("?p=K7m2Qx9a").partage, "K7m2Qx9a");
+  assert.equal(SO.lireLien("?p=../etc"), null);
+  const s = SO.lirePartage({ type: "seance", code: "K7M2QX", data: { titre: "Push insta @x", series: 1e9, tonnes: 8.4 } });
+  assert.equal(s.code, "K7M2QX"); assert.equal(s.seance.series, 0); assert.ok(!/@x|insta/.test(s.seance.titre));
+  assert.equal(SO.lirePartage({ type: "programme", data: { id: "tb-rep3" } }).programme.id, "tb-rep3");
+  assert.equal(SO.lirePartage({ type: "programme", data: { n: "PPL", s: [["Push", "Lundi", [["Dips", "P"]]]] } }).programme.n, "PPL");
+  assert.equal(SO.lirePartage({ type: "autre", data: {} }), null);
+  assert.equal(SO.lirePartage(null), null);
+});
+
+test("programme : « Séance / Séance D » n'est pas un type de split, titres de séance longs gardés", () => {
+  const p = SO.programmePublic({ name: "Mon programme", split: "Séance / Séance D / Séance E", s: [["Calisthénie pectoraux + abdos (grand droit)", "Mercredi", [["Dips", "P"]]]] });
+  assert.equal(p.split, null);
+  assert.equal(p.s[0][0], "Calisthénie pectoraux + abdos (grand droit)");
+  assert.equal(SO.programmePublic({ name: "X", split: "Full body", s: [] }).split, "Full body");
+  assert.ok(!/« Mon programme »/.test(SO.texteProgramme("Mon programme", "L")));
 });

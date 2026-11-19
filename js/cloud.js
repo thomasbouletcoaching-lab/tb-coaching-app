@@ -396,3 +396,10 @@ export async function socCoach() {
   const acts = ids.length ? (await sb.from("cxs_soc_activites").select("id,user_id,data,visibilite,masque,created_at").in("id", ids)).data || [] : [];
   return { signalements: sig.data || [], recompenses: rec.data || [], parrainages: par.data || [], profils: prof.data || [], activites: acts };
 }
+// Liens de partage courts (migration 2026-11-19_cxs_partages.sql). La lecture marche sans compte (personne invitée).
+export const partageCreer = (type, data) => soc("cxs_soc_partage_creer", { p_type: type, p_data: data });
+export async function partageLire(id) {
+  const { data, error } = await sb.rpc("cxs_soc_partage_lire", { p_id: id });
+  if (error) throw error;
+  return data;
+}
