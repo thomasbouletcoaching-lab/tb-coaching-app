@@ -506,7 +506,7 @@ function exerciseBlock(ex, xi) {
 changes["i:set"] = (el) => {
   const ex = S().current.exercises[+el.dataset.x], si = +el.dataset.s, s = ex.sets[si], k = el.dataset.k;
   const v = num(el.value);
-  if (k === "kg") { s.kg = isNaN(v) ? null : v; ex.sets.forEach((o, i) => { if (i > si && !o.done && o.g === s.g && o.type === s.type) o.kg = s.kg; }); if (ex.e1 && s.kg) s.pct = Math.round(s.kg / ex.e1 * 100); }
+  if (k === "kg") { s.kg = isNaN(v) ? null : v; ex.sets.forEach((o, i) => { if (i > si && !o.done && o.g === s.g && o.type === s.type) o.kg = s.kg; }); if (ex.e1 && s.kg) s.pct = Math.round((s.kg + (ex.bwAdd || 0)) / ex.e1 * 100); }
   else if (k === "reps") s.reps = isNaN(v) ? null : Math.round(v);
   else s.rpe = isNaN(v) ? null : Math.min(10, Math.max(5, v));
   save();
@@ -645,9 +645,10 @@ actions["pg-kg"] = (b, d) => { const ex = S().current.exercises[+d.x]; ex.sets.f
 actions["pg-rep"] = (b, d) => { const ex = S().current.exercises[+d.x]; ex.sets.forEach(s => { if (!s.done && s.type !== "W") { s.reps = Math.max(1, (s.reps || s.lo) + +d.v); s.lo = Math.max(1, s.lo + +d.v); s.hi = Math.max(s.lo, s.hi + +d.v); } }); save(); rerender(); progSheet(+d.x); };
 actions["pg-set"] = (b, d) => { actions["add-set"](b, { x: d.x }); progSheet(+d.x); };
 actions["pg-e1"] = (b, d) => {
-  const ex = S().current.exercises[+d.x], v = E.nudgeE1rm(ex.name, +d.v); if (!v) return;
-  const old = ex.e1 || v; ex.e1 = v;
-  ex.sets.forEach(s => { if (!s.done && s.kg) { s.kg = E.roundTo(s.kg * v / old, ex.step || 2.5); if (s.pct) s.pct = Math.round(s.kg / v * 100); } });
+  const ex = S().current.exercises[+d.x], add = ex.bwAdd || 0, lest = E.nudgeE1rm(ex.name, +d.v); if (!lest) return;
+  // nudgeE1rm renvoie le 1RM du lest seul : pour un lesté, la base des % est lest + poids de corps
+  const v = lest + add, old = ex.e1 || v; ex.e1 = v;
+  ex.sets.forEach(s => { if (!s.done && s.kg) { s.kg = E.roundTo(Math.max(0, (s.kg + add) * v / old - add), ex.step || 2.5); if (s.pct) s.pct = Math.round((s.kg + add) / v * 100); } });
   save(); toast(`1RM estimé : ${E.fmtKg(v)} kg, charges recalculées`); rerender(); progSheet(+d.x);
 };
 actions["ex-rest"] = (b, d) => {
@@ -839,8 +840,9 @@ function doSwap(xi, n) {
   const cur = S().current, ex = cur.exercises[xi];
   if (!cur.free && ex.kind !== "X") update(st => { if (n === ex.orig) delete st.swaps[ex.orig]; else st.swaps[ex.orig] = n; });
   const fresh = E.blankExercise(n);
-  ex.name = n; ex.unit = fresh.unit; ex.bw = fresh.bw; ex.step = fresh.step; ex.e1 = fresh.e1; ex.sug = fresh.sug;
-  ex.sets.forEach(s => { if (s.done) return; s.kg = fresh.bw ? null : fresh.e1 ? E.roundTo(s.type === "W" ? (fresh.sets[0].kg || 0) * .6 : E.loadFor(fresh.e1, s.lo, s.trpe), fresh.step) : fresh.sets[0].kg; s.pct = fresh.e1 && s.kg ? Math.round(s.kg / fresh.e1 * 100) : null; });
+  ex.name = n; ex.unit = fresh.unit; ex.bw = fresh.bw; ex.step = fresh.step; ex.e1 = fresh.e1; ex.bwAdd = fresh.bwAdd; ex.sug = fresh.sug;
+  const add = fresh.bwAdd || 0;
+  ex.sets.forEach(s => { if (s.done) return; s.kg = fresh.bw ? null : fresh.e1 ? (s.type === "W" ? E.roundTo((fresh.sets[0].kg || 0) * .6, fresh.step) : E.roundTo(Math.max(0, E.loadFor(fresh.e1, s.lo, s.trpe) - add), fresh.step)) : fresh.sets[0].kg; s.pct = fresh.e1 && s.kg ? Math.round((s.kg + add) / fresh.e1 * 100) : null; });
   save(); closeSheet(); rerender(); toast("Exercice remplacé, charges recalculées");
 }
 actions.swap = (b, d) => doSwap(+d.x, d.n);

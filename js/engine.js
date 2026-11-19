@@ -166,6 +166,13 @@ export function unitOf(name, kind) {
 export const isBodyweight = (name) => { if (/lest|assist/i.test(name)) return false; const x = exInfo(name); if (x?.eq) return ["Poids de corps", "Anneaux"].includes(x.eq); return BW.test(name); };
 // Exercice « assisté » (machine à dips/tractions assistée…) : la charge est l'AIDE, moins d'aide = progrès
 export const isAssisted = (name) => /assist/i.test(name || "");
+// Exercice lesté (tractions, dips, muscle-up lesté…) : le % du programme porte sur le POIDS TOTAL (poids de corps + lest).
+// La charge affichée est le lest seul = total − poids de corps. L'historique reste en lest seul.
+export const isLest = (name) => /lest/i.test(name || "") && !isAssisted(name);
+export function poidsCorps() { const d = Object.entries(S().daily || {}).filter(([, v]) => v.weight).sort().at(-1); return +(d?.[1].weight) || +S().profile?.weight || 0; }
+export const bwAddOf = (name) => isLest(name) ? poidsCorps() : 0;
+// 1RM de référence pour les % : pour un lesté, lest + poids de corps
+export function baseE1rm(name) { const e = currentE1rm(name); return e ? e + bwAddOf(name) : e; }
 export function stepOf(name) { if (/lest/i.test(name)) return 1.25; if (/kettlebell/i.test(name)) return 4; if (/haltère/i.test(name)) return 2; return 2.5; }
 export const roundTo = (kg, step) => Math.max(0, Math.round(kg / step) * step);
 export const fmtKg = (kg) => (Math.round((kg || 0) * 100) / 100).toString().replace(".", ",");
@@ -316,7 +323,8 @@ export function buildSession(at = null) {
     const groups = parseScheme(scheme);
     const plan = row[5] && (Array.isArray(row[5].sets) || typeof row[5].sets === "number") ? weekPlan(row[5], week, p) : null;
     const unit = unitOf(name, kind), bw = isBodyweight(name) || unit === "s";
-    const e = bw || isAssisted(name) ? 0 : currentE1rm(name), step = stepOf(name);
+    const e = bw || isAssisted(name) ? 0 : baseE1rm(name), step = stepOf(name);
+    const addKg = e ? bwAddOf(name) : 0; // poids de corps à soustraire d'un total pour un lesté
     const prev = lastPerformance(name);
     const plannedTech = (row[5]?.tech) || [];
     const sets = [];
@@ -328,9 +336,10 @@ export function buildSession(at = null) {
         else if (prev) kg = sp.t === "W" ? prev.kg * .6 : prev.kg;
         if (kg && comeback) kg *= .9;
         if (kg && sp.t === "D") kg *= sp.kg ? 1 : .8;
+        if (kg && addKg && !sp.kg) kg = Math.max(0, kg - addKg);
         if (kg) kg = roundTo(kg, step);
       }
-      sets.push({ g: sp.t === "W" ? -1 : 0, type: sp.t || "N", kg, reps: sp.lo, lo: sp.lo, hi: sp.hi || sp.lo, rpe: null, trpe: sp.rpe || (sp.t === "W" ? 5 : 8), pct: sp.pct || (e && kg ? Math.round(kg / e * 100) : null), tech: [...(sp.tech || [])], note: sp.note || "", done: false });
+      sets.push({ g: sp.t === "W" ? -1 : 0, type: sp.t || "N", kg, reps: sp.lo, lo: sp.lo, hi: sp.hi || sp.lo, rpe: null, trpe: sp.rpe || (sp.t === "W" ? 5 : 8), pct: sp.pct || (e && kg ? Math.round((kg + addKg) / e * 100) : null), tech: [...(sp.tech || [])], note: sp.note || "", done: false });
     });
     else groups.forEach((g, gi) => {
       for (let k = 0; k < g.sets; k++) {
@@ -340,10 +349,11 @@ export function buildSession(at = null) {
           else if (prev) kg = prev.kg;
           if (kg && comeback) kg *= .9;
           if (kg && g.ds && k === g.sets - 1) kg *= .8;
+          if (kg && addKg && e) kg = Math.max(0, kg - addKg);
           if (kg) kg = roundTo(kg, step);
         }
         const type = g.ds && k === g.sets - 1 ? "D" : groups.length > 1 ? (gi === 0 ? "T" : "B") : "N";
-        sets.push({ g: gi, type, kg, reps: g.lo, lo: g.lo, hi: g.hi, rpe: null, trpe: g.rpe || 8, pct: g.pct || (e && kg ? Math.round(kg / e * 100) : null), tech: g.ds && k === g.sets - 1 ? ["Dropset"] : [...plannedTech], note: "", done: false });
+        sets.push({ g: gi, type, kg, reps: g.lo, lo: g.lo, hi: g.hi, rpe: null, trpe: g.rpe || 8, pct: g.pct || (e && kg ? Math.round((kg + addKg) / e * 100) : null), tech: g.ds && k === g.sets - 1 ? ["Dropset"] : [...plannedTech], note: "", done: false });
       }
     });
     // Échauffement proposé sur les mouvements de force
@@ -353,7 +363,7 @@ export function buildSession(at = null) {
     }
     const sug = bw ? null : isAssisted(name) ? assistSuggestion(name, groups.at(-1).rpe || 8, groups.at(-1).hi, step) : suggestion(name, groups.at(-1).rpe || 8, groups.at(-1).lo, groups.at(-1).hi, step);
     if (isAssisted(name) && sug?.kg != null && prev) sets.forEach(x => { if (x.type !== "W" && x.kg === prev.kg) x.kg = sug.kg; });
-    return { orig, name, kind, note: row[2] || "", ss: row[3] || null, tempo: plan?.tempo || row[4] || null, scheme, unit, bw, step, rest: (row[5]?.rest) || REST[kind] || 90, sets, e1: e, sug, myNote: "", off: !!plan && !plan.sets.length };
+    return { orig, name, kind, note: row[2] || "", ss: row[3] || null, tempo: plan?.tempo || row[4] || null, scheme, unit, bw, step, rest: (row[5]?.rest) || REST[kind] || 90, sets, e1: e, bwAdd: addKg, sug, myNote: "", off: !!plan && !plan.sets.length };
   }).filter(e => !e.off);
   return { id: Date.now(), programId: p.id, week, idx: ns.idx % p.s.length, cycle: ns.cycle, title: ns.title, phase: ns.phase, start: new Date().toISOString(), comeback, exercises };
 }
@@ -361,11 +371,12 @@ export function freeSession(title = "Séance libre") {
   return { id: Date.now(), programId: null, free: true, week: S().plan?.week || 1, idx: null, title, phase: "Libre", start: new Date().toISOString(), comeback: false, exercises: [] };
 }
 export function blankExercise(name) {
-  const unit = unitOf(name, "X"), bw = isBodyweight(name) || unit === "s", e = bw || isAssisted(name) ? 0 : currentE1rm(name), step = stepOf(name);
+  const unit = unitOf(name, "X"), bw = isBodyweight(name) || unit === "s", e = bw || isAssisted(name) ? 0 : baseE1rm(name), step = stepOf(name);
+  const addKg = e ? bwAddOf(name) : 0;
   const prev = lastPerformance(name);
-  const kg = bw ? null : isAssisted(name) ? (assistSuggestion(name, 8, 12, step)?.kg ?? prev?.kg ?? null) : prev?.kg ?? (e ? roundTo(loadFor(e, 8, 8), step) : null);
-  const sets = [0, 1, 2].map(() => ({ g: 0, type: "N", kg, reps: prev?.reps || 8, lo: 8, hi: 12, trpe: 8, rpe: null, pct: e && kg ? Math.round(kg / e * 100) : null, tech: [], note: "", done: false }));
-  return { orig: name, name, kind: "X", note: "", scheme: "3x8-12 RPE8", unit, bw, step, rest: 120, sets, e1: e, sug: bw ? null : isAssisted(name) ? assistSuggestion(name, 8, 12, step) : suggestion(name, 8, 8, 12, step), myNote: "" };
+  const kg = bw ? null : isAssisted(name) ? (assistSuggestion(name, 8, 12, step)?.kg ?? prev?.kg ?? null) : prev?.kg ?? (e ? roundTo(Math.max(0, loadFor(e, 8, 8) - addKg), step) : null);
+  const sets = [0, 1, 2].map(() => ({ g: 0, type: "N", kg, reps: prev?.reps || 8, lo: 8, hi: 12, trpe: 8, rpe: null, pct: e && kg ? Math.round((kg + addKg) / e * 100) : null, tech: [], note: "", done: false }));
+  return { orig: name, name, kind: "X", note: "", scheme: "3x8-12 RPE8", unit, bw, step, rest: 120, sets, e1: e, bwAdd: addKg, sug: bw ? null : isAssisted(name) ? assistSuggestion(name, 8, 12, step) : suggestion(name, 8, 8, 12, step), myNote: "" };
 }
 
 // Séance express (10, 20, 30 ou 45 min) : on garde les mouvements principaux, dans l'ordre du programme,
