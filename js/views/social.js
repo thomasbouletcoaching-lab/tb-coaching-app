@@ -241,7 +241,7 @@ export function carteSociale() {
 function feuilleProfil(apres = null) {
   const p = profil() || {}, so = soc(), av = p.avatar || SO.AVATARS[0];
   sheet(`<h2 class="h2">${p.pseudo ? "Mon profil dans la communauté" : "Rejoindre la communauté"}</h2>
-    <p class="xs muted mt4">Personne ne voit ton nom, ton e-mail ni ton poids. Pas de messages entre membres : on s'encourage par des gestes, c'est tout. <a href="cgv.html#communaute" target="_blank" rel="noopener">Règles de la communauté</a></p>
+    <p class="xs muted mt4">Personne ne voit ton nom, ton e-mail ni ton poids. Pas de messages entre membres : on s'encourage par des gestes, c'est tout. <a href="cgv.html#communaute" target="_blank" rel="noopener">Règles de la communauté</a> · <a href="confidentialite.html#communaute" target="_blank" rel="noopener">Tes données</a></p>
     <form data-f="soc-profil" class="mt12">
       <label class="lbl">Pseudo</label><input class="inp mt4" name="pseudo" maxlength="20" required value="${esc(p.pseudo && p.pseudo !== "Membre" ? p.pseudo : SO.pseudoParDefaut(S().profile?.name))}" autocomplete="off" style="width:100%">
       <label class="lbl mt12" style="display:block">Avatar</label><div class="chips wrap mt4">${SO.AVATARS.map(a => `<label class="chip ${a === av ? "on" : ""}" style="font-size:22px;cursor:pointer"><input type="radio" name="avatar" value="${a}" ${a === av ? "checked" : ""} style="display:none" onchange="this.closest('.chips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.contains(this)))">${a}</label>`).join("")}</div>
