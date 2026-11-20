@@ -66,9 +66,9 @@ test("chaque palier a ses trois formes, une icône et une phrase qui ne s'accord
 });
 
 test("seuils d'origine conservés (1, 3, 5, 8) et niveaux hors bornes tolérés", () => {
-  assert.deepEqual(PALIERS.map(p => p.from), [1, 3, 5, 8]);
-  assert.equal(palier(0, {}).from, 1); assert.equal(palier(undefined, {}).from, 1); assert.equal(palier(99, {}).from, 8); assert.equal(palier(7, {}).from, 5);
-  assert.equal(paliersPour({ genre: "f", level: "comeback" }).map(s => s.name).join(" | "), "De retour | La Femme de la reprise | La Femme de discipline | La Femme de fer");
+  assert.deepEqual(PALIERS.map(p => p.from), [1, 3, 5, 8, 12, 16, 20, 25]);
+  assert.equal(palier(0, {}).from, 1); assert.equal(palier(undefined, {}).from, 1); assert.equal(palier(99, {}).from, 25); assert.equal(palier(7, {}).from, 5);
+  assert.equal(paliersPour({ genre: "f", level: "comeback" }).map(s => s.name).join(" | "), "De retour | La Femme de la reprise | La Femme de discipline | La Femme de fer | Inébranlable | Force tranquille | Au sommet | Légende vivante");
 });
 
 test("modèles de nutrition : aucun nom ni description ne présume un homme, un âge précis ou une situation familiale", () => {

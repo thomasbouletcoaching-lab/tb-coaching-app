@@ -86,7 +86,7 @@ export const markImg = (size = 96) => `<img src="assets/logo-tb.png" alt="Logo T
 let toastT;
 export function toast(msg) {
   document.querySelector(".toast")?.remove();
-  const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.append(t);
+  const t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); t.textContent = msg; document.body.append(t);
   clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 2600);
 }
 export function sheet(html, onMount, { keep = false } = {}) {

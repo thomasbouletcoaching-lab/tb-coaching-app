@@ -1,7 +1,7 @@
 // Paliers (« Ton personnage ») : le nom s'adapte au genre CHOISI par la personne et à son profil réel.
 // Règles (décision D6) : aucun nom ne présume le genre (sans choix : forme neutre) ; on ne parle de « reprise »
 // qu'à quelqu'un qui reprend (niveau « comeback » de l'onboarding ou objectif « restart »).
-// Module pur, testé par tests/genre.test.mjs. Les seuils de niveau (1, 3, 5, 8) sont ceux d'origine.
+// Module pur, testé par tests/genre.test.mjs. Les seuils de niveau (1, 3, 5, 8) sont ceux d'origine ; 12, 16, 20 et 25 ajoutés en C61.
 import { genreDe } from "./genre.js";
 
 export const reprend = (profile) => profile?.level === "comeback" || profile?.goal === "restart";
@@ -24,6 +24,11 @@ export const PALIERS = [
   { from: 8, icon: "🏛️", variantes: [
     { si: () => true, noms: { m: "L'Homme de fer", f: "La Femme de fer", n: "Volonté de fer" }, line: "Corps, régularité et méthode tiennent ensemble. Continue." },
   ] },
+  // Grades supplémentaires (décision C61) : noms épicènes, identiques pour tout le monde
+  { from: 12, icon: "💎", variantes: [{ si: () => true, noms: { m: "Inébranlable", f: "Inébranlable", n: "Inébranlable" }, line: "Les semaines passent, tu restes. Rien ne te fait dévier longtemps." }] },
+  { from: 16, icon: "⚡", variantes: [{ si: () => true, noms: { m: "Force tranquille", f: "Force tranquille", n: "Force tranquille" }, line: "Plus besoin de motivation : l'entraînement fait partie de toi." }] },
+  { from: 20, icon: "🏔️", variantes: [{ si: () => true, noms: { m: "Au sommet", f: "Au sommet", n: "Au sommet" }, line: "Peu de gens arrivent ici. Garde le cap, sans forcer." }] },
+  { from: 25, icon: "👑", variantes: [{ si: () => true, noms: { m: "Légende vivante", f: "Légende vivante", n: "Légende vivante" }, line: "Ta régularité inspire. Transmets-la autour de toi." }] },
 ];
 
 // Palier d'un niveau pour un profil : { from, icon, name, line }.
