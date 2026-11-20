@@ -1,7 +1,7 @@
 // Nutrition : journal (heures des repas), favoris, repas enregistrés, plan écrit, recettes, batch cooking,
 // jeûne, dépense calorique (MB, NEAT, EAT, TEF, TDEE), corps (poids, projection, mensurations, photos).
 import { S, update, today, addPhoto, listPhotos, deletePhoto, updatePhoto } from "../store.js";
-import { nutriCard, levelSelector, nutriLevel } from "./nutri-detail.js";
+import { nutriCard, nutriLevel } from "./nutri-detail.js";
 import * as N from "../nutrition.js";
 import * as RC from "../recipes.js";
 import * as EN from "../energy.js";
@@ -276,7 +276,6 @@ function journalBody(t) {
   const d = D(), log = N.dayLog(d), water = S().daily[d]?.water || 0;
   const fs = EN.fastState();
   return `${weekStrip(d)}
-    ${levelSelector()}
     <div class="card mt8">${leftHead(d)}${caloriesCard(d)}</div>
     ${nutriLevel() === "simple" ? "" : microPeek(d)}
     ${nutriLevel() === "complet" ? nutriCard(d) : ""}

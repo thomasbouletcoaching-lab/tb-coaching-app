@@ -11,11 +11,8 @@ const dash = (v, u = "") => v == null ? "—" : `${fr(v, v % 1 ? 1 : 0)}${u ? " 
 
 // Niveau de suivi (journal) : « simple » = calories et protéines, « macros » = + glucides, lipides, fibres, « complet » = + sucres, sel, sodium / potassium, micronutriments
 export const NUTRI_LEVELS = [["simple", "Calories et protéines"], ["macros", "Calories et macros"], ["complet", "Complet"]];
-export function nutriLevel() {
-  const v = S().settings?.nutriLevel;
-  if (NUTRI_LEVELS.some(([k]) => k === v)) return v;
-  return S().settings?.simpleNutri ? "simple" : "complet";
-}
+// Le choix du niveau a été retiré (20/11/2026) : tout le monde voit la vue complète
+export function nutriLevel() { return "complet"; }
 export function levelSelector() {
   return `<div class="mt8">${seg(NUTRI_LEVELS, nutriLevel(), "nutri-level")}</div>`;
 }

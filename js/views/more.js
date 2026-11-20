@@ -86,7 +86,6 @@ routes.settings = async () => {
     <h2 class="sec">Profil et objectifs</h2>
     <div class="list">
       <button class="li" data-a="edit-body"><span class="em">✏️</span><span class="grow">Mes infos et mon carburant<br><span class="xs muted">${t ? `${fr(t.kcal)} kcal · ${esc(t.model.name)}` : ""}</span></span>${I.chev}</button>
-      <div class="li"><span class="em">🥩</span><span class="grow">Suivi simple : calories et protéines<br><span class="xs muted">Masque glucides, lipides et micronutriments</span></span><button class="switch ${S().settings.nutriLevel === "simple" || (!S().settings.nutriLevel && S().settings.simpleNutri) ? "on" : ""}" data-a="simple-nutri" aria-label="Suivi simple"></button></div>
       <div class="li"><span class="em">📊</span><span class="grow">Afficher les % et l'e1RM dans le carnet</span><button class="switch ${S().settings.adv ?? p.level === "advanced" ? "on" : ""}" data-a="adv-toggle" aria-label="Mode avancé"></button></div>
       <div class="li"><span class="em">🛌</span><span class="grow">Jour de repos<br><span class="xs muted">Ce jour-là, l'accueil ne pousse plus à la performance</span></span><select class="inp" style="width:auto;font-size:15px" data-c="sabbat-dow" aria-label="Jour de repos">${[["-1", "Désactivé"], ...E.DAY_NAMES.map((n, i) => [String(i), n])].map(([v, l]) => `<option value="${v}" ${String(S().settings.sabbat?.on === false || !S().settings.sabbat ? -1 : S().settings.sabbat.dow) === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
     </div>
