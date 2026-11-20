@@ -90,9 +90,9 @@ const overflow = (p, root = '#app') => p.evaluate((r) => [...document.querySelec
     await a.ctx.close();
 
     // ---------- Entraînement : cardio, séance oubliée, séance rouverte ----------
-    a = await page(b, { state: STATE, url: '#/carnet', vp });
+    a = await page(b, { state: STATE, url: '#/carnet/cardio', vp });
     t = await txt(a.p);
-    ok(/Cardio et activités/.test(t), 'Entraînement : carte « Cardio et activités »');
+    ok(/Cardio et activités/.test(t), 'Entraînement › Cardio : carte « Cardio et activités »');
     await tap(a.p, '[data-a="act-add"]');
     await a.p.fill('#sheet input[name="min"]', '35'); await a.p.click('#sheet form[data-f="act-add"] button.btn-red'); await a.p.waitForTimeout(500);
     st = await S(a.p);
@@ -165,7 +165,7 @@ const overflow = (p, root = '#app') => p.evaluate((r) => [...document.querySelec
 
     // ---------- Activité : calories de la machine, pente et vitesse ; alertes de blessure ; Profil ----------
     const DOUL = { ...STATE, workouts: [{ ...W(1002, 2), exercises: [{ ...W(1002, 2).exercises[0], name: 'Développé couché barre', orig: 'Développé couché barre', myNote: 'gêne épaule droite' }] }] };
-    a = await page(b, { state: DOUL, url: '#/carnet', vp });
+    a = await page(b, { state: DOUL, url: '#/carnet/cardio', vp });
     t = await txt(a.p);
     ok(!/Athlète hybride/.test(t), 'Entraînement : plus de carte « Athlète hybride »');
     await tap(a.p, '[data-a="act-add"]');
@@ -182,15 +182,15 @@ const overflow = (p, root = '#app') => p.evaluate((r) => [...document.querySelec
     const net = await a.p.evaluate(async (c) => (await import('./js/energy.js')).actKcal(c), c);
     ok(c.kcal === 350 && c.kt === 'total' && net === Math.round(350 - 68 * 40 / 60), 'calories du tapis saisies : repos retiré (' + net + ' kcal comptées)');
     ok(/350 kcal affichées/.test(await txt(a.p)), 'calories affichées dans la liste');
-    // Alerte de blessure
-    t = await txt(a.p);
+    // Alerte de blessure (onglet Musculation)
+    await go(a.p, 'carnet/carnet'); t = await txt(a.p);
     ok(/Alertes blessure/.test(t) && (await a.p.locator('[data-a="pain-triage"]').count()) >= 1, 'alerte de blessure avec « Traiter l\'alerte »');
     await tap(a.p, '[data-a="pain-triage"]');
     for (const [q, v] of [['int', 'faible'], ['type', 'gene'], ['quand', 'effort'], ['signes', 'non'], ['evol', 'mieux']]) await tap(a.p, `#sheet [data-a="pt-ans"][data-q="${q}"][data-v="${v}"]`);
     ok(/Plutôt bénin/.test(await txt(a.p, '#sheet')), 'questionnaire : bénin');
     await tap(a.p, '#sheet [data-a="pt-save"]');
     ok(!/Alertes blessure/.test(await txt(a.p)) && (await S(a.p)).painTriage['Développé couché barre'].v === 'benin', 'alerte rangée');
-    await a.p.evaluate(async () => { const st = await import('./js/store.js'); st.update(s => { delete s.painTriage; }); }); await go(a.p, 'home'); await go(a.p, 'carnet');
+    await a.p.evaluate(async () => { const st = await import('./js/store.js'); st.update(s => { delete s.painTriage; }); }); await go(a.p, 'home'); await go(a.p, 'carnet/carnet');
     await tap(a.p, '[data-a="pain-triage"]');
     for (const [q, v] of [['int', 'moyenne'], ['type', 'vive'], ['quand', 'apres'], ['signes', 'non'], ['evol', 'pareil']]) await tap(a.p, `#sheet [data-a="pt-ans"][data-q="${q}"][data-v="${v}"]`);
     ok(/À prendre au sérieux/.test(await txt(a.p, '#sheet')) && /douleur vive/.test(await txt(a.p, '#sheet')), 'questionnaire : sérieux (douleur vive)');
@@ -203,6 +203,60 @@ const overflow = (p, root = '#app') => p.evaluate((r) => [...document.querySelec
     ok(/Trophées et quêtes/.test(t) && /Athlète hybride/.test(t) && (await a.p.locator('#app [data-r="trophees"]').count()) >= 1, 'Profil : trophées et athlète hybride');
     await go(a.p, 'home');
     ok((await a.p.locator('#app [data-r="trophees"]').count()) === 0, 'Accueil : plus de carte trophées');
+    ok(await overflow(a.p) === 0, 'rien ne dépasse');
+    ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
+    await a.ctx.close();
+  }
+  // ---------- Nouvelle organisation : barre du bas, Entraînement, Récupération, Communauté, double progression ----------
+  for (const [vp, nom] of [[{ width: 390, height: 844 }, 'iPhone 390×844'], [{ width: 360, height: 740 }, 'Android 360×740']]) {
+    console.log('\nOrganisation · ' + nom);
+    const done = { ...W(1003, 0), end: new Date().toISOString(), start: new Date(Date.now() - 36e5).toISOString() };
+    done.exercises[0].sets[1].done = false;
+    const a = await page(b, { state: { ...STATE, workouts: [W(1001, 3), done] }, url: '#/carnet', vp });
+    let t = await txt(a.p, 'nav.tabbar');
+    ok(/Accueil/.test(t) && /Entraînement/.test(t) && /Nutrition/.test(t) && /Communauté/.test(t) && /Coaching/.test(t) && /Profil/.test(t) && !/Récupération/.test(t), 'barre du bas : Accueil, Entraînement, Nutrition, Communauté, Coaching, Profil');
+    t = await txt(a.p, '.modes');
+    ok(/Musculation.*Cardio.*Récupération.*Connaissances/.test(t), 'Entraînement : Musculation | Cardio | Récupération | Connaissances');
+    const first = await a.p.evaluate(() => { const m = document.querySelector('main.page'); const c = [...m.querySelectorAll('.card')][0]; return c?.className + ' ' + c?.textContent.slice(0, 40); });
+    ok(/grad/.test(first) && /programme/i.test(first), 'Musculation : la carte « Ton programme » est tout en haut');
+    ok(await a.p.locator('.wkring .wd').count() === 7, 'semaine d\'entraînement en anneaux');
+    ok(await a.p.locator('.wkring circle[stroke="#F29A2E"]').count() >= 1, 'séance d\'aujourd\'hui partielle : anneau orange');
+    ok(await a.p.locator('.wkring circle[stroke="#E5484D"]').count() >= 1, 'séance loupée : anneau rouge');
+    ok(await a.p.locator('[data-a="se-edit"]').count() >= 2, 'chaque séance a son bouton « Modifier »');
+    ok(!/Mes cycles/.test(await txt(a.p)), 'Musculation : « Mes cycles » et « Créer » ne sont plus en haut');
+    await tap(a.p, '[data-a="carnet-sub"][data-v="programmes"]');
+    t = await txt(a.p);
+    ok(/Mes cycles/.test(t) && /Créer/.test(t), 'Programmes : « Mes cycles » et « Créer »');
+    await go(a.p, 'carnet/carnet');
+    await tap(a.p, '[data-a="carnet-sub"][data-v="seances"]');
+    await a.p.click('[data-a="se-edit"][data-i="1"]'); await a.p.waitForTimeout(1500);
+    ok(await a.p.evaluate(() => (document.getElementById('bd-s-1')?.style.boxShadow || '').includes('inset')), 'l\'éditeur s\'ouvre sur la séance choisie');
+    // Double progression
+    await a.p.click('#bd-s-0 [data-a="bd-edit"][data-r="0"]'); await a.p.waitForTimeout(400);
+    await tap(a.p, '#sheet [data-a="bx-pp"][data-i="0"]');
+    t = await txt(a.p, '#sheet');
+    ok(/Double progression/.test(t), 'surcharge : raccourci « Double progression »');
+    const cyc = await a.p.$$eval('#sheet [data-a="bx-week"]', l => l.slice(0, 4).map(x => x.textContent.replace(/\s+/g, ' ')));
+    ok(cyc.length === 4 && !cyc.every(x => x === cyc[0]), 'le cycle change semaine après semaine : ' + cyc.map(x => x.slice(0, 18)).join(' | '));
+    await tap(a.p, '#sheet [data-a="bx-close"]');
+    // Récupération
+    await go(a.p, 'recup'); t = await txt(a.p);
+    ok(/Fatigue/.test(t) && /Sommeil/.test(t) && /Apport/.test(t), 'Récupération : fatigue nerveuse, sommeil, apport alimentaire');
+    ok(!/Jeûne/.test(t) && !/insuline/i.test(t), 'Récupération : plus de jeûne ni de sensibilité à l\'insuline');
+    ok(await a.p.locator('main input[type="range"]').count() === 0 && await a.p.locator('.emo5 button').count() >= 25, 'ressenti : visages au lieu des curseurs');
+    await tap(a.p, '.emo5 [data-k="sore"][data-v="8"]');
+    ok((await S(a.p)).daily[T]?.feel?.sore === 8, 'courbatures notées en un geste');
+    ok(/Entraînement/.test(await txt(a.p, 'nav.tabbar [aria-current="page"]')), 'Récupération rangée dans Entraînement');
+    await tap(a.p, '[data-a="r-tab"][data-v="apport"]');
+    ok(/Manges-tu assez/.test(await txt(a.p)) && /glycogène/i.test(await txt(a.p)), 'apport alimentaire : calories, protéines, glycogène');
+    // Nutrition : jeûne et insuline
+    await go(a.p, 'food/jeune'); ok(/Jeûne/.test(await txt(a.p)), 'Nutrition : onglet Jeûne');
+    await go(a.p, 'food/conseils'); await a.p.waitForTimeout(800); ok(/Sensibilité à l'insuline/.test(await txt(a.p)), 'Nutrition › Conseils : sensibilité à l\'insuline');
+    // Communauté
+    await go(a.p, 'communaute'); await a.p.waitForTimeout(800);
+    ok(/Communauté/.test(await txt(a.p, 'nav.tabbar [aria-current="page"]')) && /Fil.*Amis.*Inviter/.test(await txt(a.p, '.modes')), 'Communauté : onglet du bas avec Fil, Amis, Inviter');
+    await go(a.p, 'profile'); t = await txt(a.p);
+    ok(!/Inviter et gagner/.test(t) && !/Mes amis/.test(t), 'Profil : plus de partie Communauté');
     ok(await overflow(a.p) === 0, 'rien ne dépasse');
     ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
     await a.ctx.close();

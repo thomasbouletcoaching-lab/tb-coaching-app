@@ -1,7 +1,7 @@
 // Partage, parrainage, amis et communauté (écrans). Règles pures : js/social.js. Serveur : js/cloud.js (cxs_soc_*).
 // Sans compte ou sans la migration 2026-11-18_cxs_social.sql, la story et l'envoi à un ami marchent quand même ;
 // la communauté et les amis affichent ce qu'il manque.
-import { $app, esc, header, tabbar, adminTabbar, go, rerender, routes, actions, forms, toast, buzz, sheet, closeSheet, cloud, ago, fmtDate, isCoach, fr, R } from "../core.js";
+import { $app, esc, header, tabbar, adminTabbar, go, rerender, routes, actions, forms, toast, buzz, sheet, closeSheet, cloud, ago, fmtDate, isCoach, fr, R, modeBar } from "../core.js";
 import { S, update, today } from "../store.js";
 import { CONFIG, TRIAL_DAYS } from "../config.js";
 import * as SO from "../social.js";
@@ -345,9 +345,12 @@ function carteActivite(a) {
     ${res.length ? `<p class="xs muted mt8" style="margin-bottom:0">${res.map(r => `${r.em} ${r.n}`).join("  ")}</p>` : ""}
     ${a.moi ? "" : `<div class="row mt8" style="gap:6px;justify-content:space-between">${SO.REACTIONS.map(r => `<button class="chip ${mes.has(r.id) ? "on" : ""}" data-a="soc-r" data-id="${a.id}" data-e="${r.id}" aria-label="${esc(r.l)}" aria-pressed="${mes.has(r.id)}" style="font-size:20px;flex:1;justify-content:center">${r.em}</button>`).join("")}</div>`}</div>`;
 }
+// Onglet Communauté (barre du bas) : le fil, les amis, les invitations
+const COMM_MODES = [["communaute", "🏟️ Fil"], ["amis", "🫂 Amis"], ["parrainage", "🎁 Inviter"]];
+actions["comm-mode"] = (b, d) => { if (R.route !== d.v) go(d.v); };
 routes.communaute = async () => {
   if (["amis", "communaute", "moi"].includes(R.param)) onglet = R.param;
-  $app.innerHTML = header("Communauté", "", { back: "profile", actions: `<button class="pill ic" data-a="go" data-r="amis" aria-label="Mes amis">🫂</button>` }) + `<main class="page"><p class="empty small">Chargement…</p></main>${tabbar("profile")}`;
+  $app.innerHTML = header("Communauté", "", { actions: `<button class="pill ic" data-a="soc-profil" aria-label="Mon profil de la communauté">👤</button>` }) + `<main class="page">${modeBar(COMM_MODES, "communaute", "comm-mode")}<div id="comm"><p class="empty small">Chargement…</p></div></main>${tabbar("communaute")}`;
   await charger();
   const bloc = etatBloquant("La communauté TB my Coach");
   let body;
@@ -364,7 +367,9 @@ routes.communaute = async () => {
     update(st => { st.social = { ...(st.social || {}), vu: new Date().toISOString(), resume: { ...(st.social?.resume || {}), recusDepuis: 0 } }; });
   }
   if (R.route !== "communaute") return;
-  $app.querySelector("main").innerHTML = body;
+  const w = derniere(), pubs = S().socialPubs || {};
+  const pubCard = w && !bloc && profil() && onglet !== "amis" ? `<div class="card mt12 row" style="gap:12px;align-items:center"><span style="font-size:26px">📣</span><span class="grow small"><b>${pubs[cleSeance(w)] ? "Dernière séance publiée" : "Publie ta dernière séance"}</b><br><span class="xs muted">${esc(w.title)} · ${new Date(w.end).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}</span></span><button class="btn btn-red btn-sm" style="width:auto;flex:none" data-a="soc-hist" data-k="${esc(cleSeance(w))}">Partager</button></div>` : "";
+  const box = document.getElementById("comm"); if (box) box.innerHTML = pubCard + body + `<button class="card tap mt12" data-a="go" data-r="rapport" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:24px">📈</span><span class="grow"><b>Partager mes résultats</b><br><span class="xs muted">Mon rapport : progrès, régularité, avant / après</span></span></button>`;
 };
 actions["soc-onglet"] = (b, d) => { onglet = d.v; history.replaceState(null, "", "#/communaute/" + d.v); rerender(); };
 actions["soc-reload"] = async () => { ETAT.at = 0; FIL.amis = FIL.communaute = FIL.moi = null; rerender(); };
@@ -399,7 +404,7 @@ actions["soc-suppr"] = async (b, d) => { try { const c = await cloud(); await c.
 // ---------- Amis ----------
 let AMIS = null;
 routes.amis = async () => {
-  $app.innerHTML = header("Mes amis", "", { back: "communaute" }) + `<main class="page"><p class="empty small">Chargement…</p></main>${tabbar("profile")}`;
+  $app.innerHTML = header("Communauté", "") + `<main class="page">${modeBar(COMM_MODES, "amis", "comm-mode")}<div id="comm"><p class="empty small">Chargement…</p></div></main>${tabbar("communaute")}`;
   await charger(); const bloc = etatBloquant("Tes amis dans l'app");
   let body = bloc;
   if (!bloc) {
@@ -415,7 +420,7 @@ routes.amis = async () => {
         : `<div class="card mt12 center"><div style="font-size:40px">🫂</div><p class="small muted">Pas encore d'amis dans l'app. Invite ceux avec qui tu t'entraînes : vous verrez vos séances et vous pourrez vous encourager.</p></div>`}
       ${envoyees.length ? `<p class="xs muted mt12">En attente de réponse : ${envoyees.map(a => esc(a.pseudo)).join(", ")}</p>` : ""}`;
   }
-  if (R.route === "amis") $app.querySelector("main").innerHTML = body;
+  if (R.route === "amis") { const box = document.getElementById("comm"); if (box) box.innerHTML = body; }
 };
 forms["soc-ajout"] = async (v) => {
   const code = SO.normCode(v.code); if (!SO.codeValide(code)) return toast("Un code fait 6 caractères (lettres et chiffres)");
@@ -429,7 +434,7 @@ actions["soc-ami-retirer"] = async (b, d) => { if (!confirm(`Retirer ${d.n} de t
 
 // ---------- Parrainage : inviter et gagner ----------
 routes.parrainage = async () => {
-  $app.innerHTML = header("Inviter et gagner", "", { back: "profile" }) + `<main class="page"><p class="empty small">Chargement…</p></main>${S().profile ? tabbar("profile") : ""}`;
+  $app.innerHTML = header("Communauté", "") + `<main class="page">${S().profile ? modeBar(COMM_MODES, "parrainage", "comm-mode") : ""}<div id="comm"><p class="empty small">Chargement…</p></div></main>${S().profile ? tabbar("communaute") : ""}`;
   await charger(); const code = ETAT.connecte && !ETAT.absent ? await assurerCode() : null, m = ETAT.moi || {};
   const pg = SO.progressionParrainage(+m.filleuls_premium || 0, +m.filleuls || 0);
   const etape = (n, t, s) => `<div class="row mt12" style="gap:12px;align-items:flex-start"><span style="width:34px;height:34px;flex:none;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font-weight:800">${n}</span><span class="small"><b>${t}</b><br><span class="muted">${s}</span></span></div>`;
@@ -443,7 +448,7 @@ routes.parrainage = async () => {
     ${pg.prochain ? `<p class="small mt8">Plus que <b>${pg.manque} ami${pg.manque > 1 ? "s" : ""}</b> pour devenir ${pg.prochain.em} ${pg.prochain.nom}.</p>` : ""}
     <h2 class="sec">Comment ça marche</h2><div class="card">${etape(1, "Partage ton lien", "En story après une séance, en montrant ton programme, ou directement à un ami.")}${etape(2, "Ton ami crée son compte", `Il a ${joursOfferts()} jours pour tout essayer, sans carte. Vous devenez amis dans l'app.`)}${etape(3, "Il passe Bâtisseur : tu gagnes 1 mois", "Déduit de ta prochaine facture, ou ajouté à ton accès si tu n'es pas abonné.")}</div>
     <p class="xs muted mt12">Un mois par ami abonné, 6 mois au plus par an. L'analyse vidéo du palier Ambassadeur : Thomas te contacte pour recevoir ta vidéo. Le code doit être utilisé dans les 30 jours qui suivent la création du compte de ton ami. Membres coachés : Thomas choisit avec toi une récompense équivalente. Pas de récompense pour un compte créé pour soi-même. <a href="cgv.html#parrainage" target="_blank" rel="noopener">Conditions complètes</a></p>`;
-  if (R.route === "parrainage") $app.querySelector("main").innerHTML = body;
+  if (R.route === "parrainage") { const box = document.getElementById("comm"); if (box) box.innerHTML = body; }
 };
 actions["soc-inviter"] = async () => { const code = await assurerCode(); await partagerTexte(SO.texteInvitation({ prenom: profil()?.pseudo && profil().pseudo !== "Membre" ? profil().pseudo : prenom(), code, lien: SO.lienPartage(baseApp(), { code }), jours: joursOfferts() }), "Rejoins-moi sur TB my Coach"); };
 actions["soc-copier"] = async () => { const code = await assurerCode(); if (await copier(SO.lienPartage(baseApp(), { code }))) { toast("Lien copié"); buzz(12); } else toast(SO.lienPartage(baseApp(), { code })); };

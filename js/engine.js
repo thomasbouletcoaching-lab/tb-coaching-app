@@ -94,7 +94,13 @@ export function schemeFor(p, row, week) {
 // row[5] = { sets: [{ t, lo, hi, rpe, pct, kg, tech }], rest, prog: { load, step, every, addSet, reps }, weeks: { [semaine]: [séries] }, tempoW: { [semaine]: "3-1-1" }, techW: { [semaine]: [techniques] } }
 // load : "auto" (selon le RPE ressenti), "pct" (+step % du 1RM), "kg" (+step kg), "rpe" (+step de RPE), toutes les « every » semaines.
 export const DEF_PROG = { load: "auto", step: 2.5, every: 1, addSet: null, reps: null };
-export const LOAD_MODES = [["auto", "Automatique (selon ton RPE)"], ["pct", "+ % du 1RM"], ["kg", "+ kg"], ["rpe", "+ RPE"]];
+export const LOAD_MODES = [["auto", "Automatique (selon ton RPE)"], ["double", "Double progression : reps, puis charge"], ["pct", "+ % du 1RM"], ["kg", "+ kg"], ["rpe", "+ RPE"]];
+// Double progression : les reps montent d'une par étape (3×8 → 3×9 → 3×10), puis la charge monte et on revient en bas de la fourchette.
+// to = haut de la fourchette ; step = saut de charge (kg, ou % si les séries sont en %) ; every = semaines par étape.
+export function doubleStep(lo, to, n) {
+  const span = Math.max(0, (to || lo) - lo) + 1;
+  return { reps: lo + (n % span), bumps: Math.floor(n / span) };
+}
 export function migrateRow(x) {
   if (!x) return x;
   if (typeof x.sets === "number") {
@@ -118,6 +124,8 @@ export function weekPlan(x, w, p = null) {
     const work = (s) => s.t !== "W";
     if (pr.load === "pct") sets.forEach(s => { if (s.pct && work(s)) s.pct = Math.round((s.pct + pr.step * n) * 10) / 10; });
     if (pr.load === "kg") sets.forEach(s => { if (s.kg && work(s)) s.kg = Math.round((s.kg + pr.step * n) * 100) / 100; });
+    if (pr.load === "double") sets.forEach(s => { if (!work(s)) return; const { reps, bumps } = doubleStep(s.lo, Math.max(s.lo, pr.to || s.hi || s.lo + 2), n); s.lo = s.hi = reps;
+      if (s.pct) s.pct = Math.round((s.pct + (pr.step || 2.5) * bumps) * 10) / 10; else if (s.kg) s.kg = Math.round((s.kg + (pr.step || 2.5) * bumps) * 100) / 100; });
     if (pr.load === "rpe") sets.forEach(s => { if (s.rpe && work(s)) s.rpe = Math.min(10, Math.round((s.rpe + pr.step * n) * 2) / 2); });
     if (pr.reps?.every) { const k = Math.floor(steps / pr.reps.every); sets.forEach(s => { if (!work(s)) return; s.lo = Math.max(pr.reps.min || 1, s.lo + pr.reps.delta * k); s.hi = Math.max(s.lo, (s.hi || s.lo) + pr.reps.delta * k); }); }
     // séries ajoutées : seulement pendant l'accumulation quand le programme a des phases

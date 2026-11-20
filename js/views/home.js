@@ -105,7 +105,10 @@ function cheatCard() {
   return `<button class="card tap" data-a="go" data-r="food" data-p="semaine" style="display:block;width:100%;text-align:left"><div class="lbl">🍕 Cheat meal prévu</div><b class="h3">${days === 0 ? "C'est aujourd'hui" : days === 1 ? "Demain" : `Dans ${days} jours`} · ${fmtDate(c.d, { weekday: "long", day: "numeric", month: "long" })}</b>
     <div class="small muted mt4">${esc((c.items || []).join(", ") || "Plaisirs à définir")}${c.kcal ? ` · ≈ ${fr(c.kcal)} kcal, déjà compté dans ta semaine` : ""}</div></button>`;
 }
+// Une seule source pour la récupération : avec le Bâtisseur, c'est le feu du jour (même calcul et même texte que l'onglet
+// Récupération, carte feuCard) ; sinon l'estimation sommeil + glycogène, identique à celle affichée dans Récupération.
 function recoveryMini(d) {
+  if (premium() && d === today()) return "";
   const r = readiness(d);
   return `<button class="card tap" data-a="go" data-r="recup" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:28px">${r.icon}</span><span class="grow"><b>Récupération : ${esc(r.label)}</b><br><span class="small muted">${esc(r.short)}</span></span>${I.chev}</button>`;
 }
@@ -175,7 +178,7 @@ routes.home = async () => {
     <h2 class="sec">📊 Récap du jour</h2>
     <button class="card tap" data-a="go" data-r="food">${caloriesCard(d, true)}</button>
     ${recoveryMini(d)}
-    ${fs ? `<button class="card tap mt12" data-a="go" data-r="recup"><div class="row"><span style="font-size:30px">${fs.stage[1]}</span><div class="grow"><div class="lbl">⏳ Jeûne en cours</div><b class="h3">${Math.floor(fs.hours)} h ${String(Math.floor(fs.hours % 1 * 60)).padStart(2, "0")}</b><div class="xs muted">${esc(fs.stage[2])}</div></div>${I.chev}</div></button>` : ""}
+    ${fs ? `<button class="card tap mt12" data-a="go" data-r="food" data-p="jeune"><div class="row"><span style="font-size:30px">${fs.stage[1]}</span><div class="grow"><div class="lbl">⏳ Jeûne en cours</div><b class="h3">${Math.floor(fs.hours)} h ${String(Math.floor(fs.hours % 1 * 60)).padStart(2, "0")}</b><div class="xs muted">${esc(fs.stage[2])}</div></div>${I.chev}</div></button>` : ""}
     ${d === today() ? `<h2 class="sec">🎮 Régularité</h2>` + triadeCard() + verifierBadges() : ""}
     ${d === today() ? liveBanner() + coachFoodCard() : ""}
     ${routineCard(d)}

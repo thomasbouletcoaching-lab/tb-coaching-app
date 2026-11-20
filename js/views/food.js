@@ -14,12 +14,13 @@ import * as ML from "./meals.js";
 import * as SP from "./supps.js";
 import * as PO from "../portions.js";
 import * as NS from "../nutri-semaine.js";
+import { insulinCard } from "./recup.js";
 import "./activite.js";
 import { memosCard } from "./vocal.js";
 import { adviceBody } from "./nutri-advice.js";
 
 let tab = "journal", day = null, mode = "journal";
-const TABS = [["journal", "🍽️ Journal"], ["favoris", "⭐ Mes aliments"], ["plan", "📋 Mon plan"], ["semaine", "🗓️ Semaine type"], ["conseils", "💡 Conseils"], ["recettes", "👩‍🍳 Recettes"], ["batch", "🥡 Batch cooking"], ["complements", "💊 Compléments"], ["budget", "🛒 Courses et budget"]];
+const TABS = [["journal", "🍽️ Journal"], ["favoris", "⭐ Mes aliments"], ["plan", "📋 Mon plan"], ["semaine", "🗓️ Semaine type"], ["conseils", "💡 Conseils"], ["jeune", "⏳ Jeûne"], ["recettes", "👩‍🍳 Recettes"], ["batch", "🥡 Batch cooking"], ["complements", "💊 Compléments"], ["budget", "🛒 Courses et budget"]];
 const MODES = [["journal", "Journal"], ["depense", "Dépense"], ["explorer", "Explorer"], ["savoir", "Savoir"]];
 const D = () => day || today();
 const FREE_RECIPES = 10;
@@ -86,7 +87,7 @@ N.setDayKind((d) => { const a = E.agenda(d, d)[d]; return a && ["done", "planned
 routes.food = async () => {
   await Promise.all([N.loadModels(), E.loadPrograms()]); N.loadCiqual().catch(() => { });
   // anciens onglets, déplacés : jeûne → Récupération, corps → Profil ; la dépense est de retour ici (Nutrition → Dépense)
-  if (R.param === "jeune") return go("recup");
+  if (R.param === "jeune") { tab = "jeune"; mode = "journal"; }
   if (R.param === "corps") return go("body");
   if (R.param === "explorer" || R.param === "savoir" || R.param === "depense") mode = R.param;
   else if (R.param && TABS.some(t => t[0] === R.param)) { tab = R.param; mode = "journal"; }
@@ -99,7 +100,8 @@ routes.food = async () => {
   else if (tab === "favoris") body = favBody();
   else if (tab === "plan") body = ML.planBody(t0);
   else if (tab === "semaine") body = weekBody(t0);
-  else if (tab === "conseils") { await N.loadCiqual(); await N.loadMicro(); body = journalDayNav() + adviceBody(D(), t); }
+  else if (tab === "conseils") { await N.loadCiqual(); await N.loadMicro(); body = journalDayNav() + adviceBody(D(), t) + insulinCard(D()); }
+  else if (tab === "jeune") body = `<h2 class="sec">⏳ Jeûne</h2>` + fastBody();
   else if (tab === "recettes") body = recipesBody();
   else if (tab === "batch") body = batchBody();
   else if (tab === "budget") body = ML.shopBody() + (premium() ? `<h2 class="sec">💶 Mes dépenses réelles</h2>` + budgetBody() : "");

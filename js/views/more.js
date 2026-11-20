@@ -71,12 +71,6 @@ routes.profile = async () => {
       ${tile("anamnese", "🩺", "Mon point de départ", S().anamnese?.at ? "Santé, motivation" : "À compléter · 3 min")}
       ${S().trialStart && !S().defi?.closed ? tile("defi", "🔥", "Défi 30 jours", "Mes étapes") : ""}
     </div>
-    <h2 class="sec">Communauté</h2>
-    <div class="tiles">
-      ${tile("communaute", "🏟️", "Communauté", "Séances des membres, encouragements")}
-      ${tile("amis", "🫂", "Mes amis", "Vos séances, le podium de la semaine")}
-      ${tile("parrainage", "🎁", "Inviter et gagner", "1 mois offert par ami abonné")}
-    </div>
     <h2 class="sec">Entraînements</h2>
     ${last.length ? `<div class="list">${last.map(w => `<div class="li" style="padding:0;gap:0"><button class="li grow" style="border-bottom:0" data-a="ag-day" data-v="${today(new Date(w.end))}"><span class="em">🏋️</span><span class="grow"><b>${esc(w.title)}</b><br><span class="xs muted">${new Date(w.end).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "short" })} · ${Math.round((new Date(w.end) - new Date(w.start)) / 6e4)} min · ${fr((w.volume || 0) / 1000, 1)} t</span></span>${I.chev}</button><button class="icon-btn" style="flex:none;margin-right:10px;width:38px;height:38px;font-size:17px" data-a="soc-hist" data-k="${esc("w:" + (w.start || w.end || w.id))}" aria-label="Partager la séance ${esc(w.title)}" title="Partager cette séance">📤</button></div>`).join("")}</div>` : `<p class="empty small">Ta première séance apparaîtra ici.</p>`}
   </main>${tabbar("profile")}`;

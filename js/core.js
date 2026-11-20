@@ -47,6 +47,7 @@ export const cloudNow = () => C;
 // ---------- Icônes ----------
 const svg = (d, w = 1.9) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 export const I = {
+  group: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.3"/><path d="M2.8 19.5c.6-3.4 3.1-5.2 6.2-5.2s5.6 1.8 6.2 5.2"/><circle cx="17" cy="9" r="2.5"/><path d="M16.2 14.4c2.6 0 4.5 1.5 5 4.3"/></svg>`,
   x: (s = 28) => `<svg viewBox="0 0 40 40" width="${s}" height="${s}" aria-hidden="true"><defs><linearGradient id="gx${s}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#8F3510"/><stop offset=".6" stop-color="#C2541F"/><stop offset="1" stop-color="#EE8A45"/></linearGradient></defs><path d="M9 9l22 22" stroke="currentColor" stroke-width="6" stroke-linecap="round"/><path d="M9 31 31 9" stroke="url(#gx${s})" stroke-width="6" stroke-linecap="round"/></svg>`,
   home: svg('<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>'),
   cal: svg('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
@@ -139,7 +140,7 @@ export const greet = () => { const h = new Date().getHours(); return h < 5 ? "Bo
 
 // ---------- En-tête et barre d'onglets ----------
 export const badges = { msgs: 0, notifs: 0 };
-const TAB_TITLES = ["Accueil", "Entraînement", "Nutrition", "Récupération", "Coaching", "Profil"]; // déjà affichés dans la barre du bas
+const TAB_TITLES = ["Accueil", "Entraînement", "Nutrition", "Communauté", "Coaching", "Profil"]; // déjà affichés dans la barre du bas
 export function header(title, sub = "", { back = null, actions = "", offers = true } = {}) {
   const demo = false ? `<div class="demo-bar"><span class="grow">Démo · <b>${esc(offer(S().demoTier).name)}</b></span><button data-a="demo-choose">Choisir</button><button data-a="demo-exit">Quitter</button></div>` : "";
   const lead = back ? `<button class="icon-btn" ${back === "__hist" ? `data-a="hist-back"` : `data-a="go" data-r="${back}"`} aria-label="Retour">${I.back}</button>` : "";
@@ -150,9 +151,9 @@ export function header(title, sub = "", { back = null, actions = "", offers = tr
 export function tabbar(active) {
   if (APP_MODE === "coach") return adminTabbar("admin");
   // Chaque écran secondaire allume l'onglet auquel il appartient
-  const PARENT = { train: "carnet", workout: "carnet", builder: "carnet", fiche: "carnet", simu: "profile", settings: "profile", stats: "profile", body: "profile", chat: "coach", offers: "coach", apply: "coach", bilan: "coach", bilans: "coach", regularite: "profile", rapport: "profile", compare: "profile", anamnese: "profile", defi: "home", communaute: "profile", amis: "profile", parrainage: "profile", partage: "home" };
+  const PARENT = { train: "carnet", workout: "carnet", builder: "carnet", fiche: "carnet", simu: "profile", settings: "profile", stats: "profile", body: "profile", chat: "coach", offers: "coach", apply: "coach", bilan: "coach", bilans: "coach", regularite: "profile", rapport: "profile", compare: "profile", anamnese: "profile", defi: "home", amis: "communaute", parrainage: "communaute", partage: "communaute", recup: "carnet", hybride: "profile", trophees: "profile" };
   const act = PARENT[active] || active;
-  const t = [["home", "Accueil", I.home], ["carnet", "Entraînement", I.bar], ["food", "Nutrition", I.fork], ["recup", "Récupération", I.moon], ["coach", "Coaching", I.clip], ["profile", "Profil", I.user]];
+  const t = [["home", "Accueil", I.home], ["carnet", "Entraînement", I.bar], ["food", "Nutrition", I.fork], ["communaute", "Communauté", I.group], ["coach", "Coaching", I.clip], ["profile", "Profil", I.user]];
   const cur = S().current ? `<div class="card" style="position:fixed;left:12px;right:12px;bottom:calc(92px + var(--safe-b));z-index:29;width:auto;max-width:616px;margin:0 auto;box-sizing:border-box;padding:6px 8px 6px 16px;display:flex;align-items:center;gap:8px;box-shadow:0 0 0 2px var(--red) inset,var(--shadow)"><button data-a="resume" class="tap" style="display:flex;align-items:center;gap:12px;text-align:left;flex:1;min-width:0;padding:6px 0;background:none;border:0;color:inherit"><span style="font-size:26px">🏋️</span><span class="grow" style="min-width:0"><b>Séance en cours</b><br><span class="small muted">${esc(S().current.title)}</span></span><span class="red" style="font-weight:700">Reprendre</span></button><button data-a="abandon" class="icon-btn" aria-label="Abandonner la séance" title="Abandonner la séance" style="font-size:20px;flex:none">🗑️</button></div>` : "";
   const ix = Math.max(0, t.findIndex(([r]) => r === act));
   return cur + `<nav class="tabbar" aria-label="Navigation" style="--n:${t.length};--i:${ix}"><span class="lens" aria-hidden="true"></span>${t.map(([r, l, ic]) => `<a href="#/${r}" class="tab" ${r === act ? 'aria-current="page"' : ""}>${ic}<span>${l}</span>${r === "coach" && badges.msgs ? `<span class="badge">${badges.msgs}</span>` : ""}</a>`).join("")}</nav>`;

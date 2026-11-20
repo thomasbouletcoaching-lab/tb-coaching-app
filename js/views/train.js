@@ -6,12 +6,13 @@ import { S, update, save, today } from "../store.js";
 import { tbLogo, medalHtml, celebrate, recLabel, gradeOf, weightLike } from "../fx.js";
 import * as E from "../engine.js";
 import { CONFIG } from "../config.js";
-import { $app, esc, num, fr, buzz, toast, routes, R, actions, changes, forms, go, I, header, tabbar, chips, seg, sheet, closeSheet, lockVeil, lineChart, barChart, hbars, wordOn, premium, rank, programOpen, weekOpen, fmtDate, addDays, rerender, onLeave, isCoach, cloud, modeBar } from "../core.js";
+import { $app, esc, num, fr, buzz, toast, routes, R, actions, changes, forms, go, I, header, tabbar, chips, seg, sheet, ring, closeSheet, lockVeil, lineChart, barChart, hbars, wordOn, premium, rank, programOpen, weekOpen, fmtDate, addDays, rerender, onLeave, isCoach, cloud, modeBar } from "../core.js";
 import { kbSection } from "./more.js";
 import { pushStats } from "../sync.js";
 import * as RM from "../roadmap.js";
 import { seasonBody } from "./season.js";
 import { activiteCard } from "./activite.js";
+import * as AN from "../anneaux-seances.js";
 import { alerteLigne } from "./douleur.js";
 import { blocPartageSeance, autoPublier } from "./social.js";
 
@@ -30,7 +31,7 @@ routes.train = async () => {
   await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib(), XO.loadExercices()]);
   if (R.param === "mesprogrammes") { tab = "banque"; bankView = "mine"; history.replaceState(null, "", "#/train/banque"); R.param = "banque"; }
   else if (R.param && TABS.some(t => t[0] === R.param)) tab = R.param;
-  if (tab === "historique") { carnetTab = "faites"; carnetMain = "seances"; return go("carnet"); }
+  if (tab === "historique") { carnetSub = "historique"; tMode = "carnet"; return go("carnet"); }
   const ns = E.nextSession();
   let body = "";
   if (tab === "programme") body = programBody(ns);
@@ -46,30 +47,43 @@ routes.train = async () => {
 };
 actions["train-main"] = (b, d) => actions["train-tab"](b, { v: d.v === "mine" ? "programme" : d.v });
 // ---------- Carnet : séances à remplir, séances faites, progrès ----------
-let carnetMain = "seances", carnetTab = "remplir";
 let tMode = "carnet";
+// Barre du haut de l'onglet Entraînement : Musculation | Cardio | Récupération | Connaissances
+export const TRAIN_MODES = [["carnet", "Musculation"], ["cardio", "Cardio"], ["recup", "Récupération"], ["savoir", "Connaissances"]];
+let carnetSub = "seances";
 routes.carnet = async () => {
   await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
-  if (["carnet", "explorer", "savoir"].includes(R.param)) tMode = R.param;
+  if (["carnet", "cardio", "savoir", "explorer"].includes(R.param)) tMode = R.param === "explorer" ? "carnet" : R.param;
+  if (R.param === "explorer") carnetSub = "programmes";
+  if (["seances", "programmes", "historique", "graphiques"].includes(R.param2)) carnetSub = R.param2;
   const ns = E.nextSession();
   let body;
-  if (tMode === "explorer") body = `<h2 class="sec">🗂️ Programmes</h2>${bankBody()}<h2 class="sec">📖 Exercices</h2>${exosBody()}`;
-  else if (tMode === "savoir") body = await kbSection("train");
+  if (tMode === "cardio") body = cardioBody();
+  else if (tMode === "savoir") body = `<h2 class="sec">📖 Exercices</h2>${exosBody()}` + await kbSection("train");
   else {
-    const inner = carnetMain === "progres" ? statsBody() : carnetTab === "faites" ? historyBody() : programBody(ns);
-    body = `<div class="card mt12"><div class="row between"><b class="small">⚡ Séance express</b><span class="xs muted">mouvements principaux gardés</span></div><div class="chips wrap mt8">${[10, 20, 30, 45].map(m => `<button class="chip" data-a="express-go" data-v="${m}">${m} min</button>`).join("")}</div></div>
-      <div class="tiles mt12">
-        <button class="tile" data-a="go" data-r="train" data-p="saison"><span class="tile-ic">🗓️</span><span><b>Mes cycles</b><br><span class="xs muted">Blocs sur plusieurs semaines, objectifs</span></span></button>
-        <button class="tile" data-a="go" data-r="builder"><span class="tile-ic">✍️</span><span><b>Créer</b><br><span class="xs muted">Séances, programmes, cycles${premium() ? "" : " · 1 en gratuit"}</span></span></button>
-      </div>
-      <div class="mt12">${seg([["seances", "Séances"], ["progres", "Graphiques"]], carnetMain, "carnet-main")}</div>
-      ${carnetMain === "seances" ? `<div class="mt8">${chips([["remplir", "✍️ À remplir"], ["faites", "🕘 Historique"]], carnetTab, "carnet-tab")}</div>` : ""}${inner}
-      <button class="link small mt12" data-a="go" data-r="train" data-p="outils">🧮 Records, 1RM et outils →</button>`;
+    const sub = `<div class="mt12">${seg([["seances", "Séances"], ["programmes", "Programmes"], ["historique", "Historique"], ["graphiques", "Stats"]], carnetSub, "carnet-sub")}</div>`;
+    const inner = carnetSub === "programmes" ? programmesBody() : carnetSub === "historique" ? historyBody() : carnetSub === "graphiques" ? statsBody() : programBody(ns);
+    body = sub + inner;
   }
-  $app.innerHTML = header("Entraînement", ns ? `Semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)}` : "") + `<main class="page">${modeBar([["carnet", "Carnet"], ["explorer", "Explorer"], ["savoir", "Connaissances"]], tMode, "train-mode")}${tMode === "carnet" ? activiteCard() : ""}${body}</main>${tabbar("carnet")}`;
-  if (tMode === "explorer") { bindBankSearch(); bindExoSearch(); }
+  $app.innerHTML = header("Entraînement", ns ? `Semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)}` : "") + `<main class="page">${modeBar(TRAIN_MODES, tMode, "train-mode")}${body}</main>${tabbar("carnet")}`;
+  if (tMode === "carnet" && carnetSub === "programmes") bindBankSearch();
+  if (tMode === "savoir") bindExoSearch();
 };
-actions["train-mode"] = (b, d) => { tMode = d.v; R.param = null; history.replaceState(null, "", "#/carnet" + (d.v === "carnet" ? "" : "/" + d.v)); rerender(false); window.scrollTo(0, 0); };
+actions["carnet-sub"] = (b, d) => { carnetSub = d.v; history.replaceState(null, "", "#/carnet/carnet/" + d.v); rerender(false); window.scrollTo(0, 0); };
+actions["train-mode"] = (b, d) => { if (d.v === "recup") return go("recup"); tMode = d.v; R.param = null; R.param2 = null; history.replaceState(null, "", "#/carnet" + (d.v === "carnet" ? "" : "/" + d.v)); if (R.route !== "carnet") return go("carnet", d.v === "carnet" ? undefined : d.v); rerender(false); window.scrollTo(0, 0); };
+// Programmes : mes cycles, créer, mes programmes, la banque, les programmes déjà suivis
+function programmesBody() {
+  return `<div class="tiles mt12">
+      <button class="tile" data-a="go" data-r="train" data-p="saison"><span class="tile-ic">🗓️</span><span><b>Mes cycles</b><br><span class="xs muted">Blocs sur plusieurs semaines, objectifs</span></span></button>
+      <button class="tile" data-a="go" data-r="builder"><span class="tile-ic">✍️</span><span><b>Créer</b><br><span class="xs muted">Séances, programmes, cycles${premium() ? "" : " · 1 en gratuit"}</span></span></button>
+    </div>${bankBody()}`;
+}
+// Cardio : activités du jour, de la semaine, et des deux dernières semaines
+function cardioBody() {
+  const days = Array.from({ length: 14 }, (_, i) => addDays(today(), -i)).filter(k => (S().daily?.[k]?.cardio || []).length);
+  return activiteCard() + `<h2 class="sec">🗓️ Les deux dernières semaines</h2>` + (days.length ? `<div class="list">${days.map(k => { const l = S().daily[k].cardio; return `<div class="li"><span class="grow"><b class="small" style="text-transform:capitalize">${fmtDate(k, { weekday: "long", day: "numeric", month: "short" })}</b><br><span class="xs muted">${l.map(c => `${esc(c.n)} · ${c.min} min`).join(" · ")}</span></span></div>`; }).join("")}</div>` : `<p class="empty small">Tes activités (course, vélo, marche, sport) apparaîtront ici.</p>`)
+    + `<p class="xs muted mt12">Chaque activité compte dans ta dépense du jour (Nutrition › Dépense).</p>`;
+}
 actions["express-go"] = async (b, d) => {
   const min = +d.v, ns = E.nextSession();
   if (S().current) return go("workout");
@@ -78,8 +92,6 @@ actions["express-go"] = async (b, d) => {
   const s = E.expressSession(s0, min); s.target = min; s.start = new Date().toISOString();
   update(st => { st.current = s; st.settings.sessionMin = min; }); toast(`⚡ ${min} min : ${s.expressNote}`); go("workout");
 };
-actions["carnet-main"] = (b, d) => { carnetMain = d.v; rerender(false); window.scrollTo(0, 0); };
-actions["carnet-tab"] = (b, d) => { carnetTab = d.v; rerender(false); };
 actions["train-tab"] = (b, d) => { if (d.v === "learn") return go("kb"); tab = d.v; R.param = d.v; history.replaceState(null, "", "#/train/" + d.v); rerender(false); window.scrollTo(0, 0); };
 
 let viewWeek = null;
@@ -94,19 +106,19 @@ function programBody(ns) {
     return `<button class="chip ${w === vw ? "on" : ""}" data-a="cy-week" data-v="${w}" style="${w === ns.week && w !== vw ? "box-shadow:0 0 0 2px var(--red) inset" : ""}">S${w}${all ? " ✓" : n ? ` ${n}/${p.s.length}` : ""}</button>`; }).join("");
   return `<div class="card grad mt12"><div class="lbl">🎯 Ton programme · cycle ${cyc}</div><h2 class="h2 mt4">${esc(p.name)}</h2>
       <p class="small mt8">Tu es en <b>semaine ${ns.week}</b> sur ${ns.weeks} · ${esc(ns.phase)}</p><div class="gauge mt8" style="background:rgba(255,255,255,.25)"><i style="width:${Math.round((ns.week - 1 + weekDone(ns.week) / p.s.length) / ns.weeks * 100)}%;background:#fff"></i></div>
-      <button class="btn btn-sm mt12" style="background:rgba(255,255,255,.2);color:#fff;width:auto" data-a="soc-prog" data-id="${esc(p.id)}">📤 Montrer mon programme</button></div>
-    ${(S().customPrograms || []).some(x => x.id === "tb-main") ? "" : `<button class="btn btn-line btn-sm mt8" style="width:100%" data-a="prog-restore">🔄 Restaurer mon programme TB my Coach</button>`}
-    ${alerts.length ? `<div class="card mt12" style="box-shadow:0 0 0 2px var(--warn) inset"><div class="lbl">⚠️ Alertes blessure</div>${alerts.map(alerteLigne).join("")}<p class="xs muted mt8">Réduis la charge, change d'exercice (🔄 dans la séance) ou parles-en à Thomas. Si la douleur persiste, consulte un professionnel de santé.</p></div>` : ""}
-    <h2 class="sec">🗓️ Mon cycle <small>touche une semaine</small></h2>
-    <div class="chips">${chipsW}</div>
+      <div class="row mt12" style="gap:8px;flex-wrap:wrap"><button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;width:auto" data-a="bd-copy" data-id="${esc(p.id)}">✏️ Modifier le programme</button><button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;width:auto" data-a="soc-prog" data-id="${esc(p.id)}">📤 Montrer</button></div></div>
+    ${weekRingsTraining()}
+    <div class="chips mt12">${chipsW}</div>
     <div class="card mt8"><div class="row between"><div><b class="h3">Semaine ${vw}</b> <span class="tag ${vw === ns.week ? "r" : ""}">${vw === ns.week ? "en cours" : vw < ns.week ? "passée" : "à venir"}</span><div class="xs muted mt4">${esc(E.phaseOf(p, vw))} · ${done.size}/${p.s.length} séances faites</div></div>
       ${vw !== ns.week ? `<button class="btn btn-line btn-xs" data-a="cy-place" data-v="${vw}">Me placer ici</button>` : ""}</div>
       ${p.s.map((se, i) => { const isNext = vw === ns.week && i === ns.idx % p.s.length, isDone = done.has(i);
         return `<div class="mt12" style="border-top:1px solid var(--line);padding-top:12px${isNext ? ";box-shadow:inset 3px 0 0 var(--red);padding-left:10px" : ""}">
-          <div class="row between" style="gap:8px"><b class="grow">${isDone ? "✅ " : isNext ? "👉 " : ""}${esc(se[0])}</b><span class="xs muted">${esc(se[1] || "")}</span><button class="icon-btn" style="flex:none;width:34px;height:34px;font-size:16px" data-a="soc-routine" data-id="${esc(p.id)}" data-w="${vw}" data-i="${i}" aria-label="Partager la séance ${esc(se[0])}" title="Partager cette séance">📤</button></div>${tagMoteur(p, se, vw)}
+          <div class="row between" style="gap:8px"><b class="grow">${isDone ? "✅ " : isNext ? "👉 " : ""}${esc(se[0])}</b><span class="xs muted">${esc(se[1] || "")}</span><button class="icon-btn" style="flex:none;width:34px;height:34px;font-size:16px" data-a="se-edit" data-id="${esc(p.id)}" data-i="${i}" aria-label="Modifier la séance ${esc(se[0])}" title="Modifier cette séance">✏️</button><button class="icon-btn" style="flex:none;width:34px;height:34px;font-size:16px" data-a="soc-routine" data-id="${esc(p.id)}" data-w="${vw}" data-i="${i}" aria-label="Partager la séance ${esc(se[0])}" title="Partager cette séance">📤</button></div>${tagMoteur(p, se, vw)}
           ${se[2].map(e => `<div class="row between xs" style="padding:3px 0;gap:8px"><span class="grow muted">${esc(S().swaps[e[0]] || e[0])}</span><span style="white-space:nowrap">${esc(E.schemeFor(p, e, vw).replace(/x/i, "×"))}</span></div>`).join("")}
           ${blocked ? "" : isDone ? `<button class="link xs mt4" data-a="cy-do" data-w="${vw}" data-i="${i}">Refaire cette séance</button>` : `<button class="btn ${isNext ? "btn-red" : "btn-line"} btn-sm mt8" data-a="cy-do" data-w="${vw}" data-i="${i}">${cur ? "Reprendre ma séance en cours" : isNext ? "Commencer cette séance" : "Faire cette séance"}</button>`}</div>`; }).join("")}
       ${blocked ? `<button class="btn btn-red mt12" data-a="go" data-r="offers">🔓 Débloquer la semaine ${vw}</button>` : ""}</div>
+    ${alerts.length ? `<div class="card mt12" style="box-shadow:0 0 0 2px var(--warn) inset"><div class="lbl">⚠️ Alertes blessure</div>${alerts.map(alerteLigne).join("")}<p class="xs muted mt8">Réduis la charge, change d'exercice (🔄 dans la séance) ou parles-en à Thomas. Si la douleur persiste, consulte un professionnel de santé.</p></div>` : ""}
+    <div class="card mt12"><div class="row between"><b class="small">⚡ Séance express</b><span class="xs muted">mouvements principaux gardés</span></div><div class="chips wrap mt8">${[10, 20, 30, 45].map(m => `<button class="chip" data-a="express-go" data-v="${m}">${m} min</button>`).join("")}</div></div>
     <button class="btn btn-line btn-sm mt8" data-a="vol-mine" data-w="${vw}" style="width:100%">📊 Volume de la semaine par muscle</button>
     <button class="btn btn-line btn-sm mt8" data-a="free-session" style="width:100%">Séance libre (hors programme)</button>
 
@@ -116,8 +128,28 @@ function programBody(ns) {
       <p class="xs muted mt8" style="margin-bottom:0">Pendant la séance, le bouton <b>📈 Progression</b> de chaque exercice permet d'ajuster la charge, les reps ou ton 1RM estimé.</p></div>
     ${p.rules?.length ? `<h2 class="sec">📏 Les règles</h2><div class="card"><ul style="margin:0;padding-left:18px" class="small">${p.rules.map(r => `<li style="margin-bottom:8px">${esc(r)}</li>`).join("")}</ul></div>` : ""}
     ${p.desc ? `<p class="small muted mt12">${esc(p.desc)}</p>` : ""}
-    <div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="bd-copy" data-id="${p.id}">✏️ ${p.custom ? "Modifier" : "Personnaliser"} ce programme</button><button class="btn btn-line btn-sm grow" data-a="go" data-r="kb">📚 Connaissances</button></div>`;
+    ${(S().customPrograms || []).some(x => x.id === "tb-main") ? "" : `<button class="btn btn-ghost btn-sm mt8" style="width:100%" data-a="prog-restore">🔄 Restaurer mon programme TB my Coach</button>`}
+    <button class="link small mt12" data-a="go" data-r="train" data-p="outils">🧮 Records, 1RM et outils →</button>`;
 }
+// Semaine d'entraînement en anneaux : vert = séance complète, orange = partielle, rouge = loupée, pointillé = prévue
+const SE_COL = { complete: "#22A45D", partielle: "#F29A2E", loupee: "#E5484D" };
+function weekRingsTraining() {
+  const t = today(), mon = addDays(t, -((new Date(t + "T12:00:00").getDay() + 6) % 7)), days = Array.from({ length: 7 }, (_, i) => addDays(mon, i));
+  const ag = E.agenda(mon, days[6]), L = ["L", "M", "M", "J", "V", "S", "D"];
+  const st = days.map(k => ({ k, ...AN.statutSeance(ag[k]) }));
+  const faites = st.filter(x => x.st === "complete" || x.st === "partielle").length, prevues = st.filter(x => x.st !== "repos").length;
+  return `<div class="card mt12" style="padding:10px 8px"><div class="row between" style="padding:0 6px"><b class="small">Ma semaine</b><span class="xs muted">${faites}/${prevues} séance${prevues > 1 ? "s" : ""}</span></div>
+    <div class="wkring mt4" style="grid-template-columns:repeat(7,minmax(0,1fr))">${st.map((x, i) => `<button class="wd ${x.k === t ? "sel" : ""}" data-a="ag-day" data-v="${x.k}" aria-label="${fmtDate(x.k)} : ${{ complete: "séance complète", partielle: "séance partielle", loupee: "séance loupée", prevue: "séance prévue", repos: "repos" }[x.st]}"><small>${L[i]}</small>
+      <svg viewBox="0 0 36 36">${x.st === "prevue" ? `<circle cx="18" cy="18" r="15.75" fill="none" stroke="var(--soft)" stroke-width="2" stroke-dasharray="3 3"/>` : x.st === "repos" ? `<circle cx="18" cy="18" r="3" fill="var(--line)"/>` : ring(x.st === "partielle" ? Math.max(.25, x.pct) : 1, 36, 4.5, SE_COL[x.st])}</svg><span class="xs">${Number(x.k.slice(8))}</span></button>`).join("")}</div>
+    <p class="xs muted center" style="margin:4px 0 0"><span style="color:${SE_COL.complete}">●</span> complète · <span style="color:${SE_COL.partielle}">●</span> partielle · <span style="color:${SE_COL.loupee}">●</span> loupée · ◌ prévue</p></div>`;
+}
+// Modifier une séance du programme : l'éditeur s'ouvre sur cette séance (copie personnelle si c'est un programme de la banque)
+let bdFocus = null;
+actions["se-edit"] = (b, d) => {
+  bdFocus = +d.i; const p = E.program(d.id);
+  if (p?.custom && (S().customPrograms || []).some(x => x.id === p.id)) { draft = null; return go("builder", p.id); }
+  draft = null; location.hash = "#/builder/copie/" + encodeURIComponent(d.id);
+};
 actions["cy-week"] = (b, d) => { viewWeek = +d.v; rerender(); };
 actions["cy-place"] = (b, d) => { if (S().current) return toast("Termine d'abord ta séance en cours."); E.placeIn(+d.v); viewWeek = +d.v; toast(`Tu es maintenant en semaine ${d.v}`); rerender(); };
 actions["cy-do"] = async (b, d) => {
@@ -990,8 +1022,8 @@ routes.builder = async () => {
     <div class="grid2 mt8"><label class="field"><span>Durée du cycle</span><select data-c="bd" data-k="weeks">${Array.from({ length: 14 }, (_, i) => i + 3).map(w => `<option ${D.weeks === w ? "selected" : ""} value="${w}">${w} semaines</option>`).join("")}</select></label>
       <label class="field"><span>Semaines d'allègement</span><select data-c="bd-deload">${D.phases ? `<option value="phases" selected>Selon les phases du programme</option>` : ""}<option value="4" ${dl === "4" ? "selected" : ""}>Toutes les 4 semaines</option><option value="5" ${dl === "5" ? "selected" : ""}>Toutes les 5 semaines</option><option value="6" ${dl === "6" ? "selected" : ""}>Toutes les 6 semaines</option><option value="last" ${dl === "last" ? "selected" : ""}>Dernière semaine du cycle</option><option value="none" ${dl === "none" ? "selected" : ""}>Aucune</option></select></label></div>
     <div class="field mt8"><span>Jours d'entraînement</span><div class="row" style="gap:4px">${E.DAY_SHORT.map((l, i) => `<button class="chip sm ${D.days[i] ? "on" : ""}" data-a="bd-day" data-v="${i}" style="padding:6px 10px">${l}</button>`).join("")}</div></div>
-    ${D.s.map((se, si) => `<div class="card mt16"><div class="row" style="gap:6px"><input class="inp grow" data-c="bd-s" data-s="${si}" value="${esc(se[0])}" aria-label="Nom de la séance" style="text-align:left;font-weight:800">${D.s.length > 1 ? `<button class="icon-btn" data-a="bd-smv" data-s="${si}" data-v="-1" aria-label="Monter la séance" ${si ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn" data-a="bd-sdel" data-s="${si}" aria-label="Supprimer la séance">${I.close}</button>` : ""}</div>
-      ${se[2].map((r, ri) => { const x = r[5], pr = x.prog || {}; const rules = [pr.load !== "auto" ? `${pr.load === "rpe" ? "RPE" : "charge"} +${String(pr.step).replace(".", ",")}${pr.load === "pct" ? " %" : pr.load === "kg" ? " kg" : ""}${pr.every > 1 ? ` / ${pr.every} sem.` : " / sem."}` : "progression auto", pr.addSet?.every ? `+1 série / ${pr.addSet.every} sem.` : "", pr.reps?.every ? `${pr.reps.delta > 0 ? "+" : ""}${pr.reps.delta} rep / ${pr.reps.every} sem.` : "", Object.keys(x.weeks || {}).length ? `${Object.keys(x.weeks).length} sem. écrites` : ""].filter(Boolean).join(" · ");
+    ${D.s.map((se, si) => `<div class="card mt16" id="bd-s-${si}"><div class="row" style="gap:6px"><input class="inp grow" data-c="bd-s" data-s="${si}" value="${esc(se[0])}" aria-label="Nom de la séance" style="text-align:left;font-weight:800">${D.s.length > 1 ? `<button class="icon-btn" data-a="bd-smv" data-s="${si}" data-v="-1" aria-label="Monter la séance" ${si ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn" data-a="bd-sdel" data-s="${si}" aria-label="Supprimer la séance">${I.close}</button>` : ""}</div>
+      ${se[2].map((r, ri) => { const x = r[5], pr = x.prog || {}; const rules = [pr.load === "double" ? `double progression jusqu'à ${pr.to || "?"} reps puis +${String(pr.step).replace(".", ",")}${x.sets.some(z => z.pct) ? " %" : " kg"}` : pr.load !== "auto" ? `${pr.load === "rpe" ? "RPE" : "charge"} +${String(pr.step).replace(".", ",")}${pr.load === "pct" ? " %" : pr.load === "kg" ? " kg" : ""}${pr.every > 1 ? ` / ${pr.every} sem.` : " / sem."}` : "progression auto", pr.addSet?.every ? `+1 série / ${pr.addSet.every} sem.` : "", pr.reps?.every ? `${pr.reps.delta > 0 ? "+" : ""}${pr.reps.delta} rep / ${pr.reps.every} sem.` : "", Object.keys(x.weeks || {}).length ? `${Object.keys(x.weeks).length} sem. écrites` : ""].filter(Boolean).join(" · ");
         return `<div class="bd-ex"><div class="row" style="gap:6px;align-items:flex-start"><span class="num xs" style="width:18px;padding-top:3px">${ri + 1}</span><button class="grow" style="text-align:left" data-a="bd-edit" data-s="${si}" data-r="${ri}"><b class="small" style="color:var(--red)">${r[3] ? `[${esc(r[3])}] ` : ""}${esc(r[0])}</b><br><span class="xs">S1 : ${esc(E.setsTxt(E.weekPlan(x, 1, D).sets).replace(/x/g, "×") || "aucune série")}</span><br><span class="xs muted">${esc(rules)}</span></button>
           <div class="col" style="gap:4px"><button class="icon-btn sm" data-a="bd-rmv" data-s="${si}" data-r="${ri}" data-v="-1" aria-label="Monter" ${ri ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn sm" data-a="bd-rmv" data-s="${si}" data-r="${ri}" data-v="1" aria-label="Descendre" ${ri < se[2].length - 1 ? "" : "disabled style=\"opacity:.3\""}>↓</button></div></div></div>`; }).join("")}
       <button class="btn btn-line btn-sm mt12" data-a="bd-add" data-s="${si}" style="width:100%">+ Exercices</button></div>`).join("")}
@@ -1003,6 +1035,7 @@ routes.builder = async () => {
     ${isCoach() ? `<label class="field mt12"><span>Pour qui (affiché dans la banque)</span><input data-c="bd" data-k="prof" value="${esc(D.prof || "")}" placeholder="Ex. père de famille, 3 séances, reprise"></label><button class="btn btn-red mt8" data-a="bd-publish" style="width:100%">📤 ${D.lib ? "Mettre à jour dans la banque des membres" : "Publier dans la banque des membres"}</button>` : ""}
     ${(S().customPrograms || []).some(p => p.id === D.id) ? `<button class="btn btn-ghost mt8" data-a="bd-del" style="color:var(--red)">Supprimer ce programme</button>` : ""}
   </main>${tabbar("train")}`;
+  if (bdFocus != null) { const el = document.getElementById("bd-s-" + bdFocus); bdFocus = null; if (el) { el.scrollIntoView({ block: "start" }); el.style.boxShadow = "0 0 0 2px var(--red) inset"; } }
 };
 changes.bd = (el) => { const k = el.dataset.k; draft[k] = k === "weeks" ? +el.value : el.value; if (k === "weeks" && draft.phases) draft.phases = Array.from({ length: +el.value }, (_, i) => draft.phases[i] || "Accumulation"); rerender(); };
 changes["bd-deload"] = (el) => { const v = el.value; if (v === "phases") return; delete draft.phases; draft.deload = v === "none" ? null : v === "last" ? { w: [draft.weeks] } : { every: +v }; rerender(); };
@@ -1094,9 +1127,14 @@ function exEditor(keep = true) {
     <div class="mt8">${setTable(x.sets, unitS)}</div>
     <p class="xs muted mt4">Reps : « 8 » ou « 8-10 ». Charge vide : calculée sur ton RPE. Top set et back-off : choisis le type de chaque série.</p>
     <h3 class="sec">Surcharge progressive</h3>
-    <div class="grid3"><label class="field"><span>Charge</span><select data-c="bx-p" data-k="load">${E.LOAD_MODES.map(([k, l]) => `<option value="${k}" ${pr.load === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
-      <label class="field"><span>De combien</span><input data-c="bx-p" data-k="step" inputmode="decimal" value="${fmtN(pr.step)}" ${pr.load === "auto" ? "disabled" : ""}></label>
-      <label class="field"><span>Toutes les</span><select data-c="bx-p" data-k="every" ${pr.load === "auto" ? "disabled" : ""}>${[1, 2, 3, 4].map(n => `<option value="${n}" ${pr.every === n ? "selected" : ""}>${n} sem.</option>`).join("")}</select></label></div>
+    <div class="chips wrap mt4">${PROG_PRESETS.map(([l], i) => `<button class="chip sm" data-a="bx-pp" data-i="${i}">${l}</button>`).join("")}</div>
+    ${pr.load === "double" ? `<div class="card soft mt8" style="padding:12px"><b class="small">🔁 Double progression</b><p class="xs muted" style="margin:4px 0 8px">Les reps montent d'une à chaque étape jusqu'au haut de la fourchette, puis la charge monte et on repart du bas. Ex. 3×8 → 3×9 → 3×10 → charge +2,5 kg et 3×8.</p>
+      <div class="grid3"><label class="field"><span>Reps jusqu'à</span><input data-c="bx-p" data-k="to" inputmode="numeric" value="${pr.to || ""}" placeholder="${(x.sets.find(z => z.t !== "W")?.lo || 8) + 2}"></label>
+      <label class="field"><span>Puis charge +${x.sets.some(z => z.pct) ? " %" : " kg"}</span><input data-c="bx-p" data-k="step" inputmode="decimal" value="${fmtN(pr.step)}"></label>
+      <label class="field"><span>Une étape toutes les</span><select data-c="bx-p" data-k="every">${[1, 2, 3, 4].map(n => `<option value="${n}" ${pr.every === n ? "selected" : ""}>${n} sem.</option>`).join("")}</select></label></div></div>` : ""}
+    <div class="grid3 mt8"><label class="field"><span>Charge</span><select data-c="bx-p" data-k="load">${E.LOAD_MODES.map(([k, l]) => `<option value="${k}" ${pr.load === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+      ${pr.load === "double" ? "<span></span><span></span>" : `<label class="field"><span>De combien</span><input data-c="bx-p" data-k="step" inputmode="decimal" value="${fmtN(pr.step)}" ${pr.load === "auto" ? "disabled" : ""}></label>
+      <label class="field"><span>Toutes les</span><select data-c="bx-p" data-k="every" ${pr.load === "auto" ? "disabled" : ""}>${[1, 2, 3, 4].map(n => `<option value="${n}" ${pr.every === n ? "selected" : ""}>${n} sem.</option>`).join("")}</select></label>`}</div>
     <div class="grid3 mt8"><label class="field"><span>+1 série toutes les</span><select data-c="bx-p" data-k="addEvery"><option value="">Jamais</option>${[1, 2, 3, 4].map(n => `<option value="${n}" ${pr.addSet?.every === n ? "selected" : ""}>${n} sem.</option>`).join("")}</select></label>
       <label class="field"><span>Séries max</span><input data-c="bx-p" data-k="addMax" inputmode="numeric" value="${pr.addSet?.max ?? ""}" placeholder="5" ${pr.addSet ? "" : "disabled"}></label><span></span></div>
     <div class="grid3 mt8"><label class="field"><span>Reps</span><select data-c="bx-p" data-k="repsDelta"><option value="">Fixes</option><option value="-1" ${pr.reps?.delta === -1 ? "selected" : ""}>−1 rep</option><option value="-2" ${pr.reps?.delta === -2 ? "selected" : ""}>−2 reps</option><option value="1" ${pr.reps?.delta === 1 ? "selected" : ""}>+1 rep</option></select></label>
@@ -1129,9 +1167,18 @@ actions["bx-wnav"] = (b, d) => { ed.w += +d.v; weekEditor(); };
 actions["bx-remove"] = () => { if (!confirm("Retirer cet exercice du programme ?")) return; draft.s[ed.si][2].splice(ed.ri, 1); closeSheet(); rerender(); };
 actions["bx-swap"] = () => pickExercise((n) => { edRow()[0] = n; ed.w = null; exEditor(false); }, "Remplacer par", { mus: E.musclesOf(edRow()[0])[0] || "" });
 changes["bx-k"] = (el) => { const r = edRow(), k = el.dataset.k, v = el.value.trim(); if (k === "kind") r[1] = v; else if (k === "rest") r[5].rest = Math.max(15, Math.round(num(v)) || 120); else if (k === "ss") r[3] = v.toUpperCase() || null; else if (k === "tempo") r[4] = v || null; else if (k === "note") r[2] = v; };
+// Raccourcis de surcharge : un geste pour les règles les plus courantes
+const PROG_PRESETS = [
+  ["🔁 Double progression", (x) => { const lo = x.sets.find(z => z.t !== "W")?.lo || 8; x.sets.forEach(z => { if (z.t !== "W") z.hi = z.lo; }); x.prog = { ...E.DEF_PROG, load: "double", to: lo + 2, step: x.sets.some(z => z.pct) ? 2.5 : 2.5, every: 1, reps: null, addSet: null }; }],
+  ["+1 rep / sem.", (x) => { x.prog = { ...E.DEF_PROG, load: "auto", reps: { delta: 1, every: 1, min: 1 }, addSet: null }; }],
+  ["+2,5 kg / sem.", (x) => { x.prog = { ...E.DEF_PROG, load: x.sets.some(z => z.pct) ? "pct" : "kg", step: 2.5, every: 1 }; if (!x.sets.some(z => z.pct || z.kg)) toast("Indique une charge (kg ou %) sur tes séries pour qu'elle monte."); }],
+  ["+1 série / 2 sem.", (x) => { x.prog = { ...(x.prog || E.DEF_PROG), addSet: { every: 2, max: (x.sets.filter(z => z.t !== "W").length || 3) + 2 } }; }],
+  ["Auto (RPE)", (x) => { x.prog = { ...E.DEF_PROG }; }],
+];
+actions["bx-pp"] = (b, d) => { const x = edRow()[5]; PROG_PRESETS[+d.i][1](x); toast("Règle appliquée : regarde le cycle en bas"); redrawEd(); };
 changes["bx-p"] = (el) => {
   const pr = edRow()[5].prog, k = el.dataset.k, v = el.value;
-  if (k === "load") pr.load = v; else if (k === "step") pr.step = num(v) || 0; else if (k === "every") pr.every = +v;
+  if (k === "to") pr.to = Math.round(num(v)) || null; else if (k === "load") { pr.load = v; if (v === "double" && !pr.to) { const lo = edRow()[5].sets.find(z => z.t !== "W")?.lo || 8; pr.to = lo + 2; pr.reps = null; } } else if (k === "step") pr.step = num(v) || 0; else if (k === "every") pr.every = +v;
   else if (k === "addEvery") pr.addSet = v ? { every: +v, max: pr.addSet?.max || 5 } : null; else if (k === "addMax" && pr.addSet) pr.addSet.max = Math.round(num(v)) || 5;
   else if (k === "repsDelta") pr.reps = v ? { delta: +v, every: pr.reps?.every || 4, min: pr.reps?.min || 3 } : null; else if (k === "repsEvery" && pr.reps) pr.reps.every = +v; else if (k === "repsMin" && pr.reps) pr.reps.min = Math.round(num(v)) || 1;
   if (k === "load" && v === "pct" && !edRow()[5].sets.some(s => s.pct)) toast("Indique un % sur tes séries pour que la charge monte en %.");
@@ -1183,12 +1230,15 @@ actions["bd-send"] = async () => {
     buzz(); toast("Programme envoyé : il s'applique chez le client à sa prochaine ouverture"); draft = null; go("member", forMember.id);
   } catch (e) { toast("Envoi impossible : " + e.message); }
 };
-actions["bd-save"] = () => { if (saveDraft()) { toast("Programme enregistré"); tab = "banque"; draft = null; go("train", "banque"); } };
+actions["bd-save"] = () => {
+  if (draft?.from && draft.from === S().plan?.programId && !draft.forMember) return actions["bd-use"]();
+  if (saveDraft()) { const followed = draft.id === S().plan?.programId; toast("Programme enregistré"); draft = null; tMode = "carnet"; carnetSub = followed ? "seances" : "programmes"; go("carnet"); }
+};
 actions["bd-use"] = () => {
   if (!saveDraft()) return; if (S().current) return toast("Enregistré. Termine ta séance en cours pour changer.");
   const keepWeek = draft.from && draft.from === S().plan?.programId ? Math.min(S().plan.week, draft.weeks) : 1;
   update(st => st.plan = { programId: draft.id, startedAt: today(), week: keepWeek, idx: 0, cycle: st.plan?.cycle || 1 });
-  toast(keepWeek > 1 ? `C'est parti, tu restes en semaine ${keepWeek}` : "C'est parti avec ton programme"); draft = null; tab = "programme"; pushStats(); go("train", "programme");
+  toast(keepWeek > 1 ? `C'est parti, tu restes en semaine ${keepWeek}` : "C'est parti avec ton programme"); draft = null; tMode = "carnet"; carnetSub = "seances"; pushStats(); go("carnet");
 };
 actions["bd-del"] = () => { if (!confirm("Supprimer ce programme ?")) return; const id = draft.id; update(st => { st.customPrograms = st.customPrograms.filter(p => p.id !== id); if (st.plan?.programId === id) st.plan = { programId: st.profile.startProgram || "tb-rep3", startedAt: today(), week: 1, idx: 0, cycle: 1 }; }); draft = null; go("train", "banque"); };
 

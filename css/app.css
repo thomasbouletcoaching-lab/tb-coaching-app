@@ -477,6 +477,8 @@ input,select,textarea{max-width:100%;min-width:0}
 .modes{display:flex;gap:6px;margin-top:8px;padding:4px;border-radius:14px;background:var(--btn2);border:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
 .modes::-webkit-scrollbar{display:none}
 .modes button{flex:1;border:0;background:none;color:var(--soft);font:inherit;font-size:14px;font-weight:600;padding:8px 4px;border-radius:10px;cursor:pointer}
+.modes button{min-width:0;white-space:nowrap}
+@media (max-width:380px){.modes{gap:2px}.modes button{font-size:12.5px;padding:8px 2px;letter-spacing:-.01em}}
 .modes button.on{background:var(--paper);color:var(--ink);box-shadow:0 2px 8px rgba(24,33,44,.08)}
 .slider-row{display:flex;align-items:center;gap:10px;padding:8px 0}
 .slider-row input[type=range]{flex:1;accent-color:var(--red)}
@@ -692,3 +694,9 @@ a.card{text-decoration:none;color:inherit}
 .mpeek{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .mpeek .mp{display:flex;gap:10px;align-items:center;text-align:left;margin:0;padding:10px;border:0;font:inherit;color:var(--ink)}
 .mpeek .mp svg{width:44px;height:44px;flex:none}
+
+/* Récupération : échelles à 5 visages (remplacent les curseurs) */
+.feelrow{padding:8px 0;border-bottom:1px solid var(--line)}.feelrow:last-of-type{border-bottom:0}
+.emo5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.emo5 button{border:1.5px solid var(--line);background:var(--paper);border-radius:12px;font-size:22px;padding:6px 0;line-height:1.2}
+.emo5 button.on{border-color:var(--red);box-shadow:0 0 0 2px var(--red) inset;background:var(--card,var(--paper))}

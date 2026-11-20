@@ -260,7 +260,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     // 10 ter. Historique : partager une séance faite il y a 2 semaines
     const vieille = { ...seanceFaite, id: 2, title: 'Jambes du lundi', start: new Date(Date.now() - 14 * 864e5 - 3600e3).toISOString(), end: new Date(Date.now() - 14 * 864e5).toISOString(), records: [] };
     a = await page(b, { state: { ...avecProfil, workouts: [vieille, seanceFaite] }, url: '#/carnet', vp, scheme, mode: { connecte: true, profil: avecProfil.social.profil } });
-    await tap(a.p, '[data-a="carnet-tab"][data-v="faites"]');
+    await tap(a.p, '[data-a="carnet-sub"][data-v="historique"]');
     ok(await a.p.locator('[data-a="soc-hist"]').count() === 2, 'historique : bouton 📤 sur chaque séance faite');
     await tap(a.p, '[data-a="soc-hist"][data-k^="w:' + vieille.start.slice(0, 10) + '"]');
     ok(/Jambes du lundi/.test(await a.p.textContent('#sheet')), 'feuille de partage de la séance d\'il y a 2 semaines');
@@ -278,10 +278,10 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     ok(await a.p.locator('[data-a="soc-hist"]').count() === 2, 'profil : bouton 📤 sur les dernières séances');
     await a.ctx.close();
 
-    // 11. Profil : tuiles Communauté
+    // 11. Communauté : onglet de la barre du bas (plus dans le Profil)
     a = await page(b, { state: base, url: '#/profile', vp, scheme });
     t = await txt(a.p);
-    ok(/Communauté/.test(t) && /Mes amis/.test(t) && /Inviter et gagner/.test(t), 'profil : tuiles Communauté, Amis, Inviter et gagner');
+    ok(/Communauté/.test(await a.p.textContent('nav.tabbar')) && !/Inviter et gagner/.test(t), 'communauté : onglet du bas, plus de tuiles dans le Profil');
     await a.ctx.close();
   }
   await b.close();
