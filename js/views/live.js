@@ -338,8 +338,10 @@ export async function pullLive() {
     const c = await cloud(); await c.ensureSession(); const r = await c.liveGet(c.userId());
     // Séance terminée par le coach pendant que le client n'était pas dans l'appli : on l'enregistre dans son carnet
     const st0 = r?.state;
-    if (st0?.ended && st0.session?.exercises && !S().current && Date.now() - new Date(st0.endedAt || 0) < 36 * 3600e3 && !(S().workouts || []).some(w => w.id === st0.session.id) && st0.session.exercises.some(e => e.sets.some(x => x.done))) {
+    // Le client a encore la copie « miroir » de la séance ouverte (ou aucune séance) : on enregistre la version finale du coach
+    if (st0?.ended && st0.session?.exercises && (!S().current || S().current.mirror) && !isCoach() && Date.now() - new Date(st0.endedAt || 0) < 36 * 3600e3 && !(S().workouts || []).some(w => w.id === st0.session.id) && st0.session.exercises.some(e => e.sets.some(x => x.done))) {
       const ses = JSON.parse(JSON.stringify(st0.session)); delete ses.mirror;
+      if (MIRROR) { clearInterval(MIRROR.timer); MIRROR = null; LIVE_NOW = null; }
       update(st => { st.current = ses; }); E.finishSession(S().current); toast("Séance terminée avec Thomas : elle est enregistrée dans ton carnet");
     }
     const active = r?.state && !r.state.ended && Object.keys(r.state).length ? r.state : null;

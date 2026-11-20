@@ -287,8 +287,9 @@ actions["del-food"] = (b, d) => { N.removeEntry(+d.id, d.d); rerender(); };
 actions["save-meal"] = (b, d) => {
   const es = N.dayLog(d.d).filter(e => e.meal === d.m);
   const n = prompt("Nom de ce repas", es.map(e => e.label.split(",")[0]).slice(0, 2).join(" + ")); if (!n) return;
-  const tot = es.reduce((a, e) => ({ kcal: a.kcal + e.kcal, p: a.p + e.p, c: a.c + e.c, f: a.f + e.f }), { kcal: 0, p: 0, c: 0, f: 0 });
-  update(st => st.dishes = [{ n, ...tot, items: es.map(({ label, g, kcal, p, c, f }) => ({ label, g, kcal, p, c, f })) }, ...st.dishes.filter(x => x.n !== n)].slice(0, 40));
+  const tot = es.reduce((a, e) => ({ kcal: a.kcal + e.kcal, p: a.p + e.p, c: a.c + e.c, f: a.f + e.f, fib: a.fib + (e.fib || 0), fibN: a.fibN + (e.fib != null ? 1 : 0) }), { kcal: 0, p: 0, c: 0, f: 0, fib: 0, fibN: 0 });
+  const { fibN, ...tots } = tot; if (fibN) tots.fib = +tots.fib.toFixed(1); else delete tots.fib;
+  update(st => st.dishes = [{ n, ...tots, items: es.map(({ label, g, kcal, p, c, f, fib }) => ({ label, g, kcal, p, c, f, ...(fib != null ? { fib } : {}) })) }, ...st.dishes.filter(x => x.n !== n)].slice(0, 40));
   toast("Repas enregistré : il est dans « Mes repas »");
 };
 
@@ -440,7 +441,7 @@ actions["pick-food"] = (b, d) => {
   });
   draw(); inp.select?.();
 };
-actions["eat-dish"] = (b, d) => { const di = S().dishes[+d.i]; addedToMeal({ label: di.n, g: null, kcal: Math.round(di.kcal), p: di.p, c: di.c, f: di.f }, "Repas ajouté"); };
+actions["eat-dish"] = (b, d) => { const di = S().dishes[+d.i]; addedToMeal({ label: di.n, g: null, kcal: Math.round(di.kcal), p: di.p, c: di.c, f: di.f, ...(di.fib != null ? { fib: di.fib } : {}) }, "Repas ajouté"); };
 actions["del-dish"] = (b, d) => { if (!confirm("Supprimer ce repas enregistré ?")) return; update(st => st.dishes.splice(+d.i, 1)); drawAfs(); };
 actions["eat-recipe"] = async (b, d) => {
   const r = allRecipes().find(x => x.id === d.id); if (!r) return;

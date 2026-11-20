@@ -108,7 +108,7 @@ const OPT = {
   },
   search(meal) { addFoodSheet(meal); },
 };
-actions["mo-dish"] = (b, d) => { const x = S().dishes[+d.i]; logItems(d.m, d.d, x.items?.length ? x.items.map(i => ({ n: i.label, ...i })) : [{ n: x.n, g: null, kcal: x.kcal, p: x.p, c: x.c, f: x.f }]); };
+actions["mo-dish"] = (b, d) => { const x = S().dishes[+d.i]; logItems(d.m, d.d, x.items?.length ? x.items.map(i => ({ n: i.label, ...i })) : [{ n: x.n, g: null, kcal: x.kcal, p: x.p, c: x.c, f: x.f, ...(x.fib != null ? { fib: x.fib } : {}) }]); };
 actions["mo-plan"] = (b, d) => { const x = S().myPlan.meals[+d.i]; logItems(d.m, d.d, x.items.map(i => ({ n: i.label, ...i }))); };
 actions["mo-other"] = (b, d) => { const t = N.targets(), o = N.planOptions(t, d.d, d.m).find(x => x.i === +d.i); N.chooseDish(d.m, +d.i, d.d); logItems(d.m, d.d, o.items); };
 forms["mo-qty"] = (v, f) => {
