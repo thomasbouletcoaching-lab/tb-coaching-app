@@ -667,17 +667,6 @@ a.card{text-decoration:none;color:inherit}
 
 /* Pastilles de couleur (personnage) : le choix reste visible malgré le fond en ligne */
 .chip.on[style*="background"]{outline:3px solid var(--red);outline-offset:2px}
-/* Personnage vivant (module hybride, décision C60) : respiration, saut, confettis ; rien de tout cela si l'appareil demande moins d'animations */
-.perso3d.vit .perso3d-corps{transform-origin:50% 96%;animation:perso-respire 3.8s ease-in-out infinite}
-@keyframes perso-respire{0%,100%{transform:scale(1,1)}50%{transform:scale(1.008,1.014)}}
-.perso3d.saute .perso3d-corps,button.saute>svg{animation:perso-saute .7s cubic-bezier(.3,.6,.4,1)}
-@keyframes perso-saute{0%{transform:translateY(0) scale(1.03,.96)}35%{transform:translateY(-9%) scale(.98,1.03)}70%{transform:translateY(0) scale(1.03,.97)}100%{transform:none}}
-.confettis{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
-.confettis i{position:absolute;top:-8%;width:4px;height:7px;border-radius:2px;animation:perso-confetti 1.6s ease-in forwards}
-@keyframes perso-confetti{to{transform:translateY(1100%) rotate(540deg);opacity:.2}}
-.bulle{position:relative;background:var(--paper);color:var(--ink);border-radius:14px;padding:8px 10px;font-size:13px;line-height:1.3;overflow-wrap:anywhere}
-.bulle:before{content:"";position:absolute;left:-6px;top:12px;border:6px solid transparent;border-left:0;border-right-color:var(--paper)}
-@media (prefers-reduced-motion:reduce){.perso3d.vit .perso3d-corps,.perso3d.saute .perso3d-corps,button.saute>svg,.confettis i{animation:none}.confettis{display:none}}
 
 /* Communauté : gerbe d'emoji quand on encourage une séance (désactivée si « réduire les animations ») */
 .soc-burst { position: fixed; z-index: 99; pointer-events: none; font-size: 28px; line-height: 1; animation: socUp .95s cubic-bezier(.2,.8,.2,1) forwards; }

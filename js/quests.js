@@ -13,23 +13,11 @@ const shift = (d, n) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDa
 // Paliers : la personne telle qu'elle se construit. Le nom dépend du genre CHOISI et du profil réel (js/paliers.js).
 export const stageOf = (level, profile = S().profile) => palier(level, profile);
 
-// Trophées : débloqués par la régularité et les bons comportements, jamais par le poids
-export const TROPHIES = [
-  { id: "premiere", icon: "🪨", name: "Première pierre", desc: "Une séance faite", ok: c => c.sessions >= 1 },
-  { id: "dix", icon: "🏋️", name: "Dix fois debout", desc: "10 séances faites", ok: c => c.sessions >= 10 },
-  { id: "semaine", icon: "🔥", name: "Une semaine tenue", desc: "7 jours de série", ok: c => c.streak >= 7 },
-  { id: "mois", icon: "☀️", name: "Un mois de feu", desc: "30 jours de série", ok: c => c.streak >= 30 },
-  { id: "reprise", icon: "🔁", name: "Le relevé", desc: "3 reprises après un écart", ok: c => c.comebacks >= 3 },
-  { id: "craque", icon: "🕊️", name: "Honnête avec soi", desc: "Un « Je craque » traité sans jugement", ok: c => c.crises >= 1 },
-  { id: "bouclier", icon: "🛡️", name: "Bouclier de maîtrise", desc: "14 jours avec protéines atteintes", ok: c => c.proteinDays >= 14 },
-  { id: "niveau5", icon: "⭐", name: "Niveau 5", desc: "Atteindre le niveau 5", ok: c => c.level >= 5 },
-];
-
-// Récompenses : débloquées par le niveau. Réclamées dans la conversation avec Thomas.
+// Les anciens trophées sont devenus des badges de l'armoire (js/armoire.js, décision C61).
 export const REWARDS = [
   { id: "r3", lvl: 3, icon: "🎟️", name: "−5 % sur ta candidature coaching", discount: true },
   { id: "r5", lvl: 5, icon: "🎟️", name: "−10 % sur ta candidature coaching", discount: true },
-  { id: "r8", lvl: 8, icon: "🎁", name: "Une séance de 15 min offerte avec Thomas" },
+  { id: "r10", lvl: 10, icon: "🎟️", name: "−15 % sur ta candidature coaching", discount: true },
 ];
 
 // Score d'une journée : 1 point par geste juste, plus un bonus quand les trois piliers tiennent
@@ -77,10 +65,10 @@ export function gather(today_ = today()) {
   };
 }
 
-export const unlockedTrophies = (c) => TROPHIES.filter(t => t.ok(c));
-// Les invités (accès offert par Thomas) n'ont jamais de réduction
-export const rewardsFor = () => REWARDS.filter(r => !(r.discount && S().me?.tier === "invite"));
-export const unlockedRewards = (c) => rewardsFor().filter(r => c.level >= r.lvl);
+// Réductions réservées aux abonnés en autonomie (pas aux personnes déjà coachées ni aux invités) ; aucune récompense
+// ne prend du temps de coaching (décision C61)
+export const ABONNES_AUTONOMIE = ["premium", "essentiel"];
+export const rewardsFor = (tier = S().me?.tier) => REWARDS.filter(r => !r.discount || ABONNES_AUTONOMIE.includes(tier));
 
 // Quêtes du jour : les gestes qui comptent, avec leur valeur en points
 export function dailyQuests(c) {
@@ -91,16 +79,4 @@ export function dailyQuests(c) {
     { n: "Trois cases de ta routine remplies", ok: t.routine, p: 10 },
   ];
 }
-
-// Carte affichée sur le Temple : niveau, avatar, quêtes du jour, accès aux trophées
-export function gamCard() {
-  const c = gather();
-  const st = stageOf(c.level);
-  const q = dailyQuests(c);
-  const got = unlockedTrophies(c).length;
-  return `<div class="card"><div class="row between"><div class="lbl">🎮 Ta progression</div><span class="xs muted">${c.points} pts</span></div>
-    <div class="row mt8" style="gap:12px"><span style="font-size:34px;line-height:1">${st.icon}</span><div class="grow"><b>${esc(st.name)}</b> · niveau ${c.level}<div class="gauge mt4"><i style="width:${c.levelPct}%"></i></div><div class="xs muted mt4">${c.nextAt - c.points} pts avant le niveau ${c.level + 1}</div></div></div>
-    <p class="small muted mt8" style="margin:8px 0 0">${esc(st.line)}</p>
-    <div class="mt8">${q.map(x => `<div class="row between small" style="padding:4px 0"><span>${x.ok ? "✅" : "⬜"} ${esc(x.n)}</span><span class="xs muted">+${x.p}</span></div>`).join("")}</div>
-    <div class="row between mt8"><span class="xs muted">${c.streak ? `🔥 Série : ${c.streak} jour${c.streak > 1 ? "s" : ""}` : "Série à démarrer"} · ${got}/${TROPHIES.length} trophées</span><button class="btn btn-line btn-sm" data-a="go" data-r="trophees">Trophées</button></div></div>`;
-}
+// La carte de l'accueil est désormais dans js/views/trophees.js (carteProgression, décision C61).
