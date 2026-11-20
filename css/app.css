@@ -117,6 +117,8 @@ p{margin:0 0 10px}
 .seg{display:flex;gap:4px;padding:4px;border-radius:18px;background:color-mix(in srgb,var(--glass) 72%,transparent);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border:1px solid var(--glass-b);margin:4px 0 14px}
 .seg{overflow-x:auto;scrollbar-width:none}.seg::-webkit-scrollbar{display:none}
 .seg button{flex:1;min-height:44px;padding:0 4px;border-radius:14px;color:var(--soft);font-size:15px;font-weight:600}
+.seg button{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:380px){.seg button{font-size:13px;padding:0 2px}}
 .seg button.on{background:var(--paper);color:var(--ink);font-weight:700;box-shadow:0 1px 3px rgba(20,16,18,.12)}
 .chips{position:relative;display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
@@ -477,7 +479,7 @@ input,select,textarea{max-width:100%;min-width:0}
 .modes{display:flex;gap:6px;margin-top:8px;padding:4px;border-radius:14px;background:var(--btn2);border:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
 .modes::-webkit-scrollbar{display:none}
 .modes button{flex:1;border:0;background:none;color:var(--soft);font:inherit;font-size:14px;font-weight:600;padding:8px 4px;border-radius:10px;cursor:pointer}
-.modes button{min-width:0;white-space:nowrap}
+.modes button{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:380px){.modes{gap:2px}.modes button{font-size:12.5px;padding:8px 2px;letter-spacing:-.01em}}
 .modes button.on{background:var(--paper);color:var(--ink);box-shadow:0 2px 8px rgba(24,33,44,.08)}
 .slider-row{display:flex;align-items:center;gap:10px;padding:8px 0}
