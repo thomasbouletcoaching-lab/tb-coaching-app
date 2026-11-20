@@ -89,12 +89,12 @@ actions["ag-day"] = (b, d) => {
   let html = `<h2 class="h1" style="text-transform:capitalize">${fmtDate(k)}</h2>`;
   if (a?.st === "done") html += a.w.map(w => `<div class="card mt12" data-a="w-detail" data-id="${w.id}" style="cursor:pointer"><div class="lbl">✅ Séance faite · ${new Date(w.start).toTimeString().slice(0, 5)} <span style="float:right;text-transform:none" class="red">Voir le détail ›</span></div><b class="h3">${esc(w.title)}</b><p class="small muted mt4">${w.setsDone} séries · ${(w.volume / 1000).toFixed(1).replace(".", ",")} t · ${Math.round((new Date(w.end) - new Date(w.start)) / 6e4)} min</p>
       <div class="small mt8">${w.exercises.filter(e => e.sets.some(s => s.done)).map(e => `<div class="row between"><span>${esc(e.name)}</span><span class="muted">${e.sets.filter(s => s.done && s.type !== "W").map(s => s.kg ? `${E.fmtKg(s.kg)}×${s.reps}` : s.reps).join(" · ")}</span></div>`).join("")}</div>
-      <div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="w-edit" data-id="${w.id}">✏️ Modifier</button><button class="btn btn-ghost btn-sm grow" data-a="w-del" data-id="${w.id}" style="color:var(--red)">🗑️ Supprimer</button></div></div>`).join("");
+      <div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="w-reopen" data-id="${w.id}">✏️ Rouvrir et modifier</button><button class="btn btn-ghost btn-sm grow" data-a="w-del" data-id="${w.id}" style="color:var(--red)">🗑️ Supprimer</button></div></div>`).join("");
   else if (a?.st === "planned" || (a?.st === "missed")) {
     const quick = Array.from({ length: 8 }, (_, i) => addDays(k < t ? t : k, i - (k < t ? 0 : 1))).filter(x => x >= t && x !== k).slice(0, 7);
     html += `<div class="card mt12"><div class="lbl">${a.st === "missed" ? "❌ Séance loupée" : "🏋️ Prévue"}${a.time ? ` · ${a.time}` : ""}</div><b class="h3">${esc(a.title)}</b>${slotTxt(a) ? `<p class="small muted mt4" style="margin-bottom:0">${esc(slotTxt(a))}</p>` : ""}
       ${k === t ? `<button class="btn btn-red mt12" data-a="start">Commencer maintenant</button>` : ""}
-      ${a.st === "missed" ? `<p class="small muted mt8">Tu peux la rattraper : déplace-la à un autre jour.</p>` : ""}</div>
+      ${a.st === "missed" ? `<button class="btn btn-red btn-sm mt12" style="width:100%" data-a="missed-done" data-v="${k}">✅ Je l'ai faite, j'ai oublié de la noter</button><p class="small muted mt8">Sinon, tu peux la rattraper : déplace-la à un autre jour.</p>` : ""}</div>
       <button class="btn btn-line btn-sm mt8" style="width:100%" data-a="jnp" data-v="${k}">🙅 Je ne peux pas</button>
       <h3 class="sec">${a.st === "missed" ? "Rattraper le" : "Décaler au"}</h3>
       <div class="chips wrap">${quick.map(x => `<button class="chip" data-a="mv-day" data-v="${x}">${fmtDate(x, { weekday: "short", day: "numeric" })}</button>`).join("")}</div>

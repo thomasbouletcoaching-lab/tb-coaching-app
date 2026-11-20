@@ -228,3 +228,19 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 - **Récompenses** (choix de Thomas) : seulement des réductions sur le coaching (−5 % niveau 3, −10 % niveau 5, −15 % niveau 10), réservées aux abonnés en autonomie (premium, ancienne formule essentiel). Plus de récompense qui prend du temps à Thomas (la séance de 15 min est retirée).
 - Nouveaux badges annoncés une fois (« Nouveau badge : … ») ; à la première visite, l'historique est marqué comme vu sans annonce.
 - Aucune écriture serveur : l'animal, les épingles et l'interrupteur « poids » sont dans le profil (synchronisé comme avant), les badges sont recalculés sur le téléphone.
+
+## C62 — Retours de clientes : nutrition plus visuelle, séances corrigibles, cardio dans Entraînement (20/11/2026)
+- **Fibres des repas enregistrés** : « Enregistrer ce repas » garde maintenant les fibres (total et aliments) ; elles comptent quand on refait le repas, comme en saisie manuelle.
+- **Séance terminée par le coach** : si le client a encore la copie « en direct » ouverte (hors écran de séance), la version finale du coach est enregistrée dans son carnet (`pullLive`).
+- **Quantités naturelles** (`js/portions.js`, pur et testé) : 1 œuf, 1 noisette de beurre, 1 c. à café de sucre, 1 tranche, 1 pot… avec un compteur − / +. Les grammes restent la valeur stockée ; l'unité est gardée pour l'affichage (« 2 œufs »). La dictée comprend aussi « noisette de beurre », « morceau de sucre », « pot ».
+- **Quantité habituelle** (`foodHabits`) : les 8 dernières prises de chaque aliment ; la plus fréquente est proposée par défaut, en bouton « ⭐ Comme d'habitude » et en ajout en un geste dans les listes (« + 2 œufs »).
+- **Nutrition façon Micron** (`js/nutri-semaine.js`, pur et testé) : la semaine en anneaux (vert à ± 10 % de l'objectif, orange de 10 à 20 %, rouge au-delà, jaune pour aujourd'hui en cours, vide si rien de noté), « calories restantes » en gros, aperçu des micronutriments (fibres, fer, calcium, magnésium en % des apports de référence).
+- **Flamme de série** : jours notés d'affilée (au moins 30 % de l'objectif saisi) ; aujourd'hui ne casse pas la série tant que la journée n'est pas finie. Le détail montre aussi les jours dans l'objectif d'affilée et le record.
+- **Cardio et activités dans Entraînement** (`js/views/activite.js`) : carte avec ajout, « comme la dernière fois », jour au choix. Toujours stocké dans `daily[jour].cardio`, donc toujours compté dans la dépense (Nutrition › Dépense, qui renvoie vers le même formulaire).
+- **Séance faite mais pas notée** : sur un jour « loupé » (agenda, accueil), « Je l'ai faite » la note en détail (écran de séance) ou telle que prévue ; elle est rangée ce jour-là (`backdate`), le programme avance et la série n'est plus cassée.
+- **Rouvrir une séance enregistrée** avec l'écran de séance (`reopen`) : charges, notes de série, sensations, techniques ; « Enregistrer » remplace l'ancienne version sans faire avancer le programme et recalcule le 1RM du jour. « Correction rapide » garde la date et ajoute la durée.
+- **Durée** : modifiable sur la séance rouverte ou rattrapée, à l'écran de fin (✏️ sur les minutes), dans la correction rapide ; si le chrono dépasse 2 h 30 (ou le double de la durée visée), l'app demande la vraie durée à la fin.
+- **Supersets pendant la séance** : menu ⋯ de l'exercice › Superset (lettre, aucun, ou « lier avec l'exercice suivant »).
+- **Numéro de série** : petit ✎ et une aide (à fermer une fois) qui explique que le numéro ouvre notes, sensations, douleur et techniques.
+- **Chrono des exercices tenus** : bandeau flottant au lieu d'une fenêtre ; l'écran défile, on peut noter ou valider d'autres séries pendant qu'il tourne.
+- Avatar : déjà remplacé par l'armoire à trophées (C61) ; la version du service worker passe à `cxs-v121` pour que tous les téléphones reçoivent la nouvelle version.

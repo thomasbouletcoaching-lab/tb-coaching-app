@@ -52,6 +52,7 @@ function trainingCard(d) {
   const nx = Object.entries(E.agenda(d, addDays(d, 10))).find(([k, v]) => k > d && v.st === "planned");
   return `<div class="card"><div class="lbl">🏋️ Entraînement</div><h2 class="h1 mt8">${ag?.st === "planned" ? esc(ag.title) : ag?.st === "missed" ? "Séance loupée" : "Jour de repos"}</h2>
     <p class="muted mt8">${ag?.st === "missed" ? "Pas de rattrapage : on reprend à la prochaine séance." : nx ? `Prochaine séance : <b style="color:var(--ink)">${esc(nx[1].title)}</b> ${nx[0] === addDays(today(), 1) ? "demain" : fmtDate(nx[0], { weekday: "long" })}${nx[1].time ? ` à ${nx[1].time}` : ""}` : ""}</p>
+    ${ag?.st === "missed" ? `<button class="btn btn-red btn-sm mt8" data-a="missed-done" data-v="${d}">✅ Je l'ai faite, j'ai oublié de la noter</button>` : ""}
     <div class="row mt8"><button class="btn btn-line btn-sm" data-a="home-tab" data-v="week">Voir ma semaine</button>${d === today() ? `<button class="btn btn-line btn-sm" data-a="free-session">Séance libre</button>` : ""}</div><div class="deco">🗓️</div></div>`;
 }
 export function routineCard(d = today()) {

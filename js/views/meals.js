@@ -41,7 +41,7 @@ export function mealCards(t, d) {
     const head = `<div class="row between"><div><b class="h3">${ICON[meal] || "🍽️"} ${esc(meal)}</b>${es.length ? `<div class="xs muted">${es[0].time || ""} · ${fr(k)} kcal · ${fr(es.reduce((a, e) => a + e.p, 0))} g prot.</div>` : x?.time ? `<div class="xs muted">prévu à ${x.time}</div>` : ""}</div><button class="btn ${es.length || skips[meal] ? "btn-line" : "btn-ghost"} btn-xs" data-a="add-food" data-m="${key}">+ Ajouter</button></div>`;
     if (es.length) return `<div class="card mt12">${head}
       <div class="row mt8" style="gap:8px"><span class="xs muted">🕐 Heure du repas</span><input type="time" class="inp" style="width:116px;font-size:16px;padding:4px 8px" value="${es[0].time || ""}" data-c="mtime" data-m="${key}" data-d="${d}" aria-label="Heure du repas"></div>
-      <div class="list mt8">${es.map(e => `<div class="li" style="gap:8px"><span class="grow small">${esc(e.label)}<br><span class="xs muted">${e.g ? fr(e.g) + " g · " : ""}${mac(e)}</span></span>${favable(e) ? `<button class="icon-btn" data-a="fav-entry" data-id="${e.id}" data-d="${d}" aria-label="Aliment favori" style="color:${N.isFavFood(e.label) ? "var(--gold)" : "var(--soft)"}">${N.isFavFood(e.label) ? "★" : "☆"}</button>` : ""}<button class="icon-btn" data-a="edit-food" data-id="${e.id}" data-d="${d}" aria-label="Modifier ou remplacer" style="color:var(--red)">✏️</button><button class="icon-btn" data-a="del-food" data-id="${e.id}" data-d="${d}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>
+      <div class="list mt8">${es.map(e => `<div class="li" style="gap:8px"><span class="grow small">${esc(e.label)}<br><span class="xs muted">${e.u ? `<b style="color:var(--ink)">${esc(e.u)}</b> · ` : ""}${e.g ? fr(e.g) + " g · " : ""}${mac(e)}</span></span>${favable(e) ? `<button class="icon-btn" data-a="fav-entry" data-id="${e.id}" data-d="${d}" aria-label="Aliment favori" style="color:${N.isFavFood(e.label) ? "var(--gold)" : "var(--soft)"}">${N.isFavFood(e.label) ? "★" : "☆"}</button>` : ""}<button class="icon-btn" data-a="edit-food" data-id="${e.id}" data-d="${d}" aria-label="Modifier ou remplacer" style="color:var(--red)">✏️</button><button class="icon-btn" data-a="del-food" data-id="${e.id}" data-d="${d}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>
       <button class="link xs mt8" data-a="save-meal" data-m="${key}" data-d="${d}">⭐ Enregistrer ce repas pour le refaire</button></div>`;
     if (skips[meal]) return `<div class="card mt12">${head}<p class="small muted mt8" style="margin-bottom:0">Repas sauté. <button class="link small" data-a="meal-skip" data-m="${key}" data-d="${d}">Annuler</button></p></div>`;
     if (!x) return `<div class="card mt12">${head}<p class="xs muted mt8" style="margin-bottom:0">${meal === N.OFFPLAN ? "Grignotage, écart, resto : note ici ce qui n'était pas dans ton plan." : "Rien de prévu : ajoute ce que tu as mangé."}</p></div>`;
@@ -125,7 +125,7 @@ actions["say-mic"] = (b) => {
   r.onend = () => { b.textContent = "🎙️ Dicter"; }; r.onerror = () => { b.textContent = "🎙️ Dicter"; toast("Micro indisponible : utilise celui du clavier."); };
   r.start();
 };
-const UNIT_G = [[/oeuf/, 55], [/banane/, 120], [/pomme(?! de terre)/, 150], [/orange/, 150], [/kiwi/, 80], [/yaourt|yogourt|skyr/, 125], [/tranche/, 35], [/biscotte/, 10], [/carre/, 10], [/cuill(ere)? a soupe|c a s/, 15], [/cuill(ere)? a cafe|c a c/, 5], [/verre/, 200], [/bol/, 250], [/poignee/, 30]];
+const UNIT_G = [[/noisettes? de beurre/, 5], [/noix de beurre/, 15], [/morceaux? de sucre/, 5], [/\bpots?\b/, 125], [/oeuf/, 55], [/banane/, 120], [/pomme(?! de terre)/, 150], [/orange/, 150], [/kiwi/, 80], [/yaourt|yogourt|skyr/, 125], [/tranche/, 35], [/biscotte/, 10], [/carre/, 10], [/cuill(ere)? a soupe|c a s/, 15], [/cuill(ere)? a cafe|c a c/, 5], [/verre/, 200], [/bol/, 250], [/poignee/, 30]];
 export function parseMeal(txt) {
   return txt.split(/\n|,|;|\+| et (?=\d|un |une |deux |trois )/i).map(x => x.trim()).filter(Boolean).map(part => {
     const n0 = N.norm(part).replace(/\b(un|une)\b/, "1").replace(/\bdeux\b/, "2").replace(/\btrois\b/, "3").replace(/\bquatre\b/, "4").replace(/\bdemi\b/, "0.5");
@@ -134,8 +134,11 @@ export function parseMeal(txt) {
     if (m) { const q = +m[1].replace(",", "."), u = m[2] || ""; g = /kg/.test(u) ? q * 1000 : /^l$/.test(u) ? q * 1000 : /cl/.test(u) ? q * 10 : /g|ml/.test(u) ? q : null;
       name = n0.replace(m[0], " ");
       if (g == null) { const ug = UNIT_G.find(([re]) => re.test(n0))?.[1] || 100; g = q * ug; } }
+    name = name.replace(/\b(noisettes?|noix) de beurre\b/, "beurre").replace(/\bmorceaux? de sucre\b/, "sucre").replace(/\bpots? de\b/, " ");
     name = name.replace(/\b(de|d|des|du|la|le|les|tranches?|cuilleres?|a soupe|a cafe|verres?|bols?|poignees?|portions?)\b/g, " ").replace(/\s+/g, " ").trim();
     const found = N.searchFoods(name, 5);
+    // Sans quantité : la quantité habituelle de cet aliment, sinon 100 g
+    if (!g && found[0]) g = N.usualFor(found[0].n)?.g || null;
     return { part, name, g: g || 100, cands: found };
   });
 }
@@ -146,7 +149,7 @@ actions["say-go"] = async (b, d) => {
     <button class="btn btn-red mt12">Ajouter au ${esc(d.m.toLowerCase())}</button></form>`;
 };
 forms["say-add"] = (v, f) => {
-  const items = (window.__say || []).map((r, i) => { const j = +v["f" + i]; if (!r.cands.length || j < 0 || isNaN(j)) return null; const c = r.cands[j], g = num(v["g" + i]) || r.g; const e = N.entryFromFood(c, g, f.dataset.m); N.rememberFood({ n: c.n, kcal: c.kcal, p: c.p, c: c.c, f: c.f, g }); return { n: c.n, g, kcal: e.kcal, p: e.p, c: e.c, f: e.f, fib: e.fib }; }).filter(Boolean);
+  const items = (window.__say || []).map((r, i) => { const j = +v["f" + i]; if (!r.cands.length || j < 0 || isNaN(j)) return null; const c = r.cands[j], g = num(v["g" + i]) || r.g; const e = N.entryFromFood(c, g, f.dataset.m); N.rememberFood({ n: c.n, kcal: c.kcal, p: c.p, c: c.c, f: c.f, g }); N.rememberHabit(c.n, g); return { n: c.n, g, kcal: e.kcal, p: e.p, c: e.c, f: e.f, fib: e.fib }; }).filter(Boolean);
   if (!items.length) return toast("Rien à ajouter");
   logItems(f.dataset.m, f.dataset.d, items);
 };

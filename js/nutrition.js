@@ -1,4 +1,5 @@
 // Carburant : cibles, base Ciqual, plats types, plan alimentaire, journal.
+import * as PO from "./portions.js";
 import { mifflinSexe } from "./genre.js";
 import { S, update, today } from "./store.js";
 import { ING as RING } from "./recipes.js";
@@ -418,6 +419,12 @@ export function dayMicros(date = today()) {
 export function rememberFood(f) {
   update(st => { st.recentFoods = [f, ...st.recentFoods.filter(x => x.n !== f.n)].slice(0, 12); });
 }
+// Quantité habituelle de chaque aliment (grammes et, si choisie, unité naturelle : « 2 œufs »)
+export function rememberHabit(n, g, u = null) {
+  if (!n || !(g > 0)) return;
+  update(st => { const h = st.foodHabits = st.foodHabits || {}; h[n] = PO.addHabit(h[n], g, u); const ks = Object.keys(h); if (ks.length > 400) delete h[ks[0]]; });
+}
+export const usualFor = (n) => PO.usualOf(S().foodHabits?.[n]);
 
 // Open Food Facts : code-barres
 export async function lookupBarcode(code) {

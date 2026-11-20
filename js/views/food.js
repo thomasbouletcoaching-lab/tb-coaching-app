@@ -12,6 +12,9 @@ import { caloriesCard } from "./home.js";
 import { pushStats } from "../sync.js";
 import * as ML from "./meals.js";
 import * as SP from "./supps.js";
+import * as PO from "../portions.js";
+import * as NS from "../nutri-semaine.js";
+import "./activite.js";
 import { memosCard } from "./vocal.js";
 import { adviceBody } from "./nutri-advice.js";
 
@@ -270,9 +273,10 @@ const journalDayNav = () => { const d = D(); return `<div class="row between mt1
 function journalBody(t) {
   const d = D(), log = N.dayLog(d), water = S().daily[d]?.water || 0;
   const fs = EN.fastState();
-  return `<div class="row between mt12"><button class="icon-btn" data-a="food-day" data-v="-1" aria-label="Jour précédent">${I.back}</button><b class="h3" style="text-transform:capitalize">${d === today() ? "Aujourd'hui" : fmtDate(d)}</b><button class="icon-btn" data-a="food-day" data-v="1" aria-label="Jour suivant" style="transform:scaleX(-1);${d === today() ? "visibility:hidden" : ""}">${I.back}</button></div>
+  return `${weekStrip(d)}
     ${levelSelector()}
-    <div class="card mt8">${caloriesCard(d)}</div>
+    <div class="card mt8">${leftHead(d)}${caloriesCard(d)}</div>
+    ${nutriLevel() === "simple" ? "" : microPeek(d)}
     ${nutriLevel() === "complet" ? nutriCard(d) : ""}
     <button class="card tap mt12" data-a="go" data-r="crise" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:24px">🆘</span><span class="grow"><b>Je craque</b><br><span class="xs muted">Une envie forte ? On regarde quoi faire, sans culpabilité.</span></span>${I.chev}</button>
     <div class="card"><div class="rt" style="border:0;padding:0"><span class="em">💧</span><div class="grow"><b>Eau</b><div class="small muted">${fr(water * .25, 2)} L · 1 verre = 25 cl</div></div><div class="water"><button data-a="water" data-v="-1" data-d="${d}" aria-label="Retirer un verre">−</button><b>${water}</b><button data-a="water" data-v="1" data-d="${d}" aria-label="Ajouter un verre">+</button></div></div></div>
@@ -390,7 +394,7 @@ function quickFoods(foodLi) {
 function drawAfs(w = document.getElementById("sheet")) {
   const box = w.querySelector("#afsb");
   w.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.v === afs.tab));
-  const foodLi = (f, src, i) => `<div class="li" data-li="${src}-${i}"><button class="grow" style="text-align:left" data-a="pick-food" data-src="${src}" data-i="${i}"><span class="small">${esc(f.n)}</span><br><span class="xs muted">${perLine(f)}</span></button><button class="icon-btn" data-a="fav-food" data-src="${src}" data-i="${i}" aria-label="Favori" style="color:${N.isFavFood(f.n) ? "var(--gold)" : "var(--soft)"}">${N.isFavFood(f.n) ? "★" : "☆"}</button></div>`;
+  const foodLi = (f, src, i) => { const us = N.usualFor(f.n); return `<div class="li" data-li="${src}-${i}"><button class="grow" style="text-align:left" data-a="pick-food" data-src="${src}" data-i="${i}"><span class="small">${esc(f.n)}</span><br><span class="xs muted">${perLine(f)}</span></button>${us ? `<button class="btn btn-line btn-xs" style="width:auto;flex:none;white-space:nowrap" data-a="quick-food" data-src="${src}" data-i="${i}" aria-label="Ajouter comme d'habitude">+ ${esc(us.u ? PO.fmtQty(us.u.n, us.u) : fr(us.g) + " g")}</button>` : ""}<button class="icon-btn" data-a="fav-food" data-src="${src}" data-i="${i}" aria-label="Favori" style="color:${N.isFavFood(f.n) ? "var(--gold)" : "var(--soft)"}">${N.isFavFood(f.n) ? "★" : "☆"}</button></div>`; };
   if (afs.tab === "search") {
     box.innerHTML = `<div class="search">${I.search}<input id="fq" placeholder="riz, poulet, skyr…" autocomplete="off" enterkeyhint="search"></div>
       <button class="btn btn-line btn-sm mt8" data-a="scan" style="width:100%">${I.scan.replace("<svg", '<svg width="20"')} Scanner un code-barres</button><div id="fr" class="mt12">${quickFoods(foodLi)}</div>`;
@@ -420,26 +424,55 @@ actions["fav-food"] = (b, d) => { const f = srcList(d.src)[+d.i]; N.toggleFavFoo
 actions["pick-food"] = (b, d) => {
   const food = srcList(d.src)[+d.i], li = b.closest(".li"); if (!food || !li) return;
   document.querySelectorAll("#sheet .qty-pick").forEach(x => x.remove());
+  const units = PO.unitsFor(food), usual = N.usualFor(food.n);
   const last = (S().recentFoods || []).find(x => x.n === food.n)?.g;
-  let g = last || food.ug || 100;
+  // Point de départ : la quantité habituelle, sinon 1 unité naturelle (1 œuf, 1 tranche…), sinon la dernière quantité
+  let uSel = null, uN = 1, g;
+  if (usual) { g = usual.g; if (usual.u) { uSel = units.find(u => u.s === usual.u.s) || { s: usual.u.s, p: usual.u.p, g: usual.u.g }; uN = usual.u.n; } }
+  else if (units.length && !last) { uSel = units[0]; g = PO.gramsOf(1, uSel); }
+  else g = last || food.ug || 100;
   const pc = N.portionChips(food), chips = [...pc, ...[30, 50, 100, 150, 200, 250].filter(x => !pc.some(c => c[0] === x)).map(x => [x, `${x} g`])];
   const panel = document.createElement("div"); panel.className = "qty-pick card"; panel.style.cssText = "margin:4px 0 10px;padding:12px";
-  panel.innerHTML = `<div class="row" style="gap:8px"><input class="inp" inputmode="decimal" value="${g}" style="width:90px" aria-label="Quantité en grammes"><span class="small muted">g</span><span class="grow small" data-v></span></div>
+  panel.innerHTML = `${usual ? `<button class="btn btn-line btn-sm" style="width:100%" data-usual>⭐ Comme d'habitude : ${esc(usual.u ? PO.fmtQty(usual.u.n, usual.u) + " · " : "")}${fr(usual.g)} g</button>` : ""}
+    ${units.length ? `<div class="lbl ${usual ? "mt8" : ""}">Sans peser</div><div class="row mt4" style="gap:8px;align-items:center"><button class="btn btn-line btn-xs" style="width:38px" data-step="-1" aria-label="Moins">−</button><b class="num" data-un style="min-width:28px;text-align:center"></b><button class="btn btn-line btn-xs" style="width:38px" data-step="1" aria-label="Plus">+</button><span class="small grow" data-ul></span></div>
+    <div class="chips wrap mt8">${units.map((u, i) => `<button class="chip" data-u="${i}">${esc(u.s)} <span class="xs muted">${fr(u.g, 1)} g</span></button>`).join("")}</div><div class="lbl mt12">Ou en grammes</div>` : ""}
+    <div class="row mt4" style="gap:8px"><input class="inp" inputmode="decimal" value="${g}" style="width:90px" aria-label="Quantité en grammes"><span class="small muted">g</span><span class="grow small" data-v></span></div>
     <div class="chips wrap mt8">${chips.map(([x, l]) => `<button class="chip" data-g="${x}">${l}</button>`).join("")}</div>
     <button class="btn btn-red btn-sm mt8" style="width:100%" data-ok>Ajouter</button>`;
   li.after(panel);
   const inp = panel.querySelector("input"), v = panel.querySelector("[data-v]");
-  const draw = () => { const e = N.entryFromFood(food, g, afs.meal); v.innerHTML = `<b>${e.kcal} kcal</b> <span class="xs muted">· ${fr(e.p)} g P</span>`; panel.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", +c.dataset.g === g)); };
-  inp.addEventListener("input", () => { g = num(inp.value) || 0; draw(); });
+  const draw = () => {
+    const e = N.entryFromFood(food, g, afs.meal); v.innerHTML = `<b>${e.kcal} kcal</b> <span class="xs muted">· ${fr(e.p)} g P</span>`;
+    panel.querySelectorAll("[data-g]").forEach(c => c.classList.toggle("on", !uSel && +c.dataset.g === g));
+    panel.querySelectorAll("[data-u]").forEach(c => c.classList.toggle("on", !!uSel && units[+c.dataset.u]?.s === uSel.s));
+    const un = panel.querySelector("[data-un]"), ul = panel.querySelector("[data-ul]");
+    if (un) { un.textContent = uSel ? String(uN).replace(".", ",") : "–"; ul.textContent = uSel ? PO.fmtQty(uN, uSel).replace(/^\S+ /, "") : "choisis une unité"; }
+  };
+  const setUnit = () => { g = PO.gramsOf(uN, uSel); inp.value = g; draw(); };
+  inp.addEventListener("input", () => { g = num(inp.value) || 0; uSel = null; draw(); });
   inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); panel.querySelector("[data-ok]").click(); } });
-  panel.querySelectorAll(".chip").forEach(c => c.addEventListener("click", (e) => { e.stopPropagation(); g = +c.dataset.g; inp.value = g; draw(); }));
+  panel.querySelectorAll("[data-g]").forEach(c => c.addEventListener("click", (e) => { e.stopPropagation(); g = +c.dataset.g; uSel = null; inp.value = g; draw(); }));
+  panel.querySelectorAll("[data-u]").forEach(c => c.addEventListener("click", (e) => { e.stopPropagation(); const u = units[+c.dataset.u]; if (!uSel || uSel.s !== u.s) { uSel = u; uN = 1; } setUnit(); }));
+  panel.querySelectorAll("[data-step]").forEach(c => c.addEventListener("click", (e) => { e.stopPropagation(); if (!uSel) { uSel = units[0]; uN = 1; } else { const st = uN < 1 || (uN === 1 && +c.dataset.step < 0) ? 0.5 : 1; uN = Math.max(0.5, uN + st * +c.dataset.step); } setUnit(); }));
+  panel.querySelector("[data-usual]")?.addEventListener("click", (e) => { e.stopPropagation(); g = usual.g; if (usual.u) { uSel = units.find(u => u.s === usual.u.s) || usual.u; uN = usual.u.n; } else uSel = null; inp.value = g; draw(); panel.querySelector("[data-ok]").click(); });
   panel.querySelector("[data-ok]").addEventListener("click", (e) => {
     e.stopPropagation(); if (!(g > 0)) return toast("Quantité invalide");
-    N.rememberFood({ ...food, g }); addedToMeal(N.entryFromFood(food, g, afs.meal), `${food.n.split(",")[0]} ajouté`);
+    addFoodQty(food, g, uSel ? { n: uN, s: uSel.s, p: uSel.p, g: uSel.g } : null);
     panel.remove(); li.style.opacity = ".55";
     const q = document.getElementById("fq"); if (q && afs.tab === "search") { q.value = ""; q.dispatchEvent(new Event("input")); q.focus(); }
   });
   draw(); inp.select?.();
+};
+// Ajout d'un aliment avec sa quantité : mémorise la quantité habituelle et l'unité naturelle (« 2 œufs »)
+function addFoodQty(food, g, u) {
+  N.rememberFood({ ...food, g }); N.rememberHabit(food.n, g, u);
+  const e = N.entryFromFood(food, g, afs.meal); if (u) e.u = PO.fmtQty(u.n, u);
+  addedToMeal(e, `${food.n.split(",")[0]} ajouté`);
+}
+// Ajout en un geste avec la quantité habituelle, directement depuis la liste
+actions["quick-food"] = (b, d) => {
+  const food = srcList(d.src)[+d.i], us = food && N.usualFor(food.n); if (!us) return;
+  addFoodQty(food, us.g, us.u || null); const li = b.closest(".li"); if (li) li.style.opacity = ".55";
 };
 actions["eat-dish"] = (b, d) => { const di = S().dishes[+d.i]; addedToMeal({ label: di.n, g: null, kcal: Math.round(di.kcal), p: di.p, c: di.c, f: di.f, ...(di.fib != null ? { fib: di.fib } : {}) }, "Repas ajouté"); };
 actions["del-dish"] = (b, d) => { if (!confirm("Supprimer ce repas enregistré ?")) return; update(st => st.dishes.splice(+d.i, 1)); drawAfs(); };
@@ -449,8 +482,10 @@ actions["eat-recipe"] = async (b, d) => {
   recipeQtyPanel(r, b, afs.meal, (e) => { addedToMeal(e, `${r.n} ajouté`); b.style.opacity = ".55"; });
 };
 function gramsSheet(food, onAdd, meal = afs.meal) {
-  let g = food.ug || 100;
-  const pc = N.portionChips(food), chips = [...pc, ...[30, 50, 100, 150, 200, 250, 300].filter(x => !pc.some(c => c[0] === x)).map(x => [x, `${x} g`])];
+  const us = N.usualFor(food.n), units = PO.unitsFor(food);
+  let g = us?.g || food.ug || (units[0] ? PO.gramsOf(1, units[0]) : 100);
+  const uc = units.flatMap(u => [1, 2].map(n => [PO.gramsOf(n, u), `${PO.fmtQty(n, u)} (${fr(PO.gramsOf(n, u), 1)} g)`])).slice(0, 6);
+  const pc = [...(us ? [[us.g, `⭐ D'habitude ${us.u ? PO.fmtQty(us.u.n, us.u) : fr(us.g) + " g"}`]] : []), ...uc, ...N.portionChips(food)].filter((c, i, a) => a.findIndex(x => x[0] === c[0]) === i), chips = [...pc, ...[30, 50, 100, 150, 200, 250, 300].filter(x => !pc.some(c => c[0] === x)).map(x => [x, `${x} g`])];
   const draw = (w) => { const e = N.entryFromFood(food, g, meal); w.querySelector("#gv").innerHTML = `<span class="num" style="font-size:34px">${e.kcal}</span><span class="small muted"> kcal · ${fr(e.p)} g prot. · ${fr(e.c)} g gluc. · ${fr(e.f)} g lip.</span>`; };
   sheet(`<h2 class="h2">${esc(food.n)}</h2><div id="gv" class="mt12"></div>
     <label class="field mt12"><span>Quantité (g ou ml)</span><input id="gq" inputmode="decimal" value="${g}"></label>
@@ -460,7 +495,7 @@ function gramsSheet(food, onAdd, meal = afs.meal) {
     draw(w); const inp = w.querySelector("#gq");
     inp.addEventListener("input", () => { g = num(inp.value) || 0; w.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", +c.dataset.g === g)); draw(w); });
     w.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => { g = +c.dataset.g; inp.value = g; w.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === c)); draw(w); }));
-    w.querySelector("#gadd").addEventListener("click", () => { if (!g) return; const e = N.entryFromFood(food, g, meal); e.time = w.querySelector("#gt").value; N.rememberFood(food); buzz(); closeSheet(); onAdd(e); });
+    w.querySelector("#gadd").addEventListener("click", () => { if (!g) return; const e = N.entryFromFood(food, g, meal); e.time = w.querySelector("#gt").value; const lab = pc.find(c => c[0] === g && !String(c[1]).startsWith("⭐")); if (lab && units.length) e.u = String(lab[1]).replace(/ \(.*\)$/, ""); N.rememberFood(food); N.rememberHabit(food.n, g, null); buzz(); closeSheet(); onAdd(e); });
   });
 }
 export async function scanBarcode(meal = afs.meal, date = afs.date || D(), back = true) {
@@ -726,8 +761,8 @@ export function burnBody() {
 
     <h2 class="sec">🏃 Sport et cardio du jour</h2>
     <div class="card">${b.list.length ? b.list.map((c, i) => { const st = EN.cardioSteps(c); return `<div class="row between small" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(c.n)} · ${c.min} min<br><span class="xs muted">${fr(c.met, 1)} MET${st ? ` · ≈ ${fr(st)} pas retirés du NEAT` : ""}</span></span><span><b>${fr(EN.cardioKcal(c.met, c.min))} kcal</b> <button class="icon-btn" data-a="cardio-del" data-i="${i}" aria-label="Retirer">${I.close}</button></span></div>`; }).join("") : `<p class="small muted" style="margin:0">Rien de noté aujourd'hui.</p>`}
-      <form data-f="cardio" class="mt12"><select name="t" class="inp" style="width:100%;text-align:left">${opts}</select>
-        <div class="row mt8" style="gap:6px"><input name="min" class="inp grow" inputmode="numeric" placeholder="Durée (min)" required><select name="int" class="inp" style="width:auto"><option value="0.85">Facile</option><option value="1" selected>Normal</option><option value="1.15">Intense</option></select><button class="btn btn-red btn-xs">Ajouter</button></div></form>
+      <button class="btn btn-line btn-sm mt12" style="width:100%" data-a="act-add" data-d="${d}">+ Ajouter une activité</button>
+      <p class="xs muted" style="margin:8px 0 0">Tu peux aussi l'ajouter depuis l'onglet <b>Entraînement</b> : « Cardio et activités ».</p>
       <p class="xs muted" style="margin:8px 0 0">Les pas faits pendant la marche, la course ou un sport sont estimés et retirés de tes pas du jour, pour ne pas les compter deux fois.</p></div>
 
     <h2 class="sec">📅 Ma semaine</h2>
@@ -945,3 +980,54 @@ changes["rc-photo"] = async (el) => {
 };
 actions["receipt-del"] = (b, d) => { if (!confirm("Supprimer ce ticket ?")) return; update(st => st.receipts = st.receipts.filter(r => r.id !== +d.id)); rerender(); };
 changes.price = (el) => { const v = num(el.value); update(st => { if (v > 0) st.prices[el.dataset.k] = Math.round(v * 100) / 100; else delete st.prices[el.dataset.k]; }); toast("Prix enregistré"); };
+
+// =====================================================================
+// SEMAINE EN ANNEAUX ET FLAMME (inspiré des applis de suivi les plus visuelles)
+// =====================================================================
+const RING_COL = { ok: "#22A45D", proche: "#F29A2E", loin: "#E5484D", encours: "#F2C94C" };
+const LETTERS = ["L", "M", "M", "J", "V", "S", "D"];
+function dayStat(k) {
+  const t = N.dayTarget(k), kcal = N.dayTotals(k).kcal;
+  return { k, kcal, cible: t?.kcal || 0, ...NS.statutJour(kcal, t?.kcal || 0, { aujourdhui: k === today(), futur: k > today() }) };
+}
+let SRC = null;
+function streaks() {
+  if (SRC && Date.now() - SRC.at < 1500) return SRC.v;
+  const t = today(), jours = Array.from({ length: 120 }, (_, i) => addDays(t, i - 119)).map(k => { const x = dayStat(k); return { note: NS.estNote(x.kcal, x.cible), st: x.st }; });
+  SRC = { at: Date.now(), v: NS.series(jours) }; return SRC.v;
+}
+function weekStrip(d) {
+  const mon = addDays(d, -((new Date(d + "T12:00:00").getDay() + 6) % 7)), days = Array.from({ length: 7 }, (_, i) => dayStat(addDays(mon, i)));
+  const sr = streaks(), canNext = addDays(mon, 7) <= today();
+  return `<div class="row between mt12" style="align-items:center"><b class="h2" style="text-transform:capitalize;margin:0">${d === today() ? "Aujourd'hui" : fmtDate(d, { weekday: "long", day: "numeric", month: "short" })}</b>
+      <button class="flame ${sr.notes ? "on" : ""}" data-a="flame" aria-label="Série de ${sr.notes} jours notés">🔥 <b>${sr.notes}</b></button></div>
+    <div class="wkring mt8"><button class="icon-btn sm" data-a="food-week" data-v="-1" aria-label="Semaine précédente">${I.back}</button>
+      ${days.map((x, i) => { const sel = x.k === d, fut = x.k > today(); return `<button class="wd ${sel ? "sel" : ""}" ${fut ? "disabled" : `data-a="food-goto" data-v="${x.k}"`} aria-label="${fmtDate(x.k)}${x.st !== "vide" ? " · " + Math.round(x.kcal) + " kcal" : ""}"><small>${LETTERS[i]}</small>
+        <svg viewBox="0 0 36 36">${ring(x.st === "vide" ? 0 : x.st === "encours" ? x.pct : 1, 36, 4.5, RING_COL[x.st] || "transparent", fut ? "transparent" : "var(--line)")}</svg><span class="xs">${Number(x.k.slice(8))}</span></button>`; }).join("")}
+      <button class="icon-btn sm" data-a="food-week" data-v="1" aria-label="Semaine suivante" style="transform:scaleX(-1);${canNext ? "" : "visibility:hidden"}">${I.back}</button></div>
+    <p class="xs muted center" style="margin:4px 0 0">${days.filter(x => x.st === "ok").length}/${days.filter(x => x.k < today() || x.k === today() && x.st !== "encours" && x.st !== "vide").length || 0} jour${days.filter(x => x.st === "ok").length > 1 ? "s" : ""} dans l'objectif cette semaine</p>`;
+}
+// En-tête du jour : calories restantes en gros, comme sur l'écran d'accueil d'un compteur
+function leftHead(d) {
+  const t = N.dayTarget(d); if (!t) return "";
+  const left = Math.round(t.kcal - N.dayTotals(d).kcal);
+  return `<div class="row between" style="align-items:flex-end;margin-bottom:6px"><div><b class="num" style="font-size:38px;line-height:1;color:${left < -t.kcal * .1 ? "var(--warn)" : "var(--ink)"}">${fr(Math.abs(left))}</b><div class="small muted">${left >= 0 ? "calories restantes" : "calories en trop"}</div></div><span class="xs muted" style="text-align:right">objectif ${fr(t.kcal)} kcal</span></div>`;
+}
+// Aperçu des micronutriments : fibres, fer, calcium, magnésium (% de l'apport de référence)
+function microPeek(d) {
+  const R = SP.refs(), m = SP.microDay(d).m, keys = ["fib", "fe", "ca", "mg"].filter(k => R[k]);
+  const ic = { fib: "🌾", fe: "Fe", ca: "Ca", mg: "Mg" }, col = { fib: "#6B8E23", fe: "#C2541F", ca: "#8A94A6", mg: "#6C5CE7" };
+  return `<div class="row between mt12" style="align-items:baseline"><b class="h3" style="margin:0">Micronutriments</b><button class="link small" data-a="food-tab" data-v="conseils">Tout voir</button></div>
+    <div class="mpeek mt8">${keys.map(k => { const v = m[k] || 0, pc = Math.round(v / R[k].v * 100); return `<button class="card mp" data-a="food-tab" data-v="conseils"><svg viewBox="0 0 44 44">${ring(pc / 100, 44, 4.5, col[k])}<text x="22" y="26" text-anchor="middle" font-size="${k === "fib" ? 15 : 12}" font-weight="700" fill="${col[k]}">${ic[k]}</text></svg><span><span class="xs muted">${R[k].n}</span><br><b>${fr(v, v < 10 ? 1 : 0)} ${R[k].u}</b><br><span class="xs muted">${pc} % AJR</span></span></button>`; }).join("")}</div>`;
+}
+actions["food-goto"] = (b, d) => { day = d.v >= today() ? null : d.v; rerender(); };
+actions["food-week"] = (b, d) => { const n = addDays(D(), 7 * +d.v); day = n >= today() ? null : n; rerender(); };
+actions.flame = () => {
+  const sr = streaks();
+  sheet(`<div class="center"><div style="font-size:64px;line-height:1">🔥</div><b class="num" style="font-size:44px">${sr.notes}</b><p class="small muted" style="margin:4px 0 0">jour${sr.notes > 1 ? "s" : ""} noté${sr.notes > 1 ? "s" : ""} d'affilée</p></div>
+    <div class="stat3 mt16"><div><b>${sr.ok}</b><span>dans l'objectif d'affilée</span></div><div><b>${sr.record}</b><span>record de jours notés</span></div><div><b>±10 %</b><span>marge de l'objectif</span></div></div>
+    <div class="card soft mt12"><b class="small">Les anneaux de la semaine</b>
+      <div class="xs mt8"><span style="color:${RING_COL.ok}">●</span> Dans l'objectif (± 10 %)<br><span style="color:${RING_COL.proche}">●</span> Proche (10 à 20 % d'écart)<br><span style="color:${RING_COL.loin}">●</span> Loin (plus de 20 % d'écart)<br><span style="color:${RING_COL.encours}">●</span> Aujourd'hui, en cours<br><span style="color:var(--soft)">○</span> Rien de noté</div>
+      <p class="xs muted mt8" style="margin-bottom:0">Un jour compte comme noté dès que tu as saisi au moins 30 % de ton objectif. Aujourd'hui ne casse pas ta série tant que la journée n'est pas finie.</p></div>
+    <button class="btn btn-red mt12" data-a="set-close">OK</button>`);
+};

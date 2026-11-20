@@ -418,7 +418,8 @@ export function expressSession(s, min) {
 
 // Fin de séance : e1RM, records, volume, avance le plan (sauf séance libre)
 export function finishSession(cur) {
-  const d = today(), records = [];
+  if (cur.reopen) return replaceReopened(cur);
+  const d = cur.backdate || today(), records = [];
   let volume = 0, sets = 0;
   update(st => {
     cur.exercises.forEach(ex => {
@@ -437,9 +438,16 @@ export function finishSession(cur) {
       h.push({ d, e1rm: Math.round(val * 10) / 10 });
       if (h.length > 200) h.splice(0, h.length - 200);
     });
-    cur.end = new Date().toISOString();
+    if (cur.backdate) {
+      // Séance faite mais oubliée : elle est rangée le jour où elle a eu lieu (heure prévue ou 18 h), avec la durée visée
+      const t0 = new Date(`${cur.backdate}T${cur.backTime || "18:00"}:00`), min = cur.durMin || cur.target || 60;
+      cur.start = t0.toISOString(); cur.end = new Date(t0.getTime() + min * 6e4).toISOString();
+      delete cur.backdate; delete cur.backTime; delete cur.durMin; cur.late = true;
+    } else if (cur.durMin) { cur.end = new Date().toISOString(); cur.start = new Date(Date.now() - cur.durMin * 6e4).toISOString(); delete cur.durMin; }
+    else cur.end = new Date().toISOString();
     cur.volume = Math.round(volume); cur.setsDone = sets; cur.records = records;
     st.workouts.push(cur);
+    if (cur.late) st.workouts.sort((a, b) => a.end.localeCompare(b.end));
     st.current = null;
     if (!cur.free && st.plan) {
       const p = program(st.plan.programId);
@@ -456,6 +464,27 @@ export function finishSession(cur) {
     }
   });
   return cur;
+}
+
+// Séance rouverte depuis l'historique (même écran qu'en séance) : elle remplace l'ancienne version, sans faire avancer le programme
+function replaceReopened(cur) {
+  const id = cur.reopen, ses = JSON.parse(JSON.stringify(cur)); delete ses.reopen; delete ses.mirror;
+  if (ses.durMin) { ses.start = new Date(new Date(ses.end).getTime() - ses.durMin * 6e4).toISOString(); delete ses.durMin; }
+  const d = iso(new Date(ses.end));
+  update(st => {
+    const i = st.workouts.findIndex(x => x.id === id);
+    if (i >= 0) st.workouts[i] = recomputeWorkout(ses); else st.workouts.push(recomputeWorkout(ses));
+    st.workouts.sort((a, b) => a.end.localeCompare(b.end));
+    // 1RM estimé du jour recalculé avec les séries corrigées
+    ses.exercises.forEach(ex => {
+      if (ex.bw || isAssisted(ex.name)) return;
+      const best = Math.max(0, ...ex.sets.filter(s => s.done && s.type !== "W" && s.type !== "D" && s.kg && s.reps).map(s => e1rm(s.kg, s.reps, s.rpe ?? s.trpe)));
+      const h = st.lifts[ex.name]; if (!h && !best) return;
+      const l = (st.lifts[ex.name] = (h || []).filter(x => x.d !== d)); if (best) { l.push({ d, e1rm: Math.round(best * 10) / 10 }); l.sort((a, b) => a.d.localeCompare(b.d)); }
+    });
+    st.current = null;
+  });
+  return ses;
 }
 
 // Corriger une séance faite : séries, charges, date ; ou la supprimer

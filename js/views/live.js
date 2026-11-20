@@ -430,7 +430,7 @@ function leaveMirror(msg) {
 const baseWorkout = routes.workout, baseFinish = actions.finish, baseMin = actions.minimize;
 routes.workout = async () => {
   // Toute séance d'un client est partagée automatiquement avec le coach dès qu'elle est ouverte
-  if (!isCoach() && S().current && !S().current.mirror) { try { await shareSession(true); } catch { } }
+  if (!isCoach() && S().current && !S().current.mirror && !S().current.reopen && !S().current.backdate) { try { await shareSession(true); } catch { } }
   const c0 = S().current;
   if (c0?.mirror && !MIRROR) { if (isCoach()) { update(st => { st.current = null; }); return go("admin-today"); } MIRROR = { id: c0.mirror.id, stamp: null }; }
   await baseWorkout();
