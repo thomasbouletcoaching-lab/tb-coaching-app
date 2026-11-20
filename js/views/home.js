@@ -1,4 +1,6 @@
 import { S, update, today } from "../store.js";
+import { alerteLigne } from "./douleur.js";
+import { verifierBadges } from "./trophees.js";
 import { defiCard, adherenceCard } from "./suivi.js";
 import { checkinCard } from "./checkin.js";
 import { revueCard } from "./semaine.js";
@@ -24,7 +26,6 @@ import { durationSheet } from "./train.js";
 import { seasonTimeline, goalsMini } from "./season.js";
 import { readiness } from "./recup.js";
 import { FREE_WEEKS, TRIAL_DAYS } from "../config.js";
-import { carteProgression } from "./trophees.js";
 
 let homeTab = "today", homeDay = null;
 const WATER_GOAL = 8; // verres de 25 cl
@@ -161,7 +162,7 @@ routes.home = async () => {
   else if (homeTab === "year") body = agendaYearView(seasonTimeline());
   else body = `${weekStrip(d)}
     ${d !== today() ? `<p class="small muted center">${fmtDate(d)} · <a href="#" data-a="home-day" data-v="${today()}" class="link">revenir à aujourd'hui</a></p>` : ""}
-    ${alerts.length ? `<div class="card" style="box-shadow:0 0 0 2px var(--warn) inset"><div class="lbl">⚠️ Alerte blessure</div><p class="mt8" style="margin-bottom:6px"><b>${esc(alerts[0].name)}</b> : ${esc(alerts[0].last.note)}</p><p class="small muted">Baisse la charge ou remplace l'exercice. Si la douleur persiste, parles-en à un professionnel de santé.</p><button class="btn btn-line btn-sm" data-a="go" data-r="chat">Prévenir Thomas</button></div>` : ""}
+    ${alerts.length ? `<div class="card" style="box-shadow:0 0 0 2px var(--warn) inset"><div class="lbl">⚠️ Alerte blessure</div>${alerts.slice(0, 2).map(alerteLigne).join("")}<p class="xs muted mt8" style="margin-bottom:0">Touche « Traiter l'alerte » : quelques questions pour savoir si c'est bénin. Si la douleur persiste, parles-en à un professionnel de santé.</p></div>` : ""}
     ${d === today() && restDayOn() ? restDayCard() : ""}
     ${d === today() ? await suiviCards() : ""}
     ${d === today() ? cycleCard(ns) : ""}
@@ -175,7 +176,7 @@ routes.home = async () => {
     <button class="card tap" data-a="go" data-r="food">${caloriesCard(d, true)}</button>
     ${recoveryMini(d)}
     ${fs ? `<button class="card tap mt12" data-a="go" data-r="recup"><div class="row"><span style="font-size:30px">${fs.stage[1]}</span><div class="grow"><div class="lbl">⏳ Jeûne en cours</div><b class="h3">${Math.floor(fs.hours)} h ${String(Math.floor(fs.hours % 1 * 60)).padStart(2, "0")}</b><div class="xs muted">${esc(fs.stage[2])}</div></div>${I.chev}</div></button>` : ""}
-    ${d === today() ? `<h2 class="sec">🎮 Quêtes et régularité</h2>` + triadeCard() + carteProgression() : ""}
+    ${d === today() ? `<h2 class="sec">🎮 Régularité</h2>` + triadeCard() + verifierBadges() : ""}
     ${d === today() ? liveBanner() + coachFoodCard() : ""}
     ${routineCard(d)}
     ${d === today() && rank() < 1 ? offersCard() : ""}

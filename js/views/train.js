@@ -11,8 +11,8 @@ import { kbSection } from "./more.js";
 import { pushStats } from "../sync.js";
 import * as RM from "../roadmap.js";
 import { seasonBody } from "./season.js";
-import { carteAccueil } from "./hybride.js";
 import { activiteCard } from "./activite.js";
+import { alerteLigne } from "./douleur.js";
 import { blocPartageSeance, autoPublier } from "./social.js";
 
 const kgTxt = (v) => v == null || v === "" ? "" : E.fmtKg(v);
@@ -66,7 +66,7 @@ routes.carnet = async () => {
       ${carnetMain === "seances" ? `<div class="mt8">${chips([["remplir", "✍️ À remplir"], ["faites", "🕘 Historique"]], carnetTab, "carnet-tab")}</div>` : ""}${inner}
       <button class="link small mt12" data-a="go" data-r="train" data-p="outils">🧮 Records, 1RM et outils →</button>`;
   }
-  $app.innerHTML = header("Entraînement", ns ? `Semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)}` : "") + `<main class="page">${modeBar([["carnet", "Carnet"], ["explorer", "Explorer"], ["savoir", "Connaissances"]], tMode, "train-mode")}${tMode === "carnet" ? carteAccueil() + activiteCard() : ""}${body}</main>${tabbar("carnet")}`;
+  $app.innerHTML = header("Entraînement", ns ? `Semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)}` : "") + `<main class="page">${modeBar([["carnet", "Carnet"], ["explorer", "Explorer"], ["savoir", "Connaissances"]], tMode, "train-mode")}${tMode === "carnet" ? activiteCard() : ""}${body}</main>${tabbar("carnet")}`;
   if (tMode === "explorer") { bindBankSearch(); bindExoSearch(); }
 };
 actions["train-mode"] = (b, d) => { tMode = d.v; R.param = null; history.replaceState(null, "", "#/carnet" + (d.v === "carnet" ? "" : "/" + d.v)); rerender(false); window.scrollTo(0, 0); };
@@ -96,7 +96,7 @@ function programBody(ns) {
       <p class="small mt8">Tu es en <b>semaine ${ns.week}</b> sur ${ns.weeks} · ${esc(ns.phase)}</p><div class="gauge mt8" style="background:rgba(255,255,255,.25)"><i style="width:${Math.round((ns.week - 1 + weekDone(ns.week) / p.s.length) / ns.weeks * 100)}%;background:#fff"></i></div>
       <button class="btn btn-sm mt12" style="background:rgba(255,255,255,.2);color:#fff;width:auto" data-a="soc-prog" data-id="${esc(p.id)}">📤 Montrer mon programme</button></div>
     ${(S().customPrograms || []).some(x => x.id === "tb-main") ? "" : `<button class="btn btn-line btn-sm mt8" style="width:100%" data-a="prog-restore">🔄 Restaurer mon programme TB my Coach</button>`}
-    ${alerts.length ? `<div class="card mt12" style="box-shadow:0 0 0 2px var(--warn) inset"><div class="lbl">⚠️ Alertes blessure</div>${alerts.map(a => `<p class="small mt8" style="margin-bottom:0"><b>${esc(a.name)}</b> · ${a.count} fois en 3 semaines<br><span class="muted">${esc(a.last.note)}</span></p>`).join("")}<p class="xs muted mt8">Réduis la charge, change d'exercice (🔄 dans la séance) ou parles-en à Thomas. Si la douleur persiste, consulte un professionnel de santé.</p></div>` : ""}
+    ${alerts.length ? `<div class="card mt12" style="box-shadow:0 0 0 2px var(--warn) inset"><div class="lbl">⚠️ Alertes blessure</div>${alerts.map(alerteLigne).join("")}<p class="xs muted mt8">Réduis la charge, change d'exercice (🔄 dans la séance) ou parles-en à Thomas. Si la douleur persiste, consulte un professionnel de santé.</p></div>` : ""}
     <h2 class="sec">🗓️ Mon cycle <small>touche une semaine</small></h2>
     <div class="chips">${chipsW}</div>
     <div class="card mt8"><div class="row between"><div><b class="h3">Semaine ${vw}</b> <span class="tag ${vw === ns.week ? "r" : ""}">${vw === ns.week ? "en cours" : vw < ns.week ? "passée" : "à venir"}</span><div class="xs muted mt4">${esc(E.phaseOf(p, vw))} · ${done.size}/${p.s.length} séances faites</div></div>

@@ -77,7 +77,7 @@ export function snapshot() {
       summary.defi = st.trialStart ? { day: defiDay(t), closed: !!st.defi?.closed } : null;
       summary.testi = st.testimonial?.ok ? { at: st.testimonial.at, photos: st.testimonial.photos } : null;
     } catch { }
-    summary.alerts = [...E.stalls().map(x => `Plateau ${x.name} (${x.weeks} sem.)`), ...E.injuryAlerts().map(a => `Douleur ${a.name}`)].slice(0, 6);
+    summary.alerts = [...E.stalls().map(x => `Plateau ${x.name} (${x.weeks} sem.)`), ...E.injuryAlerts().map(a => `Douleur ${a.name}${a.triage?.v === "serieux" ? " (à prendre au sérieux)" : ""}`)].slice(0, 6);
     // Profils : identifiants seulement, jamais les réponses de santé
     try { const pa = st.programme?.answers || {}; summary.profils = profilsPourCoach(detecterProfils(pa, { age: st.profile?.age, discipline: st.profile?.discipline })).ids; } catch { }
     const rc = recupResume(st.daily, t, { decharge: st.decharge }); // feu du jour (Premium) : seulement si le membre fait ses check-ins

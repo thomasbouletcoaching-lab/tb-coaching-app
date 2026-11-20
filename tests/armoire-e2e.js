@@ -87,7 +87,8 @@ const largeur = (p) => p.evaluate(() => document.documentElement.scrollWidth);
     ok((await S(n.p)).armoireVus.length > 5, 'badges marqués comme vus');
     await n.p.reload(); await n.p.waitForTimeout(1200);
     ok(!(await n.p.evaluate(() => [...document.querySelectorAll('.toast')].some(x => /badge/i.test(x.textContent)))), 'pas de deuxième annonce');
-    ok((await n.p.locator('#app svg[aria-label="Renard"]').count()) >= 1 && /Armoire/.test(await txt(n.p)), 'accueil : animal et accès à l\'armoire');
+    await n.p.evaluate(() => { location.hash = '#/profile'; }); await n.p.waitForTimeout(900);
+    ok((await n.p.locator('#app svg[aria-label="Renard"]').count()) >= 1 && /Armoire/.test(await txt(n.p)), 'profil : animal et accès à l\'armoire');
     ok(n.errs.length === 0, 'zéro erreur JavaScript (accueil)' + (n.errs.length ? ' : ' + n.errs.join(' | ') : ''));
     await n.ctx.close();
   }

@@ -39,7 +39,10 @@ function annoncer(a) {
   setTimeout(() => toast(n.length > 1 ? `🏅 ${n.length} nouveaux badges, dont ${best.nom} (${NOM_NIVEAU[best.niveau]})` : `🏅 Nouveau badge : ${best.nom} (${NOM_NIVEAU[best.niveau]})`), 400);
 }
 
-// Carte de l'accueil
+// Annonce des nouveaux badges depuis l'accueil (la carte des trophées est dans Profil)
+export function verifierBadges() { try { annoncer(calculer().a); } catch { } return ""; }
+
+// Carte des trophées (Profil)
 export function carteProgression() {
   const { c, a, pr, grade } = calculer();
   annoncer(a);
@@ -70,7 +73,7 @@ routes.trophees = () => {
     const tous = a.badges.filter(b => b.cat === cat), ok = tous.filter(b => b.ok).length;
     return `<h2 class="sec">${esc(titre)} · ${ok}/${tous.length}</h2>${fs.map(ligneFamille).join("")}${sk.length ? `<div class="card" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:10px">${sk.map(tuile).join("")}</div>` : ""}`;
   };
-  $app.innerHTML = header("Armoire à trophées", "Ton animal, ton niveau, tes badges", { back: "home" }) + `<main class="page">
+  $app.innerHTML = header("Armoire à trophées", "Ton animal, ton niveau, tes badges", { back: "profile" }) + `<main class="page">
     <div class="card grad"><div class="row" style="gap:14px;align-items:center">
       <button type="button" data-a="arm-animaux" aria-label="Changer d'animal" style="border:0;padding:0;background:none;flex:none">${AN.medaillon(pr.animal, { taille: 96, anneau: a.anneau })}</button>
       <div class="grow" style="min-width:0"><div class="lbl">Grade</div><b class="h2">${esc(grade.icon)} ${esc(grade.name)}</b><div class="small muted mt4">Niveau ${a.niveau} · ${a.xp} XP</div>
@@ -87,7 +90,7 @@ routes.trophees = () => {
       <button type="button" class="btn btn-sm ${p.badgesPoids ? "btn-red" : "btn-line"}" style="min-height:44px;flex:none" data-a="arm-poids" aria-pressed="${!!p.badgesPoids}" aria-label="Badges selon ton poids de corps">${p.badgesPoids ? "Activés" : "Activer"}</button></div></div>
     ${rw.length ? `<h2 class="sec">Récompenses</h2><div class="list">${rw.map(r => `<div class="li" style="${a.niveau >= r.lvl ? "" : "opacity:.5"}"><span class="em">${a.niveau >= r.lvl ? r.icon : "🔒"}</span><span class="grow"><b>${esc(r.name)}</b><br><span class="xs muted">${a.niveau >= r.lvl ? "Débloquée · à utiliser lors de ta candidature" : `Niveau ${r.lvl} requis`}</span></span></div>`).join("")}</div>` : ""}
     <p class="xs muted mt16">Les niveaux récompensent la régularité et tes performances. Ils ne dépendent jamais de ton poids ni de ton apparence.</p>
-  </main>${tabbar("")}`;
+  </main>${tabbar("profile")}`;
 };
 
 // Choix de l'animal

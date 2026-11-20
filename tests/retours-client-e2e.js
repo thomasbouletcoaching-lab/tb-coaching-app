@@ -1,5 +1,6 @@
 // Retours clients du 20/11/2026 : quantités naturelles et quantité habituelle, fibres des repas enregistrés, semaine en anneaux
 // et flamme, cardio dans Entraînement, séance oubliée notée après coup, séance rouverte, durée, supersets, chrono non bloquant.
+// Puis (20/11, soir) : calories du tapis ou de la montre, pente et vitesse, alertes de blessure à traiter, athlète hybride et trophées dans Profil.
 // iPhone 390×844 et Android 360×740 ; Supabase simulé, données fictives.
 // Lancement : servir la racine du dépôt sur BASE_URL (par défaut http://localhost:8765/), puis `node tests/retours-client-e2e.js`.
 const { chromium } = require('playwright');
@@ -160,6 +161,50 @@ const overflow = (p, root = '#app') => p.evaluate((r) => [...document.querySelec
     ok(!(await S(a.p)).current.exercises[1].ss, 'superset retiré');
     ok(await overflow(a.p) === 0, 'séance : rien ne dépasse');
     ok(a.errs.length === 0, 'séance : zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
+    await a.ctx.close();
+
+    // ---------- Activité : calories de la machine, pente et vitesse ; alertes de blessure ; Profil ----------
+    const DOUL = { ...STATE, workouts: [{ ...W(1002, 2), exercises: [{ ...W(1002, 2).exercises[0], name: 'Développé couché barre', orig: 'Développé couché barre', myNote: 'gêne épaule droite' }] }] };
+    a = await page(b, { state: DOUL, url: '#/carnet', vp });
+    t = await txt(a.p);
+    ok(!/Athlète hybride/.test(t), 'Entraînement : plus de carte « Athlète hybride »');
+    await tap(a.p, '[data-a="act-add"]');
+    await a.p.selectOption('#sheet select[name="t"]', { label: 'Marche inclinée (tapis)' }); await a.p.waitForTimeout(300);
+    ok(await a.p.evaluate(() => document.getElementById('act-tapis')?.open), 'marche inclinée : « pente et vitesse » ouvert');
+    await a.p.fill('#sheet input[name="min"]', '30'); await a.p.fill('#sheet input[name="incl"]', '12'); await a.p.fill('#sheet input[name="kmh"]', '5');
+    await a.p.click('#sheet form[data-f="act-add"] button.btn-red'); await a.p.waitForTimeout(500);
+    let c = (await S(a.p)).daily[T].cardio.at(-1);
+    ok(c.met === 8.5 && c.incl === 12 && c.kmh === 5 && /12 % · 5 km\/h/.test(c.n), 'pente 12 % à 5 km/h : 8,5 MET');
+    await tap(a.p, '[data-a="act-add"]');
+    await a.p.fill('#sheet input[name="min"]', '40'); await a.p.click('#sheet details:nth-of-type(2) summary'); await a.p.fill('#sheet input[name="kcal"]', '350');
+    await a.p.click('#sheet form[data-f="act-add"] button.btn-red'); await a.p.waitForTimeout(500);
+    c = (await S(a.p)).daily[T].cardio.at(-1);
+    const net = await a.p.evaluate(async (c) => (await import('./js/energy.js')).actKcal(c), c);
+    ok(c.kcal === 350 && c.kt === 'total' && net === Math.round(350 - 68 * 40 / 60), 'calories du tapis saisies : repos retiré (' + net + ' kcal comptées)');
+    ok(/350 kcal affichées/.test(await txt(a.p)), 'calories affichées dans la liste');
+    // Alerte de blessure
+    t = await txt(a.p);
+    ok(/Alertes blessure/.test(t) && (await a.p.locator('[data-a="pain-triage"]').count()) >= 1, 'alerte de blessure avec « Traiter l\'alerte »');
+    await tap(a.p, '[data-a="pain-triage"]');
+    for (const [q, v] of [['int', 'faible'], ['type', 'gene'], ['quand', 'effort'], ['signes', 'non'], ['evol', 'mieux']]) await tap(a.p, `#sheet [data-a="pt-ans"][data-q="${q}"][data-v="${v}"]`);
+    ok(/Plutôt bénin/.test(await txt(a.p, '#sheet')), 'questionnaire : bénin');
+    await tap(a.p, '#sheet [data-a="pt-save"]');
+    ok(!/Alertes blessure/.test(await txt(a.p)) && (await S(a.p)).painTriage['Développé couché barre'].v === 'benin', 'alerte rangée');
+    await a.p.evaluate(async () => { const st = await import('./js/store.js'); st.update(s => { delete s.painTriage; }); }); await go(a.p, 'home'); await go(a.p, 'carnet');
+    await tap(a.p, '[data-a="pain-triage"]');
+    for (const [q, v] of [['int', 'moyenne'], ['type', 'vive'], ['quand', 'apres'], ['signes', 'non'], ['evol', 'pareil']]) await tap(a.p, `#sheet [data-a="pt-ans"][data-q="${q}"][data-v="${v}"]`);
+    ok(/À prendre au sérieux/.test(await txt(a.p, '#sheet')) && /douleur vive/.test(await txt(a.p, '#sheet')), 'questionnaire : sérieux (douleur vive)');
+    await tap(a.p, '#sheet [data-a="pt-save"]:not([data-chat])');
+    ok(/à prendre au sérieux/.test(await txt(a.p)) && (await a.p.locator('[data-a="pain-ok"]').count()) >= 1, 'alerte sérieuse gardée, bouton « C\'est réglé »');
+    await tap(a.p, '[data-a="pain-ok"]');
+    ok(!/Alertes blessure/.test(await txt(a.p)), 'réglée : alerte rangée');
+    // Profil : trophées et athlète hybride
+    await go(a.p, 'profile'); t = await txt(a.p);
+    ok(/Trophées et quêtes/.test(t) && /Athlète hybride/.test(t) && (await a.p.locator('#app [data-r="trophees"]').count()) >= 1, 'Profil : trophées et athlète hybride');
+    await go(a.p, 'home');
+    ok((await a.p.locator('#app [data-r="trophees"]').count()) === 0, 'Accueil : plus de carte trophées');
+    ok(await overflow(a.p) === 0, 'rien ne dépasse');
+    ok(a.errs.length === 0, 'zéro erreur JavaScript' + (a.errs.length ? ' : ' + a.errs.join(' | ') : ''));
     await a.ctx.close();
   }
   await b.close();

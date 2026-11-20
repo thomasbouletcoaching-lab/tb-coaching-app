@@ -1,4 +1,5 @@
 // Dépense énergétique : MB (Mifflin-St Jeor), NEAT (pas + activité), EAT (séances, cardio), TEF (effet thermique), TDEE.
+import * as AC from "./activite-calc.js";
 import { mifflinSexe } from "./genre.js";
 import { S, today } from "./store.js";
 
@@ -39,6 +40,9 @@ export const stepsKcal = (steps, w = weight()) => Math.round((steps || 0) * 0.00
 export const LIFT_MET = 5;
 export const liftKcal = (min, w = weight()) => Math.round((LIFT_MET - 1) * w * (min / 60));
 export const cardioKcal = (met, min, w = weight()) => Math.round(Math.max(0, met - 1) * w * (min / 60));
+// Calories nettes d'une activité notée : chiffre du tapis ou de la montre s'il est saisi, sinon estimation par MET
+export const actKcal = (c, w = weight()) => Math.round(AC.netKcal(c, w));
+export { treadmillMet } from "./activite-calc.js";
 export const cardioSteps = (c) => Math.round((c.spm ?? (CARDIO.find(x => x[0] === c.n)?.[2] ?? 0)) * (c.min || 0));
 
 export function breakdown(d = today()) {
@@ -53,7 +57,7 @@ export function breakdown(d = today()) {
   const neat = baseNeat + stepsKcal(steps);
   const sessions = S().workouts.filter(w => w.end?.slice(0, 10) === d).map(w => ({ n: w.title, min: Math.max(10, Math.round((new Date(w.end) - new Date(w.start)) / 6e4)) }));
   const lifts = sessions.reduce((a, x) => a + liftKcal(x.min), 0);
-  const cardio = list.reduce((a, c) => a + cardioKcal(c.met, c.min), 0);
+  const cardio = list.reduce((a, c) => a + actKcal(c), 0);
   const eat = lifts + cardio;
   const log = S().food?.[d] || [];
   const intake = log.reduce((a, e) => a + e.kcal, 0);

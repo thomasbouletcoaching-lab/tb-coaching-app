@@ -6,6 +6,8 @@ import * as N from "../nutrition.js";
 import { CONFIG, offer, OFFERS, ALL_FREE, TRIAL_DAYS } from "../config.js";
 import { $app, esc, num, fr, toast, routes, R, actions, forms, changes, go, I, logo, markImg, header, tabbar, seg, sheet, closeSheet, lockVeil, premium, rank, expert, render, rerender, barChart, tier, trialLeft } from "../core.js";
 import { syncProfile } from "../sync.js";
+import { carteProgression, iconeProfil } from "./trophees.js";
+import { carteAccueil, accesHybride } from "./hybride.js";
 import { ONB_STEPS, resetOnboarding } from "./onboarding.js";
 
 // ---------- Profil (façon Hevy) : en-tête crayon + réglages, graphiques, tableau de bord ----------
@@ -19,7 +21,7 @@ export function weeklyStats(n = 12) {
     const ws = S().workouts.filter(w => w.end && new Date(w.end) >= a && new Date(w.end) < b);
     let dur = 0, vol = 0, reps = 0, exos = 0;
     ws.forEach(w => {
-      dur += Math.max(0, Math.round((new Date(w.end) - new Date(w.start)) / 6e4));
+      dur += Math.max(0, Math.round((new Date(w.end) - new Date(w.start || w.end)) / 6e4)) || 0;
       vol += w.volume || 0;
       (w.exercises || []).forEach(ex => { const done = (ex.sets || []).filter(s => s.done && s.type !== "W"); if (done.length) exos++; done.forEach(s => { if (ex.unit !== "s") reps += s.reps || 0; }); });
     });
@@ -38,13 +40,16 @@ routes.profile = async () => {
   const acts = `<button class="pill ic" data-a="edit-body" aria-label="Modifier mon profil">${I.pen}</button><button class="pill ic" data-a="go" data-r="settings" aria-label="Réglages">${I.gear}</button>`;
   const last = [...ws].reverse().slice(0, 3);
   $app.innerHTML = header("Profil", "", { actions: acts, offers: false }) + `<main class="page">
-    <div class="card mt12"><div class="row" style="gap:14px"><span class="avatar">${esc((p.name || "?")[0].toUpperCase())}</span><div class="grow"><b class="h2">${esc(p.name)}</b><div class="small muted">${esc(offer(tier()).name)}${trialLeft() > 0 ? " (essai)" : ""} · ${p.age} ans · ${p.height} cm · ${E.fmtKg(S().daily?.[today()]?.weight || p.weight)} kg</div></div></div>
+    <div class="card mt12"><div class="row" style="gap:14px"><button type="button" data-a="go" data-r="trophees" aria-label="Ouvrir ton armoire à trophées" style="border:0;padding:0;background:none;flex:none">${iconeProfil(60)}</button><div class="grow"><b class="h2">${esc(p.name)}</b><div class="small muted">${esc(offer(tier()).name)}${trialLeft() > 0 ? " (essai)" : ""} · ${p.age} ans · ${p.height} cm · ${E.fmtKg(S().daily?.[today()]?.weight || p.weight)} kg</div></div></div>
       <div class="minis mt12"><div><div class="v">${ws.length}</div><div class="l">entraînements</div></div><div><div class="v">${recs}</div><div class="l">exercices suivis</div></div><div><div class="v">${E.streakWeeks()}</div><div class="l">semaines de série</div></div></div></div>
     ${rank() < 1 ? `<button class="card tap grad mt12" data-a="go" data-r="offers" style="display:flex;gap:12px;align-items:center;text-align:left;width:100%"><span style="font-size:28px">🚀</span><span class="grow"><b>Passe au Bâtisseur</b><br><span class="small" style="opacity:.9">Charges calculées, plan alimentaire, stats complètes · ${TRIAL_DAYS} jours offerts</span></span>${I.chev}</button>` : ""}
     <div class="card mt12"><div class="row between"><b>${st[2](cur[pStat])} <span class="small muted" style="font-weight:500">cette semaine</span></b><span class="xs muted">12 dernières semaines</span></div>
       <div class="mt8">${barChart(wk.map(w => ({ l: w.l.slice(0, 2), v: w[pStat] })), { fmt: (v) => pStat === "vol" ? (v >= 1000 ? fr(v / 1000, 1) + "t" : Math.round(v)) : pStat === "dur" ? (v >= 60 ? fr(v / 60, 1) + "h" : v) : v })}</div>
       <div class="chips mt8">${STATS.map(([k, l]) => `<button class="chip ${k === pStat ? "on" : ""}" data-a="p-stat" data-v="${k}">${l}</button>`).join("")}</div>
       <p class="xs muted mt8" style="margin-bottom:0">Total sur 12 semaines : <b>${st[2](total)}</b> · ${wk.reduce((a, w) => a + w.n, 0)} séances</p></div>
+    <h2 class="sec">🏆 Trophées et quêtes</h2>
+    ${carteProgression()}
+    ${accesHybride() ? `<h2 class="sec">🏃 Athlète hybride</h2>${carteAccueil()}` : ""}
     <h2 class="sec">Tableau de bord</h2>
     <div class="tiles">
       ${tile("train/stats", I.chart, "Statistiques", "Volume par muscle, séances")}

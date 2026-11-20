@@ -165,12 +165,12 @@ function formBloc() {
 
 // ---------- Écrans ----------
 routes.hybride = () => {
-  if (!accesHybride()) { $app.innerHTML = header("Athlète hybride", "", { back: "home", offers: false }) + `<main class="page"><div class="card"><p class="small" style="margin:0">Le module athlète hybride est ouvert pendant l'essai, avec l'abonnement et pour les personnes coachées.</p></div></main>${tabbar("carnet")}`; return; }
-  if (!D) { $app.innerHTML = header("Athlète hybride", "", { back: "home", offers: false }) + ecranAttente() + tabbar("carnet"); if (!echec) charger().then(() => { if ((D || echec) && location.hash.startsWith("#/hybride")) rerender(); }); return; }
+  if (!accesHybride()) { $app.innerHTML = header("Athlète hybride", "", { back: "profile", offers: false }) + `<main class="page"><div class="card"><p class="small" style="margin:0">Le module athlète hybride est ouvert pendant l'essai, avec l'abonnement et pour les personnes coachées.</p></div></main>${tabbar("profile")}`; return; }
+  if (!D) { $app.innerHTML = header("Athlète hybride", "", { back: "profile", offers: false }) + ecranAttente() + tabbar("profile"); if (!echec) charger().then(() => { if ((D || echec) && location.hash.startsWith("#/hybride")) rerender(); }); return; }
   lireConsentement();
-  if (!blocCourant()) { $app.innerHTML = header("Athlète hybride", "Choisis ton bloc", { back: "home", offers: false }) + `<main class="page">${formBloc()}</main>${tabbar("carnet")}`; return; }
-  let e; try { e = etat(); } catch (err) { console.warn("Hybride :", err.message); $app.innerHTML = header("Athlète hybride", "", { back: "home", offers: false }) + `<main class="page"><div class="card"><p class="small" style="margin:0">Cet écran n'a pas pu s'afficher. Ton bloc est gardé : tu peux en choisir un autre.</p><button class="btn btn-line btn-sm mt8" data-a="hyb-nouveau">Choisir un bloc</button></div></main>${tabbar("carnet")}`; return; }
-  $app.innerHTML = header("Athlète hybride", "", { back: "home", offers: false }) + `<main class="page">${cartePerso(e)}${carteJour(e)}${carteQuetes(e)}${carteRadar(e)}${carteFrise(e)}${carteConsentement()}</main>${tabbar("carnet")}`;
+  if (!blocCourant()) { $app.innerHTML = header("Athlète hybride", "Choisis ton bloc", { back: "profile", offers: false }) + `<main class="page">${formBloc()}</main>${tabbar("profile")}`; return; }
+  let e; try { e = etat(); } catch (err) { console.warn("Hybride :", err.message); $app.innerHTML = header("Athlète hybride", "", { back: "profile", offers: false }) + `<main class="page"><div class="card"><p class="small" style="margin:0">Cet écran n'a pas pu s'afficher. Ton bloc est gardé : tu peux en choisir un autre.</p><button class="btn btn-line btn-sm mt8" data-a="hyb-nouveau">Choisir un bloc</button></div></main>${tabbar("profile")}`; return; }
+  $app.innerHTML = header("Athlète hybride", "", { back: "profile", offers: false }) + `<main class="page">${cartePerso(e)}${carteJour(e)}${carteQuetes(e)}${carteRadar(e)}${carteFrise(e)}${carteConsentement()}</main>${tabbar("profile")}`;
   synchroniser();
 };
 
@@ -199,7 +199,7 @@ forms["hyb-bloc"] = (v) => {
   }
   appliquer();
 };
-actions["hyb-nouveau"] = () => { if (!D) return go("hybride"); $app.innerHTML = header("Athlète hybride", "Choisis ton bloc", { back: "hybride", offers: false }) + `<main class="page">${formBloc()}</main>${tabbar("carnet")}`; };
+actions["hyb-nouveau"] = () => { if (!D) return go("hybride"); $app.innerHTML = header("Athlète hybride", "Choisis ton bloc", { back: "hybride", offers: false }) + `<main class="page">${formBloc()}</main>${tabbar("profile")}`; };
 actions["close-sheet"] = actions["close-sheet"] || (() => closeSheet());
 
 actions["hyb-pause"] = () => {

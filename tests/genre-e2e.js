@@ -82,8 +82,8 @@ const contraste = (p, sel) => p.evaluate((sel) => {
   let t = await txt(a.p);
   ok(/La Femme de la reprise/.test(t) && !HOMME.test(t) && (await S(a.p)).profile.genre === 'f', 'au féminin : « La Femme de la reprise », choix enregistré');
   ok(await a.p.locator('[data-a="genre-set"]').count() === 0, 'la question ne revient plus une fois le choix fait');
-  await go(a.p, 'home');
-  ok(/La Femme de la reprise/.test(await txt(a.p)) && !HOMME.test(await txt(a.p)), 'l\'Accueil affiche le même palier');
+  await go(a.p, 'profile');
+  ok(/La Femme de la reprise/.test(await txt(a.p)) && !HOMME.test(await txt(a.p)), 'le Profil (trophées) affiche le même palier');
   await shot(a.p, 'genre-02-accueil');
 
   console.log('Modifiable dans Profil › Mes infos, indépendamment du sexe');

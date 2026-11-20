@@ -1,5 +1,6 @@
 // Moteur d'entraînement : programmes (Méthode Thomas Boulet + programmes perso), charges calculées,
 // surcharge progressive ajustée au réel (RPE), agenda, volume, alertes.
+import * as DL from "./douleur.js";
 import { S, update, today } from "./store.js";
 
 let PROG = null, FICHES = null, LIB = null;
@@ -660,7 +661,10 @@ export function injuryAlerts(days = 21) {
     });
   });
   const byName = {}; out.forEach(a => { (byName[a.name] = byName[a.name] || []).push(a); });
-  return Object.entries(byName).map(([name, list]) => ({ name, count: list.length, last: list.at(-1) }));
+  // Alertes traitées (questionnaire) : rangées sauf nouvelle douleur notée après, ou verdict sérieux
+  const tri = S().painTriage || {};
+  return Object.entries(byName).map(([name, list]) => { list.sort((a, b) => a.date.localeCompare(b.date)); return { name, count: list.length, last: list.at(-1), triage: tri[name] || null }; })
+    .filter(a => DL.aAfficher(a.last.date, a.triage));
 }
 
 // ---------- Objectif : nombre de cycles ----------
