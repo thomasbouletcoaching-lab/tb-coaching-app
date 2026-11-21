@@ -529,8 +529,10 @@ function fileCards(m, D) {
   const plan = D.myPlan?.meals?.length ? D.myPlan.meals : null, kcal = plan ? plan.flatMap(x => x.items || []).reduce((a, i) => a + (i.kcal || 0), 0) : null, t = N.targets();
   const nb = ns?.p?.s?.length || 0, startD = D.plan?.startedAt;
   const lastCi = (D.checkins || []).at(-1);
-  const fb = st.feedback;
-  return `<div class="row between mt16"><b class="lbl" style="margin:0">Mon mot sur son accueil</b><button class="link xs" data-a="mb-fb">${fb?.txt ? "Modifier" : "+ Écrire"}</button></div>
+  const fb = st.feedback, ob = st.objectif;
+  return `<div class="row between mt16"><b class="lbl" style="margin:0">🎯 Objectif de la période</b><button class="link xs" data-a="mb-obj">${ob ? "Modifier" : "+ Fixer"}</button></div>
+    ${ob ? `<div class="card mt4 grad"><div class="xs" style="opacity:.85">VISIBLE PAR ${esc((m.name || "l'athlète").split(" ")[0].toUpperCase())} · ${fmtDate(ob.du, { day: "numeric", month: "short" })} → ${fmtDate(ob.au, { day: "numeric", month: "short" })}</div><b class="h3 mt4" style="display:block">${esc(ob.titre)}</b>${ob.detail ? `<div class="xs mt4" style="opacity:.9;white-space:pre-wrap">${esc(ob.detail)}</div>` : ""}</div>` : `<p class="xs muted mt4">Ce qu'il vise d'ici la fin du cycle (« −4 kg et 100 kg au squat d'ici le 7 octobre ») : il le voit en haut de son accueil.</p>`}
+    <div class="row between mt16"><b class="lbl" style="margin:0">Mon mot sur son accueil</b><button class="link xs" data-a="mb-fb">${fb?.txt ? "Modifier" : "+ Écrire"}</button></div>
     ${fb?.txt ? `<div class="card mt4 soft"><p class="small" style="margin:0;white-space:pre-wrap">${esc(fb.txt)}</p><div class="xs muted mt4">Écrit le ${fmtDate(fb.d, { day: "numeric", month: "long" })}${fb.seen ? ` · lu le ${fmtDate(fb.seen, { day: "numeric", month: "long" })}` : " · pas encore lu"}</div></div>` : `<p class="xs muted mt4">Un retour sur sa semaine, une consigne : il le voit en haut de son accueil.</p>`}
     <div class="row between mt16"><b class="lbl" style="margin:0">🗣️ Consignes par exercice</b><button class="link xs" data-a="cue-add">+ Ajouter</button></div>
     ${Object.keys(st.cues || {}).length ? `<div class="card mt4" style="padding:4px 8px">${Object.entries(st.cues).map(([n, t]) => `<div class="li" style="gap:8px;align-items:flex-start"><span class="grow small"><b>${esc(n)}</b><br><span class="xs" style="white-space:pre-wrap">${esc(t)}</span></span><button class="icon-btn sm" data-a="cue-add" data-n="${esc(n)}" aria-label="Modifier">✏️</button><button class="icon-btn sm" data-a="cue-del" data-n="${esc(n)}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>` : `<p class="xs muted mt4">Ses cues à lui (« pousse le sol », « coudes à 45° ») : elles s'affichent sur l'exercice pendant sa séance.</p>`}
@@ -698,3 +700,11 @@ actions["mb-cardio"] = (b, d) => {
 actions["mb-cardio-del"] = async (b, d) => { if (!confirm("Supprimer ce cardio programmé ?")) return; if (await saveSettings({ cardio: (mbr.settings?.cardio || []).filter(x => String(x.id) !== d.id) })) rerender(); };
 
 actions["vd-from"] = (b) => { const v = b.previousElementSibling; const u = v?.currentSrc || v?.src; if (!u) return toast("Vidéo pas encore chargée : lance-la une fois puis réessaie."); ouvrirVideo(u); };
+
+actions["mb-obj"] = () => { const o = mbr.settings?.objectif || {}; sheet(`<h2 class="h2">🎯 Objectif de la période</h2><form data-f="mb-obj" class="mt12">
+  <label class="field"><span>Objectif</span><input name="titre" maxlength="90" required value="${esc(o.titre || "")}" placeholder="−4 kg et 100 kg au squat"></label>
+  <div class="grid2 mt8"><label class="field"><span>Du</span><input type="date" name="du" value="${o.du || today()}" required></label><label class="field"><span>Au</span><input type="date" name="au" value="${o.au || addDays(today(), 84)}" required></label></div>
+  <label class="field mt8"><span>Détail (facultatif)</span><textarea name="detail" rows="3" maxlength="400" placeholder="Les étapes, ce qu'on mesure, pourquoi c'est important pour lui.">${esc(o.detail || "")}</textarea></label>
+  <button class="btn btn-red mt12">Enregistrer</button>${o.titre ? `<button type="button" class="btn btn-ghost mt8" data-a="mb-obj-del">Retirer l'objectif</button>` : ""}</form>`); };
+forms["mb-obj"] = async (v) => { if (v.au < v.du) return toast("La fin est avant le début"); if (await saveSettings({ objectif: { titre: v.titre.trim(), du: v.du, au: v.au, detail: (v.detail || "").trim() } })) { closeSheet(); toast("Objectif fixé"); rerender(); } };
+actions["mb-obj-del"] = async () => { if (await saveSettings({ objectif: null })) { closeSheet(); rerender(); } };

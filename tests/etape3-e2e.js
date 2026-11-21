@@ -34,7 +34,7 @@ async function page(b, { url, state, key = 'cxs.v1', sb = SB_NONE }) {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, serviceWorkers: 'block', acceptDownloads: true });
   const p = await ctx.newPage(); const errs = [];
   p.on('pageerror', e => errs.push(e.message));
-  p.on('dialog', d => d.accept());
+  p.on('dialog', d => d.accept(d.type() === 'prompt' ? d.defaultValue() : undefined));
   await p.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ body: sb, contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' } }));
   await p.route('https://fonts.googleapis.com/**', r => r.fulfill({ body: '', contentType: 'text/css' }));
   await p.addInitScript(([k, s]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, s); }, [key, JSON.stringify(state)]);
@@ -195,19 +195,71 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   ok((await overflow(hs.p)).length === 0, 'santé : rien ne dépasse');
   ok(hs.errs.length === 0, 'santé : aucune erreur JavaScript' + (hs.errs.length ? ' (' + hs.errs.slice(0, 3).join(' | ') + ')' : ''));
 
+
+  console.log('Objectif et heure des séances');
+  const st5 = { ...STATE, coachPublic: null, coachSettings: { objectif: { titre: '−4 kg et 100 kg au squat', du: ago(10), au: iso(new Date(Date.now() + 20 * 864e5)), detail: 'On mesure chaque dimanche' } } };
+  const m5 = await page(b, { url: '#/home', state: st5, sb: SB_MEMBER }); await m5.p.waitForTimeout(600); t = await txt(m5.p);
+  ok(/MON OBJECTIF/.test(t) && /100 kg au squat/.test(t) && /Encore 20 jours/.test(t), 'accueil : objectif de la période avec le temps restant');
+  await m5.p.evaluate(() => { const b = document.createElement('button'); b.dataset.a = 'w-edit'; b.dataset.id = '102'; document.body.appendChild(b); b.click(); }); await m5.p.waitForTimeout(400);
+  ok(/Commencée à/.test(await txt(m5.p, 'body')), 'séance : heure de début modifiable');
+  await m5.p.fill('[data-c="we-time"]', '18:19'); await m5.p.dispatchEvent('[data-c="we-time"]', 'change');
+  await m5.p.fill('[data-c="we-dur"]', '75'); await m5.p.dispatchEvent('[data-c="we-dur"]', 'change');
+  await m5.p.click('[data-a="we-save"]'); await m5.p.waitForTimeout(500);
+  const w102 = (await S(m5.p)).workouts.find(w => w.id === 102); const d0 = new Date(w102.start);
+  ok(d0.getHours() === 18 && d0.getMinutes() === 19 && Math.round((new Date(w102.end) - d0) / 6e4) === 75, 'séance : début 18 h 19 et durée 75 min enregistrés');
+  const qf = await m5.p.evaluate(async () => { const m = await import('./js/views/social.js'); const d = new Date(Date.now() - 2 * 864e5); d.setHours(18, 19, 0, 0); return m.quandFait({ data: { fait: d.toISOString() }, created_at: new Date().toISOString() }); });
+  ok(/^faite [a-zé]+ à 18 h 19$/.test(qf), 'communauté : « ' + qf + ' » (heure réelle de la séance)');
+  ok(m5.errs.length === 0, 'objectif et heure : aucune erreur JavaScript' + (m5.errs.length ? ' (' + m5.errs.slice(0, 3).join(' | ') + ')' : ''));
   console.log('Analyse vidéo');
-  await go(hs.p, 'video'); await hs.p.waitForTimeout(500); t = await txt(hs.p);
-  ok(/Analyse une série en vidéo/.test(t) && await hs.p.$('input[type=file][accept="video/*"]') !== null, 'vidéo : écran et choix de la vidéo');
-  // vidéo de test fabriquée dans le navigateur (un carré qui monte) pour vérifier lecture, dessin et trajectoire
-  const url = await hs.p.evaluate(async () => { const c = document.createElement('canvas'); c.width = 160; c.height = 120; const x = c.getContext('2d'); const st = c.captureStream(30); const rec = new MediaRecorder(st, { mimeType: 'video/webm' }); const parts = []; rec.ondataavailable = e => parts.push(e.data);
-    rec.start(); for (let i = 0; i < 30; i++) { x.fillStyle = '#222'; x.fillRect(0, 0, 160, 120); x.fillStyle = '#fff'; x.fillRect(70, 90 - i * 2, 14, 14); await new Promise(r => setTimeout(r, 34)); } rec.stop(); await new Promise(r => rec.onstop = r); return URL.createObjectURL(new Blob(parts, { type: 'video/webm' })); });
-  await hs.p.evaluate(async (u) => { const m = await import('./js/views/video.js'); m.ouvrirVideo(u); }, url); await hs.p.waitForTimeout(1500);
-  ok(await hs.p.$('#vv') !== null && await hs.p.$('#vc') !== null, 'vidéo : lecteur et calque de dessin');
-  await hs.p.click('[data-a="vd-opt"][data-v="dessin"]');
-  const box = await hs.p.$eval('#vc', el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
-  if (box.w > 0) { await hs.p.mouse.move(box.x + 10, box.y + 10); await hs.p.mouse.down(); await hs.p.mouse.move(box.x + box.w / 2, box.y + box.h / 2, { steps: 5 }); await hs.p.mouse.up(); }
-  const px = await hs.p.$eval('#vc', el => { const d = el.getContext('2d').getImageData(0, 0, el.width, el.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; });
-  ok(px > 0, 'vidéo : le dessin s\'affiche sur l\'image');
+  await go(hs.p, 'videos'); await hs.p.waitForTimeout(500); t = await txt(hs.p);
+  ok(/Nouvelle analyse/.test(t) && await hs.p.$('input[type=file][accept="video/*"]') !== null, 'vidéo : bibliothèque et nouvelle analyse');
+  // vidéo de test : un disque blanc qui descend puis remonte (2 répétitions), 30 images/s
+  const url = await hs.p.evaluate(async () => { const c = document.createElement('canvas'); c.width = 320; c.height = 240; const x = c.getContext('2d'); const st = c.captureStream(30); const rec = new MediaRecorder(st, { mimeType: 'video/webm' }); const parts = []; rec.ondataavailable = e => parts.push(e.data);
+    const ys = []; for (let r = 0; r < 2; r++) { for (let i = 0; i < 8; i++) ys.push(40); for (let i = 0; i <= 24; i++) ys.push(40 + 120 * i / 24); for (let i = 1; i <= 18; i++) ys.push(160 - 120 * i / 18); } for (let i = 0; i < 8; i++) ys.push(40);
+    rec.start(); for (const y of ys) { x.fillStyle = '#222'; x.fillRect(0, 0, 320, 240); x.fillStyle = '#fff'; x.beginPath(); x.arc(160 + (y - 40) * 0.1, y, 14, 0, 7); x.fill(); x.fillStyle = '#888'; x.fillRect(10, 200, 300, 6); await new Promise(r => setTimeout(r, 33)); } rec.stop(); await new Promise(r => rec.onstop = r); return URL.createObjectURL(new Blob(parts, { type: 'video/webm' })); });
+  await hs.p.evaluate(async (u) => { const m = await import('./js/views/video.js'); await m.ouvrirVideo(u); }, url); await hs.p.waitForTimeout(1200);
+  ok(/Quel mouvement/.test(await txt(hs.p, 'body')), 'vidéo : choix du mouvement');
+  await hs.p.click('[data-a="vd-mvt"][data-v="squat"]'); await hs.p.waitForTimeout(800);
+  t = await txt(hs.p);
+  ok(/Profondeur/.test(t) && /Découper/.test(t) && /Crayon/.test(t) && /Gomme/.test(t) && /Angle/.test(t), 'vidéo : critères du squat, découpe et outils');
+  ok(await hs.p.$eval('#vc', el => getComputedStyle(el).pointerEvents) === 'none', 'vidéo : en mode « Défiler », la vidéo ne bloque pas le défilement');
+  const box = async () => hs.p.$eval('#vc', el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  await hs.p.evaluate(() => { const v = document.getElementById('vv'); v.currentTime = 0.05; }); await hs.p.waitForTimeout(400);
+  // échelle : trait de 28 px (diamètre du disque) = 45 cm (fenêtre de saisie acceptée avec la valeur proposée)
+  await hs.p.click('[data-a="vd-tool"][data-v="echelle"]'); let bx = await box();
+  await hs.p.mouse.move(bx.x + bx.w * (146 / 320), bx.y + bx.h * (40 / 240)); await hs.p.mouse.down(); await hs.p.mouse.move(bx.x + bx.w * (174 / 320), bx.y + bx.h * (40 / 240), { steps: 3 }); await hs.p.mouse.up(); await hs.p.waitForTimeout(300);
+  await hs.p.click('[data-a="vd-tool"][data-v="barre"]'); bx = await box();
+  await hs.p.mouse.click(bx.x + bx.w * 0.5, bx.y + bx.h * (40 / 240)); await hs.p.waitForFunction(() => /Trajectoire tracée/.test(document.body.innerText) || !document.getElementById('vprog') || document.getElementById('vprog').hidden, null, { timeout: 120000 }).catch(() => {}); await hs.p.waitForTimeout(1500);
+  t = await txt(hs.p);
+  const npts = await hs.p.evaluate(async () => { const m = await import('./js/views/video.js'); return 0; });
+  ok(/Trajectoire et vitesse/.test(t), 'vidéo : trajectoire complète tracée');
+  ok(/répétitions/.test(t) && /Excentrique/.test(t) && /Concentrique/.test(t), 'vidéo : durées excentrique et concentrique par répétition');
+  ok(/\d,\d+\s*VMC \(m\/s\)/.test(t), 'vidéo : vitesse en m/s grâce à l\'échelle');
+  // arrêt sur image 1 : ligne du tronc ; arrêt 2 : autre ligne ; comparaison
+  const ligne = async (x1, y1, x2, y2) => { const b2 = await box(); await hs.p.mouse.move(b2.x + b2.w * x1, b2.y + b2.h * y1); await hs.p.mouse.down(); await hs.p.mouse.move(b2.x + b2.w * x2, b2.y + b2.h * y2, { steps: 4 }); await hs.p.mouse.up(); await hs.p.waitForTimeout(250); };
+  await hs.p.evaluate(() => { document.getElementById('vv').currentTime = 0.3; }); await hs.p.waitForTimeout(400);
+  await hs.p.click('[data-a="vd-tool"][data-v="ligne"]'); await ligne(0.2, 0.2, 0.22, 0.8);
+  await hs.p.evaluate(() => { document.getElementById('vv').currentTime = 1.0; }); await hs.p.waitForTimeout(400);
+  await ligne(0.2, 0.2, 0.5, 0.8);
+  t = await txt(hs.p);
+  ok(/Arrêts sur image/.test(t) && await hs.p.$$eval('[data-a="vd-kgo"]', l => l.length) === 2, 'vidéo : deux arrêts sur image avec leurs lignes');
+  ok(/Comparer deux arrêts/.test(t) && /Δ/.test(t) && /\+\d+°/.test(t), 'vidéo : comparaison avec le delta d\'angle');
+  await hs.p.click('[data-a="vd-tool"][data-v="angle"]'); const b3 = await box(); await hs.p.mouse.click(b3.x + b3.w * 0.6, b3.y + b3.h * 0.5); await hs.p.waitForTimeout(300);
+  ok(/📐 Angle : \d+°/.test(await txt(hs.p)), 'vidéo : angle posé et mesuré');
+  await hs.p.click('[data-a="vd-tool"][data-v="gomme"]'); const b4 = await box(); await hs.p.mouse.move(b4.x + b4.w * 0.6, b4.y + b4.h * 0.5); await hs.p.mouse.down(); await hs.p.mouse.move(b4.x + b4.w * 0.61, b4.y + b4.h * 0.51); await hs.p.mouse.up(); await hs.p.waitForTimeout(300);
+  ok(!/📐 Angle : \d+°/.test(await txt(hs.p)), 'vidéo : la gomme efface');
+  await hs.p.fill('textarea[data-c="vd-knote"]', 'Le buste part en avant ici'); await hs.p.dispatchEvent('textarea[data-c="vd-knote"]', 'change');
+  await hs.p.click('[data-a="vd-crit"][data-i="0"][data-v="ok"]'); await hs.p.waitForTimeout(300);
+  await hs.p.click('[data-a="vd-save"]'); await hs.p.waitForTimeout(800);
+  const an = (await S(hs.p)).analyses || [];
+  ok(an.length === 1 && an[0].mvt === 'squat' && an[0].nk === 2, 'vidéo : analyse enregistrée (mouvement, arrêts)');
+  await go(hs.p, 'videos'); await hs.p.waitForTimeout(500);
+  ok(/Squat/.test(await txt(hs.p)) && /2 arrêts sur image/.test(await txt(hs.p)), 'vidéo : rangée par mouvement avec la date');
+  await hs.p.click('[data-a="vd-open"]'); await hs.p.waitForTimeout(1200);
+  ok(await hs.p.$$eval('[data-a="vd-kgo"]', l => l.length) === 2, 'vidéo : analyse rouverte depuis le téléphone');
+  const [dl] = await Promise.all([hs.p.waitForEvent('download', { timeout: 60000 }).catch(() => null), hs.p.click('[data-a="vd-export"]')]);
+  ok(dl && /analyse-squat/.test(dl.suggestedFilename()), 'vidéo commentée créée (à enregistrer ou partager)');
+  await shot(hs.p, 'etape3-video');
   ok(hs.errs.filter(e => !/mediapipe|vision_bundle|Failed to fetch|tasks-vision|import/i.test(e)).length === 0, 'vidéo : aucune erreur JavaScript' + (hs.errs.length ? ' (' + hs.errs.slice(0, 3).join(' | ') + ')' : ''));
   ok(errs.length === 0, 'aucune erreur JavaScript' + (errs.length ? ' (' + errs.slice(0, 3).join(' | ') + ')' : ''));
   await b.close();

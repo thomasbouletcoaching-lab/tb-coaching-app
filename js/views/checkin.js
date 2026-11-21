@@ -174,3 +174,11 @@ export function revuesCard() {
   if (!l.length) return "";
   return `<div class="card mt12" style="box-shadow:0 0 0 1.5px #2F6FED inset"><b class="small">✍️ Thomas a corrigé ${l.length > 1 ? l.length + " séances" : "ta séance"}</b>${l.slice(0, 3).map(x => `<button class="li" data-a="w-detail" data-id="${x.w.id}" style="width:100%"><span class="grow small"><b>${esc(x.w.title)}</b><br><span class="xs muted">${esc((x.r.data.reaction || "✅") + " " + fmtDate(today(new Date(x.w.end)), { weekday: "long", day: "numeric", month: "short" }))}</span></span>${I.chev}</button>`).join("")}</div>`;
 }
+
+// Objectif de la période fixé par Thomas : en haut de l'accueil, avec l'avancement du temps
+export function objectifCard(t = today()) {
+  const o = S().coachSettings?.objectif; if (!o?.titre || !o.du || !o.au || t > addDays(o.au, 7)) return "";
+  const tot = Math.max(1, (new Date(o.au) - new Date(o.du)) / 864e5), fait = Math.min(tot, Math.max(0, (new Date(t) - new Date(o.du)) / 864e5)), reste = Math.max(0, Math.round((new Date(o.au) - new Date(t)) / 864e5));
+  return `<div class="card grad mt12"><div class="xs" style="opacity:.85">🎯 MON OBJECTIF · ${fmtDate(o.du, { day: "numeric", month: "short" })} → ${fmtDate(o.au, { day: "numeric", month: "short" })}</div><b class="h3 mt4" style="display:block">${esc(o.titre)}</b>${o.detail ? `<div class="xs mt4" style="opacity:.9;white-space:pre-wrap">${esc(o.detail)}</div>` : ""}
+    <div class="gauge mt8" style="background:rgba(255,255,255,.25)"><i style="width:${Math.round(fait / tot * 100)}%;background:#fff"></i></div><div class="xs mt4" style="opacity:.9">${t > o.au ? "Période terminée : on fait le point avec Thomas." : reste === 0 ? "C'est le dernier jour !" : `Encore ${reste} jour${reste > 1 ? "s" : ""}`}</div></div>`;
+}

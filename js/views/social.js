@@ -156,7 +156,7 @@ export async function autoPublier(w) {
 }
 export async function publierCardio(jour, a) {
   try { if (!(await assurerProfil())) return; const c = await cloud();
-    const id = await c.socPublier("c:" + (a.at || jour + a.n), { titre: String(a.n || "Cardio").split(" · ")[0], sport: String(a.n || "").split(" · ")[1] || "", min: a.min || 0, ...(a.km ? { km: a.km } : {}), kcal: EN.actKcal(a) || undefined }, "communaute", "cardio");
+    const id = await c.socPublier("c:" + (a.at || jour + a.n), { titre: String(a.n || "Cardio").split(" · ")[0], sport: String(a.n || "").split(" · ")[1] || "", min: a.min || 0, ...(a.km ? { km: a.km } : {}), kcal: EN.actKcal(a) || undefined, fait: a.at ? new Date(new Date(a.at).getTime() - (a.min || 0) * 6e4).toISOString() : undefined }, "communaute", "cardio");
     update(st => { st.socialPubs = { ...(st.socialPubs || {}), ["c:" + (a.at || jour + a.n)]: { id, vis: "communaute" } }; }); FIL.amis = FIL.communaute = FIL.moi = null;
   } catch { }
 }
@@ -350,7 +350,7 @@ function carteJeu() {
 function carteActivite(a) {
   const d = a.data || {}, res = SO.resumeReactions(a.reactions), mes = new Set(a.mes_reactions || []);
   const stats = [d.sport ? esc(d.sport) : "", d.min ? `⏱️ ${d.min} min` : "", d.km ? `${fr(d.km, 1)} km` : "", d.kcal ? `🔥 ${fr(d.kcal)} kcal` : "", d.series ? `${d.series} séries` : "", d.tonnes ? `${fr(d.tonnes, 1)} t` : "", d.medaille ? `Grade ${esc(d.medaille)}` : ""].filter(Boolean);
-  return `<div class="card mt12" data-act="${a.id}"><div class="row" style="gap:10px"><span class="avatar" style="font-size:22px">${esc(a.avatar)}</span><div class="grow" style="min-width:0"><b>${esc(a.pseudo)}</b>${a.moi ? ` <span class="tag">moi</span>` : a.ami ? ` <span class="tag r">ami</span>` : ""}<br><span class="xs muted">${ago(a.created_at)}</span></div>
+  return `<div class="card mt12" data-act="${a.id}"><div class="row" style="gap:10px"><span class="avatar" style="font-size:22px">${esc(a.avatar)}</span><div class="grow" style="min-width:0"><b>${esc(a.pseudo)}</b>${a.moi ? ` <span class="tag">moi</span>` : a.ami ? ` <span class="tag r">ami</span>` : ""}<br><span class="xs muted">${quandFait(a)}</span></div>
       <button class="icon-btn" data-a="soc-menu" data-id="${a.id}" data-moi="${a.moi ? 1 : 0}" aria-label="Options">⋯</button></div>
     <p class="mt8" style="margin-bottom:4px"><b>${a.type === "cardio" ? "🏃" : "💪"} ${esc(d.titre || "Séance")}</b></p>
     ${stats.length ? `<div class="chips wrap">${stats.map(s => `<span class="tag">${s}</span>`).join("")}</div>` : ""}
@@ -514,3 +514,10 @@ forms["soc-com"] = async (v, f) => {
   catch (e) { toast(e.message); }
 };
 actions["soc-com-del"] = async (b, d) => { try { const c = await cloud(); await c.socRetirerCommentaire(+d.id); chargerComs(+d.act); } catch (e) { toast(e.message); } };
+
+// « faite mercredi à 18 h 19 » : l'heure réelle de la séance, même si elle est partagée plus tard
+export function quandFait(a) {
+  const f = a.data?.fait; if (!f) return ago(a.created_at);
+  const d = new Date(f), j = Math.round((new Date(new Date().toDateString()) - new Date(d.toDateString())) / 864e5), h = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }).replace(":", " h ");
+  return `faite ${j === 0 ? "aujourd'hui" : j === 1 ? "hier" : j < 7 ? d.toLocaleDateString("fr-FR", { weekday: "long" }) : "le " + d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à ${h}`;
+}

@@ -128,6 +128,7 @@ export function recapSeance(w, { medaille = null } = {}) {
   const recs = [...(w.records || []).map(r => r.name), ...ex.flatMap(e => (e.recsHit || []).length ? [e.name] : [])];
   return {
     titre: sansContact(w.title || "Séance", 48) || "Séance",
+    fait: w.start || w.end || null,
     min: min && min < 600 ? min : null,
     series: w.setsDone ?? ex.reduce((a, e) => a + e.sets.filter(s => s.done && s.type !== "W").length, 0),
     exos: ex.length,

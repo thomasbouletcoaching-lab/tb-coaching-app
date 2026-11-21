@@ -211,6 +211,11 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   await c.p.click('[data-a="quiz-send"]'); await c.p.waitForTimeout(700);
   ok((await c.p.evaluate(() => window.__msgs.at(-1)?.body || '')).includes('[[quiz-exos]]'), 'quiz exos envoyé dans la conversation');
 
+
+  await go(c.p, 'member/' + U1); await c.p.waitForTimeout(900);
+  await c.p.click('[data-a="mb-obj"]'); await c.p.waitForTimeout(300);
+  await c.p.fill('form[data-f="mb-obj"] input[name="titre"]', '−4 kg'); await c.p.click('form[data-f="mb-obj"] .btn-red'); await c.p.waitForTimeout(600);
+  ok((await c.p.evaluate((u) => window.__settings[u]?.objectif?.titre, U1)) === '−4 kg' && /VISIBLE PAR/.test(await txt(c.p)), 'objectif de la période fixé et visible');
   // ---------- Mon activité : offres, factures ----------
   await go(c.p, 'admin-biz'); await c.p.waitForTimeout(600);
   ok(/Mon activité/.test(await txt(c.p)) && /Mes offres/.test(await txt(c.p)) && /Factures/.test(await txt(c.p)), 'mon activité : onglets offres et factures');

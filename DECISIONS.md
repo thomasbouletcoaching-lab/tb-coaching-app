@@ -313,3 +313,12 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 - Analyse vidéo (Entraînement › Historique, et « 🔬 Analyser » sous chaque vidéo de la conversation) : squelette et angles genou / hanche / coude (MediaPipe Pose, calculé sur le téléphone, chargé à la première utilisation), trajectoire de la barre après un toucher (suivi image par image, écart horizontal en %), dessin par-dessus, image annotée à partager. Ouverte à tous pour l'instant ; option payante à décider plus tard.
 - Bascule coach ↔ athlète : bouton « 🧑‍🏫 Coach » / « 🏋️ Athlète » dans l'en-tête pour le compte coach.
 - Import de PDF : non fait (priorité basse, à décider : facturation à l'usage).
+
+## C71 · Analyse vidéo v2, objectif de période, heure réelle des séances (21/11/2026)
+- Analyse vidéo : découpe (début / fin), trajectoire complète de la barre tracée image par image après un toucher (descente en rouge, montée en vert), échelle par un trait sur le disque (45 cm par défaut) → vitesses en m/s, courbe de vitesse, par répétition : durée excentrique, durée concentrique, VMC, vitesse max, perte de vitesse, écart horizontal (cm).
+- Outils : défiler (la vidéo ne bloque plus le défilement de la page), crayon, gomme, ligne (inclinaison / verticale, ex. tronc), angle à 3 points réglables, bulle de commentaire, squelette (MediaPipe sur l'appareil). Les dessins appartiennent à un arrêt sur image (horodaté, commentaire) ; comparaison de deux arrêts avec le delta de chaque ligne ou angle (et du squelette).
+- Critères d'évaluation par mouvement (squat, développé couché, soulevé de terre, traction, dips, muscle-up, développé militaire, rowing, fentes, épaulé-jeté, arraché, hip thrust, SDT roumain, front squat) notés ✅ / 〰️ / ❌ avec un score.
+- Vidéo commentée : lecture de la découpe, pause de 3,5 s à chaque arrêt avec tracés et bulle, bandeau (mouvement, date, VMC) → partage (enregistrer dans la pellicule, réseaux). MP4 sur iPhone, WebM sinon.
+- Analyses enregistrées sur le téléphone (IndexedDB : vidéo + annotations), rangées par mouvement et par date (Entraînement › Historique › Analyses vidéo).
+- Objectif de la période : fixé par le coach (titre, du… au…, détail), en haut de l'accueil de l'athlète avec le temps restant.
+- Séance terminée : date, heure de début et durée modifiables ; la communauté affiche « faite mercredi à 18 h 19 » (heure réelle, champ « fait » contrôlé côté serveur), republiée après correction.

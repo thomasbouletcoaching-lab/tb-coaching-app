@@ -66,7 +66,7 @@ routes.carnet = async () => {
   if (tMode === "cardio") body = cardioBody();
   else if (tMode === "savoir") body = `<div class="mt12">${seg([["exos", "Exercices"], ["doc", "Documentation"], ["science", "Science"]], savoirSub, "savoir-sub")}</div>` + (savoirSub === "doc" ? await kbSection("train") : savoirSub === "science" ? scienceBody() : `<h2 class="sec">📖 Exercices</h2>${exosBody()}`);
   else {
-    const sub = `<div class="mt12">${seg([["seances", "Séances"], ["programmes", "Programmes"], ["historique", "Historique"], ["graphiques", "Stats"]], carnetSub, "carnet-sub")}</div>` + (carnetSub === "historique" ? `<button class="btn btn-line btn-sm mt8" data-a="go" data-r="video">🎥 Analyser une série en vidéo</button>` : "");
+    const sub = `<div class="mt12">${seg([["seances", "Séances"], ["programmes", "Programmes"], ["historique", "Historique"], ["graphiques", "Stats"]], carnetSub, "carnet-sub")}</div>` + (carnetSub === "historique" ? `<button class="btn btn-line btn-sm mt8" data-a="go" data-r="videos">🎥 Analyses vidéo (trajectoire, vitesse, angles)</button>` : "");
     const inner = carnetSub === "programmes" ? programmesBody() : carnetSub === "historique" ? historyBody() : carnetSub === "graphiques" ? statsBody() : programBody(ns);
     body = sub + inner;
   }
@@ -448,15 +448,16 @@ actions["w-detail"] = (b, d) => {
     ${rv ? revueHaut(rv) : ""}
     ${exs}
     <button class="btn btn-red mt12" data-a="w-reopen" data-id="${w.id}">✏️ Rouvrir et modifier la séance</button>
-    <div class="row mt8" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="w-edit" data-id="${w.id}">Correction rapide (date, durée)</button><button class="btn btn-ghost btn-sm grow" data-a="w-del" data-id="${w.id}" style="color:var(--red)">🗑️ Supprimer</button></div>
+    <div class="row mt8" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="w-edit" data-id="${w.id}">🕒 Heure, durée, corrections</button><button class="btn btn-ghost btn-sm grow" data-a="w-del" data-id="${w.id}" style="color:var(--red)">🗑️ Supprimer</button></div>
     <button class="btn btn-line mt8" data-a="set-close">Fermer</button>`);
 };
 actions["w-edit"] = (b, d) => { const w = S().workouts.find(x => x.id === +d.id); if (!w) return; wEdit = JSON.parse(JSON.stringify(w)); wEditSheet(); };
 function wEditSheet() {
-  const w = wEdit, dt = new Date(w.end), loc = new Date(dt.getTime() - dt.getTimezoneOffset() * 6e4).toISOString();
+  const w = wEdit, dt = new Date(w.start), loc = new Date(dt.getTime() - dt.getTimezoneOffset() * 6e4).toISOString();
   sheet(`<h2 class="h2">✏️ Corriger la séance</h2><input class="inp mt8" style="text-align:left;font-weight:700" value="${esc(w.title)}" data-c="we-title" aria-label="Nom de la séance">
-    <div class="grid2 mt8"><label class="field"><span>Date</span><input type="date" value="${loc.slice(0, 10)}" data-c="we-date" max="${today()}"></label><label class="field"><span>Fin à</span><input type="time" value="${loc.slice(11, 16)}" data-c="we-time"></label></div>
+    <div class="grid2 mt8"><label class="field"><span>Date</span><input type="date" value="${loc.slice(0, 10)}" data-c="we-date" max="${today()}"></label><label class="field"><span>Commencée à</span><input type="time" value="${loc.slice(11, 16)}" data-c="we-time"></label></div>
     <label class="field mt8"><span>⏱️ Durée de la séance (minutes)</span><input inputmode="numeric" value="${durOf(w)}" data-c="we-dur"></label>
+    <p class="xs muted mt4">Fin : ${new Date(w.end).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}. Dans la communauté, la séance apparaît à l'heure où tu l'as faite.</p>
     ${w.exercises.map((ex, ei) => `<div class="card mt12"><div class="row between"><b class="small">${esc(ex.name)}</b><button class="icon-btn sm" data-a="we-exdel" data-e="${ei}" aria-label="Retirer l'exercice">${I.close}</button></div>
       ${ex.sets.map((st, si) => st.type === "W" && !st.done ? "" : `<div class="row mt8" style="gap:5px"><button class="rk" data-a="we-done" data-e="${ei}" data-s="${si}" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);background:${st.done ? "var(--gradbtn)" : "var(--paper)"};color:#fff;flex:none" aria-label="Série faite">${st.done ? "✓" : ""}</button><span class="xs muted" style="width:18px;text-align:center">${st.type === "W" ? "É" : ex.sets.slice(0, si + 1).filter(x => x.type !== "W").length}</span>${ex.bw ? "" : `<input class="inp" style="width:74px" inputmode="decimal" value="${st.kg ?? ""}" data-c="we-kg" data-e="${ei}" data-s="${si}" aria-label="Charge"><span class="xs muted">kg</span>`}<input class="inp" style="width:60px" inputmode="numeric" value="${st.reps ?? ""}" data-c="we-reps" data-e="${ei}" data-s="${si}" aria-label="Répétitions"><span class="xs muted">${ex.unit === "s" ? "s" : "rép."}</span><button class="icon-btn sm" data-a="we-sdel" data-e="${ei}" data-s="${si}" aria-label="Retirer la série" style="margin-left:auto">${I.close}</button></div>`).join("")}
       <button class="link xs mt8" data-a="we-sadd" data-e="${ei}">+ Ajouter une série</button></div>`).join("")}
@@ -466,14 +467,15 @@ const weSet = (el) => wEdit.exercises[+el.dataset.e].sets[+el.dataset.s];
 changes["we-title"] = (el) => { wEdit.title = el.value.trim() || wEdit.title; };
 changes["we-kg"] = (el) => { const v = num(el.value); weSet(el).kg = v > 0 ? v : null; };
 changes["we-reps"] = (el) => { const v = num(el.value); weSet(el).reps = v > 0 ? Math.round(v) : null; };
-const weMove = () => { if (!wEdit) return; const d = document.querySelector('[data-c="we-date"]')?.value, t = document.querySelector('[data-c="we-time"]')?.value || "12:00"; if (!d) return; const dur = new Date(wEdit.end) - new Date(wEdit.start), end = new Date(`${d}T${t}:00`); wEdit.end = end.toISOString(); wEdit.start = new Date(end - dur).toISOString(); };
+// Début = date + heure saisies ; fin = début + durée (le chrono oublié ou la séance notée après coup se corrigent ici)
+const weMove = () => { if (!wEdit) return; const d = document.querySelector('[data-c="we-date"]')?.value, t = document.querySelector('[data-c="we-time"]')?.value || "12:00"; if (!d) return; const m = num(document.querySelector('[data-c="we-dur"]')?.value || "") || Math.round((new Date(wEdit.end) - new Date(wEdit.start)) / 6e4); const st = new Date(`${d}T${t}:00`); if (isNaN(st)) return; wEdit.start = st.toISOString(); wEdit.end = new Date(st.getTime() + Math.max(1, Math.min(400, Math.round(m))) * 6e4).toISOString(); };
 changes["we-date"] = weMove; changes["we-time"] = weMove;
-changes["we-dur"] = (el) => { if (!wEdit) return; const m = num(el.value); if (m > 0 && m < 400) wEdit.start = new Date(new Date(wEdit.end).getTime() - Math.round(m) * 6e4).toISOString(); };
+changes["we-dur"] = () => weMove();
 actions["we-done"] = (b, d) => { const s = wEdit.exercises[+d.e].sets[+d.s]; s.done = !s.done; wEditSheet(); };
 actions["we-sdel"] = (b, d) => { wEdit.exercises[+d.e].sets.splice(+d.s, 1); wEditSheet(); };
 actions["we-sadd"] = (b, d) => { const ex = wEdit.exercises[+d.e], l = ex.sets.filter(s => s.type !== "W").at(-1) || { kg: null, reps: 8 }; ex.sets.push({ ...l, type: "N", done: true, tech: [], note: "" }); wEditSheet(); };
 actions["we-exdel"] = (b, d) => { if (!confirm("Retirer cet exercice de la séance ?")) return; wEdit.exercises.splice(+d.e, 1); wEditSheet(); };
-actions["we-save"] = () => { weMove(); E.saveWorkout(wEdit); wEdit = null; closeSheet(); pushStats(); toast("Séance corrigée"); rerender(); };
+actions["we-save"] = () => { weMove(); const w = wEdit; E.saveWorkout(w); wEdit = null; closeSheet(); pushStats(); toast("Séance corrigée"); rerender(); autoPublier(S().workouts.find(x => x.id === w.id)).catch(() => { }); };
 actions["w-del"] = (b, d) => { if (!confirm("Supprimer cette séance ? Ses séries seront effacées de ton historique.")) return; E.deleteWorkout(+d.id); wEdit = null; closeSheet(); pushStats(); toast("Séance supprimée"); rerender(); };
 actions["dur-change"] = () => durationSheet((min) => { update(st => st.current.target = min); rerender(); }, "Changer la durée");
 // Abandon : on s'est trompé de séance → rien n'est enregistré
