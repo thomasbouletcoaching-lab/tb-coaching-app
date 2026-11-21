@@ -94,6 +94,7 @@ routes.settings = async () => {
     <div class="list">
       <button class="li" data-a="go" data-r="sante"><span class="em">❤️</span><span class="grow">Apple Santé et widget<br><span class="xs muted">Pas, sommeil, poids automatiques · séances écrites dans Santé</span></span>${I.chev}</button>
       <div class="li"><span class="em">🔔</span><span class="grow">Notifications sur ce téléphone<br><span class="xs muted">${{ on: "Activées : messages, fin de repos, rappels", off: "Coupées", denied: "Refusées dans les réglages du téléphone", unsupported: "Ajoute l'app à l'écran d'accueil pour les activer" }[pushState()]}</span></span><button class="switch ${pushState() === "on" ? "on" : ""}" data-a="${pushState() === "on" ? "push-off" : "push-on"}" aria-label="Notifications"></button></div>
+      ${pushState() === "on" ? [["seance", "🏋️", "Rappel de la séance du jour", "1 h avant, sinon à 8 h"], ["bilan", "📝", "Bilan du dimanche", "10 h, relance à 18 h 30"], ["vide", "✍️", "Journée sans rien de noté", "à 20 h"]].map(([k, em, l, sub]) => { const on = S().settings?.rappels?.[k] !== false; return `<div class="li"><span class="em">${em}</span><span class="grow">${l}<br><span class="xs muted">${sub}</span></span><button class="switch ${on ? "on" : ""}" data-a="rappel-tog" data-k="${k}" aria-label="${l}"></button></div>`; }).join("") : ""}
       <div class="li"><span class="em">🔊</span><span class="grow">Bip en fin de repos</span><button class="switch ${S().settings.sound !== false ? "on" : ""}" data-a="sound-tg" aria-label="Bip"></button></div>
       <div class="li"><span class="em">📳</span><span class="grow">Vibrations</span><button class="switch ${S().settings.haptics ? "on" : ""}" data-a="haptics" aria-label="Vibrations"></button></div>
       <div class="li"><span class="em">🌗</span><span class="grow">Thème</span><select data-c="theme" class="inp" style="width:auto;padding:4px 8px;font-size:15px"><option value="">Automatique</option><option value="light" ${localStorage.getItem("cxs.theme") === "light" ? "selected" : ""}>Clair</option><option value="dark" ${localStorage.getItem("cxs.theme") === "dark" ? "selected" : ""}>Sombre</option></select></div>
@@ -194,3 +195,5 @@ routes.privacy = () => {
     <p><b>Tes droits :</b> accès, rectification, suppression. Écris à Thomas depuis l'onglet Coach, ou efface tout depuis ton profil. Les données de ton compte serveur sont supprimées sur simple demande.</p>
   </main>`;
 };
+
+actions["rappel-tog"] = (b, d) => { update(st => { st.settings.rappels = { ...(st.settings.rappels || {}), [d.k]: st.settings.rappels?.[d.k] === false }; }); rerender(); };

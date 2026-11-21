@@ -60,7 +60,7 @@ export function snapshot() {
   const tot = N.dayTotals(t), D = st.daily[t] || {}, lw = st.workouts.at(-1);
   const summary = { today: t, session: ag ? { st: ag.st, title: ag.title } : null, inProgress: st.current ? { title: st.current.title, start: st.current.start, done: st.current.exercises.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0) } : null,
     kcal: Math.round(tot.kcal), prot: Math.round(tot.p), meals: N.dayLog(t).length, weight: D.weight || null, steps: D.steps || null, sleep: D.sleep || null, focus: D.ritual?.focus || null,
-    program: ns ? ns.p.name : null, week: ns?.week || null, lastWorkout: lw ? { title: lw.title, end: lw.end } : null, workouts: st.workouts.length };
+    rappels: { seance: st.settings?.rappels?.seance !== false, bilan: st.settings?.rappels?.bilan !== false, vide: st.settings?.rappels?.vide !== false }, program: ns ? ns.p.name : null, week: ns?.week || null, lastWorkout: lw ? { title: lw.title, end: lw.end } : null, workouts: st.workouts.length };
   try {
     const from = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10), to = new Date(Date.now() + 21 * 864e5).toISOString().slice(0, 10);
     const ag2 = E.agenda(from, to);
