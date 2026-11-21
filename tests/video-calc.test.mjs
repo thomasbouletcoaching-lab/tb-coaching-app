@@ -36,6 +36,7 @@ test("lignes, comparaison, critères, écart", () => {
   assert.deepEqual(ecartHorizontal([{ x: 0.1, y: 0 }, { x: 0.15, y: 1 }, { x: 0.08, y: 2 }]), { max: 0.07, droite: 0.05, gauche: 0.02 });
 });
 import { suivreNCC, nettoyerTrajectoire, detailReps, sensDe, retourner, trajectoireAuto, anglesBas, buste } from "../js/video-calc.js";
+import * as V from "../js/video-calc.js";
 test("suivi NCC : retrouve le motif malgré un changement de lumière, avec un score", () => {
   const w = 90, h = 70, mk = (cx, cy, fond = 20, lum = 230) => { const d = new Uint8Array(w * h).fill(fond); for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) d[(cy + j) * w + cx + i] = j === 0 || i === 0 ? fond : lum; return { w, h, d }; };
   const t = motif(mk(40, 30), 40, 30, 18);
@@ -70,4 +71,14 @@ test("analyse automatique : point suivi depuis le squelette, angles au point bas
   assert.deepEqual(trajectoireAuto(lmT, "bench").map(p => Math.round(p.x * 100) / 100), [0.5, 0.5], "développé : milieu des poignets");
   assert.ok(Math.abs(trajectoireAuto(lmT, "squat")[1].y - 0.46) < 1e-9, "squat : épaule du côté filmé");
   const b = anglesBas([{ exc: { t1: 1 }, con: { t0: 1 } }], lmT)[0]; assert.equal(b.sousParallele, true); assert.ok(b.genou > 0); assert.equal(buste(lmT[0].lm), 9);
+});
+
+test("C73 : phases fiables — sortie du rack et oscillations écartées, point de blocage fusionné", () => {
+  const P = (type, t0, t1, disp) => ({ type, t0, t1, dur: t1 - t0, disp, vMoy: disp / (t1 - t0), vMax: disp / (t1 - t0) * 1.5 });
+  // sortie du rack (petite montée), recul, 1 vraie répétition avec un blocage à mi-montée, petit tremblement, retour au rack
+  const ph = [P("con", 0, 0.5, 0.04), P("exc", 1, 1.3, 0.03), P("exc", 2, 3, 0.5), P("con", 3.1, 3.6, 0.25), P("con", 3.9, 4.4, 0.24), P("exc", 5, 5.2, 0.05), P("con", 5.3, 5.5, 0.04)];
+  const f = V.phasesFiables(ph), R = V.reps(f);
+  assert.equal(R.length, 1, "1 seule répétition");
+  assert.equal(f.length, 2); assert.ok(Math.abs(f[1].disp - 0.49) < 1e-6, "montée fusionnée malgré le blocage");
+  assert.ok(V.AVEC_BARRE.includes("squat") && !V.AVEC_BARRE.includes("traction"));
 });

@@ -182,13 +182,15 @@ async function lancerTrace(p) {
   A.path = V.nettoyerTrajectoire(corr ? [...A.path.filter(q => q.t < t0 - 0.005), ...neuf] : neuf); A.pathAuto = false; trace = null; if (pr) pr.hidden = true;
   await allerA(t0); outil = "main"; rerender();
   toast(perdu.length ? `Barre perdue à ${fmtT(perdu[0])} : va à cette image et touche-la à nouveau (outil Barre) pour continuer` : `Trajectoire tracée : ${A.path.length} images`);
+  if (A.autoApres && !perdu.length) { A.autoApres = false; return actions["vd-auto"](); }
+  A.autoApres = false;
 }
 actions["vd-stoptrace"] = () => { if (trace) trace.stop = true; };
 actions["vd-clearpath"] = () => { if (!A.path.length) return; memo(); A.path = []; A.pathAuto = false; majStats(); dessiner(); toast("Trajectoire effacée (↶ pour revenir)"); };
 const sensMvt = () => A.sens || V.sensDe(A.mvt);
 function analyse() {
   if (A.path.length < 8) return null; const m = enMetres(A.path), base0 = m || A.path.map(p => ({ t: p.t, x: p.x, y: p.y * (H() / W()) }));
-  const base = V.retourner(base0, sensMvt()), ph = V.phases(base, m ? { seuil: 0.05, amp: 0.05 } : { seuil: 0.04, amp: 0.04 }), R = V.reps(ph), ec = V.ecartHorizontal(base0);
+  const base = V.retourner(base0, sensMvt()), ph = V.phasesFiables(V.phases(base, m ? { seuil: 0.05, amp: 0.03 } : { seuil: 0.04, amp: 0.025 })), R = V.reps(ph), ec = V.ecartHorizontal(base0);
   return { m: !!m, ph, R, ec, vit: V.vitesses(V.lisser(base)), det: V.detailReps(R, base0) };
 }
 const vmcDe = (s) => s?.R.length ? Math.round(s.R.reduce((a, r) => a + r.con.vMoy, 0) / s.R.length * 100) / 100 : null;
@@ -218,9 +220,17 @@ function autoHtml() {
     ${a.bas?.length ? `<div style="overflow-x:auto"><table class="qtab mt8"><tr><th>Rép.</th><th>Genou</th><th>Hanche</th><th>Buste</th>${a.profondeur ? "<th>Profondeur</th>" : ""}</tr>${a.bas.map((b, i) => b ? `<tr><td>${i + 1}</td><td>${b.genou ?? "–"}°</td><td>${b.hanche ?? "–"}°</td><td>${b.buste ?? "–"}°</td>${a.profondeur ? `<td>${b.sousParallele ? "✅ sous le parallèle" : "❌ au-dessus"}</td>` : ""}</tr>` : "").join("")}</table></div>` : ""}
     <p class="xs muted mt8" style="margin-bottom:0">Indicatif : calculé sur l'image, à valider à l'œil. Les arrêts sur image « auto » se corrigent comme les autres (↶ pour annuler).</p></div>`;
 }
+actions["vd-auto-ok"] = () => { closeSheet(); toast("Touche le bout de la barre"); };
+actions["vd-auto-corps"] = () => { closeSheet(); A.autoApres = false; A.sansBarre = true; outil = "main"; actions["vd-auto"](); A.sansBarre = false; };
 actions["vd-auto"] = async () => {
   if (!cur || trace) return; if (!A.mvt) { choisirMouvement(); return toast("Choisis d'abord le mouvement, puis relance l'analyse auto"); }
-  const v = cur.v; v.pause(); await chargerPose(); if (!pose) return toast("Analyse auto indisponible : il faut du réseau la première fois (squelette).");
+  const v = cur.v; v.pause();
+  // Barre : on suit la barre elle-même (on la touche une fois), jamais l'épaule ou le poignet (C73)
+  if (V.AVEC_BARRE.includes(A.mvt) && (!A.path.length || A.pathAuto) && !A.sansBarre) {
+    await allerA(tA()); outil = "barre"; A.autoApres = true; rerender();
+    return sheet(`<h2 class="h2">🎯 Touche la barre</h2><p class="small">Sur la première image, touche <b>le bout de la barre</b> (le centre du disque). Zoome si besoin. L'app suit la barre jusqu'à la fin, puis compte les répétitions sur sa trajectoire.</p><button class="btn btn-red mt8" data-a="vd-auto-ok">C'est parti</button><button class="link small mt8" data-a="vd-auto-corps">Pas de barre visible : suivre le corps</button>`);
+  }
+  await chargerPose(); if (!pose) return toast("Analyse auto indisponible : il faut du réseau la première fois (squelette).");
   memo(); trace = { stop: false }; const pr = document.getElementById("vprog"); if (pr) { pr.hidden = false; pr.innerHTML = `<span>🤖 Analyse automatique…</span> <button class="link" data-a="vd-stoptrace" style="color:#fff">Arrêter</button>`; }
   const lmT = [], pas = 1 / 15;
   for (let t = tA(); t <= tB() + 0.001 && !trace.stop; t += pas) { await allerA(t); let lm = null; try { lm = pose.detect(v).landmarks?.[0] || null; } catch { } lmCache.set(Math.round(v.currentTime * 30), lm); if (lm) lmT.push({ t: v.currentTime, lm });

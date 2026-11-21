@@ -73,6 +73,19 @@ export function phases(pts, { seuil = 0.05, amp = 0.05 } = {}) {
     return { type: p.type, t0, t1, dur: Math.round((t1 - t0) * 100) / 100, disp: Math.round(disp * 1000) / 1000, vMoy: Math.round(disp / Math.max(0.01, t1 - t0) * 100) / 100, vMax: Math.round(Math.max(...vs.map(x => Math.abs(x.v))) * 100) / 100 }; })
     .filter(p => p.disp >= amp);
 }
+// Phases fiables (C73) : deux phases de même sens séparées par un court arrêt (point de blocage) n'en font qu'une, puis on écarte
+// les petits mouvements (sortie du rack, pas de placement, oscillations du squelette) : une vraie phase fait au moins
+// « part » de la plus grande amplitude de la série.
+export function phasesFiables(ph, { part = 0.45, pause = 0.4 } = {}) {
+  const fus = [];
+  for (const p of ph) { const d = fus.at(-1);
+    if (d && d.type === p.type && p.t0 - d.t1 <= pause) { const t1 = p.t1, disp = d.disp + p.disp; Object.assign(d, { t1, dur: Math.round((t1 - d.t0) * 100) / 100, disp: Math.round(disp * 1000) / 1000, vMoy: Math.round(disp / Math.max(0.01, t1 - d.t0) * 100) / 100, vMax: Math.max(d.vMax, p.vMax) }); }
+    else fus.push({ ...p }); }
+  const mx = Math.max(0, ...fus.map(p => p.disp));
+  return fus.filter(p => p.disp >= mx * part);
+}
+// Mouvements avec une barre : l'analyse auto suit la barre (on la touche une fois), pas une articulation
+export const AVEC_BARRE = ["squat", "bench", "deadlift", "militaire", "rowing", "epaule-jete", "arrache", "hipthrust", "rdl", "frontsquat", "fentes"];
 // Répétitions : une excentrique suivie d'une concentrique (squat, bench) ou concentrique seule (soulevé de terre, traction)
 export function reps(ph) { const r = []; for (let i = 0; i < ph.length; i++) { if (ph[i].type === "exc" && ph[i + 1]?.type === "con") { r.push({ exc: ph[i], con: ph[i + 1] }); i++; } else if (ph[i].type === "con") r.push({ exc: null, con: ph[i] }); } return r; }
 // Écart horizontal maximal de la barre (en mètres si l'échelle est donnée) et son sens (vers l'avant = vers la droite de l'image si l'athlète regarde à droite)
