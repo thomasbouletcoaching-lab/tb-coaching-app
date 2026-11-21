@@ -143,14 +143,14 @@ async function loadOldBilans() {
   } catch (e) { /* silencieux : la liste actuelle reste affichée */ }
 }
 
-// Carte d'accueil : du vendredi au lundi, si le bilan de la semaine n'est pas fait
+// Carte d'accueil : le dimanche, si le bilan de la semaine n'est pas fait
 export function checkinCard(t = today()) {
   const dow = (new Date(t + "T12:00:00").getDay() + 6) % 7; // 0 = lundi
   const rg = reglage();
   if (rg) { if (!S().profile || !BR.bilanAFaire(rg, t, lastCheckin()?.d).due) return ""; }
-  else if (checkinThisWeek(t) || dow < 4 || !S().profile) return "";
+  else if (checkinThisWeek(t) || dow !== 6 || !S().profile) return ""; // le dimanche seulement
   const last = lastCheckin();
-  return `<button class="card tap hl mt12" data-a="go" data-r="bilan" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:30px">📝</span><span class="grow"><b>Ton bilan de la semaine</b><br><span class="small muted">${dow === 6 ? "Semaine terminée : 1 minute pour faire le point" : "Déjà pré-rempli, 1 minute"}${last ? ` · dernier le ${fmtDate(last.d, { day: "numeric", month: "short" })}` : ""}</span></span>${I.chev}</button>`;
+  return `<button class="card tap hl mt12" data-a="go" data-r="bilan" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:30px">📝</span><span class="grow"><b>Ton bilan de la semaine</b><br><span class="small muted">Semaine terminée : déjà pré-rempli, 1 minute${last ? ` · dernier le ${fmtDate(last.d, { day: "numeric", month: "short" })}` : ""}</span></span>${I.chev}</button>`;
 }
 
 // Échéances posées par le coach (compétition, bilan, fin de cycle…) : les 60 prochains jours, sur l'accueil

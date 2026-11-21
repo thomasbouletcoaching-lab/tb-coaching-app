@@ -355,6 +355,7 @@ function carteActivite(a) {
     <p class="mt8" style="margin-bottom:4px"><b>${a.type === "cardio" ? "🏃" : "💪"} ${esc(d.titre || "Séance")}</b></p>
     ${stats.length ? `<div class="chips wrap">${stats.map(s => `<span class="tag">${s}</span>`).join("")}</div>` : ""}
     ${d.records?.length ? `<p class="small mt8" style="margin-bottom:0">🏆 Record : <b>${esc(d.records.join(", "))}</b></p>` : ""}
+    ${d.detail?.length ? `<button class="link small mt8" data-a="soc-detail" data-id="${a.id}">Voir la séance complète (${d.detail.length} exercice${d.detail.length > 1 ? "s" : ""})</button>` : d.top?.length ? `<p class="xs muted mt8" style="margin-bottom:0">${esc(d.top.join(" · "))}</p>` : ""}
     ${res.length ? `<p class="xs muted mt8" style="margin-bottom:0">${res.map(r => `${r.em} ${r.n}`).join("  ")}</p>` : ""}
     ${a.moi ? "" : `<div class="row mt8" style="gap:6px;justify-content:space-between">${SO.REACTIONS.map(r => `<button class="chip ${mes.has(r.id) ? "on" : ""}" data-a="soc-r" data-id="${a.id}" data-e="${r.id}" aria-label="${esc(r.l)}" aria-pressed="${mes.has(r.id)}" style="font-size:20px;flex:1;justify-content:center">${r.em}</button>`).join("")}</div>`}
     <button class="link xs mt8" data-a="soc-com" data-id="${a.id}">💬 ${NBC[a.id] ? `${NBC[a.id]} commentaire${NBC[a.id] > 1 ? "s" : ""}` : "Commenter"}</button></div>`;
@@ -521,3 +522,16 @@ export function quandFait(a) {
   const d = new Date(f), j = Math.round((new Date(new Date().toDateString()) - new Date(d.toDateString())) / 864e5), h = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }).replace(":", " h ");
   return `faite ${j === 0 ? "aujourd'hui" : j === 1 ? "hier" : j < 7 ? d.toLocaleDateString("fr-FR", { weekday: "long" }) : "le " + d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à ${h}`;
 }
+
+// Détail complet d'une séance publiée : chaque exercice, chaque série (charge × reps, RPE)
+export function detailHtml(d) {
+  const serie = (x, u) => { const [kg, r, rpe] = x; const rep = r == null ? "" : u === "sec" ? `${fr(r)} s` : u === "m" ? `${fr(r)} m` : `${fr(r)} reps`;
+    return [kg ? `${fr(kg, 1)} kg` : "", rep].filter(Boolean).join(" × ") + (rpe ? ` <span class="muted">· RPE ${fr(rpe, 1)}</span>` : ""); };
+  return (d.detail || []).map(e => `<div class="mt12"><b class="small">${esc(e.n)}</b>${e.s.map((x, i) => `<div class="row between xs" style="padding:3px 0;border-bottom:1px solid var(--line)"><span class="muted">Série ${i + 1}</span><span>${serie(x, e.u)}</span></div>`).join("")}</div>`).join("");
+}
+actions["soc-detail"] = (b, d) => {
+  const a = Object.values(FIL).flat().find(x => String(x.id) === String(d.id)); if (!a) return;
+  const x = a.data || {}, bits = [x.min ? `${x.min} min` : "", x.series ? `${x.series} séries` : "", x.tonnes ? `${fr(x.tonnes, 1)} t` : ""].filter(Boolean).join(" · ");
+  sheet(`<h2 class="h2">${a.type === "cardio" ? "🏃" : "💪"} ${esc(x.titre || "Séance")}</h2><p class="small muted" style="margin:4px 0 0">${esc(a.pseudo)} · ${quandFait(a)}${bits ? " · " + bits : ""}</p>${detailHtml(x)}<button class="btn btn-line mt16" data-a="soc-detail-x">Fermer</button>`);
+};
+actions["soc-detail-x"] = () => closeSheet();

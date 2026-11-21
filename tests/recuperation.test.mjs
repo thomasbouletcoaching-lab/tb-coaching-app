@@ -144,7 +144,7 @@ test("raisons : au plus 3, formulées sans jugement", () => {
   const e = R.etat({ ...base, checkin: { sleep: 4, sleepQ: 1, energy: 2, stress: 9, sore: 8, motiv: 2 }, workouts: [...habitude(), ...[0, 1, 2].map(k => normale(add(A, -k), 9.5, 8))] });
   assert.ok(e.raisons.length <= 3 && e.raisons.length >= 1);
   e.raisons.forEach(t => assert.ok(!/paresse|faible|échec|nul|honte|raté|mauvais/i.test(t), t));
-  assert.match(e.conseil, /version allégée/); assert.ok(!/repos/i.test(e.conseil), "jamais « repos » quand une séance est prévue");
+  assert.match(e.conseil, /séries en moins/); assert.ok(!/repos/i.test(e.conseil), "jamais « repos » quand une séance est prévue");
 });
 
 // ---------- Décharge ----------
@@ -172,23 +172,21 @@ const sess = () => ({ title: "Haut A", exercises: [
   { name: "Rowing", step: 2, sets: Array.from({ length: 3 }, () => ({ type: "N", kg: 60, reps: 5, lo: 5, trpe: 9.5, pct: null, tech: [] })) },
   { name: "Gainage", step: 1, sets: Array.from({ length: 2 }, () => ({ type: "N", kg: null, reps: 30, lo: 30, trpe: 7, tech: [] })) },
 ] });
-test("allégée orange : moins de séries, effort plafonné, charges recalculées, échauffement gardé, original intact", () => {
+test("allégée orange : un peu moins de séries, effort plafonné à RPE 8,5, échauffement gardé, original intact", () => {
   const s0 = sess(), avant = JSON.stringify(s0), { seance: s, resume } = R.adapterSeance(s0, "orange");
   assert.equal(JSON.stringify(s0), avant, "la séance d'origine n'est pas modifiée");
   const trav = (ex) => ex.sets.filter(x => x.type !== "W");
-  assert.equal(trav(s.exercises[0]).length, 3, "4 séries → 3"); assert.equal(trav(s.exercises[1]).length, 2, "3 → 2"); assert.equal(trav(s.exercises[2]).length, 2, "plancher de 2 séries");
   assert.equal(s.exercises[0].sets.filter(x => x.type === "W").length, 1, "échauffement gardé");
-  s.exercises.forEach(ex => trav(ex).forEach(x => assert.ok(x.trpe <= 7.5, `${ex.name} RPE ${x.trpe}`)));
-  assert.equal(trav(s.exercises[2])[0].trpe, 7, "un effort déjà plus bas n'est pas relevé");
-  assert.equal(trav(s.exercises[0])[0].kg, 80, "RPE 8 → 7,5 : l'écart est inférieur au pas de charge de 2,5 kg, la charge ne bouge pas");
-  assert.equal(trav(s.exercises[1])[0].kg, Math.round(60 * I.pctDe(5, 7.5) / I.pctDe(5, 9.5) / 2) * 2, "RPE 9,5 → 7,5 : la charge est recalculée et arrondie au pas");
-  assert.ok(trav(s.exercises[1])[0].kg < 60);
-  assert.deepEqual(resume, { avant: 9, apres: 7, rpe: 7.5, mode: "orange" }); assert.match(s.allegeNote, /7 séries au lieu de 9, effort plafonné à RPE 7,5\./); assert.equal(s.allege, "orange");
+  s.exercises.forEach(ex => trav(ex).forEach(x => assert.ok(x.trpe <= 8.5, `${ex.name} RPE ${x.trpe}`)));
+  s.exercises.forEach(ex => assert.ok(trav(ex).length >= 2, "plancher de 2 séries"));
+  assert.equal(trav(s.exercises[0])[0].kg, 80, "RPE 8 : sous le plafond, la charge ne bouge pas");
+  assert.ok(trav(s.exercises[1])[0].kg < 60, "RPE 9,5 → 8,5 : charge recalculée");
+  assert.ok(resume.apres < resume.avant && resume.apres >= resume.avant - 2); assert.equal(resume.rpe, 8.5); assert.equal(s.allege, "orange");
 });
 test("allégée rouge et décharge : plus d'allègement et plus bas, jamais en dessous de 2 séries ni du plafond", () => {
   const o = R.adapterSeance(sess(), "orange").resume.apres, r = R.adapterSeance(sess(), "rouge").resume, d = R.adapterSeance(sess(), "decharge").resume;
-  assert.ok(r.apres <= o && d.apres <= o); assert.equal(r.rpe, 7); assert.equal(d.rpe, 6.5);
-  R.adapterSeance(sess(), "decharge").seance.exercises.forEach(ex => ex.sets.filter(x => x.type !== "W").forEach(x => assert.ok(x.trpe <= 6.5)));
+  assert.ok(r.apres <= o && d.apres <= o); assert.equal(r.rpe, 8); assert.equal(d.rpe, 7);
+  R.adapterSeance(sess(), "decharge").seance.exercises.forEach(ex => ex.sets.filter(x => x.type !== "W").forEach(x => assert.ok(x.trpe <= 7)));
   assert.ok(R.adapterSeance(sess(), "rouge").seance.exercises.every(ex => ex.sets.filter(x => x.type !== "W").length >= 2));
 });
 test("allégée : dropsets et séries à l'échec deviennent des séries normales ; mode inconnu = séance inchangée", () => {

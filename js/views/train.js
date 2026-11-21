@@ -33,8 +33,10 @@ const mainOf = (t) => t === "banque" ? "banque" : t === "stats" ? "stats" : "min
 // PAGE ENTRAÎNEMENT
 // =====================================================================
 routes.train = async () => {
+  bdSolo = null;
   if (draft?.forMember) draft = null;
   await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib(), XO.loadExercices()]);
+  if (E.rattraperCalendrier()) viewWeek = null;
   if (R.param === "mesprogrammes") { tab = "banque"; bankView = "mine"; history.replaceState(null, "", "#/train/banque"); R.param = "banque"; }
   else if (R.param && TABS.some(t => t[0] === R.param)) tab = R.param;
   if (tab === "historique") { carnetSub = "historique"; tMode = "carnet"; return go("carnet"); }
@@ -110,17 +112,17 @@ function programBody(ns) {
   const weekDone = (w) => E.doneIn(p.id, cyc, w).size;
   const chipsW = Array.from({ length: ns.weeks }, (_, i) => i + 1).map(w => { const n = weekDone(w), all = n >= p.s.length;
     return `<button class="chip ${w === vw ? "on" : ""}" data-a="cy-week" data-v="${w}" style="${w === ns.week && w !== vw ? "box-shadow:0 0 0 2px var(--red) inset" : ""}">S${w}${all ? " ✓" : n ? ` ${n}/${p.s.length}` : ""}</button>`; }).join("");
-  return `<div class="card grad mt12"><div class="lbl">🎯 Ton programme · cycle ${cyc}</div><h2 class="h2 mt4">${esc(p.name)}</h2>
-      <p class="small mt8">Tu es en <b>semaine ${ns.week}</b> sur ${ns.weeks} · ${esc(ns.phase)}</p><div class="gauge mt8" style="background:rgba(255,255,255,.25)"><i style="width:${Math.round((ns.week - 1 + weekDone(ns.week) / p.s.length) / ns.weeks * 100)}%;background:#fff"></i></div>
-      <div class="row mt12" style="gap:8px;flex-wrap:wrap"><button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;width:auto" data-a="bd-copy" data-id="${esc(p.id)}">✏️ Modifier le programme</button><button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;width:auto" data-a="soc-prog" data-id="${esc(p.id)}">📤 Montrer</button></div></div>
+  const ib = `style="flex:none;width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.2);color:#fff;font-size:15px;display:grid;place-items:center"`;
+  return `<div class="card grad mt12" style="padding:12px 14px"><div class="row" style="gap:8px;align-items:center"><div class="grow" style="min-width:0"><div class="xs" style="opacity:.85">Cycle ${cyc} · semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)}</div><b style="display:block;font-size:17px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</b></div><button ${ib} data-a="bd-copy" data-id="${esc(p.id)}" aria-label="Modifier le programme">✏️</button><button ${ib} data-a="soc-prog" data-id="${esc(p.id)}" aria-label="Partager le programme">📤</button></div>
+      <div class="gauge mt8" style="height:4px;background:rgba(255,255,255,.25)"><i style="width:${Math.round((ns.week - 1 + weekDone(ns.week) / p.s.length) / ns.weeks * 100)}%;background:#fff"></i></div></div>
     ${weekRingsTraining()}
     ${phaseFrise(p, ns.weeks, ns.week)}
     <div class="chips mt12">${chipsW}</div>
     <div class="card mt8"><div class="row between"><div><b class="h3">Semaine ${vw}</b> <span class="tag ${vw === ns.week ? "r" : ""}">${vw === ns.week ? "en cours" : vw < ns.week ? "passée" : "à venir"}</span><div class="xs muted mt4">${esc(E.phaseOf(p, vw))} · ${done.size}/${p.s.length} séances faites</div></div>
-      ${vw !== ns.week ? `<button class="btn btn-line btn-xs" data-a="cy-place" data-v="${vw}">Me placer ici</button>` : ""}</div>
+</div>
       ${p.s.map((se, i) => { const isNext = vw === ns.week && i === ns.idx % p.s.length, isDone = done.has(i);
         return `<div class="mt12" style="border-top:1px solid var(--line);padding-top:12px${isNext ? ";box-shadow:inset 3px 0 0 var(--red);padding-left:10px" : ""}">
-          <div class="row between" style="gap:8px"><b class="grow">${isDone ? "✅ " : isNext ? "👉 " : ""}${esc(se[0])}</b><span class="xs muted">${esc(se[1] || "")}</span><button class="icon-btn" style="flex:none;width:34px;height:34px;font-size:16px" data-a="se-edit" data-id="${esc(p.id)}" data-i="${i}" aria-label="Modifier la séance ${esc(se[0])}" title="Modifier cette séance">✏️</button><button class="icon-btn" style="flex:none;width:34px;height:34px;font-size:16px" data-a="soc-routine" data-id="${esc(p.id)}" data-w="${vw}" data-i="${i}" aria-label="Partager la séance ${esc(se[0])}" title="Partager cette séance">📤</button></div>${tagMoteur(p, se, vw)}
+          <div class="row between" style="gap:8px"><b class="grow">${isDone ? "✅ " : isNext ? "👉 " : ""}${esc(se[0])}</b><span class="xs muted">${esc(se[1] || "")}</span><button class="icon-btn" style="flex:none;width:28px;height:28px;font-size:13px" data-a="se-edit" data-id="${esc(p.id)}" data-i="${i}" aria-label="Modifier la séance ${esc(se[0])}" title="Modifier cette séance">✏️</button><button class="icon-btn" style="flex:none;width:28px;height:28px;font-size:13px" data-a="soc-routine" data-id="${esc(p.id)}" data-w="${vw}" data-i="${i}" aria-label="Partager la séance ${esc(se[0])}" title="Partager cette séance">📤</button></div>${tagMoteur(p, se, vw)}
           ${se[2].map(e => `<div class="row between xs" style="padding:3px 0;gap:8px"><span class="grow muted">${esc(S().swaps[e[0]] || e[0])}</span><span style="white-space:nowrap">${esc(E.schemeFor(p, e, vw).replace(/x/i, "×"))}</span></div>`).join("")}
           ${blocked ? "" : isDone ? `<button class="link xs mt4" data-a="cy-do" data-w="${vw}" data-i="${i}">Refaire cette séance</button>` : `<button class="btn ${isNext ? "btn-red" : "btn-line"} btn-sm mt8" data-a="cy-do" data-w="${vw}" data-i="${i}">${cur ? "Reprendre ma séance en cours" : isNext ? "Commencer cette séance" : "Faire cette séance"}</button>`}</div>`; }).join("")}
       ${blocked ? `<button class="btn btn-red mt12" data-a="go" data-r="offers">🔓 Débloquer la semaine ${vw}</button>` : ""}</div>
@@ -152,8 +154,9 @@ function weekRingsTraining() {
 }
 // Modifier une séance du programme : l'éditeur s'ouvre sur cette séance (copie personnelle si c'est un programme de la banque)
 let bdFocus = null;
+let bdSolo = null; // { i, id } : on ne modifie qu'une séance, sans dérouler tout le programme
 actions["se-edit"] = (b, d) => {
-  bdFocus = +d.i; const p = E.program(d.id);
+  bdSolo = { i: +d.i, id: d.id }; const p = E.program(d.id);
   if (p?.custom && (S().customPrograms || []).some(x => x.id === p.id)) { draft = null; return go("builder", p.id); }
   draft = null; location.hash = "#/builder/copie/" + encodeURIComponent(d.id);
 };
@@ -224,7 +227,7 @@ actions["pg-see"] = (b, d) => { const p = E.program(d.id); if (!p) return;
   sheet(`<h2 class="h2">${esc(p.name)}</h2>${p.desc ? `<p class="small muted mt4">${esc(p.desc)}</p>` : ""}${p.s.map(se => `<div class="card mt12"><div class="row between"><b>${esc(se[0])}</b><span class="xs muted">${esc(se[1] || "")}</span></div>${se[2].map(e => `<div class="row between xs" style="padding:3px 0;gap:8px"><span class="grow muted">${esc(e[0])}</span><span style="white-space:nowrap">${esc(E.schemeFor(p, e, 1).replace(/x/i, "×"))}</span></div>`).join("")}</div>`).join("")}
     ${p.rules?.length ? `<h3 class="sec">Règles</h3><ul class="small" style="padding-left:18px">${p.rules.map(r => `<li style="margin-bottom:6px">${esc(r)}</li>`).join("")}</ul>` : ""}
     ${programOpen(p.id) ? (p.id === S().plan?.programId ? "" : `<button class="btn btn-red mt12" data-a="set-program" data-id="${p.id}">Choisir ce programme</button>`) : `<button class="btn btn-red mt12" data-a="go" data-r="offers">🔓 Débloquer</button>`}`); };
-actions["bd-copy"] = (b, d) => { const p = E.program(d.id); if (p?.custom && (S().customPrograms || []).some(x => x.id === p.id)) return go("builder", p.id); draft = null; location.hash = "#/builder/copie/" + encodeURIComponent(d.id); };
+actions["bd-copy"] = (b, d) => { bdSolo = null; const p = E.program(d.id); if (p?.custom && (S().customPrograms || []).some(x => x.id === p.id)) return go("builder", p.id); draft = null; location.hash = "#/builder/copie/" + encodeURIComponent(d.id); };
 actions["set-program"] = (b, d) => {
   if (S().current) return toast("Termine d'abord ta séance en cours.");
   if (!programOpen(d.id)) return go("offers");
@@ -1062,22 +1065,27 @@ routes.builder = async () => {
   const D = draft; D.s.forEach(se => se[2].forEach(r => { r[5] = E.migrateRow(r[5] || { sets: 3 }); }));
   if (!D.phases && D.deload === undefined) D.deload = { every: 4 };
   const dl = D.phases ? "phases" : !D.deload ? "none" : D.deload.w ? "last" : String(D.deload.every);
-  $app.innerHTML = header(D.forMember ? "Programme de " + esc(D.forMember.name) : D.from ? "Personnaliser" : "Créer mon programme", "", { back: D.forMember ? "admin" : "train" }) + `<main class="page">
-    <label class="field"><span>Nom</span><input data-c="bd" data-k="name" value="${esc(D.name)}" maxlength="70"></label>
+  if (bdSolo && !(D.id === bdSolo.id || D.from === bdSolo.id) || bdSolo?.i >= D.s.length) bdSolo = null;
+  const solo = !!bdSolo, cache = solo ? ' style="display:none"' : "";
+  $app.innerHTML = header(solo ? "Modifier la séance" : D.forMember ? "Programme de " + esc(D.forMember.name) : D.from ? "Personnaliser" : "Créer mon programme", "", { back: D.forMember ? "admin" : "train" }) + `<main class="page">
+    <div${cache}><label class="field"><span>Nom</span><input data-c="bd" data-k="name" value="${esc(D.name)}" maxlength="70"></label>
     <div class="grid2 mt8"><label class="field"><span>Durée du cycle</span><select data-c="bd" data-k="weeks">${Array.from({ length: 14 }, (_, i) => i + 3).map(w => `<option ${D.weeks === w ? "selected" : ""} value="${w}">${w} semaines</option>`).join("")}</select></label>
       <label class="field"><span>Semaines d'allègement</span><select data-c="bd-deload"><option value="phases" ${D.phases ? "selected" : ""}>Par phases nommées</option><option value="4" ${dl === "4" ? "selected" : ""}>Toutes les 4 semaines</option><option value="5" ${dl === "5" ? "selected" : ""}>Toutes les 5 semaines</option><option value="6" ${dl === "6" ? "selected" : ""}>Toutes les 6 semaines</option><option value="last" ${dl === "last" ? "selected" : ""}>Dernière semaine du cycle</option><option value="none" ${dl === "none" ? "selected" : ""}>Aucune</option></select></label></div>
     <div class="field mt8"><span>Jours d'entraînement</span><div class="row" style="gap:4px">${E.DAY_SHORT.map((l, i) => `<button class="chip sm ${D.days[i] ? "on" : ""}" data-a="bd-day" data-v="${i}" style="padding:6px 10px">${l}</button>`).join("")}</div></div>
-    ${D.phases ? `<div class="field mt8"><span>Phases (touche une semaine pour la renommer)</span><div class="phases-row hscroll">${D.phases.map((ph, i) => `<button class="ph ph-${phaseKey(ph)}" data-a="bd-ph" data-v="${i}"><b>S${i + 1}</b><span>${esc(ph === "Deload" ? "Allègement" : ph)}</span></button>`).join("")}</div></div>` : ""}
-    ${D.s.map((se, si) => `<div class="card mt16" id="bd-s-${si}"><div class="row" style="gap:6px"><input class="inp grow" data-c="bd-s" data-s="${si}" value="${esc(se[0])}" aria-label="Nom de la séance" style="text-align:left;font-weight:800">${D.s.length > 1 ? `<button class="icon-btn" data-a="bd-smv" data-s="${si}" data-v="-1" aria-label="Monter la séance" ${si ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn" data-a="bd-sdel" data-s="${si}" aria-label="Supprimer la séance">${I.close}</button>` : ""}${isCoach() ? `<button class="icon-btn" data-a="bd-stpl" data-s="${si}" aria-label="Ranger la séance dans mes modèles">💾</button>` : ""}</div>
+    ${D.phases ? `<div class="field mt8"><span>Phases (touche une semaine pour la renommer)</span><div class="phases-row hscroll">${D.phases.map((ph, i) => `<button class="ph ph-${phaseKey(ph)}" data-a="bd-ph" data-v="${i}"><b>S${i + 1}</b><span>${esc(ph === "Deload" ? "Allègement" : ph)}</span></button>`).join("")}</div></div>` : ""}</div>
+    ${solo ? `<button class="link small" data-a="bd-solo-off">Voir tout le programme</button>` : ""}
+    ${D.s.map((se, si) => solo && si !== bdSolo.i ? "" : `<div class="card mt16" id="bd-s-${si}"><div class="row" style="gap:6px"><input class="inp grow" data-c="bd-s" data-s="${si}" value="${esc(se[0])}" aria-label="Nom de la séance" style="text-align:left;font-weight:800">${D.s.length > 1 ? `<button class="icon-btn" data-a="bd-smv" data-s="${si}" data-v="-1" aria-label="Monter la séance" ${si ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn" data-a="bd-sdel" data-s="${si}" aria-label="Supprimer la séance">${I.close}</button>` : ""}${isCoach() ? `<button class="icon-btn" data-a="bd-stpl" data-s="${si}" aria-label="Ranger la séance dans mes modèles">💾</button>` : ""}</div>
       ${se[2].map((r, ri) => { const x = r[5], pr = x.prog || {}; const rules = [pr.load === "double" ? `double progression jusqu'à ${pr.to || "?"} reps puis +${String(pr.step).replace(".", ",")}${x.sets.some(z => z.pct) ? " %" : " kg"}` : pr.load !== "auto" ? `${pr.load === "rpe" ? "RPE" : "charge"} +${String(pr.step).replace(".", ",")}${pr.load === "pct" ? " %" : pr.load === "kg" ? " kg" : ""}${pr.every > 1 ? ` / ${pr.every} sem.` : " / sem."}` : "progression auto", pr.addSet?.every ? `+1 série / ${pr.addSet.every} sem.` : "", pr.reps?.every ? `${pr.reps.delta > 0 ? "+" : ""}${pr.reps.delta} rep / ${pr.reps.every} sem.` : "", Object.keys(x.weeks || {}).length ? `${Object.keys(x.weeks).length} sem. écrites` : ""].filter(Boolean).join(" · ");
         const nx = se[2][ri + 1], linked = r[3] && nx && nx[3] === r[3];
         return `<div class="bd-ex ${r[3] ? "ss" : ""}"><div class="row" style="gap:6px;align-items:flex-start"><span class="num xs" style="width:18px;padding-top:3px">${ri + 1}</span><button class="grow" style="text-align:left" data-a="bd-edit" data-s="${si}" data-r="${ri}">${r[3] ? `<span class="tag r">🔗 Superset ${esc(r[3])}</span> ` : ""}${x.ab ? `<span class="tag">${x.ab === "A" ? "Semaines A (impaires)" : "Semaines B (paires)"}</span> ` : ""}<br><b class="small" style="color:var(--red)">${esc(r[0])}</b><br><span class="xs">S1 : ${esc(E.setsTxt(E.weekPlan(x, 1, D).sets).replace(/x/g, "×") || "aucune série")}</span><br><span class="xs muted">${esc(rules)}</span></button>
           <div class="col" style="gap:4px"><button class="icon-btn sm" data-a="bd-rmv" data-s="${si}" data-r="${ri}" data-v="-1" aria-label="Monter" ${ri ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn sm" data-a="bd-rmv" data-s="${si}" data-r="${ri}" data-v="1" aria-label="Descendre" ${ri < se[2].length - 1 ? "" : "disabled style=\"opacity:.3\""}>↓</button></div></div>
           <div class="row" style="gap:4px 12px;padding-left:24px;flex-wrap:wrap"><button class="link xs" data-a="bd-ab" data-s="${si}" data-r="${ri}">${x.ab ? "A/B : " + x.ab : "Alterner A/B"}</button>${nx ? `<button class="link xs" data-a="bd-link" data-s="${si}" data-r="${ri}">${linked ? "✂️ Délier" : "🔗 Superset avec ↓"}</button>` : ""}</div></div>`; }).join("")}
       <button class="btn btn-line btn-sm mt12" data-a="bd-add" data-s="${si}" style="width:100%">+ Exercices</button></div>`).join("")}
+    <div${cache}>
     <button class="btn btn-line mt12" style="width:100%" data-a="vol-open">🧮 Construire par volume hebdo (séries par muscle, MV → MRV)</button>
     <button class="btn btn-red mt12" style="width:100%" data-a="go" data-r="builder-weeks">📅 Écrire la séance semaine par semaine</button>
     <button class="btn btn-ghost mt12" data-a="bd-sadd">+ Ajouter une séance</button>${isCoach() ? `<button class="btn btn-ghost mt8" data-a="bd-sfrom">+ Séance depuis un modèle</button>` : ""}
+    </div>
     <p class="xs muted mt12">Touche un exercice pour écrire ses séries, ses règles de surcharge et chaque semaine du cycle. Les charges en % se calculent sur ton 1RM estimé.</p>
     ${D.forMember ? envoiMembre(D) : `<div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="bd-save">Enregistrer</button><button class="btn btn-line grow" data-a="bd-use">Enregistrer et suivre</button></div>`}
     ${isCoach() ? `<label class="field mt12"><span>Pour qui (affiché dans la banque)</span><input data-c="bd" data-k="prof" value="${esc(D.prof || "")}" placeholder="Ex. père de famille, 3 séances, reprise"></label><button class="btn btn-red mt8" data-a="bd-publish" style="width:100%">📤 ${D.lib ? "Mettre à jour dans la banque des membres" : "Publier dans la banque des membres"}</button>` : ""}
@@ -1088,6 +1096,7 @@ routes.builder = async () => {
 changes.bd = (el) => { const k = el.dataset.k; draft[k] = k === "weeks" ? +el.value : el.value; if (k === "weeks") draft.s.forEach(se => se[2].forEach(r => { const x = r[5]; if (x?.ab) for (let w = 1; w <= +el.value; w++) if ((w % 2 === 1) !== (x.ab === "A")) { x.weeks = x.weeks || {}; x.weeks[w] = []; } })); if (k === "weeks" && draft.phases) draft.phases = Array.from({ length: +el.value }, (_, i) => draft.phases[i] || "Accumulation"); rerender(); };
 changes["bd-deload"] = (el) => { const v = el.value; if (v === "phases") { if (!draft.phases) { const W = draft.weeks || 8; draft.phases = Array.from({ length: W }, (_, i) => i === W - 1 ? "Deload" : i < Math.ceil(W / 2) ? "Accumulation" : "Intensification"); delete draft.deload; } return rerender(); } delete draft.phases; draft.deload = v === "none" ? null : v === "last" ? { w: [draft.weeks] } : { every: +v }; rerender(); };
 changes["bd-s"] = (el) => { draft.s[+el.dataset.s][0] = el.value; };
+actions["bd-solo-off"] = () => { bdSolo = null; rerender(); };
 actions["bd-day"] = (b, d) => { draft.days[+d.v] = !draft.days[+d.v]; rerender(); };
 actions["bd-sadd"] = () => { draft.s.push([`Séance ${String.fromCharCode(65 + draft.s.length)}`, "", []]); rerender(); };
 actions["bd-sdel"] = (b, d) => { if (!confirm("Supprimer cette séance ?")) return; draft.s.splice(+d.s, 1); rerender(); };

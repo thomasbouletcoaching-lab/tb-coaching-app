@@ -21,6 +21,12 @@ export const FAMILLES = [
   { id: "terre", cat: "force", nom: "Soulevé de terre", mesure: "max.terre", seuils: [60, 100, 140, 180, 220], unite: kg },
   { id: "militaire", cat: "force", nom: "Développé militaire", mesure: "max.militaire", seuils: [30, 40, 60, 80, 100], unite: kg },
   { id: "traction-lestee", cat: "force", nom: "Traction lestée", mesure: "max.tractionLestee", seuils: [10, 20, 30, 40, 50], unite: (n) => `+${n} kg` },
+  { id: "dips-lestes", cat: "force", nom: "Dips lestés (1RM)", mesure: "max.dipsLestes", seuils: [10, 20, 40, 60, 80], unite: (n) => `+${n} kg` },
+  { id: "incline", cat: "force", nom: "Développé incliné", mesure: "max.incline", seuils: [30, 50, 70, 90, 120], unite: kg },
+  { id: "rowing", cat: "force", nom: "Rowing barre", mesure: "max.rowing", seuils: [40, 60, 80, 100, 130], unite: kg },
+  { id: "hip-thrust", cat: "force", nom: "Hip thrust", mesure: "max.hipThrust", seuils: [60, 100, 140, 180, 220], unite: kg },
+  { id: "arrache", cat: "force", nom: "Arraché (haltérophilie)", mesure: "max.arrache", seuils: [30, 50, 70, 90, 110], unite: kg },
+  { id: "epj", cat: "force", nom: "Épaulé-jeté", mesure: "max.epj", seuils: [40, 60, 90, 120, 140], unite: kg },
   // Force selon le poids de corps (facultatif)
   { id: "couche-relatif", cat: "relatif", nom: "Couché selon ton poids", mesure: "rel.couche", seuils: [0.5, 0.75, 1, 1.25, 1.5], unite: fois, poids: true },
   { id: "squat-relatif", cat: "relatif", nom: "Squat selon ton poids", mesure: "rel.squat", seuils: [0.75, 1, 1.5, 2, 2.5], unite: fois, poids: true },
@@ -60,7 +66,13 @@ const LEVES = {
   squat: /^(squat barre|squat smith(?! pieds)|front squat|squat zercher)/i,
   terre: /^soulevé de terre(?! (roumain|jambes tendues|haltères|sumo kettlebell|sur blocs))/i,
   militaire: /^développé militaire (barre|assis barre|smith)/i,
+  incline: /^développé incliné (barre|smith)/i,
+  rowing: /^rowing (penché debout à la barre|barre(?! prise snatch)|smith)/i,
+  hipThrust: /^hip thrust (barre|smith|machine)/i,
+  arrache: /^(arraché|snatch)(?!.*(haltère|kettlebell|tirage))/i,
+  epj: /^(épaulé[- ]jeté|clean (and|&) jerk)/i,
 };
+const DIPS_LESTES = /^dips lestés(?!.*lockout)/i;
 const TRACTIONS = /^tractions?(?!.*(assist|excentrique|négativ|negativ|machine))/i, LESTEE = /^tractions?.*lest/i;
 const POMPES = /^pompes(?!.*(genoux|surélevées mains|scapulaires|pike|équilibre))/i;
 const DIPS = /^dips(?!.*(assist|machine|banc|chaises|négat|negat))/i;
@@ -80,7 +92,7 @@ function poidsA(tries, d) {
 
 // Statistiques utiles aux badges. reg : chiffres de régularité déjà calculés par js/quests.js (gather)
 export function stats(st = {}, reg = {}, { poids = false } = {}) {
-  const daily = obj(st.daily), max = { couche: 0, squat: 0, terre: 0, militaire: 0, tractionLestee: 0 }, rel = { couche: 0, squat: 0, terre: 0, militaire: 0 };
+  const daily = obj(st.daily), max = { couche: 0, squat: 0, terre: 0, militaire: 0, tractionLestee: 0, dipsLestes: 0, incline: 0, rowing: 0, hipThrust: 0, arrache: 0, epj: 0 }, rel = { couche: 0, squat: 0, terre: 0, militaire: 0 };
   const tries = poids ? poidsTries(daily) : [], reps = { tractions: 0, pompes: 0, dips: 0 }, faits = new Set(), course = { sorties: 0, minutes: 0, plusLongue: 0 };
   const ajouterCourse = (min) => { if (!(min > 0)) return; course.sorties++; course.minutes += min; course.plusLongue = Math.max(course.plusLongue, min); };
   for (const w of Array.isArray(st.workouts) ? st.workouts : []) {
@@ -92,8 +104,9 @@ export function stats(st = {}, reg = {}, { poids = false } = {}) {
       for (const [k, re] of Object.entries(LEVES)) if (re.test(nom)) {
         const m = Math.max(0, ...series.filter(s => s.reps >= 1 && s.kg < 1000).map(s => s.kg));
         max[k] = Math.max(max[k], m);
-        if (poids && m > 0) { const p = poidsA(tries, d); if (p) rel[k] = Math.max(rel[k], Math.round(m / p * 100) / 100); }
+        if (poids && m > 0 && k in rel) { const p = poidsA(tries, d); if (p) rel[k] = Math.max(rel[k], Math.round(m / p * 100) / 100); }
       }
+      if (DIPS_LESTES.test(nom)) max.dipsLestes = Math.max(max.dipsLestes, ...series.filter(s => s.reps >= 1 && s.kg < 200).map(s => s.kg));
       if (LESTEE.test(nom)) max.tractionLestee = Math.max(max.tractionLestee, ...series.filter(s => s.reps >= 1 && s.kg < 200).map(s => s.kg));
       if (TRACTIONS.test(nom)) reps.tractions = Math.max(reps.tractions, ...series.map(s => s.reps));
       if (POMPES.test(nom)) reps.pompes = Math.max(reps.pompes, ...series.map(s => s.reps));

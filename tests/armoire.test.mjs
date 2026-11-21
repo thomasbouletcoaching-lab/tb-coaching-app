@@ -87,3 +87,12 @@ test("armoire : chaque catégorie a son pictogramme, chaque médaille se dessine
   assert.doesNotMatch(AN.medaille("force", "or", { titre: '"><script>' }), /<script/);
   assert.doesNotMatch(AN.medaillon("renard", { titre: '"><b>' }), /<b>/);
 });
+
+test("C73 : dips lestés (1RM), incliné, rowing, hip thrust, haltérophilie comptés", () => {
+  const w = (name, kg, reps = 1) => ({ end: "2026-11-20T18:00:00Z", exercises: [{ name, sets: [{ done: true, kg, reps }] }] });
+  const s = A.stats({ workouts: [w("Dips lestés", 42), w("Dips lestés — lockout", 90), w("Développé incliné barre", 72, 5), w("Rowing penché debout à la barre", 81, 8), w("Hip thrust barre", 150, 6), w("Arraché", 55), w("Épaulé-jeté", 70)] });
+  assert.equal(s.max.dipsLestes, 42, "le lockout (amplitude partielle) ne compte pas");
+  assert.equal(s.max.incline, 72); assert.equal(s.max.rowing, 81); assert.equal(s.max.hipThrust, 150); assert.equal(s.max.arrache, 55); assert.equal(s.max.epj, 70);
+  const b = A.armoire({ workouts: [w("Dips lestés", 42)] }).badges.filter(x => x.famille === "dips-lestes" && x.ok).map(x => x.niveau);
+  assert.deepEqual(b, ["bronze", "argent", "or"]);
+});

@@ -15,12 +15,12 @@ export const VERSION = 1;
 // Formulation encourageante : le feu ne dit jamais « ne t'entraîne pas », il dit comment ajuster la séance (décision C72).
 export const FEUX = { vert: { id: "vert", nom: "En forme", court: "Go", icone: "🟢", rang: 1 }, orange: { id: "orange", nom: "Séance adaptée", court: "Adaptée", icone: "🟠", rang: 2 }, rouge: { id: "rouge", nom: "Séance allégée", court: "Allégée", icone: "🔴", rang: 3 } };
 export const SEMAINES_MIN_RATIO = 3;                                   // semaines passées avec séances avant de comparer la charge
-export const SEUILS = { vert: 70, orange: 45 };                       // disponibilité ≥ 70 : vert ; ≥ 45 : orange ; sinon rouge
+export const SEUILS = { vert: 60, orange: 38 };                       // disponibilité ≥ 60 : vert ; ≥ 38 : orange ; sinon rouge (C73 : moins frileux)
 export const POIDS_CHECKIN = { sommeil: 0.25, energie: 0.25, stress: 0.15, courbatures: 0.15, motivation: 0.20 };
-export const PENALITE_FATIGUE = 0.45;                                  // points retirés par point de fatigue nerveuse (0 à 100)
+export const PENALITE_FATIGUE = 0.35;                                  // points retirés par point de fatigue nerveuse (0 à 100)
 export const SANS_CHECKIN = 78;                                        // disponibilité supposée sans check-in : seuls les signaux des séances comptent
 // Allègement d'une séance : part de séries retirées, plafond de RPE, plancher de séries par exercice
-export const ALLEGEMENT = { orange: { retire: 0.25, rpe: 7.5, plancher: 2 }, rouge: { retire: 0.4, rpe: 7, plancher: 2 }, decharge: { retire: 0.4, rpe: 6.5, plancher: 2 } };
+export const ALLEGEMENT = { orange: { retire: 0.15, rpe: 8.5, plancher: 2 }, rouge: { retire: 0.3, rpe: 8, plancher: 2 }, decharge: { retire: 0.4, rpe: 7, plancher: 2 } };
 // Cadence d'une décharge planifiée selon le niveau (semaines), spec : toutes les 4 à 8 semaines
 export const CADENCE_DECHARGE = { debutant: 8, regulier: 6, avance: 4 };
 const clamp = (x, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, x));
@@ -174,7 +174,7 @@ export function etat(ctx) {
     if (p.motivation != null && p.motivation < 40) raisons.push("Motivation basse."); }
   fatigue.actifs.slice(0, 2).forEach(a => raisons.push(a.texte));
   if (!raisons.length) raisons.push(feu.id === "vert" ? (sc ? "Tout va bien : tu peux suivre ta séance comme prévu." : "Rien d'inquiétant dans tes dernières séances.") : "Plusieurs petits signaux de fatigue s'additionnent.");
-  const conseil = { vert: "Séance comme prévue. Profite de la forme.", orange: `Fais ta séance en gardant de la marge : environ un quart de séries en moins, effort plafonné à RPE ${vir(ALLEGEMENT.orange.rpe)}. Tu gardes les mouvements.`, rouge: `Fais ta séance en version allégée : moins de séries, effort plafonné à RPE ${vir(ALLEGEMENT.rouge.rpe)}. Venir et bouger compte plus que la performance aujourd'hui.` }[feu.id];
+  const conseil = { vert: "Séance comme prévue. Profite de la forme.", orange: `Fais ta séance comme prévue en écoutant tes sensations. Si les premières séries sont plus lourdes que d'habitude, garde 1 à 2 reps en réserve (RPE ${vir(ALLEGEMENT.orange.rpe)} max).`, rouge: `Fais ta séance, quelques séries en moins si besoin, effort jusqu'à RPE ${vir(ALLEGEMENT.rouge.rpe)}. Venir et bouger compte plus que la performance aujourd'hui.` }[feu.id];
   return { v: VERSION, feu, disponibilite: dispo, checkin: sc, signaux: sg, fatigue, locale: fatigueLocale(ctx.workouts || [], ctx.auj, { patternDe: ctx.patternDe, jourDe: ctx.jourDe }), raisons: raisons.slice(0, 3), conseil, confiance: sc ? (sg.ratio.ratio != null ? "bonne" : "moyenne") : "à affiner" };
 }
 

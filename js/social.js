@@ -120,7 +120,8 @@ export function pseudoParDefaut(nom) {
 // ---------- Ce qui part dans la communauté ----------
 // Grades de séance (js/fx.js) : le seul « niveau » publié, calculé depuis le tonnage
 export const GRADES_NOMS = ["Fer", "Bronze", "Argent", "Or", "Platine", "Diamant", "Légende"];
-// Récap public d'une séance : pas de poids de corps, pas de santé, pas de notes, pas de charges série par série.
+// Récap public d'une séance : pas de poids de corps, pas de santé, pas de notes. Le détail des séries (charge × reps, RPE)
+// est publié pour que la communauté voie la séance complète (décision C73).
 export function recapSeance(w, { medaille = null } = {}) {
   if (!w) return null;
   const ex = (w.exercises || []).filter(e => (e.sets || []).some(s => s.done && s.type !== "W"));
@@ -137,7 +138,13 @@ export function recapSeance(w, { medaille = null } = {}) {
     top: ex.slice(0, 4).map(e => sansContact(e.name, 40)).filter(Boolean),
     medaille: GRADES_NOMS.includes(medaille) ? medaille : null,
     d: (w.end || w.start || "").slice(0, 10) || null,
+    detail: detailSeance(ex),
   };
+}
+const n1 = (x, max) => { const n = Number(x); return x != null && x !== "" && Number.isFinite(n) && n >= 0 && n <= max ? Math.round(n * 10) / 10 : null; };
+export function detailSeance(ex) {
+  return (ex || []).slice(0, 20).map(e => ({ n: sansContact(e.name, 40), u: ["sec", "m"].includes(e.unit) ? e.unit : "reps",
+    s: (e.sets || []).filter(x => x.done && x.type !== "W").slice(0, 15).map(x => [n1(x.kg, 1000), n1(x.reps ?? x.sec, 1000), n1(x.rpe, 10)]) })).filter(e => e.n && e.s.length);
 }
 // Programme montré à quelqu'un : un programme du catalogue voyage par son identifiant, un programme personnel en entier (sans notes)
 export function programmePublic(p, { catalogue = false, schema = null } = {}) {

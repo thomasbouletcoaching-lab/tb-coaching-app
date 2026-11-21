@@ -154,13 +154,14 @@ function triadeCard() {
 
 routes.home = async () => {
   await Promise.all([N.loadModels(), E.loadPrograms()]);
+  E.rattraperCalendrier();
   const pr = S().profile; const d = homeDay || today();
   const ns = E.nextSession();
   const alerts = E.injuryAlerts();
   const fs = EN.fastState();
   let body;
   if (R.param && ["today", "week", "month", "year"].includes(R.param)) { homeTab = R.param; R.param = null; }
-  if (homeTab === "week") body = agendaWeekView() + `<h2 class="sec">📊 Bilan de la semaine</h2>` + weekSummary();
+  if (homeTab === "week") body = agendaWeekView() + `<h2 class="sec">📊 Ta semaine en chiffres</h2>` + weekSummary();
   else if (homeTab === "month") body = agendaMonthView();
   else if (homeTab === "year") body = agendaYearView(seasonTimeline());
   else body = `${weekStrip(d)}
@@ -235,7 +236,6 @@ async function suiviCards() {
   const defi = defiOn(), out = [pushCard(), objectifCard(), coachMotCard(), revuesCard(), cardioDuJour(), defi ? await defiCard() : "", checkinCard(), echeancesCard()];
   out.push(criseCard(), feuCard(), revueCard(), monteeCard());
   if (!defi) out.push(anamneseCard());
-  if (!defi && (myAdherence().age ?? 0) >= 3) out.push(adherenceCard());
   return out.join("");
 }
 

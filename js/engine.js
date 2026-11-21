@@ -474,6 +474,7 @@ export function finishSession(cur) {
         const blk = st.season?.blocks?.[st.season.cur || 0], blockEnd = blk && blk.programId === st.plan.programId ? blk.weeks : null;
         if (blockEnd && (st.plan.week > blockEnd || (st.plan.week > weeksOf(p) && blockEnd <= weeksOf(p)))) { if (!seasonAdvance(st)) { st.plan.week = 1; st.plan.cycle = (st.plan.cycle || 1) + 1; } cur.blockDone = true; }
         else if (st.plan.week > weeksOf(p)) { st.plan.week = 1; st.plan.cycle = (st.plan.cycle || 1) + 1; }
+        if (st.plan.ancre && (st.plan.ancre.cycle || 1) !== (st.plan.cycle || 1)) st.plan.ancre = { lundi: lundiDe(addDaysIso(today(), 7)), week: st.plan.week, cycle: st.plan.cycle || 1 };
       }
     }
   });
@@ -523,9 +524,38 @@ export function deleteWorkout(id) {
 export function doneIn(programId, cycle, week) {
   return new Set(S().workouts.filter(w => !w.free && w.programId === programId && (w.cycle || 1) === cycle && w.week === week && w.idx != null).flatMap(w => w.idx2 != null ? [w.idx, w.idx2] : [w.idx]));
 }
+// Le cycle suit le calendrier : une séance loupée ne bloque pas dans une semaine passée.
+// Repère (plan.ancre) : un lundi et la semaine du cycle qui lui correspond. Si le calendrier est en avance sur la
+// semaine en cours, on passe à la bonne semaine (première séance pas encore faite). Après plus de 14 jours sans séance
+// (reprise), on ne saute rien : le repère repart d'aujourd'hui.
+const addDaysIso = (k, n) => { const d = new Date(k + "T12:00:00"); d.setDate(d.getDate() + n); return iso(d); };
+export const lundiDe = (k) => { const d = new Date(k + "T12:00:00"); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return iso(d); };
+export function semaineCalendrier(pl, t = today()) {
+  const a = pl?.ancre || (pl?.startedAt && (pl.cycle || 1) === 1 ? { lundi: lundiDe(pl.startedAt), week: 1, cycle: 1 } : null);
+  if (!a || (a.cycle || 1) !== (pl.cycle || 1)) return null;
+  return a.week + Math.floor(Math.round((new Date(lundiDe(t) + "T12:00:00") - new Date(a.lundi + "T12:00:00")) / 864e5) / 7);
+}
+export function rattraperCalendrier(t = today()) {
+  const pl = S().plan; if (!pl || S().current) return false;
+  const p = program(pl.programId); if (!p) return false;
+  const inactif = daysSinceLast() == null || daysSinceLast() > 14;
+  const att = semaineCalendrier(pl, t);
+  if (att == null || inactif || (pl.ancre && (pl.ancre.cycle || 1) !== (pl.cycle || 1))) {
+    if (!pl.ancre || inactif || (pl.ancre.cycle || 1) !== (pl.cycle || 1)) update(st => { st.plan.ancre = { lundi: lundiDe(t), week: st.plan.week, cycle: st.plan.cycle || 1 }; });
+    return false;
+  }
+  const cible = Math.min(weeksOf(p), att);
+  if (cible <= pl.week) { if (!pl.ancre) update(st => { st.plan.ancre = { lundi: lundiDe(t), week: st.plan.week, cycle: st.plan.cycle || 1 }; }); return false; }
+  update(st => {
+    st.plan.week = cible;
+    const done = doneIn(st.plan.programId, st.plan.cycle || 1, cible); const i = p.s.findIndex((_, k) => !done.has(k)); st.plan.idx = i < 0 ? 0 : i;
+    st.plan.ancre = { lundi: lundiDe(t), week: cible, cycle: st.plan.cycle || 1 };
+  });
+  return true;
+}
 // Se placer dans le cycle : semaine et séance choisies
 export function placeIn(week, idx = null) {
-  update(st => { const p = program(st.plan.programId); st.plan.week = Math.max(1, Math.min(weeksOf(p), week));
+  update(st => { const p = program(st.plan.programId); st.plan.week = Math.max(1, Math.min(weeksOf(p), week)); st.plan.ancre = { lundi: lundiDe(today()), week: st.plan.week, cycle: st.plan.cycle || 1 };
     if (idx == null) { const done = doneIn(st.plan.programId, st.plan.cycle || 1, st.plan.week); idx = p.s.findIndex((_, i) => !done.has(i)); if (idx < 0) idx = 0; }
     st.plan.idx = idx; });
 }
