@@ -13,6 +13,7 @@ import { openRecipeEditor } from "./food.js";
 import { alerts as adhAlerts, STATUS } from "../adherence.js";
 import { loadBibliotheque, bibliothequeBody, mountBibliotheque } from "./bibliotheque.js";
 import * as RS from "../reseau.js";
+import * as FA from "../factures.js";
 
 // ---------- Données ----------
 const A = { members: null, sums: {}, threads: {}, at: 0, err: null, store: { todo: [], biz: null, notes: {}, handled: {}, dismiss: {}, events: [] } };
@@ -344,7 +345,7 @@ routes["admin-biz"] = async () => {
   } else if (bizTab === "enc") {
     const l = P.slice().sort((a, b) => b.d.localeCompare(a.d));
     body = `<button class="btn btn-red btn-sm mt12" data-a="pay-new" style="width:100%">+ Ajouter un encaissement</button>
-      <div class="card mt12" style="padding:4px 12px">${l.map(p => `<div class="li" style="gap:8px"><button class="grow" style="text-align:left" data-a="pay-edit" data-id="${p.id}"><b class="small">${esc(p.who || "–")}</b> <span class="xs muted">${esc(p.label || "")}</span><br><span class="xs ${!p.paid && p.d < t ? "red" : "muted"}">${fmtDate(p.d, { day: "numeric", month: "short", year: "numeric" })} · ${p.paid ? "encaissé" : p.d < t ? "en retard" : "à venir"}</span></button><b class="small">${eur(p.amount)}</b><button class="icon-btn sm" data-a="pay-tog" data-id="${p.id}" aria-label="Marquer encaissé" style="${p.paid ? "background:var(--gradbtn);color:#fff;border:0" : ""}">✓</button></div>`).join("") || `<p class="empty small">Aucun encaissement. Ajoute tes paiements (Stripe, virement, espèces) pour suivre ton CA.</p>`}</div>`;
+      <div class="card mt12" style="padding:4px 12px">${l.map(p => `<div class="li" style="gap:8px"><button class="grow" style="text-align:left" data-a="pay-edit" data-id="${p.id}"><b class="small">${esc(p.who || "–")}</b> <span class="xs muted">${esc(p.label || "")}</span><br><span class="xs ${!p.paid && p.d < t ? "red" : "muted"}">${fmtDate(p.d, { day: "numeric", month: "short", year: "numeric" })} · ${p.paid ? "encaissé" : p.d < t ? "en retard" : "à venir"}</span></button><b class="small">${eur(p.amount)}</b><button class="icon-btn sm" data-a="pay-tog" data-id="${p.id}" aria-label="Marquer encaissé" style="${p.paid ? "background:var(--gradbtn);color:#fff;border:0" : ""}">✓</button>${!p.paid && p.d < t && p.mid ? `<button class="icon-btn sm" data-a="pay-relance" data-id="${p.id}" aria-label="Relancer">🔔</button>` : ""}<button class="icon-btn sm" data-a="fac-from-pay" data-id="${p.id}" aria-label="Facture">🧾</button></div>`).join("") || `<p class="empty small">Aucun encaissement. Ajoute tes paiements (Stripe, virement, espèces) pour suivre ton CA.</p>`}</div>`;
   } else if (bizTab === "cyc") {
     const C = B().cycles.slice().sort((a, b) => a.start.localeCompare(b.start));
     body = `<button class="btn btn-red btn-sm mt12" data-a="cyc-new" style="width:100%">+ Nouveau cycle client</button>
@@ -353,15 +354,23 @@ routes["admin-biz"] = async () => {
         ${c.detail ? `<p class="small mt4" style="margin:0 0 6px;white-space:pre-line">${esc(c.detail)}</p>` : ""}
         <div class="gauge"><i style="width:${Math.round(done / c.weeks * 100)}%"></i></div><p class="xs mt4" style="margin:4px 0 0">${t < c.start ? "Commence bientôt" : end < t ? "Terminé" : `Semaine ${done}/${c.weeks}`}${soon ? " · <b>renouvellement à proposer</b>" : ""}</p>
         <div class="row mt8" style="gap:6px"><button class="btn btn-line btn-xs grow" data-a="cyc-pay" data-id="${c.id}">Créer les encaissements</button><button class="btn btn-ghost btn-xs" data-a="cyc-del" data-id="${c.id}" style="color:var(--red)">Supprimer</button></div></div>`; }).join("") || `<p class="empty small">Suis ici les cycles de coaching de tes clients (début, durée, prix) : l'app te prévient quand un renouvellement approche.</p>`}`;
-  } else {
+  } else if (bizTab === "off") body = offresBody();
+  else if (bizTab === "fac") body = facturesBody();
+  else {
     const s = B().settings;
     body = `<form data-f="biz-set" class="card mt12"><label class="field"><span>Taux de cotisations sociales (%)</span><input name="rate" inputmode="decimal" value="${s.rate ?? ""}" placeholder="vérifie ton taux sur autoentrepreneur.urssaf.fr"></label>
       <label class="field mt8"><span>Déclaration</span><select name="freq"><option value="mois" ${s.freq === "mois" ? "selected" : ""}>Mensuelle</option><option value="trimestre" ${s.freq !== "mois" ? "selected" : ""}>Trimestrielle</option></select></label>
       <label class="field mt8"><span>Objectif de CA annuel (€)</span><input name="goal" inputmode="decimal" value="${s.goal ?? ""}"></label>
+      <div class="lbl mt16">Sur tes factures</div>
+      <div class="grid2"><label class="field"><span>Nom</span><input name="nom" value="${esc(s.nom || "Thomas Boulet")}"></label><label class="field"><span>SIRET</span><input name="siret" value="${esc(s.siret || "")}" inputmode="numeric"></label></div>
+      <label class="field mt8"><span>Activité</span><input name="activite" value="${esc(s.activite || "Coach sportif · Entrepreneur individuel")}"></label>
+      <label class="field mt8"><span>Adresse</span><textarea name="adresse" rows="2">${esc(s.adresse || "")}</textarea></label>
+      <div class="grid2 mt8"><label class="field"><span>E-mail</span><input name="email" type="email" value="${esc(s.email || "")}"></label><label class="field"><span>Paiement par</span><input name="paiement" value="${esc(s.paiement || "virement ou carte")}"></label></div>
+      <div class="grid2 mt8"><label class="field"><span>Échéance (jours)</span><input name="delai" inputmode="numeric" value="${s.delai ?? 15}"></label><label class="li" style="padding:6px 0;gap:8px"><input type="checkbox" name="pro" ${s.pro ? "checked" : ""}><span class="xs">Clients pros (mention 40 €)</span></label></div>
       <button class="btn btn-red btn-sm mt12" style="width:100%">Enregistrer</button></form>
       <p class="xs muted mt8">Ces données restent dans ton espace coach, sur le serveur : tu les retrouves sur tous tes appareils. Je ne suis pas expert-comptable : vérifie toujours tes taux auprès de l'URSSAF.</p>`;
   }
-  frame("admin-biz", `<h1 class="h1 mt8">Business</h1><div class="chips wrap mt8">${[["dash", "Tableau de bord"], ["enc", "Encaissements"], ["cyc", "Cycles clients"], ["set", "Réglages"]].map(([k, l]) => `<button class="chip ${bizTab === k ? "on" : ""}" data-a="biz-tab" data-v="${k}">${l}</button>`).join("")}<button class="chip" data-a="go" data-r="admin-social">🤝 Parrainage et communauté</button></div>${body}`);
+  frame("admin-biz", `<h1 class="h1 mt8">Mon activité</h1><div class="chips wrap mt8">${[["dash", "Tableau de bord"], ["off", "Mes offres"], ["enc", "Encaissements"], ["fac", "Factures"], ["cyc", "Cycles clients"], ["set", "Réglages"]].map(([k, l]) => `<button class="chip ${bizTab === k ? "on" : ""}" data-a="biz-tab" data-v="${k}">${l}</button>`).join("")}<button class="chip" data-a="go" data-r="admin-social">🤝 Parrainage et communauté</button></div>${body}`);
 };
 actions["biz-tab"] = (b, d) => { bizTab = d.v; rerender(); };
 actions["biz-y"] = (b, d) => { bizYear += +d.v; rerender(); };
@@ -370,6 +379,7 @@ function paySheet(p = null) {
   sheet(`<h2 class="h2">${p ? "Modifier" : "Nouvel"} encaissement</h2><form data-f="pay" data-id="${p?.id || ""}" class="mt12">
     <div class="grid2"><label class="field"><span>Client</span><select name="mid">${memberOpts(p?.mid)}</select></label><label class="field"><span>Ou nom</span><input name="who" value="${esc(p && !p.mid ? p.who : "")}" placeholder="Client hors app"></label></div>
     <div class="grid2 mt8"><label class="field"><span>Montant (€)</span><input name="amount" inputmode="decimal" required value="${p ? String(p.amount).replace(".", ",") : ""}"></label><label class="field"><span>Date</span><input type="date" name="d" required value="${p?.d || today()}"></label></div>
+    ${(B().offers || []).length ? `<label class="field mt8"><span>Offre</span><select data-c="pay-off"><option value="">—</option>${B().offers.map(o => `<option value="${o.id}">${esc(o.nom)} · ${eur(o.prix)}${o.unite ? " " + esc(o.unite) : ""}</option>`).join("")}</select></label>` : ""}
     <label class="field mt8"><span>Libellé</span><input name="label" value="${esc(p?.label || "")}" placeholder="Coaching, mois 2…"></label>
     <label class="li mt8" style="gap:10px"><input type="checkbox" name="paid" ${p?.paid ?? true ? "checked" : ""} style="width:20px;height:20px;accent-color:var(--red)"><span class="grow">Déjà encaissé</span></label>
     <button class="btn btn-red mt12">Enregistrer</button>${p ? `<button type="button" class="btn btn-line mt8" data-a="pay-del" data-id="${p.id}" style="color:var(--red)">Supprimer</button>` : ""}</form>`);
@@ -409,7 +419,7 @@ actions["cyc-pay"] = async (b, d) => {
   toast(`${n} encaissement${n > 1 ? "s" : ""} prévu${n > 1 ? "s" : ""} ajouté${n > 1 ? "s" : ""}`); rerender(); await saveStore("biz");
 };
 actions["cyc-del"] = async (b, d) => { if (!confirm("Supprimer ce cycle ?")) return; B().cycles = B().cycles.filter(x => x.id !== +d.id); rerender(); await saveStore("biz"); };
-forms["biz-set"] = async (v) => { B().settings = { rate: num(v.rate) || null, freq: v.freq, goal: num(v.goal) || null }; toast("Réglages enregistrés"); rerender(); await saveStore("biz"); };
+forms["biz-set"] = async (v) => { B().settings = { ...B().settings, rate: num(v.rate) || null, freq: v.freq, goal: num(v.goal) || null, nom: v.nom.trim(), siret: v.siret.trim(), activite: v.activite.trim(), adresse: v.adresse.trim(), email: v.email.trim(), paiement: v.paiement.trim(), delai: Math.max(0, Math.round(num(v.delai))) || 15, pro: !!v.pro }; toast("Réglages enregistrés"); rerender(); await saveStore("biz"); };
 
 // =====================================================================
 // ABONNÉS
@@ -693,7 +703,7 @@ routes["admin-profile"] = async () => {
   const tile = (r, ic, l, sub) => `<button class="tile" data-a="go" data-r="${r}"><span class="tile-ic">${ic}</span><span><b>${l}</b><br><span class="xs muted">${sub}</span></span></button>`;
   frame("admin-profile", `<div class="card grad mt12"><div class="xs" style="opacity:.8;letter-spacing:.08em;text-transform:uppercase">Coach</div><div class="row mt8" style="gap:14px;align-items:center"><span class="ava big">${esc(((p.name || "T B").split(" ").map(x => x[0]).join("") || "TB").slice(0, 2).toUpperCase())}</span><div><b class="h2">${esc(p.name || "Thomas Boulet")}</b><div class="small" style="opacity:.9">${team.length} athlète${team.length > 1 ? "s" : ""} en coaching · ${all.length} membres</div></div></div></div>
     <h2 class="sec">Pilotage</h2>
-    <div class="tiles">${tile("admin-biz", "📈", "Business", "Revenus, paiements, objectifs")}${tile("admin-subs", "⭐", "Abonnés", "Formules et abonnements")}${tile("admin-db", "🗄️", "Base de données", "Aliments, recettes, exercices")}${tile("admin-reseau", "📣", "Réseau privé", "Annonces, sondages, défis, absence")}${tile("admin-social", "🏟️", "Communauté", "Modération, parrainage")}</div>
+    <div class="tiles">${tile("admin-biz", "📈", "Mon activité", "Offres, encaissements, factures, retards")}${tile("admin-subs", "⭐", "Abonnés", "Formules et abonnements")}${tile("admin-db", "🗄️", "Base de données", "Aliments, recettes, exercices")}${tile("admin-reseau", "📣", "Réseau privé", "Annonces, sondages, défis, absence")}${tile("admin-social", "🏟️", "Communauté", "Modération, parrainage")}</div>
     <h2 class="sec">Mon compte</h2>
     <div class="list">${[["settings", "⚙️", "Réglages"], ["kb", "📘", "Méthode & théorie"], ["account", "👤", "Mon compte"]].map(([r, e, l]) => `<button class="li" data-a="go" data-r="${r}"><span class="em">${e}</span><span class="grow">${l}</span>${I.chev}</button>`).join("")}
       <a class="li" href="./"><span class="em">🏋️</span><span class="grow">Mon espace athlète<br><span class="xs muted">Ton propre suivi, séparé de ton espace coach</span></span>${I.chev}</a></div>`, "Profil");
@@ -733,3 +743,70 @@ function invShareSheet(x) {
 }
 actions["inv-share"] = (b, d) => { const x = (A.invites || []).find(i => i.code === d.code); if (x) invShareSheet(x); };
 actions["inv-del"] = async (b, d) => { if (!confirm("Supprimer cette invitation ?")) return; try { const c = await cloud(); await c.inviteDel(d.code); A.invites = (A.invites || []).filter(i => i.code !== d.code); rerender(); } catch (e) { toast("Impossible : " + e.message); } };
+
+// ---------- Mon activité : offres et factures ----------
+function offresBody() {
+  const O = B().offers || [];
+  return `<button class="btn btn-red btn-sm mt12" data-a="off-new" style="width:100%">+ Nouvelle offre</button>
+    ${FA.TYPES_OFFRE.map(([k, l]) => { const l2 = O.filter(o => o.type === k); return l2.length ? `<h2 class="sec">${l}</h2><div class="card" style="padding:4px 12px">${l2.map(o => `<button class="li" data-a="off-edit" data-id="${o.id}" style="width:100%"><span class="grow small"><b>${esc(o.nom)}</b>${o.detail ? `<br><span class="xs muted">${esc(o.detail)}</span>` : ""}</span><b class="small">${eur(o.prix)}<span class="xs muted"> ${esc(o.unite || "")}</span></b></button>`).join("")}</div>` : ""; }).join("") || `<p class="empty small">Tes tarifs : séance à l'unité, carnet, accompagnement, présentiel, distanciel. Ils pré-remplissent tes encaissements et tes factures.</p>`}`;
+}
+const offSheet = (o = {}) => sheet(`<h2 class="h2">${o.id ? "Modifier l'offre" : "Nouvelle offre"}</h2><form data-f="off" data-id="${o.id || ""}" class="mt12">
+  <label class="field"><span>Nom</span><input name="nom" required maxlength="80" value="${esc(o.nom || "")}" placeholder="Séance en salle 1 h"></label>
+  <div class="grid2 mt8"><label class="field"><span>Type</span><select name="type">${FA.TYPES_OFFRE.map(([k, l]) => `<option value="${k}" ${o.type === k ? "selected" : ""}>${l}</option>`).join("")}</select></label><label class="field"><span>Prix (€)</span><input name="prix" inputmode="decimal" required value="${o.prix != null ? String(o.prix).replace(".", ",") : ""}"></label></div>
+  <label class="field mt8"><span>Unité</span><select name="unite">${FA.UNITES.map(u => `<option value="${u}" ${o.unite === u ? "selected" : ""}>${u || "—"}</option>`).join("")}</select></label>
+  <label class="field mt8"><span>Détail (facultatif)</span><textarea name="detail" rows="2" maxlength="300">${esc(o.detail || "")}</textarea></label>
+  <button class="btn btn-red mt12">Enregistrer</button>${o.id ? `<button type="button" class="btn btn-ghost mt8" data-a="off-del" data-id="${o.id}">Supprimer</button>` : ""}</form>`);
+actions["off-new"] = () => offSheet();
+actions["off-edit"] = (b, d) => offSheet((B().offers || []).find(o => o.id === +d.id));
+forms.off = async (v, f) => { const prix = num(v.prix); if (!(prix >= 0)) return toast("Prix invalide"); const o = { id: +f.dataset.id || Date.now(), nom: v.nom.trim(), type: v.type, prix, unite: v.unite, detail: v.detail.trim() }; const O = B().offers = B().offers || [], i = O.findIndex(x => x.id === o.id); if (i >= 0) O[i] = o; else O.push(o); closeSheet(); rerender(); await saveStore("biz"); };
+actions["off-del"] = async (b, d) => { if (!confirm("Supprimer cette offre ?")) return; B().offers = (B().offers || []).filter(o => o.id !== +d.id); closeSheet(); rerender(); await saveStore("biz"); };
+changes["pay-off"] = (el) => { const o = (B().offers || []).find(x => x.id === +el.value); const f = el.closest("form"); if (!o || !f) return; f.elements.amount.value = String(o.prix).replace(".", ","); if (!f.elements.label.value) f.elements.label.value = o.nom; };
+actions["pay-relance"] = async (b, d) => {
+  const p = B().payments.find(x => x.id === +d.id); if (!p?.mid) return;
+  if (!confirm(`Envoyer un rappel de paiement à ${p.who} dans la conversation ?`)) return;
+  try { const c = await cloud(); await c.send(`Petit rappel 🙂 : le paiement de ${eur(p.amount)}${p.label ? ` (${p.label})` : ""} prévu le ${fmtDate(p.d, { day: "numeric", month: "long" })} n'est pas encore arrivé. Tu me dis si tout va bien ?`, p.mid); p.relance = today(); await saveStore("biz"); toast("Rappel envoyé"); rerender(); } catch (e) { toast("Envoi impossible : " + e.message); }
+};
+function facturesBody() {
+  const F = (B().invoices || []).slice().sort((a, b) => b.num.localeCompare(a.num)), t = today();
+  const du = F.filter(f => !f.payeLe).reduce((a, f) => a + FA.totalLignes(f.lignes), 0), ret = F.filter(f => FA.statut(f, t).k === "retard");
+  return `<div class="kpis mt12"><div class="kpi"><b>${F.length}</b><span>factures</span></div><div class="kpi"><b>${eur(du)}</b><span>à encaisser</span></div><div class="kpi"><b>${ret.length}</b><span>en retard</span></div></div>
+    <button class="btn btn-red btn-sm mt12" data-a="fac-new" style="width:100%">+ Nouvelle facture</button>
+    ${!B().settings.siret ? `<p class="xs mt8" style="color:var(--warn)">Ajoute ton SIRET et ton adresse dans Réglages : ils sont obligatoires sur tes factures.</p>` : ""}
+    <div class="card mt12" style="padding:4px 12px">${F.map(f => { const st = FA.statut(f, t); return `<div class="li" style="gap:8px"><button class="grow" style="text-align:left" data-a="fac-edit" data-id="${f.id}"><b class="small">${esc(f.num)} · ${esc(f.client)}</b><br><span class="xs ${st.k === "retard" ? "red" : "muted"}">${fmtDate(f.d, { day: "numeric", month: "short" })} · ${st.l}${st.k === "retard" ? ` depuis ${FA.joursRetard(f, t)} j` : f.payeLe ? ` le ${fmtDate(f.payeLe, { day: "numeric", month: "short" })}` : f.echeance ? ` avant le ${fmtDate(f.echeance, { day: "numeric", month: "short" })}` : ""}</span></button><b class="small">${eur(FA.totalLignes(f.lignes))}</b><button class="icon-btn sm" data-a="fac-print" data-id="${f.id}" aria-label="Voir et imprimer">🖨️</button></div>`; }).join("") || `<p class="empty small">Aucune facture. Crée-en une, ou touche 🧾 sur un encaissement.</p>`}</div>
+    <p class="xs muted mt8">Numérotation continue par année. Mention « TVA non applicable, art. 293 B du CGI » ajoutée automatiquement. Je ne suis pas expert-comptable : fais valider ton modèle si tu as un doute.</p>`;
+}
+function facSheet(f) {
+  const l = f.lignes?.length ? f.lignes : [{ label: "", qte: 1, pu: "" }];
+  sheet(`<h2 class="h2">Facture ${esc(f.num)}</h2><form data-f="fac" data-id="${f.id}" class="mt12">
+    <div class="grid2"><label class="field"><span>Client</span><input name="client" required value="${esc(f.client || "")}"></label><label class="field"><span>Date</span><input type="date" name="d" value="${f.d}"></label></div>
+    <label class="field mt8"><span>Adresse du client (facultatif)</span><textarea name="adresse" rows="2">${esc(f.adresse || "")}</textarea></label>
+    <div class="lbl mt12">Lignes</div>${l.map((x, i) => `<div class="grid3 mt4" style="grid-template-columns:2fr .7fr 1fr"><input name="l${i}" value="${esc(x.label)}" placeholder="Désignation"><input name="q${i}" inputmode="decimal" value="${x.qte}"><input name="p${i}" inputmode="decimal" value="${String(x.pu).replace(".", ",")}" placeholder="Prix €"></div>`).join("")}
+    <input type="hidden" name="n" value="${l.length}"><button type="button" class="link xs mt4" data-a="fac-line">+ Ligne</button>
+    <div class="grid2 mt8"><label class="field"><span>Échéance</span><input type="date" name="echeance" value="${f.echeance || ""}"></label><label class="field"><span>Payée le</span><input type="date" name="payeLe" value="${f.payeLe || ""}"></label></div>
+    <label class="field mt8"><span>Moyen de paiement (si payée)</span><input name="moyen" value="${esc(f.moyen || "")}" placeholder="virement, carte, espèces"></label>
+    <button class="btn btn-red mt12">Enregistrer</button><button type="button" class="btn btn-line mt8" data-a="fac-print" data-id="${f.id}">🖨️ Voir et imprimer (PDF)</button></form>`, null, { keep: !!document.getElementById("sheet") });
+}
+let FDRAFT = null;
+const nouvelle = (extra = {}) => { const t = today(), s = B().settings; return { id: Date.now(), num: FA.numeroSuivant(B().invoices || [], t.slice(0, 4)), d: t, echeance: addDays(t, s.delai ?? 15), lignes: [], ...extra }; };
+actions["fac-new"] = () => { FDRAFT = nouvelle(); facSheet(FDRAFT); };
+actions["fac-edit"] = (b, d) => { FDRAFT = JSON.parse(JSON.stringify((B().invoices || []).find(f => f.id === +d.id))); facSheet(FDRAFT); };
+actions["fac-from-pay"] = (b, d) => {
+  const p = B().payments.find(x => x.id === +d.id); if (!p) return;
+  const ex = (B().invoices || []).find(f => f.payId === p.id); if (ex) { FDRAFT = JSON.parse(JSON.stringify(ex)); return facSheet(FDRAFT); }
+  FDRAFT = nouvelle({ payId: p.id, client: p.who, lignes: [{ label: p.label || "Coaching sportif", qte: 1, pu: p.amount }], ...(p.paid ? { payeLe: p.d } : { echeance: p.d }) }); facSheet(FDRAFT);
+};
+const lireFac = () => { const f = document.querySelector('form[data-f="fac"]'); if (!f || !FDRAFT) return; const v = Object.fromEntries(new FormData(f)); const n = +v.n;
+  Object.assign(FDRAFT, { client: v.client.trim(), d: v.d, adresse: v.adresse.trim(), echeance: v.echeance || null, payeLe: v.payeLe || null, moyen: v.moyen.trim(), lignes: Array.from({ length: n }, (_, i) => ({ label: (v["l" + i] || "").trim(), qte: num(v["q" + i]) || 0, pu: num(v["p" + i]) || 0 })).filter(x => x.label || x.pu) }); };
+actions["fac-line"] = () => { lireFac(); FDRAFT.lignes.push({ label: "", qte: 1, pu: "" }); facSheet(FDRAFT); };
+forms.fac = async () => {
+  lireFac(); if (!FDRAFT.lignes.length) return toast("Ajoute au moins une ligne");
+  const I2 = B().invoices = B().invoices || [], i = I2.findIndex(f => f.id === FDRAFT.id); if (i >= 0) I2[i] = FDRAFT; else I2.push(FDRAFT);
+  if (FDRAFT.payId && FDRAFT.payeLe) { const p = B().payments.find(x => x.id === FDRAFT.payId); if (p) { p.paid = true; p.d = FDRAFT.payeLe; } }
+  closeSheet(); toast("Facture enregistrée"); rerender(); await saveStore("biz");
+};
+actions["fac-print"] = (b, d) => {
+  if (document.querySelector('form[data-f="fac"]')) lireFac();
+  const f = FDRAFT && FDRAFT.id === +d.id ? FDRAFT : (B().invoices || []).find(x => x.id === +d.id); if (!f) return;
+  const w = window.open("", "_blank"); if (!w) return toast("Autorise les fenêtres pour imprimer");
+  w.document.write(FA.htmlFacture(f, B().settings)); w.document.close();
+};

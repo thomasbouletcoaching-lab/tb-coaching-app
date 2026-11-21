@@ -124,7 +124,7 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   await go(c.p, 'admin-prog'); t = await txt(c.p);
   ok(/Nouveau programme/.test(t) && /Assigner/.test(t), 'programmes : créer et assigner');
   await go(c.p, 'admin-profile'); t = await txt(c.p);
-  ok(/Business/.test(t) && /Abonnés/.test(t) && /Base de données/.test(t), 'profil coach : Business, Abonnés, Base de données');
+  ok(/Mon activité/.test(t) && /Abonnés/.test(t) && /Base de données/.test(t), 'profil coach : Business, Abonnés, Base de données');
   await go(c.p, 'member/' + U1); await c.p.waitForTimeout(800); t = await txt(c.p);
   ok(/Programme sport/.test(t) && /Plan diète/.test(t) && /Bilans/.test(t) && /Échéances/.test(t), 'fiche athlète : cartes programme, diète, bilans, échéances');
   ok((await overflow(c.p)).length === 0, 'fiche athlète : rien ne dépasse');
@@ -210,6 +210,24 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   await go(c.p, 'chat/' + U1); await c.p.waitForTimeout(800);
   await c.p.click('[data-a="quiz-send"]'); await c.p.waitForTimeout(700);
   ok((await c.p.evaluate(() => window.__msgs.at(-1)?.body || '')).includes('[[quiz-exos]]'), 'quiz exos envoyé dans la conversation');
+
+  // ---------- Mon activité : offres, factures ----------
+  await go(c.p, 'admin-biz'); await c.p.waitForTimeout(600);
+  ok(/Mon activité/.test(await txt(c.p)) && /Mes offres/.test(await txt(c.p)) && /Factures/.test(await txt(c.p)), 'mon activité : onglets offres et factures');
+  await c.p.click('[data-a="biz-tab"][data-v="off"]'); await c.p.waitForTimeout(300);
+  await c.p.click('[data-a="off-new"]'); await c.p.waitForTimeout(300);
+  await c.p.fill('form[data-f="off"] input[name="nom"]', 'Séance en salle'); await c.p.selectOption('form[data-f="off"] select[name="type"]', 'presentiel'); await c.p.fill('form[data-f="off"] input[name="prix"]', '60'); await c.p.selectOption('form[data-f="off"] select[name="unite"]', 'la séance');
+  await c.p.click('form[data-f="off"] .btn-red'); await c.p.waitForTimeout(600);
+  ok(/Séance en salle/.test(await txt(c.p)) && /60,00 €/.test(await txt(c.p)), 'offre ajoutée avec son prix');
+  await c.p.click('[data-a="biz-tab"][data-v="fac"]'); await c.p.waitForTimeout(300);
+  await c.p.click('[data-a="fac-new"]'); await c.p.waitForTimeout(300);
+  await c.p.fill('form[data-f="fac"] input[name="client"]', 'Karim Exemple'); await c.p.fill('form[data-f="fac"] input[name="l0"]', 'Cycle 12 semaines'); await c.p.fill('form[data-f="fac"] input[name="p0"]', '1600');
+  await c.p.click('form[data-f="fac"] .btn-red'); await c.p.waitForTimeout(600);
+  t = await txt(c.p);
+  ok(new RegExp(new Date().getFullYear() + '-001 · Karim Exemple').test(t) && /1\s600,00 €/.test(t) && /À payer/.test(t), 'facture numérotée, montant, statut');
+  const [pop] = await Promise.all([c.p.waitForEvent('popup'), c.p.click('[data-a="fac-print"]')]); await pop.waitForLoadState().catch(() => {});
+  ok(/TVA non applicable, art\. 293 B du CGI/.test(await pop.content()), 'facture imprimable avec mentions');
+  await pop.close();
   ok(c.errs.length === 0, 'coach : aucune erreur JavaScript' + (c.errs.length ? ' (' + c.errs.slice(0, 3).join(' | ') + ')' : ''));
   await b.close();
   console.log(`\n${passed} vérifications réussies, ${fails} échec(s).`);

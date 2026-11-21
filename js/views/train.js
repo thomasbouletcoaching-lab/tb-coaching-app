@@ -66,7 +66,7 @@ routes.carnet = async () => {
   if (tMode === "cardio") body = cardioBody();
   else if (tMode === "savoir") body = `<div class="mt12">${seg([["exos", "Exercices"], ["doc", "Documentation"], ["science", "Science"]], savoirSub, "savoir-sub")}</div>` + (savoirSub === "doc" ? await kbSection("train") : savoirSub === "science" ? scienceBody() : `<h2 class="sec">📖 Exercices</h2>${exosBody()}`);
   else {
-    const sub = `<div class="mt12">${seg([["seances", "Séances"], ["programmes", "Programmes"], ["historique", "Historique"], ["graphiques", "Stats"]], carnetSub, "carnet-sub")}</div>`;
+    const sub = `<div class="mt12">${seg([["seances", "Séances"], ["programmes", "Programmes"], ["historique", "Historique"], ["graphiques", "Stats"]], carnetSub, "carnet-sub")}</div>` + (carnetSub === "historique" ? `<button class="btn btn-line btn-sm mt8" data-a="go" data-r="video">🎥 Analyser une série en vidéo</button>` : "");
     const inner = carnetSub === "programmes" ? programmesBody() : carnetSub === "historique" ? historyBody() : carnetSub === "graphiques" ? statsBody() : programBody(ns);
     body = sub + inner;
   }

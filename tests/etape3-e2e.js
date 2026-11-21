@@ -194,6 +194,21 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   ok(dly.steps === 8421 && dly.sleep === 7.2, 'santé : pas et sommeil récupérés dans le journal');
   ok((await overflow(hs.p)).length === 0, 'santé : rien ne dépasse');
   ok(hs.errs.length === 0, 'santé : aucune erreur JavaScript' + (hs.errs.length ? ' (' + hs.errs.slice(0, 3).join(' | ') + ')' : ''));
+
+  console.log('Analyse vidéo');
+  await go(hs.p, 'video'); await hs.p.waitForTimeout(500); t = await txt(hs.p);
+  ok(/Analyse une série en vidéo/.test(t) && await hs.p.$('input[type=file][accept="video/*"]') !== null, 'vidéo : écran et choix de la vidéo');
+  // vidéo de test fabriquée dans le navigateur (un carré qui monte) pour vérifier lecture, dessin et trajectoire
+  const url = await hs.p.evaluate(async () => { const c = document.createElement('canvas'); c.width = 160; c.height = 120; const x = c.getContext('2d'); const st = c.captureStream(30); const rec = new MediaRecorder(st, { mimeType: 'video/webm' }); const parts = []; rec.ondataavailable = e => parts.push(e.data);
+    rec.start(); for (let i = 0; i < 30; i++) { x.fillStyle = '#222'; x.fillRect(0, 0, 160, 120); x.fillStyle = '#fff'; x.fillRect(70, 90 - i * 2, 14, 14); await new Promise(r => setTimeout(r, 34)); } rec.stop(); await new Promise(r => rec.onstop = r); return URL.createObjectURL(new Blob(parts, { type: 'video/webm' })); });
+  await hs.p.evaluate(async (u) => { const m = await import('./js/views/video.js'); m.ouvrirVideo(u); }, url); await hs.p.waitForTimeout(1500);
+  ok(await hs.p.$('#vv') !== null && await hs.p.$('#vc') !== null, 'vidéo : lecteur et calque de dessin');
+  await hs.p.click('[data-a="vd-opt"][data-v="dessin"]');
+  const box = await hs.p.$eval('#vc', el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  if (box.w > 0) { await hs.p.mouse.move(box.x + 10, box.y + 10); await hs.p.mouse.down(); await hs.p.mouse.move(box.x + box.w / 2, box.y + box.h / 2, { steps: 5 }); await hs.p.mouse.up(); }
+  const px = await hs.p.$eval('#vc', el => { const d = el.getContext('2d').getImageData(0, 0, el.width, el.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; });
+  ok(px > 0, 'vidéo : le dessin s\'affiche sur l\'image');
+  ok(hs.errs.filter(e => !/mediapipe|vision_bundle|Failed to fetch|tasks-vision|import/i.test(e)).length === 0, 'vidéo : aucune erreur JavaScript' + (hs.errs.length ? ' (' + hs.errs.slice(0, 3).join(' | ') + ')' : ''));
   ok(errs.length === 0, 'aucune erreur JavaScript' + (errs.length ? ' (' + errs.slice(0, 3).join(' | ') + ')' : ''));
   await b.close();
   console.log(`\n${passed} vérifications réussies, ${fails} échec(s).`);

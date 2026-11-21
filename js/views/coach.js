@@ -16,6 +16,7 @@ import { QUIZ_TOKEN } from "./quizexos.js";
 import * as XO from "../exercices.js";
 import * as CA from "../cardio.js";
 import { ouvrirEditeur } from "./cardio.js";
+import { ouvrirVideo } from "./video.js";
 import { absenceBanner, reseauBlock } from "./reseau.js";
 import { claimInvite } from "../sync.js";
 import { myAdherence, summaryBetween, checkins as myCheckins, defiDay, since as sinceStart } from "../progress.js";
@@ -154,7 +155,7 @@ function msgHtml(x) {
   const pj = (Array.isArray(x.media) ? x.media : []).filter(m => m && typeof m.path === "string").map(m => {
     const t = String(m.type || ""), p = esc(m.path);
     if (t.startsWith("image")) return `<img data-mp="${p}" alt="Photo jointe" loading="lazy" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">`;
-    if (t.startsWith("video")) return `<video controls playsinline preload="none" data-mp="${p}" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px"></video>`;
+    if (t.startsWith("video")) return `<video controls playsinline preload="none" data-mp="${p}" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px"></video><button class="link xs" data-a="vd-from" style="margin-bottom:6px">🔬 Analyser la vidéo</button>`;
     return `<audio controls preload="none" data-ap="${p}" style="width:220px;max-width:100%;display:block"></audio>`;
   }).join("");
   const quiz = (x.body || "").includes(QUIZ_TOKEN), body = (x.body || "").replace(QUIZ_TOKEN, "").trim();
@@ -695,3 +696,5 @@ actions["mb-cardio"] = (b, d) => {
     onSave: async (item, delId) => { const l = (mbr.settings?.cardio || []).filter(x => x.id !== (item?.id || delId)); if (item) l.push(item); const ok = await saveSettings({ cardio: l }); if (ok && item) { try { (await cloud()).notify("🏃 Nouveau cardio programmé", `${item.titre} · ${CA.libQuand(item.quand)}`, mbr.id); } catch { } } return ok; } });
 };
 actions["mb-cardio-del"] = async (b, d) => { if (!confirm("Supprimer ce cardio programmé ?")) return; if (await saveSettings({ cardio: (mbr.settings?.cardio || []).filter(x => String(x.id) !== d.id) })) rerender(); };
+
+actions["vd-from"] = (b) => { const v = b.previousElementSibling; const u = v?.currentSrc || v?.src; if (!u) return toast("Vidéo pas encore chargée : lance-la une fois puis réessaie."); ouvrirVideo(u); };
