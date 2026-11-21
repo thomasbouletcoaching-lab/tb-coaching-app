@@ -34,7 +34,9 @@ actions["act-add"] = (b, d) => {
       <button class="btn btn-red mt12">Ajouter</button></form>`);
 };
 function addAct(day, a) {
+  a = { ...a, at: a.at || new Date().toISOString() };
   update(st => { const x = st.daily[day] = st.daily[day] || {}; (x.cardio = x.cardio || []).push(a); st.lastCardio = a; });
+  window.dispatchEvent(new CustomEvent("cxs:cardio-fait", { detail: { jour: day, a } }));
   buzz(); closeSheet(); toast("Activité ajoutée"); rerender();
 }
 forms["act-add"] = (v) => {

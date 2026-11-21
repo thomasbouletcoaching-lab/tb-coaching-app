@@ -7,6 +7,7 @@ import { CONFIG, TRIAL_DAYS } from "../config.js";
 import * as SO from "../social.js";
 import * as E from "../engine.js";
 import { gradeOf, GRADES } from "../fx.js";
+import * as EN from "../energy.js";
 
 // ---------- État ----------
 const ETAT = { absent: false, connecte: null, moi: null, err: null, at: 0 };
@@ -139,12 +140,27 @@ export async function imageStory(type, d, { code = monCode(), qui = profil()?.ps
 const cleSeance = (w) => "w:" + (w.start || w.end || w.id);
 export const recapDe = (w) => SO.recapSeance(w, { medaille: gradeOf(w.volume || 0)?.name });
 // Publication automatique à la fin d'une séance, si le membre l'a choisie (réglage « auto ») et a un profil social
+// Toutes les séances (muscu et cardio) sont publiées dans la communauté : règle du groupe TB my Coach.
+// Sans profil de communauté, on en crée un (prénom, premier avatar) au premier envoi.
+async function assurerProfil() {
+  const so = soc(); if (so.profil?.pseudo && so.profil.communaute !== false && so.profil.visibilite === "communaute") return true;
+  const c = await cloud(); if (!c || !(await c.currentSession())) return false;
+  const p = await c.socProfil(so.profil?.pseudo && so.profil.pseudo !== "Membre" ? so.profil.pseudo : SO.pseudoParDefaut(S().profile?.name), so.profil?.avatar || SO.AVATARS[0], true, "communaute");
+  update(st => { st.social = { ...(st.social || {}), profil: p, code: p.code, auto: true }; }); return true;
+}
 export async function autoPublier(w) {
-  const so = soc(); if (!w || so.auto === false || !so.profil || so.profil.visibilite === "prive") return;
-  await publier(w, so.profil.visibilite).catch(() => { });
+  if (!w) return; try { if (!(await assurerProfil())) return; } catch { return; }
+  await publier(w, "communaute").catch(() => { });
   const b = R.route === "done" && document.querySelector('[data-a="soc-pub-w"]'), vis = SO.VISIBILITES.find(v => v[0] === so.profil.visibilite)?.[1];
   if (b && (S().socialPubs || {})[cleSeance(w)]) b.textContent = `✅ Publiée · ${vis} · changer`;
 }
+export async function publierCardio(jour, a) {
+  try { if (!(await assurerProfil())) return; const c = await cloud();
+    const id = await c.socPublier("c:" + (a.at || jour + a.n), { titre: String(a.n || "Cardio").split(" · ")[0], sport: String(a.n || "").split(" · ")[1] || "", min: a.min || 0, ...(a.km ? { km: a.km } : {}), kcal: EN.actKcal(a) || undefined }, "communaute", "cardio");
+    update(st => { st.socialPubs = { ...(st.socialPubs || {}), ["c:" + (a.at || jour + a.n)]: { id, vis: "communaute" } }; }); FIL.amis = FIL.communaute = FIL.moi = null;
+  } catch { }
+}
+window.addEventListener("cxs:cardio-fait", (e) => { const d = e.detail || {}; if (d.a) publierCardio(d.jour, d.a); });
 async function publier(w, vis) {
   const c = await cloud(); if (!c || !(await c.currentSession())) throw new Error("Connexion requise");
   const id = await c.socPublier(cleSeance(w), recapDe(w), vis);
@@ -298,22 +314,19 @@ export function carteSociale() {
 function feuilleProfil(apres = null) {
   const p = profil() || {}, so = soc(), av = p.avatar || SO.AVATARS[0];
   sheet(`<h2 class="h2">${p.pseudo ? "Mon profil dans la communauté" : "Rejoindre la communauté"}</h2>
-    <p class="xs muted mt4">Personne ne voit ton nom, ton e-mail ni ton poids. Pas de messages entre membres : on s'encourage par des gestes, c'est tout. <a href="cgv.html#communaute" target="_blank" rel="noopener">Règles de la communauté</a> · <a href="confidentialite.html#communaute" target="_blank" rel="noopener">Tes données</a></p>
+    <p class="xs muted mt4">Personne ne voit ton nom, ton e-mail ni ton poids. Pas de messages privés entre membres : on s'encourage par des gestes et de courts commentaires sous les séances. <a href="cgv.html#communaute" target="_blank" rel="noopener">Règles de la communauté</a> · <a href="confidentialite.html#communaute" target="_blank" rel="noopener">Tes données</a></p>
     <form data-f="soc-profil" class="mt12">
       <label class="lbl">Pseudo</label><input class="inp mt4" name="pseudo" maxlength="20" required value="${esc(p.pseudo && p.pseudo !== "Membre" ? p.pseudo : SO.pseudoParDefaut(S().profile?.name))}" autocomplete="off" style="width:100%">
       <label class="lbl mt12" style="display:block">Avatar</label><div class="chips wrap mt4">${SO.AVATARS.map(a => `<label class="chip ${a === av ? "on" : ""}" style="font-size:22px;cursor:pointer"><input type="radio" name="avatar" value="${a}" ${a === av ? "checked" : ""} style="display:none" onchange="this.closest('.chips').querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.contains(this)))">${a}</label>`).join("")}</div>
-      <label class="row mt12" style="gap:10px;align-items:flex-start"><input type="checkbox" name="communaute" ${p.communaute !== false ? "checked" : ""} style="margin-top:3px"><span class="small"><b>Rejoindre la communauté</b><br><span class="muted">Voir les séances de tous les membres et apparaître dans leur fil (tu peux en sortir quand tu veux).</span></span></label>
-      <label class="lbl mt12" style="display:block">Mes séances sont visibles par</label>
-      <select class="inp mt4" name="visibilite" style="width:100%">${SO.VISIBILITES.map(([v, l]) => `<option value="${v}" ${(p.visibilite || "communaute") === v ? "selected" : ""}>${l}</option>`).join("")}</select>
-      <label class="row mt12" style="gap:10px;align-items:flex-start"><input type="checkbox" name="auto" ${so.auto !== false ? "checked" : ""} style="margin-top:3px"><span class="small"><b>Publier automatiquement</b> chaque séance terminée<br><span class="muted">Sinon, tu choisis à la fin de chaque séance.</span></span></label>
+      <div class="card soft mt12"><p class="small" style="margin:0">🏟️ <b>Toutes tes séances</b> (muscu et cardio) sont publiées dans la communauté : c'est la règle du groupe, pour qu'on se voie avancer et qu'on s'encourage. Seuls ton pseudo, ton avatar et les chiffres de la séance sont visibles.</p></div>
       <button class="btn btn-red mt16" type="submit">Enregistrer</button></form>
     ${p.pseudo ? `<button class="btn btn-ghost mt8" data-a="soc-effacer" style="color:var(--red)">Effacer mes données de la communauté</button>` : ""}`);
   feuilleProfil.apres = apres;
 }
 forms["soc-profil"] = async (v) => {
   const err = SO.pseudoErreur(v.pseudo); if (err) return toast(err);
-  try { const c = await cloud(); const p = await c.socProfil(v.pseudo.trim(), v.avatar || SO.AVATARS[0], !!v.communaute, v.visibilite || "amis");
-    update(st => { st.social = { ...(st.social || {}), profil: p, code: p.code, auto: !!v.auto }; }); ETAT.moi = { ...(ETAT.moi || {}), profil: p }; FIL.amis = FIL.communaute = FIL.moi = null;
+  try { const c = await cloud(); const p = await c.socProfil(v.pseudo.trim(), v.avatar || SO.AVATARS[0], true, "communaute");
+    update(st => { st.social = { ...(st.social || {}), profil: p, code: p.code, auto: true }; }); ETAT.moi = { ...(ETAT.moi || {}), profil: p }; FIL.amis = FIL.communaute = FIL.moi = null;
     closeSheet(); buzz(20); toast(p.communaute ? "Bienvenue dans la communauté 🏟️" : "Profil enregistré"); const a = feuilleProfil.apres; feuilleProfil.apres = null; if (a) a(); else rerender();
   } catch (e) { toast(e.message === "Pseudo refusé" ? "Ce pseudo n'est pas accepté" : "Enregistrement impossible : " + e.message); }
 };
@@ -336,14 +349,15 @@ function carteJeu() {
 }
 function carteActivite(a) {
   const d = a.data || {}, res = SO.resumeReactions(a.reactions), mes = new Set(a.mes_reactions || []);
-  const stats = [d.min ? `⏱️ ${d.min} min` : "", d.series ? `${d.series} séries` : "", d.tonnes ? `${fr(d.tonnes, 1)} t` : "", d.medaille ? `Grade ${esc(d.medaille)}` : ""].filter(Boolean);
+  const stats = [d.sport ? esc(d.sport) : "", d.min ? `⏱️ ${d.min} min` : "", d.km ? `${fr(d.km, 1)} km` : "", d.kcal ? `🔥 ${fr(d.kcal)} kcal` : "", d.series ? `${d.series} séries` : "", d.tonnes ? `${fr(d.tonnes, 1)} t` : "", d.medaille ? `Grade ${esc(d.medaille)}` : ""].filter(Boolean);
   return `<div class="card mt12" data-act="${a.id}"><div class="row" style="gap:10px"><span class="avatar" style="font-size:22px">${esc(a.avatar)}</span><div class="grow" style="min-width:0"><b>${esc(a.pseudo)}</b>${a.moi ? ` <span class="tag">moi</span>` : a.ami ? ` <span class="tag r">ami</span>` : ""}<br><span class="xs muted">${ago(a.created_at)}</span></div>
       <button class="icon-btn" data-a="soc-menu" data-id="${a.id}" data-moi="${a.moi ? 1 : 0}" aria-label="Options">⋯</button></div>
-    <p class="mt8" style="margin-bottom:4px"><b>💪 ${esc(d.titre || "Séance")}</b></p>
+    <p class="mt8" style="margin-bottom:4px"><b>${a.type === "cardio" ? "🏃" : "💪"} ${esc(d.titre || "Séance")}</b></p>
     ${stats.length ? `<div class="chips wrap">${stats.map(s => `<span class="tag">${s}</span>`).join("")}</div>` : ""}
     ${d.records?.length ? `<p class="small mt8" style="margin-bottom:0">🏆 Record : <b>${esc(d.records.join(", "))}</b></p>` : ""}
     ${res.length ? `<p class="xs muted mt8" style="margin-bottom:0">${res.map(r => `${r.em} ${r.n}`).join("  ")}</p>` : ""}
-    ${a.moi ? "" : `<div class="row mt8" style="gap:6px;justify-content:space-between">${SO.REACTIONS.map(r => `<button class="chip ${mes.has(r.id) ? "on" : ""}" data-a="soc-r" data-id="${a.id}" data-e="${r.id}" aria-label="${esc(r.l)}" aria-pressed="${mes.has(r.id)}" style="font-size:20px;flex:1;justify-content:center">${r.em}</button>`).join("")}</div>`}</div>`;
+    ${a.moi ? "" : `<div class="row mt8" style="gap:6px;justify-content:space-between">${SO.REACTIONS.map(r => `<button class="chip ${mes.has(r.id) ? "on" : ""}" data-a="soc-r" data-id="${a.id}" data-e="${r.id}" aria-label="${esc(r.l)}" aria-pressed="${mes.has(r.id)}" style="font-size:20px;flex:1;justify-content:center">${r.em}</button>`).join("")}</div>`}
+    <button class="link xs mt8" data-a="soc-com" data-id="${a.id}">💬 ${NBC[a.id] ? `${NBC[a.id]} commentaire${NBC[a.id] > 1 ? "s" : ""}` : "Commenter"}</button></div>`;
 }
 // Onglet Communauté (barre du bas) : le fil, les amis, les invitations
 const COMM_MODES = [["communaute", "🏟️ Fil"], ["amis", "🫂 Amis"], ["parrainage", "🎁 Inviter"]];
@@ -357,7 +371,7 @@ routes.communaute = async () => {
   if (bloc) body = bloc;
   else if (!profil() || profil().pseudo === "Membre" && !profil().communaute) body = `<div class="card grad mt12"><div style="font-size:40px">🏟️</div><b class="h2">Rejoins la communauté</b><p class="small mt8" style="opacity:.9">Vois les séances des membres, encourage-les d'un geste 💪 🔥 👏, remplis ta quête du jour et grimpe les niveaux de supporter. Pas de messages, pas de contacts : juste de l'énergie.</p><button class="btn mt8" style="background:#fff;color:var(--red)" data-a="soc-profil">Choisir mon pseudo</button></div>`;
   else {
-    if (!FIL[onglet]) { try { const c = await cloud(); FIL[onglet] = await c.socFil(onglet); } catch (e) { FIL[onglet] = []; toast("Fil indisponible : " + e.message); } }
+    if (!FIL[onglet]) { try { const c = await cloud(); FIL[onglet] = await c.socFil(onglet); const ids = FIL[onglet].map(x => x.id); if (ids.length) Object.assign(NBC, await c.socNbCommentaires(ids).catch(() => ({}))); } catch (e) { FIL[onglet] = []; toast("Fil indisponible : " + e.message); } }
     const items = FIL[onglet] || [];
     const vide = onglet === "amis" ? `<div class="card mt12 center"><p class="small muted">Aucune séance de tes amis pour l'instant.</p><button class="btn btn-line btn-sm" data-a="go" data-r="amis">Ajouter des amis</button></div>`
       : onglet === "moi" ? `<p class="empty small">Tes séances publiées apparaîtront ici.</p>` : profil().communaute ? `<p class="empty small">Sois le premier à publier une séance aujourd'hui 💪</p>` : `<div class="card mt12 center"><p class="small muted">Tu n'as pas rejoint la communauté : tu ne vois que tes amis.</p><button class="btn btn-line btn-sm" data-a="soc-profil">Rejoindre</button></div>`;
@@ -480,3 +494,23 @@ routes["admin-social"] = async () => {
 };
 actions["soc-mod"] = async (b, d) => { try { const c = await cloud(); await c.socModerer(+d.id, d.v === "1"); toast(d.v === "1" ? "Publication masquée" : "Publication gardée"); } catch (e) { toast(e.message); } rerender(); };
 actions["soc-rec"] = async (b, d) => { try { const c = await cloud(); await c.recompenseTraiter(+d.id, d.v === "1"); toast("Noté"); } catch (e) { toast(e.message); } rerender(); };
+
+// ---------- Commentaires sous les séances ----------
+const NBC = {};
+actions["soc-com"] = (b, d) => {
+  const id = +d.id;
+  sheet(`<h2 class="h2">💬 Commentaires</h2><div id="coms" class="mt8"><p class="empty small">Chargement…</p></div>
+    <form data-f="soc-com" class="mt12"><input type="hidden" name="id" value="${id}"><div class="row" style="gap:8px"><input name="t" maxlength="280" placeholder="Bravo, belle séance 💪" required style="flex:1;min-width:0" autocomplete="off"><button class="btn btn-red" style="width:auto">Envoyer</button></div>
+    <p class="xs muted mt4">Encouragements courts. Pas de coordonnées ni de liens.</p></form>`, () => chargerComs(id));
+};
+async function chargerComs(id) {
+  const box = document.getElementById("coms"); if (!box) return;
+  try { const c = await cloud(); const l = await c.socCommentaires(id); NBC[id] = l.length;
+    box.innerHTML = l.length ? l.map(x => `<div class="row" style="gap:8px;padding:6px 0;border-bottom:1px solid var(--line);align-items:flex-start"><span style="font-size:20px">${esc(x.avatar)}</span><span class="grow small"><b>${esc(x.pseudo)}</b> <span class="xs muted">${ago(x.created_at)}</span><br>${esc(x.texte)}</span>${x.moi ? `<button class="link xs" data-a="soc-com-del" data-id="${x.id}" data-act="${id}">Retirer</button>` : ""}</div>`).join("") : `<p class="xs muted">Aucun commentaire. Lance la discussion !</p>`;
+  } catch (e) { box.innerHTML = `<p class="xs muted">Commentaires indisponibles (${esc(e.message)}).</p>`; }
+}
+forms["soc-com"] = async (v, f) => {
+  try { await assurerProfil(); const c = await cloud(); await c.socCommenter(+v.id, v.t.trim()); f.reset(); buzz(10); await chargerComs(+v.id); document.querySelectorAll(`[data-a="soc-com"][data-id="${v.id}"]`).forEach(b => b.textContent = `💬 ${NBC[+v.id]} commentaire${NBC[+v.id] > 1 ? "s" : ""}`); }
+  catch (e) { toast(e.message); }
+};
+actions["soc-com-del"] = async (b, d) => { try { const c = await cloud(); await c.socRetirerCommentaire(+d.id); chargerComs(+d.act); } catch (e) { toast(e.message); } };

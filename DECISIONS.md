@@ -295,3 +295,10 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 - Consignes par exercice écrites par le coach (réglages de l'athlète) : affichées sur l'exercice pendant la séance et dans Coaching.
 - Programme d'un athlète : de zéro, sur le squelette des 8 patterns (générateur, favoris d'abord, détestés exclus) puis isolation et spécifique à la main, ou depuis un modèle.
 - Quiz « exos aimés / détestés » envoyé depuis la conversation (bouton 📋 Quiz exos), rempli par l'athlète pattern par pattern, réponses envoyées dans la conversation et enregistrées pour le générateur.
+
+## C68 · Cardio et multisport structurés, communauté obligatoire (21/11/2026)
+- Entraînement › Cardio : « Ma semaine cardio » (séances programmées par l'athlète et par Thomas), récurrence par jours (chaque semaine ou 1 sur 2, du… au…), heure, une fois à une date.
+- Séances structurées : modèles (endurance fondamentale, sortie longue, récupération, seuil, tempo, 30/30, 1000 m, fartlek, vélo zone 2, rameur, marche inclinée, Hyrox, libre), blocs et répétitions modifiables, zones (facile → sprint) avec allures selon la VMA et FC selon la FC max (⚙️ Allures).
+- Séance guidée : bloc en cours en grand (couleur de zone, temps restant, allure, FC, ressenti), bloc suivant, bip + vibration + notification push à chaque changement (même écran verrouillé), pause, bloc suivant, tours pour l'activité libre (n'importe quel sport). Enregistrement : distance, FC, ressenti, kcal montre ; dépense par MET de chaque bloc × durée × poids.
+- Coach : « 🏃 Cardio programmé » dans la fiche athlète, même éditeur + plan de progression (durée, + min par bloc d'effort, + répétitions, toutes les 1 ou 2 semaines).
+- Communauté : toutes les séances (muscu, cardio guidé, activités ajoutées) sont publiées dans la communauté, sans option pour s'en retirer (décision de Thomas) ; profil créé automatiquement au premier envoi. Commentaires courts sous les séances (sans coordonnées ni liens, 60/jour), l'auteur est notifié. Page confidentialité mise à jour.

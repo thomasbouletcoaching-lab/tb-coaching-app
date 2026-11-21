@@ -14,6 +14,8 @@ import { pushState, enablePush, disablePush } from "../push.js";
 import * as RV from "../revue.js";
 import { QUIZ_TOKEN } from "./quizexos.js";
 import * as XO from "../exercices.js";
+import * as CA from "../cardio.js";
+import { ouvrirEditeur } from "./cardio.js";
 import { absenceBanner, reseauBlock } from "./reseau.js";
 import { claimInvite } from "../sync.js";
 import { myAdherence, summaryBetween, checkins as myCheckins, defiDay, since as sinceStart } from "../progress.js";
@@ -538,6 +540,8 @@ function fileCards(m, D) {
       : `<div class="card mt4"><p class="small muted" style="margin:0">Pas de programme en cours.</p></div>`}
     <div class="grid3 mt8"><button class="btn btn-line btn-sm" data-a="mb-zero">✨ De zéro</button><button class="btn btn-line btn-sm" data-a="mb-squel">🦴 8 patterns</button><button class="btn btn-line btn-sm" data-a="mb-assign">📋 Un modèle</button></div>
     ${prefsCard(D)}
+    <div class="row between mt16"><b class="lbl" style="margin:0">🏃 Cardio programmé</b><button class="link xs" data-a="mb-cardio">+ Programmer</button></div>
+    ${(st.cardio || []).length ? `<div class="card mt4" style="padding:4px 8px">${st.cardio.map(c => `<div class="li" style="gap:8px"><button class="grow small" style="text-align:left" data-a="mb-cardio" data-id="${esc(c.id)}"><b>${esc(c.titre)}</b><br><span class="xs muted">${esc(CA.libQuand(c.quand))}${c.heure ? " · " + c.heure : ""} · ${CA.dureeTotale(c.blocs)} min${c.prog?.weeks ? ` · progression ${c.prog.weeks} sem.` : ""}</span></button><button class="icon-btn sm" data-a="mb-cardio-del" data-id="${esc(c.id)}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>` : `<p class="xs muted mt4">Endurance, seuil, fractionné, Hyrox… avec un plan de progression : il le lance et l'app le guide bloc par bloc.</p>`}
     <div class="row between mt16"><b class="lbl" style="margin:0">Plan diète</b><span class="xs muted">${plan ? "1 actif" : t ? "calculé par l'app" : "aucun"}</span></div>
     <div class="card mt4"><b class="small">${plan ? "Plan écrit" : "Plan calculé pour son profil"}</b><div class="xs muted mt4">${plan ? `${fr(kcal)} kcal · ${plan.length} repas` : t ? `${fr(t.kcal)} kcal · ${t.prot} g de protéines` : "Profil incomplet"}</div>
       <div class="row mt8" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="go" data-r="member-food" data-p="${esc(m.id)}">✏️ Modifier</button><button class="btn btn-line btn-sm grow" data-a="mb-plan">🍽️ Envoyer un plan</button></div></div>
@@ -683,3 +687,11 @@ function mesConsignes() {
   const c = S().coachSettings?.cues || {}; if (!Object.keys(c).length) return "";
   return `<h2 class="sec">🗣️ Mes consignes de Thomas</h2><div class="card" style="padding:4px 12px">${Object.entries(c).map(([n, t]) => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b class="small">${esc(n)}</b><div class="xs mt4" style="white-space:pre-wrap">${esc(t)}</div></div>`).join("")}<p class="xs muted" style="margin:8px 0">Elles s'affichent aussi sur l'exercice pendant ta séance.</p></div>`;
 }
+
+// Cardio programmé par le coach (réglages de l'athlète) : même éditeur que l'athlète, avec plan de progression
+actions["mb-cardio"] = (b, d) => {
+  const it = d.id ? (mbr.settings?.cardio || []).find(x => String(x.id) === d.id) : null;
+  ouvrirEditeur(it ? { ...it, saved: true } : { id: "k" + Date.now(), sport: "course", modele: "ef", blocs: CA.modele("ef").blocs, quand: { jours: [1, 3], from: today() }, prog: { weeks: 8, every: 1, effortMin: 2 } }, { coach: true,
+    onSave: async (item, delId) => { const l = (mbr.settings?.cardio || []).filter(x => x.id !== (item?.id || delId)); if (item) l.push(item); const ok = await saveSettings({ cardio: l }); if (ok && item) { try { (await cloud()).notify("🏃 Nouveau cardio programmé", `${item.titre} · ${CA.libQuand(item.quand)}`, mbr.id); } catch { } } return ok; } });
+};
+actions["mb-cardio-del"] = async (b, d) => { if (!confirm("Supprimer ce cardio programmé ?")) return; if (await saveSettings({ cardio: (mbr.settings?.cardio || []).filter(x => String(x.id) !== d.id) })) rerender(); };

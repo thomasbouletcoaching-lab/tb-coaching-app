@@ -452,3 +452,7 @@ export async function reviewSave(memberId, workoutId, data) { const { error } = 
 export async function reviewDel(memberId, workoutId) { const { error } = await sb.from("cxs_session_reviews").delete().eq("user_id", memberId).eq("workout_id", String(workoutId)); if (error) throw error; }
 export async function myReviews() { if (!uid) await ensureSession(); return reviewsOf(uid); }
 export async function reviewSeen(ids) { if (!ids.length) return; const { error } = await sb.rpc("cxs_review_seen", { p_ids: ids.map(String) }); if (error) throw error; }
+export const socCommenter = (id, texte) => soc("cxs_soc_commenter", { p_activite: id, p_texte: texte });
+export const socCommentaires = (id) => soc("cxs_soc_commentaires_lire", { p_activite: id }).then(r => r || []);
+export const socNbCommentaires = (ids) => soc("cxs_soc_nb_commentaires", { p_ids: ids }).then(r => Object.fromEntries((r || []).map(x => [x.activite_id, Number(x.n)])));
+export const socRetirerCommentaire = (id) => soc("cxs_soc_commentaire_retirer", { p_id: id });

@@ -37,6 +37,7 @@ import "./views/profil.js";
 import "./views/hybride.js";
 import "./views/reseau.js";
 import "./views/quizexos.js";
+import "./views/cardio.js";
 import { captureInvitation, pullSocial } from "./views/social.js";
 import { pullLive } from "./views/live.js";
 import { pullCoachFood } from "./views/coachfood.js";

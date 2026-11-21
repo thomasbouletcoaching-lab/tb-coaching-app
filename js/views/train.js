@@ -2,6 +2,7 @@
 import { scheduleRest, unlockAudio, beep } from "../push.js";
 import * as SC from "../science.js";
 import * as RV from "../revue.js";
+import { semaineCardio } from "./cardio.js";
 import { recapExercice, serieTxt } from "../recap.js";
 import { tagMoteur, indiceDuMoteur, feuilleIndice } from "./indice-ui.js";
 import { feuStartBlock, apresFeu } from "./fatigue.js";
@@ -85,7 +86,7 @@ function programmesBody() {
 // Cardio : activités du jour, de la semaine, et des deux dernières semaines
 function cardioBody() {
   const days = Array.from({ length: 14 }, (_, i) => addDays(today(), -i)).filter(k => (S().daily?.[k]?.cardio || []).length);
-  return activiteCard() + `<h2 class="sec">🗓️ Les deux dernières semaines</h2>` + (days.length ? `<div class="list">${days.map(k => { const l = S().daily[k].cardio; return `<div class="li"><span class="grow"><b class="small" style="text-transform:capitalize">${fmtDate(k, { weekday: "long", day: "numeric", month: "short" })}</b><br><span class="xs muted">${l.map(c => `${esc(c.n)} · ${c.min} min`).join(" · ")}</span></span></div>`; }).join("")}</div>` : `<p class="empty small">Tes activités (course, vélo, marche, sport) apparaîtront ici.</p>`)
+  return semaineCardio() + `<button class="btn btn-line btn-sm mt8" data-a="cd-libre">🤸 Lancer une activité libre (n'importe quel sport)</button>` + activiteCard() + `<h2 class="sec">🗓️ Les deux dernières semaines</h2>` + (days.length ? `<div class="list">${days.map(k => { const l = S().daily[k].cardio; return `<div class="li"><span class="grow"><b class="small" style="text-transform:capitalize">${fmtDate(k, { weekday: "long", day: "numeric", month: "short" })}</b><br><span class="xs muted">${l.map(c => `${esc(c.n)} · ${c.min} min`).join(" · ")}</span></span></div>`; }).join("")}</div>` : `<p class="empty small">Tes activités (course, vélo, marche, sport) apparaîtront ici.</p>`)
     + `<p class="xs muted mt12">Chaque activité compte dans ta dépense du jour (Nutrition › Dépense).</p>`;
 }
 actions["express-go"] = async (b, d) => {
