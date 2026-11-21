@@ -25,9 +25,9 @@ routes.sante = async () => {
     ${etape(2, "Raccourci « TB ← Santé » : envoyer pas, sommeil, poids", `<ol class="xs mt8" style="padding-left:16px">
       <li>Raccourcis › <b>+</b> › nomme-le « TB ← Santé ».</li>
       <li>Action <b>Rechercher des échantillons de santé</b> : Type <i>Pas</i>, Date de début <i>Aujourd'hui</i>. Puis <b>Calculer les statistiques</b> : <i>Somme</i>. Renomme le résultat « Pas ».</li>
-      <li>Action <b>Rechercher des échantillons de santé</b> : Type <i>Analyse du sommeil</i>, Date de début <i>au cours du dernier jour</i>, Valeur <i>Endormi</i>. Puis <b>Calculer les statistiques</b> : <i>Somme</i> de la durée (en minutes). Renomme « Sommeil ».</li>
+      <li>Action <b>Rechercher des échantillons de santé</b> : Type <i>Analyse du sommeil</i>, Date de fin <i>est aujourd'hui</i>, Valeur <i>n'est pas</i> Au lit, Valeur <i>n'est pas</i> Éveillé (avec une montre, la nuit est découpée en Essentiel, Profond, Paradoxal). Puis <b>Calculer les statistiques</b> : <i>Somme</i> de la <i>Durée</i>. Renomme « Sommeil » (heures, minutes ou secondes : l'app convertit).</li>
       <li>Action <b>Rechercher des échantillons de santé</b> : Type <i>Poids</i>, Trier par <i>Date de début (plus récent)</i>, Limite <i>1</i>. Renomme « Poids » (facultatif).</li>
-      <li>Action <b>Obtenir le contenu de l'URL</b> avec l'adresse ci-dessous. Afficher plus › Méthode <i>POST</i>, Corps de la requête <i>JSON</i>, ajoute les champs <b>token</b> (ton jeton), <b>pas</b>, <b>sommeil</b>, <b>poids</b> avec les variables.</li>
+      <li>Action <b>Obtenir le contenu de l'URL</b> avec l'adresse ci-dessous. Afficher plus › Méthode <i>POST</i>, Corps de la requête <i>JSON</i>, ajoute 4 champs Texte : à gauche (Clé) <b>token</b>, <b>pas</b>, <b>sommeil</b>, <b>poids</b> ; à droite (Valeur) ton jeton puis les variables Pas, Sommeil, Poids.</li>
       <li>Action <b>Afficher la notification</b> avec le résultat (facultatif).</li></ol>${code(U, "sa-url")}`)}
     ${etape(3, "Raccourci « TB → Santé » : écrire tes séances et tes repas", `<ol class="xs mt8" style="padding-left:16px">
       <li>Nouveau raccourci « TB → Santé ». Action <b>Obtenir le contenu de l'URL</b> avec l'adresse ci-dessous (méthode GET).</li>
