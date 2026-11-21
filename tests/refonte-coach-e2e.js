@@ -129,6 +129,10 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   ok(/Programme sport/.test(t) && /Plan diète/.test(t) && /Bilans/.test(t) && /Échéances/.test(t), 'fiche athlète : cartes programme, diète, bilans, échéances');
   ok((await overflow(c.p)).length === 0, 'fiche athlète : rien ne dépasse');
   await shot(c.p, 'refonte-coach-fiche');
+  ok(/Vue d'ensemble/.test(t) && /Profil/.test(t) && /Nutrition/.test(t) && /cette semaine/.test(t), 'fiche athlète : vue d\'ensemble (profil, programme, nutrition, séances)');
+  // les réglages du suivi sont repliés : on les déplie pour la suite du test (à chaque nouveau rendu)
+  const ouvrir = () => c.p.evaluate(() => { const f = () => document.querySelectorAll('details.plis:not([open])').forEach(d => { d.open = true; }); f(); if (!window.__plis) { window.__plis = new MutationObserver(f); window.__plis.observe(document.body, { childList: true, subtree: true }); } });
+  await ouvrir();
   await c.p.click('[data-a="mb-bilan"]'); await c.p.waitForTimeout(400);
   await c.p.selectOption('select[name="every"]', '2');
   await c.p.check('input[name="digest"]');
@@ -137,7 +141,7 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   let saved = await c.p.evaluate((u) => window.__settings[u], U1);
   ok(saved?.bilan?.every === 2 && saved.bilan.digest && saved.bilan.questions.length === 2, 'bilans réglés et enregistrés');
   ok(/Toutes les 2 semaines/.test(await txt(c.p)), 'fiche athlète : rythme affiché');
-  await c.p.click('[data-a="mb-dl-add"]'); await c.p.waitForTimeout(400);
+  await ouvrir(); await c.p.click('[data-a="mb-dl-add"]'); await c.p.waitForTimeout(400);
   await c.p.fill('form[data-f="mb-dl"] input[name="title"]', 'Test de force');
   await c.p.fill('form[data-f="mb-dl"] input[name="d"]', iso(new Date(Date.now() + 20 * 864e5)));
   await c.p.click('form[data-f="mb-dl"] .btn-red'); await c.p.waitForTimeout(800);

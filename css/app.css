@@ -804,3 +804,15 @@ pre.code{white-space:pre-wrap;word-break:break-all;font-size:11.5px;line-height:
 .radar .rl { font-size: 10px; fill: var(--ink); font-weight: 600; }
 .vz{position:relative;transition:transform .2s ease}
 .vzbadge{position:absolute;right:8px;top:8px;background:rgba(0,0,0,.65);color:#fff;border:0;border-radius:999px;padding:6px 10px;font-size:12px;line-height:1.2;font-weight:700}
+
+/* C73 : fiche athlète épurée */
+.mb-acts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.mb-act{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border-radius:14px;background:var(--paper);border:1px solid var(--line);color:var(--ink);text-decoration:none;font:inherit}
+.mb-act span{font-size:20px;line-height:1}.mb-act small{font-size:11px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.mb-hero .mb-av{width:52px;height:52px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;font-weight:800;font-size:22px;flex:none}
+.mb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 8px}
+.mb-grid div{display:flex;flex-direction:column}.mb-grid span{font-size:11px;color:var(--soft)}.mb-grid b{font-size:15px}
+.wk7s{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:6px}
+.wk7s div{padding:6px 0;border-radius:10px}.wk7s div.on{background:var(--tint2)}.wk7s span{display:block;font-size:11px;color:var(--soft)}.wk7s b{font-size:16px}
+details.plis>summary{list-style:none;cursor:pointer}details.plis>summary::-webkit-details-marker{display:none}
+details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.plis[open]>summary::after{content:"▴"}

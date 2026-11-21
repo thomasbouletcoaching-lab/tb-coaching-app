@@ -1,4 +1,5 @@
 import { analyseHtml } from "./stats.js";
+import { GOALS } from "../programme.js";
 import { libelleGenre, libelleSexe } from "../genre.js";
 import { PUBLIC_OFFERS } from "../config.js";
 // Coach : messagerie (avec réactions), offres et démo, candidature, bilans, notifications, espace coach.
@@ -21,7 +22,7 @@ import { ouvrirVideo } from "./video.js";
 import { absenceBanner, reseauBlock } from "./reseau.js";
 import { claimInvite } from "../sync.js";
 import { myAdherence, summaryBetween, checkins as myCheckins, defiDay, since as sinceStart } from "../progress.js";
-import { coachLogo, trialLeft, $app, esc, num, fr, buzz, toast, ago, routes, R, actions, forms, changes, go, I, header, tabbar, adminTabbar, seg, chips, sheet, closeSheet, badges, fmtDate, addDays, rerender, tier, rank, premium, isCoach, msgQuotaText, cloud, cloudNow, render, onLeave, canMsg, locked } from "../core.js";
+import { ring, coachLogo, trialLeft, $app, esc, num, fr, buzz, toast, ago, routes, R, actions, forms, changes, go, I, header, tabbar, adminTabbar, seg, chips, sheet, closeSheet, badges, fmtDate, addDays, rerender, tier, rank, premium, isCoach, msgQuotaText, cloud, cloudNow, render, onLeave, canMsg, locked } from "../core.js";
 import { refreshMe, syncProfile } from "../sync.js";
 import { fromCoach, libraryRows } from "../library.js";
 import { openProgramEditor } from "./coachprog.js";
@@ -374,18 +375,18 @@ routes.member = async () => {
   const o = m.onboarding || {}, ap = o.application, st = m.stats || {};
   if (mbr.id !== m.id) Object.assign(mbr, { id: m.id, tab: "suivi", day: null, data: null, settings: null });
   if (!mbr.data) { $app.innerHTML = header(esc(m.name || "Membre"), "", { back: "admin" }) + `<main class="page"><p class="empty">Chargement de ses données…</p></main>`; await Promise.all([E.loadPrograms(), N.loadModels()]); try { mbr.data = (await c.memberData(m.id)) || { data: null }; mbr.settings = await c.coachSettingsGet(m.id).catch(() => ({})); mbr.reviews = await c.reviewsOf(m.id).catch(() => ({})); await XO.loadExercices().catch(() => { }); } catch (e) { mbr.data = { data: null, err: e.message }; } }
-  const tabs = [["suivi", "📈 Suivi"], ["jour", "☀️ Journée"], ["seances", "🏋️ Séances"], ["stats", "📊 Stats"], ["agenda", "🗓️ Agenda"], ["corps", "⚖️ Corps"], ["profil", "👤 Profil"]];
+  const tabs = [["suivi", "🏠 Vue d'ensemble"], ["jour", "☀️ Journée"], ["seances", "🏋️ Séances"], ["stats", "📊 Stats"], ["agenda", "🗓️ Agenda"], ["corps", "⚖️ Corps"], ["profil", "👤 Profil"]];
   const D = mbr.data.data;
   const cur = D?.current?.exercises?.length ? D.current : null, curDone = cur ? cur.exercises.reduce((a, e) => a + e.sets.filter(x => x.done).length, 0) : 0, curTot = cur ? cur.exercises.reduce((a, e) => a + e.sets.filter(x => x.type !== "W").length, 0) : 0;
   const liveBan = cur ? `<button class="card" data-a="go" data-r="live" data-p="${esc(m.id)}" style="width:100%;text-align:left;margin-bottom:10px;box-shadow:0 0 0 2px var(--red) inset"><div class="row between"><span><b>🔴 Séance en direct</b><br><span class="small">${esc(cur.title || "Séance")} · ${curDone} séries faites${curTot ? ` / ${curTot}` : ""}</span></span><span class="btn btn-red btn-sm">Ouvrir ▶</span></div></button>` : "";
-  const top = `${liveBan}<div class="row" style="gap:8px"><a class="btn btn-red btn-sm grow" href="#/chat/${m.id}">💬 Messages${m.unread ? ` · ${m.unread}` : ""}</a>${m.email ? `<a class="btn btn-line btn-sm grow" href="mailto:${esc(m.email)}">✉️ E-mail</a>` : ""}</div>
-    <div class="row mt8" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="go" data-r="member-food" data-p="${esc(m.id)}">📊 Plan alimentaire (semaine ou jour)</button><button class="btn btn-red btn-sm grow" data-a="live-start" data-id="${esc(m.id)}">▶ Séance en direct</button></div>
+  const act = (attrs, em, l) => `<${attrs.startsWith("href") ? "a" : "button"} class="mb-act" ${attrs}><span>${em}</span><small>${l}</small></${attrs.startsWith("href") ? "a" : "button"}>`;
+  const top = `${liveBan}<div class="mb-acts">${act(`href="#/chat/${m.id}"`, "💬", `Messages${m.unread ? ` · ${m.unread}` : ""}`)}${act(`data-a="go" data-r="member-prog" data-p="${esc(m.id)}"`, "📋", "Programme")}${act(`data-a="go" data-r="member-food" data-p="${esc(m.id)}"`, "🍽️", "Diète")}${act(`data-a="live-start" data-id="${esc(m.id)}"`, "▶️", "Direct")}${m.email ? act(`href="mailto:${esc(m.email)}"`, "✉️", "E-mail") : ""}</div>
     <div class="mt12">${chips(tabs, mbr.tab, "mb-tab")}</div>
     ${D ? `<p class="xs muted mt4">Données mises à jour ${ago(mbr.data.updated_at)}</p>` : ""}`;
   if (mbr.tab !== "profil") {
-    const body = !D ? `<p class="empty small">${mbr.data.err ? esc(mbr.data.err) : "Pas encore de données : elles arrivent la prochaine fois que ce membre ouvre l'app (version à jour)."}</p>` : withState(D, () => mbr.tab === "stats" ? statsMembre() : mbr.tab === "suivi" ? memberSuivi(D, m) : mbr.tab === "jour" ? memberDay(D) : mbr.tab === "seances" ? memberSessions(D) : mbr.tab === "agenda" ? memberAgenda(D) : memberBody(D));
-    const cards = mbr.tab === "suivi" && D ? withState(D, () => fileCards(m, D)) : "";
-    $app.innerHTML = header(esc(m.name || "Membre"), esc(D?.plan ? `${(E.program(D.plan.programId)?.name || "").split("·")[0]} · semaine ${D.plan.week}` : m.email || ""), { back: "admin", actions: `<button class="pill" data-a="go" data-r="member-prog" data-p="${esc(m.id)}">📋 Programme</button>` }) + `<main class="page">${top}${cards}${body}</main>${adminTabbar("admin")}`;
+    const body = !D ? `<p class="empty small">${mbr.data.err ? esc(mbr.data.err) : "Pas encore de données : elles arrivent la prochaine fois que ce membre ouvre l'app (version à jour)."}</p>` : withState(D, () => mbr.tab === "stats" ? statsMembre() : mbr.tab === "suivi" ? `<details class="card mt12 plis"><summary><b>📈 Régularité, bilans et historique</b></summary>${memberSuivi(D, m)}</details>` : mbr.tab === "jour" ? memberDay(D) : mbr.tab === "seances" ? memberSessions(D) : mbr.tab === "agenda" ? memberAgenda(D) : memberBody(D));
+    const cards = mbr.tab === "suivi" && D ? withState(D, () => vueEnsemble(m, D) + `<details class="card mt16 plis"><summary><b>⚙️ Réglages du suivi</b><span class="xs muted"> · objectif, mot, consignes, cardio, diète, bilans, échéances</span></summary>${fileCards(m, D)}</details>`) : "";
+    $app.innerHTML = header(esc(m.name || "Membre"), esc(D?.plan ? `${(E.program(D.plan.programId)?.name || "").split("·")[0]} · semaine ${D.plan.week}` : m.email || ""), { back: "admin" }) + `<main class="page">${top}${cards}${body}</main>${adminTabbar("admin")}`;
     return;
   }
   const L = { goal: "Objectif", discipline: "Discipline", level: "Niveau", place: "Lieu", days: "Jours / semaine", sex: "Sexe déclaré", genre: "Souhaite qu'on s'adresse à lui ou elle", age: "Âge", height: "Taille", weight: "Poids", diet: "Alimentation", activity: "Activité", backPain: "Gêne lombaire", word: "Parole", news: "Accepte les e-mails" };
@@ -529,6 +530,34 @@ function applyDossier() {
 // FICHE ATHLÈTE EN CARTES (refonte 21/11/2026) : programme, diète, bilans, échéances
 // =====================================================================
 const DL_TYPES = [["compet", "🏁 Compétition"], ["bilan", "📝 Bilan"], ["cycle", "🔁 Fin de cycle"], ["rdv", "📅 Rendez-vous"], ["objectif", "🎯 Objectif"]];
+// Vue d'ensemble d'un athlète (C73) : prénom et objectif, profil, programme, anneaux nutrition du jour et de la semaine, séances
+const NIVEAUX_L = { beginner: "Débutant", new: "Débutant", debutant: "Débutant", comeback: "Reprise", regular: "Régulier", intermediate: "Intermédiaire", advanced: "Avancé", avance: "Avancé" };
+const LIEUX_L = { gym: "Salle", home: "Maison", outdoor: "Extérieur", both: "Salle et maison" };
+function vueEnsemble(m, D) {
+  const pr = D.profile || {}, prenom = (pr.name || m.name || "Athlète").split(" ")[0], but = (GOALS.find(g => g[0] === pr.goal) || [])[1] || pr.goal || "";
+  const ob = mbr.settings?.objectif, ns = E.nextSession(), t0 = today();
+  const poids = Object.entries(D.daily || {}).filter(([, v]) => v?.weight).sort().at(-1)?.[1]?.weight || pr.weight;
+  const champ = (l, v) => v == null || v === "" ? "" : `<div><span>${l}</span><b>${esc(String(v))}</b></div>`;
+  const hero = `<div class="card mt12 mb-hero"><div class="row" style="gap:12px;align-items:center"><span class="mb-av">${esc(prenom[0] || "?").toUpperCase()}</span><div class="grow" style="min-width:0"><b class="h2" style="display:block;line-height:1.1">${esc(prenom)}</b>${but ? `<span class="tag r mt4" style="display:inline-block">🎯 ${esc(but)}</span>` : ""}</div></div>
+    ${ob ? `<p class="small mt8" style="margin-bottom:0"><b>Objectif de la période :</b> ${esc(ob.titre)} <span class="xs muted">(→ ${fmtDate(ob.au, { day: "numeric", month: "short" })})</span></p>` : ""}</div>`;
+  const profil = `<h2 class="sec">👤 Profil</h2><div class="card mb-grid">${champ("Âge", pr.age ? pr.age + " ans" : null)}${champ("Taille", pr.height ? pr.height + " cm" : null)}${champ("Poids", poids ? fr(poids, 1) + " kg" : null)}${champ("Niveau", NIVEAUX_L[pr.level] || pr.level)}${champ("Séances / sem.", pr.days)}${champ("Lieu", LIEUX_L[pr.place] || pr.place)}${champ("Discipline", pr.discipline)}${champ("Alimentation", pr.diet && pr.diet !== "all" && pr.diet !== "omni" ? pr.diet : null)}</div>`;
+  const prog = `<h2 class="sec">📋 Programme</h2>${ns ? `<button class="card grad" style="width:100%;text-align:left;padding:12px 14px" data-a="go" data-r="member-prog" data-p="${esc(m.id)}"><div class="xs" style="opacity:.85">Semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)}</div><b style="display:block;font-size:17px">${esc(ns.p.name)}</b><div class="xs mt4" style="opacity:.9">Prochaine séance : ${esc(ns.title)} · ✏️ modifier</div></button>` : `<div class="card"><p class="small muted" style="margin:0">Pas de programme en cours. <button class="link" data-a="go" data-r="member-prog" data-p="${esc(m.id)}">En créer un</button></p></div>`}`;
+  // Nutrition : anneaux du jour et moyenne des 7 derniers jours notés
+  const t = N.targets(), jt = N.dayTotals(t0), jours = Array.from({ length: 7 }, (_, i) => addDays(t0, -i)), notes = jours.filter(k => N.dayLog(k).length);
+  const moy = (k) => notes.length ? notes.reduce((a, d) => a + (N.dayTotals(d)[k] || 0), 0) / notes.length : 0;
+  const anneau = (v, cible, l, col) => { const f = cible ? v / cible : 0; return `<div><div class="mini"><svg viewBox="0 0 66 66">${ring(Math.min(1, f), 66, 7, col)}</svg><b>${cible ? Math.round(f * 100) + "%" : "–"}</b></div><div class="l">${l}<br><span class="xs">${fr(v)}${cible ? " / " + fr(cible) : ""}</span></div></div>`; };
+  const ligne = (x) => `<div class="minis" style="grid-template-columns:repeat(4,1fr);margin-top:8px">${anneau(x.kcal, t?.kcal, "kcal", "#2F6FED")}${anneau(x.p, t?.prot, "Prot. g", "#B3263A")}${anneau(x.c, t?.carbs, "Gluc. g", "#E0A93B")}${anneau(x.f, t?.fat, "Lip. g", "#1E8F4E")}</div>`;
+  const nutri = `<h2 class="sec">🍽️ Nutrition</h2><div class="card"><div class="row between"><b class="small">Aujourd'hui</b><span class="xs muted">${N.dayLog(t0).length} aliment${N.dayLog(t0).length > 1 ? "s" : ""} notés</span></div>${ligne({ kcal: jt.kcal || 0, p: jt.p || 0, c: jt.c || 0, f: jt.f || 0 })}
+    <div class="row between mt12"><b class="small">Moyenne 7 jours</b><span class="xs muted">${notes.length}/7 jours notés</span></div>${ligne({ kcal: moy("kcal"), p: moy("p"), c: moy("c"), f: moy("f") })}</div>`;
+  // Séances : la semaine en cours et les dernières faites
+  const lun = addDays(t0, -E.dowOf(t0)), sem = Array.from({ length: 7 }, (_, i) => addDays(lun, i)), ag = E.agenda(sem[0], sem[6]);
+  const fait = sem.filter(k => ag[k]?.st === "done").length, prevu = sem.filter(k => ag[k] && !["rest", "away"].includes(ag[k].st)).length;
+  const ico = { done: "✅", missed: "❌", planned: "🏋️", rest: "😌", away: "↪️" };
+  const der = (D.workouts || []).slice(-3).reverse();
+  const seances = `<h2 class="sec">🏋️ Séances <small>${fait}/${prevu} cette semaine</small></h2><div class="card"><div class="wk7s">${sem.map((k, i) => `<div class="${k === t0 ? "on" : ""}"><span>${E.DAY_SHORT[i]}</span><b>${ag[k] ? ico[ag[k].st] || "·" : "·"}</b></div>`).join("")}</div>
+    ${der.length ? der.map(w => `<button class="li" style="width:100%;text-align:left" data-a="mb-tab" data-v="seances"><span class="grow small"><b>${esc(w.title)}</b><br><span class="xs muted">${fmtDate(today(new Date(w.end)), { weekday: "short", day: "numeric", month: "short" })} · ${w.setsDone ?? (w.exercises || []).reduce((a, e) => a + (e.sets || []).filter(x => x.done && x.type !== "W").length, 0)} séries${w.volume ? ` · ${fr(w.volume / 1000, 1)} t` : ""}${w.records?.length ? " · 🏆" : ""}</span></span>${I.chev}</button>`).join("") : `<p class="small muted mt8" style="margin-bottom:0">Aucune séance enregistrée.</p>`}</div>`;
+  return hero + profil + prog + nutri + seances;
+}
 function fileCards(m, D) {
   mbr.exNames = [...new Set([...(E.nextSession()?.p?.s || []).flatMap(x => (x[2] || []).map(r => r[0])), ...(D.workouts || []).slice(-20).flatMap(w => w.exercises.map(e => e.name))])].filter(Boolean).sort((a, b) => a.localeCompare(b, "fr"));
   const ns = E.nextSession(), st = mbr.settings || {}, bl = st.bilan, dls = (st.deadlines || []).slice().sort((a, b) => a.d.localeCompare(b.d));
