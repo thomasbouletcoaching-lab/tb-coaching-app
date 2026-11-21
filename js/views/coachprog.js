@@ -117,15 +117,16 @@ routes["member-prog"] = async () => {
   $app.innerHTML = header("Programme", "", { back: "admin" }) + `<main class="page"><p class="empty">Chargement…</p></main>`;
   try {
     const c = await cloud(); const m = (window.__members || []).find(x => x.id === memberId);
-    let src = pending ? pending.program : null;
+    let src = pending ? pending.program : null, enCours = false;
     if (!src) {
       const md = await c.memberData(memberId).catch(() => null);
       const cur = await c.coachPlanGet(memberId).catch(() => null);
-      src = cur?.program?.s?.length ? cur.program : memberProgram(md?.data);
+      enCours = !!cur?.program?.s?.length;
+      src = enCours ? cur.program : memberProgram(md?.data);
     }
     // Même éditeur complet que celui du client : semaines, techniques, surcharge, superset
     const { openBuilderForMember } = await import("./train.js");
-    openBuilderForMember(memberId, m?.name || m?.email || "client", src);
+    openBuilderForMember(memberId, m?.name || m?.email || "client", src, { enCours });
   } catch (e) { $app.innerHTML = header("Programme", "", { back: "admin" }) + `<main class="page"><p class="empty">Chargement impossible : ${esc(e.message)}</p></main>`; }
 };
 

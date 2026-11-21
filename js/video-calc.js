@@ -47,6 +47,7 @@ export const MOUVEMENTS = [
   { id: "hipthrust", n: "Hip thrust", crit: ["Haut du dos sur le banc, sous les omoplates", "Tibias verticaux en haut", "Bassin en rétroversion en haut (pas de cambrure)", "Menton rentré", "Pause en haut", "Poussée par les talons"] },
   { id: "rdl", n: "Soulevé de terre roumain", crit: ["Genoux légèrement fléchis et fixes", "Hanches qui reculent", "Dos neutre", "Barre collée aux cuisses", "Descente jusqu'à l'étirement des ischios", "Remontée par la poussée des hanches"] },
   { id: "frontsquat", n: "Front squat", crit: ["Coudes hauts tout le long", "Buste droit", "Profondeur", "Genoux dans l'axe des pieds", "Talons au sol", "Barre au-dessus du milieu du pied"] },
+  { id: "tirage-vertical", n: "Tirage vertical (poulie)", crit: ["Buste stable, légère inclinaison tenue", "Barre tirée vers le haut de la poitrine", "Omoplates qui descendent avant de tirer", "Coudes vers les hanches", "Pas d'élan du buste", "Remontée contrôlée bras tendus"] },
   { id: "autre", n: "Autre mouvement", crit: ["Amplitude complète", "Trajectoire maîtrisée", "Posture stable", "Tempo contrôlé"] },
 ];
 export const mouvement = (id) => MOUVEMENTS.find(m => m.id === id) || MOUVEMENTS.at(-1);
@@ -76,3 +77,76 @@ export function phases(pts, { seuil = 0.05, amp = 0.05 } = {}) {
 export function reps(ph) { const r = []; for (let i = 0; i < ph.length; i++) { if (ph[i].type === "exc" && ph[i + 1]?.type === "con") { r.push({ exc: ph[i], con: ph[i + 1] }); i++; } else if (ph[i].type === "con") r.push({ exc: null, con: ph[i] }); } return r; }
 // Écart horizontal maximal de la barre (en mètres si l'échelle est donnée) et son sens (vers l'avant = vers la droite de l'image si l'athlète regarde à droite)
 export function ecartHorizontal(pts) { if (pts.length < 2) return null; const x0 = pts[0].x, xs = pts.map(p => p.x - x0); const mx = Math.max(...xs), mn = Math.min(...xs); return { max: Math.round((mx - mn) * 1000) / 1000, droite: Math.round(mx * 1000) / 1000, gauche: Math.round(-mn * 1000) / 1000 }; }
+
+// ---------- Analyse v3 (décision C72) : suivi robuste, nettoyage de la trajectoire, répétitions détaillées et constance ----------
+// Corrélation croisée normalisée (insensible aux changements de lumière) : score de -1 à 1, avec affinage sous le pixel.
+export function suivreNCC(img, tpl, x, y, r = 14) {
+  const tw = tpl.w, th = tpl.h, hw = tw >> 1, hh = th >> 1, n = tw * th;
+  let ms = 0; for (let i = 0; i < n; i++) ms += tpl.d[i]; ms /= n;
+  let vs = 0; for (let i = 0; i < n; i++) { const d = tpl.d[i] - ms; vs += d * d; } vs = Math.sqrt(vs) || 1;
+  const S = new Map(); let best = -2, bx = x, by = y;
+  const score = (cx, cy) => {
+    if (cx - hw < 0 || cy - hh < 0 || cx - hw + tw > img.w || cy - hh + th > img.h) return -2;
+    let m = 0; for (let j = 0; j < th; j++) { const ro = (cy - hh + j) * img.w + cx - hw; for (let i = 0; i < tw; i++) m += img.d[ro + i]; } m /= n;
+    let num = 0, den = 0; for (let j = 0; j < th; j++) { const ro = (cy - hh + j) * img.w + cx - hw, to = j * tw; for (let i = 0; i < tw; i++) { const a = img.d[ro + i] - m; num += a * (tpl.d[to + i] - ms); den += a * a; } }
+    return num / ((Math.sqrt(den) || 1) * vs);
+  };
+  for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const cx = Math.round(x + dx), cy = Math.round(y + dy), s = score(cx, cy); S.set(cx + "," + cy, s); if (s > best) { best = s; bx = cx; by = cy; } }
+  const g = (cx, cy) => S.has(cx + "," + cy) ? S.get(cx + "," + cy) : score(cx, cy);
+  const para = (a, b, c) => { const d = a - 2 * b + c; return d < 0 ? Math.max(-0.5, Math.min(0.5, (a - c) / (2 * d))) : 0; };
+  return { x: bx + para(g(bx - 1, by), best, g(bx + 1, by)), y: by + para(g(bx, by - 1), best, g(bx, by + 1)), score: best };
+}
+// Trajectoire nettoyée : les sauts aberrants (plus de 4 fois le pas médian) sont remplacés par interpolation
+export function nettoyerTrajectoire(pts, k = 4) {
+  if (pts.length < 5) return pts.slice();
+  const pas = pts.slice(1).map((p, i) => Math.hypot(p.x - pts[i].x, p.y - pts[i].y)).sort((a, b) => a - b), med = Math.max(1e-4, pas[Math.floor(pas.length / 2)]);
+  const ok = pts.map((p, i) => { if (i === 0 || i === pts.length - 1) return true; const a = pts[i - 1], b = pts[i + 1]; const dA = Math.hypot(p.x - a.x, p.y - a.y), dB = Math.hypot(p.x - b.x, p.y - b.y), dAB = Math.hypot(a.x - b.x, a.y - b.y); return !(dA > k * med && dB > k * med && dAB < 2 * k * med); });
+  return pts.map((p, i) => { if (ok[i]) return { ...p }; let a = i - 1; while (a > 0 && !ok[a]) a--; let b = i + 1; while (b < pts.length - 1 && !ok[b]) b++; const f = (p.t - pts[a].t) / Math.max(1e-6, pts[b].t - pts[a].t); return { t: p.t, x: pts[a].x + (pts[b].x - pts[a].x) * f, y: pts[a].y + (pts[b].y - pts[a].y) * f, corrige: true }; });
+}
+// Sens du mouvement : +1 la phase concentrique fait MONTER le point suivi (squat, développé, soulevé), -1 la fait DESCENDRE (tirage vertical à la poulie)
+export const SENS = { "tirage-vertical": -1 };
+export const sensDe = (mvt) => SENS[mvt] || 1;
+export const retourner = (pts, sens) => sens === -1 ? pts.map(p => ({ ...p, y: -p.y })) : pts;
+const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
+const cv = (a) => { if (a.length < 2) return null; const m = a.reduce((t, x) => t + x, 0) / a.length; return m ? Math.sqrt(a.reduce((t, x) => t + (x - m) ** 2, 0) / a.length) / m : null; };
+// Détail de chaque répétition et constance de la série. pts : la trajectoire (mêmes unités que pour les phases)
+// Seuils : amplitude < 90 % de la médiane, écart horizontal > 1,5 × la médiane (et > 2 cm ou 2 %), perte de vitesse > 20 %, tempo ±25 %
+export const SEUILS_REPS = { amplitude: 0.9, ecart: 1.5, ecartMin: 0.02, perte: 0.2, tempo: 0.25 };
+export function detailReps(R, pts) {
+  const S = SEUILS_REPS;
+  const det = R.map((r, i) => { const t0 = (r.exc || r.con).t0, t1 = r.con.t1, seg = pts.filter(p => p.t >= t0 && p.t <= t1), xs = seg.map(p => p.x);
+    return { n: i + 1, exc: r.exc?.dur ?? null, con: r.con.dur, vMoy: r.con.vMoy, vMax: r.con.vMax, vExc: r.exc?.vMoy ?? null, amp: r.con.disp, ecart: xs.length ? Math.round((Math.max(...xs) - Math.min(...xs)) * 1000) / 1000 : null, t0, t1, alertes: [] }; });
+  if (!det.length) return { reps: det, constance: null };
+  const mA = med(det.map(d => d.amp)), mE = med(det.map(d => d.ecart ?? 0)), mC = med(det.map(d => d.con)), mX = med(det.filter(d => d.exc != null).map(d => d.exc)), v0 = det[0].vMoy;
+  det.forEach(d => {
+    if (det.length > 1 && d.amp < mA * S.amplitude) d.alertes.push("amplitude plus courte");
+    if (det.length > 1 && d.ecart != null && d.ecart > mE * S.ecart && d.ecart - mE > S.ecartMin) d.alertes.push("trajectoire qui s'écarte");
+    if (d.n > 1 && v0 > 0 && d.vMoy < v0 * (1 - S.perte)) d.alertes.push(`vitesse −${Math.round((1 - d.vMoy / v0) * 100)} %`);
+    if (det.length > 2 && d.exc != null && mX && Math.abs(d.exc - mX) > mX * S.tempo) d.alertes.push(d.exc < mX ? "descente plus rapide" : "descente plus lente");
+  });
+  const c = { amplitude: cv(det.map(d => d.amp)), concentrique: cv(det.map(d => d.con)), excentrique: cv(det.filter(d => d.exc != null).map(d => d.exc)), perte: det.length > 1 && v0 > 0 ? Math.round((1 - det.at(-1).vMoy / v0) * 100) : null };
+  const reg = (x) => x == null ? null : x <= 0.08 ? "très régulier" : x <= 0.15 ? "régulier" : "irrégulier";
+  const nbAl = det.filter(d => d.alertes.length).length;
+  return { reps: det, constance: { ...c, amplitudeTxt: reg(c.amplitude), tempoTxt: reg(c.excentrique ?? c.concentrique), standard: nbAl === 0, aRevoir: det.filter(d => d.alertes.length).map(d => d.n),
+    resume: nbAl === 0 ? "✅ Répétitions standardisées : même amplitude, même trajectoire, tempo régulier." : `⚠️ ${nbAl} répétition${nbAl > 1 ? "s" : ""} à revoir (${det.filter(d => d.alertes.length).map(d => "n° " + d.n).join(", ")}).` } };
+}
+// Analyse automatique à partir du squelette : point suivi (barre ou corps), angles au point bas de chaque répétition
+// lmT : [{ t, lm }] points MediaPipe normalisés. Point suivi : milieu des poignets (développés, tirages, soulevés),
+// milieu des épaules (squat, front squat, fentes, hip thrust : barre sur le dos ou les hanches → épaules ou hanches).
+const POINT_AUTO = { squat: "epaules", frontsquat: "epaules", fentes: "epaules", hipthrust: "hanches", traction: "epaules", dips: "epaules", muscleup: "epaules" };
+export function pointAuto(lm, mvt) {
+  // filmé de profil, un côté est caché : on pondère par la visibilité (le côté vu compte presque seul)
+  const mil = (a, b) => { const A = lm[a], B = lm[b]; if (!A || !B) return null; const va = A.visibility ?? 1, vb = B.visibility ?? 1, wa = va * va, wb = vb * vb, s = wa + wb || 1;
+    return { x: (A.x * wa + B.x * wb) / s, y: (A.y * wa + B.y * wb) / s, v: Math.max(va, vb) }; };
+  const k = POINT_AUTO[mvt] || "poignets";
+  return k === "epaules" ? mil(11, 12) : k === "hanches" ? mil(23, 24) : mil(15, 16);
+}
+export function trajectoireAuto(lmT, mvt) { return lmT.map(({ t, lm }) => { const p = lm && pointAuto(lm, mvt); return p && p.v >= 0.3 ? { t, x: p.x, y: p.y } : null; }).filter(Boolean); }
+// Inclinaison du buste (épaule → hanche) par rapport à la verticale, en degrés
+export function buste(lm, w = 1, h = 1) { if (!lm) return null; const s = cote(lm), e = lm[s ? 12 : 11], hp = lm[s ? 24 : 23]; if (!e || !hp) return null; return inclinaison({ x: hp.x, y: hp.y }, { x: e.x, y: e.y }, w, h); }
+// Angles au point bas (instant de passage exc → con) de chaque répétition ; profondeur du squat : hanche sous le genou
+export function anglesBas(R, lmT, w = 1, h = 1) {
+  return R.map(r => { const t = r.exc ? r.exc.t1 : r.con.t0, x = lmT.reduce((b, q) => Math.abs(q.t - t) < Math.abs(b.t - t) ? q : b, lmT[0] || { t: 0 }); if (!x?.lm) return null;
+    const a = angles(x.lm, w, h), s = a?.cote === "droit" ? 1 : 0, hp = x.lm[s ? 24 : 23], kn = x.lm[s ? 26 : 25];
+    return { t: x.t, genou: a?.genou ?? null, hanche: a?.hanche ?? null, coude: a?.coude ?? null, buste: buste(x.lm, w, h), sousParallele: hp && kn ? hp.y >= kn.y - 0.005 : null }; });
+}

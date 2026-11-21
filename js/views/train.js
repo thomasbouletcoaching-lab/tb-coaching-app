@@ -6,6 +6,7 @@ import { semaineCardio } from "./cardio.js";
 import { recapExercice, serieTxt } from "../recap.js";
 import { tagMoteur, indiceDuMoteur, feuilleIndice } from "./indice-ui.js";
 import { feuStartBlock, apresFeu } from "./fatigue.js";
+import * as ST from "./stats.js";
 import * as XO from "../exercices.js";
 import { S, update, save, today } from "../store.js";
 import { tbLogo, medalHtml, celebrate, recLabel, gradeOf, weightLike } from "../fx.js";
@@ -284,7 +285,7 @@ function historyBody() {
 // ---------- Statistiques ----------
 let period = "month", liftSel = null, volView = "muscle";
 function statsBody() {
-  const from = { week: addDays(today(), -6), month: addDays(today(), -29), quarter: addDays(today(), -89) }[period];
+  const from = ST.debutPeriode(period);
   const v = E.volumeStats(from);
   const wk = E.activeWeeks(8);
   const free = `<div class="card mt12"><div class="lbl">🔥 Régularité · ${E.streakWeeks()} semaine${E.streakWeeks() > 1 ? "s" : ""} d'affilée</div><div class="mt8">${barChart(wk.map(w => ({ v: w.count, l: `${w.start.getDate()}/${w.start.getMonth() + 1}` })))}</div><p class="xs muted" style="margin:0">Séances par semaine, 8 dernières semaines.</p></div>`;
@@ -293,7 +294,7 @@ function statsBody() {
   const h = liftSel ? S().lifts[liftSel] : [];
   const mv = E.monthlyVolume(6);
   let volHtml;
-  if (volView === "muscle") { const it = Object.entries(v.byMuscle).map(([l, x]) => ({ l, v: x.sets })).sort((a, b) => b.v - a.v); volHtml = it.length ? hbars(it, (x) => fr(x, 1) + " s.") + `<p class="xs muted">Séries effectives : muscle principal = 1, secondaires = ½. Repère : 10 à 20 séries par muscle et par semaine pour progresser.</p>` : `<p class="empty small">Pas encore de séance sur la période.</p>`; }
+  if (volView === "muscle") volHtml = ST.jaugesHtml(from, today());
   else if (volView === "exo") { const it = Object.entries(v.byExercise).map(([l, x]) => ({ l, v: x.ton })).sort((a, b) => b.v - a.v).slice(0, 12); volHtml = it.length ? hbars(it, (x) => fr(x / 1000, 1) + " t") : `<p class="empty small">Pas encore de séance sur la période.</p>`; }
   else if (volView === "seance") volHtml = v.sessions.length ? hbars(v.sessions.slice(-12).map(s => ({ l: `${s.d.slice(8)}/${s.d.slice(5, 7)} ${s.title}`, v: s.ton })), (x) => fr(x / 1000, 1) + " t") : `<p class="empty small">Pas encore de séance sur la période.</p>`;
   else if (volView === "semaine") volHtml = barChart(wk.map(w => ({ v: w.volume / 1000, l: `${w.start.getDate()}/${w.start.getMonth() + 1}` })), { fmt: (x) => fr(x, 1) }) + `<p class="xs muted">Tonnage par semaine (tonnes).</p>`;
@@ -302,8 +303,9 @@ function statsBody() {
   const locked = !premium();
   return free + `<div class="${locked ? "locked" : ""}" style="position:relative">
     <h2 class="sec">💪 Volume</h2>
-    ${chips([["week", "7 jours"], ["month", "30 jours"], ["quarter", "3 mois"]], period, "st-period")}
+    ${chips([["week", "7 jours"], ["month", "4 semaines"], ["quarter", "12 semaines"]], period, "st-period")}
     <div class="card mt8">${chips([["muscle", "Par muscle"], ["exo", "Par exercice"], ["seance", "Par séance"], ["semaine", "Par semaine"], ["mois", "Par mois"]], volView, "st-vol")}<div class="mt12">${volHtml}</div></div>
+    ${ST.suiteHtml(from, today())}
     <h2 class="sec">📈 Force estimée (e1RM)</h2>
     ${lifts.length ? `<div class="card">${chips(lifts.slice(0, 12).map(([n]) => [n, esc(n)]), liftSel, "st-lift")}
       <div class="row between mt12"><b class="num" style="font-size:28px">${fr(h.at(-1)?.e1rm, 1)} kg</b><span class="small muted">meilleur ${fr(Math.max(...h.map(x => x.e1rm)), 1)} kg</span></div>
@@ -497,10 +499,11 @@ routes.workout = async () => {
   await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
   sessionStorage.removeItem("cxs.min");
   const doneSets = cur.exercises.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0), all = cur.exercises.reduce((a, e) => a + e.sets.length, 0);
-  $app.innerHTML = `<header class="top"><div class="row1"><button class="icon-btn" data-a="minimize" aria-label="Réduire">${I.back}</button><h1 style="font-size:20px">${esc(cur.title)}</h1><button class="icon-btn" data-a="abandon" aria-label="Abandonner la séance" title="Abandonner la séance" style="font-size:18px">🗑️</button><button class="btn btn-red btn-sm" data-a="finish" style="width:auto">${cur.reopen ? "Enregistrer" : "Terminer"}</button></div>
+  $app.innerHTML = `<header class="top"><div class="row1"><button class="icon-btn" data-a="minimize" aria-label="Réduire">${I.back}</button><h1 style="font-size:20px">${esc(cur.title)}</h1>${cur.reopen || cur.backdate ? "" : `<button class="icon-btn" data-a="wk-pause" aria-label="${cur.pausedAt ? "Reprendre la séance" : "Mettre la séance en pause"}" title="${cur.pausedAt ? "Reprendre" : "Pause"}" style="font-size:18px">${cur.pausedAt ? "▶️" : "⏸️"}</button>`}<button class="icon-btn" data-a="abandon" aria-label="Abandonner la séance" title="Abandonner la séance" style="font-size:18px">🗑️</button><button class="btn btn-red btn-sm" data-a="finish" style="width:auto">${cur.reopen ? "Enregistrer" : "Terminer"}</button></div>
       <div class="sub">${cur.reopen || cur.backdate ? `<button class="link" data-a="dur-edit" style="color:inherit">⏱️ ${durOf(cur)} min ✏️</button>` : cur.target ? `<button class="link" data-a="dur-change" style="color:inherit">⏳ <span id="clock">0:00</span></button>` : `⏱️ <span id="clock">0:00</span>`} · ${doneSets}/${all} séries${cur.free || cur.reopen ? "" : ` · semaine ${cur.week} · ${esc(cur.phase)}`}</div>
       ${cur.target && !cur.reopen && !cur.backdate ? `<div class="tbar"><i id="tbar"></i></div><div class="xs" id="tpace" style="margin-top:4px"></div>` : ""}</header>
     <main class="page" style="padding-bottom:200px">
+    ${cur.pausedAt ? `<div class="card mt8" style="box-shadow:0 0 0 2px var(--warn) inset"><b>⏸️ Séance en pause depuis ${new Date(cur.pausedAt).toTimeString().slice(0, 5)}</b><p class="small muted" style="margin:4px 0 8px">Le temps de pause ne compte pas dans la durée. Tu peux quitter l'écran, ta séance reste là.</p><button class="btn btn-red btn-sm" data-a="wk-pause" style="width:100%">▶️ Reprendre la séance</button></div>` : ""}
     ${cur.reopen ? `<div class="card soft mt8"><b class="small">✏️ Séance rouverte</b><p class="xs muted" style="margin:4px 0 0">${fmtDate(today(new Date(cur.end)), { weekday: "long", day: "numeric", month: "long" })} · corrige une série, ajoute une note ou une sensation, puis « Enregistrer ».</p></div>` : ""}
     ${cur.backdate ? `<div class="card soft mt8"><b class="small">📅 Séance faite le ${fmtDate(cur.backdate, { weekday: "long", day: "numeric", month: "long" })}</b><p class="xs muted" style="margin:4px 0 0">Note ce que tu as fait (valide les séries), puis « Terminer » : elle sera rangée ce jour-là et ta série reste intacte.</p></div>` : ""}
     ${cur.comeback ? `<p class="small red">Reprise après une pause : charges allégées de 10 % aujourd'hui.</p>` : ""}
@@ -517,7 +520,8 @@ routes.workout = async () => {
 const mmss = (s) => `${s < 0 ? "−" : ""}${Math.floor(Math.abs(s) / 60)}:${String(Math.abs(s) % 60).padStart(2, "0")}`;
 function tickClock() {
   const c = document.getElementById("clock"), cur = S().current; if (!c || !cur) return clearInterval(clockT);
-  const s = Math.floor((Date.now() - new Date(cur.start)) / 1000);
+  const s = Math.floor(E.actifMs(cur) / 1000);
+  if (cur.pausedAt) { c.textContent = `${mmss(s)} · en pause`; return; }
   if (!cur.target) { c.textContent = mmss(s); return; }
   const left = cur.target * 60 - s; c.textContent = left >= 0 ? `${mmss(left)} restantes` : `${mmss(left)} de dépassement`;
   const bar = document.getElementById("tbar"); if (bar) { bar.style.width = `${Math.min(100, s / (cur.target * 60) * 100)}%`; bar.style.background = left < 0 ? "var(--warn)" : ""; }
@@ -604,6 +608,7 @@ function recordsFor(ex, s) {
 }
 actions.tick = (b, d) => {
   const ex = S().current.exercises[+d.x], s = ex.sets[+d.s];
+  if (S().current.pausedAt) { const c = S().current; c.pauseMs = E.pauseMs(c); c.pausedAt = null; toast("Séance reprise 💪"); }
   s.done = !s.done;
   if (s.done && s.reps == null) s.reps = s.lo;
   const recs = s.done ? recordsFor(ex, s) : [];
@@ -950,6 +955,13 @@ actions["rest-big"] = () => { const big = sessionStorage.getItem("cxs.restBig") 
 actions["rest-skip"] = () => { if (restEnd > Date.now()) scheduleRest(0); restEnd = 0; clearInterval(restT); document.querySelector(".rest")?.remove(); };
 onLeave(() => { });
 
+// Pause : le chrono s'arrête, le repos en cours est annulé ; valider une série reprend la séance automatiquement
+actions["wk-pause"] = () => {
+  const cur = S().current; if (!cur) return;
+  if (cur.pausedAt) { update(st => { st.current.pauseMs = E.pauseMs(st.current); st.current.pausedAt = null; }); toast("Séance reprise 💪"); }
+  else { actions["rest-skip"](); update(st => { st.current.pausedAt = new Date().toISOString(); }); toast("Séance en pause : le temps ne compte plus"); }
+  rerender();
+};
 actions.finish = () => {
   const cur = S().current, n = cur.exercises.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0);
   if (!n) { if (confirm("Aucune série validée. Abandonner cette séance ?")) { update(st => st.current = null); actions["rest-skip"](); go("home"); } return; }
@@ -961,7 +973,8 @@ actions.finish = () => {
   if (!confirm("Terminer la séance et enregistrer tes séries ?")) return;
   actions["rest-skip"](); clearInterval(clockT); actions["chrono-close"]();
   // Chrono oublié : au-delà de 2 h 30 (ou du double de la durée visée), on demande la vraie durée
-  const el = Math.round((Date.now() - new Date(cur.start)) / 6e4);
+  if (cur.pausedAt) update(st => { st.current.pauseMs = E.pauseMs(st.current); st.current.pausedAt = null; });
+  const el = Math.round(E.actifMs(S().current) / 6e4);
   if (!cur.backdate && !cur.durMin && (el > 150 || (cur.target && el > cur.target * 2))) {
     const r = prompt(`Le chrono indique ${el} min. Tu as peut-être oublié de l'arrêter : combien de temps a duré ta séance (en minutes) ?`, String(cur.target || 60));
     const m = num(r || ""); if (m > 0 && m < 400) cur.durMin = Math.round(m);
@@ -1000,9 +1013,9 @@ export const builderDraft = () => draft;
 export function setBuilderDraft(p) { draft = p; }
 export const blankDraft = () => ({ id: "my-" + Date.now(), custom: true, name: "Mon programme", lvl: "Perso", split: "Perso", weeks: 8, deload: { every: 4 }, days: [true, false, true, false, true, false, false], s: [["Séance A", "Lundi", []]], prof: "", desc: "Programme créé par moi." });
 // Coach : ouvre l'éditeur complet du client (semaines, techniques, surcharge) sur le programme d'un membre
-export function openBuilderForMember(memberId, name, program) {
+export function openBuilderForMember(memberId, name, program, { enCours = false } = {}) {
   const p = JSON.parse(JSON.stringify(program || { name: "Programme", s: [["Séance A", "Lundi", []]] }));
-  p.custom = true; p.id = "my-" + Date.now(); p.forMember = { id: memberId, name }; p.weeks = p.weeks || 12; p.lvl = p.lvl || "Tous niveaux";
+  p.custom = true; p.id = "my-" + Date.now(); p.forMember = { id: memberId, name, enCours }; p.weeks = p.weeks || 12; p.lvl = p.lvl || "Tous niveaux";
   if (p.deload === undefined && !p.phases) p.deload = { every: 5 };
   if (!Array.isArray(p.days) || p.days.length !== 7) p.days = E.DAY_NAMES.map(n => p.s.some(x => x[1] === n));
   if (!p.days.some(Boolean)) p.days = [true, false, true, false, true, false, false];
@@ -1066,7 +1079,7 @@ routes.builder = async () => {
     <button class="btn btn-red mt12" style="width:100%" data-a="go" data-r="builder-weeks">📅 Écrire la séance semaine par semaine</button>
     <button class="btn btn-ghost mt12" data-a="bd-sadd">+ Ajouter une séance</button>${isCoach() ? `<button class="btn btn-ghost mt8" data-a="bd-sfrom">+ Séance depuis un modèle</button>` : ""}
     <p class="xs muted mt12">Touche un exercice pour écrire ses séries, ses règles de surcharge et chaque semaine du cycle. Les charges en % se calculent sur ton 1RM estimé.</p>
-    ${D.forMember ? `<button class="btn btn-red mt12" style="width:100%" data-a="bd-send">Envoyer à ${esc(D.forMember.name)}</button><p class="xs muted mt8">Le programme remplace celui du client ; sa semaine en cours est conservée.</p>` : `<div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="bd-save">Enregistrer</button><button class="btn btn-line grow" data-a="bd-use">Enregistrer et suivre</button></div>`}
+    ${D.forMember ? envoiMembre(D) : `<div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="bd-save">Enregistrer</button><button class="btn btn-line grow" data-a="bd-use">Enregistrer et suivre</button></div>`}
     ${isCoach() ? `<label class="field mt12"><span>Pour qui (affiché dans la banque)</span><input data-c="bd" data-k="prof" value="${esc(D.prof || "")}" placeholder="Ex. père de famille, 3 séances, reprise"></label><button class="btn btn-red mt8" data-a="bd-publish" style="width:100%">📤 ${D.lib ? "Mettre à jour dans la banque des membres" : "Publier dans la banque des membres"}</button>` : ""}
     ${(S().customPrograms || []).some(p => p.id === D.id) ? `<button class="btn btn-ghost mt8" data-a="bd-del" style="color:var(--red)">Supprimer ce programme</button>` : ""}
   </main>${tabbar("train")}`;
@@ -1112,7 +1125,7 @@ routes["builder-weeks"] = async () => {
     ${rows || `<p class="empty small">Cette séance n'a pas encore d'exercice.</p>`}
     <button class="btn btn-line mt12" style="width:100%" data-a="bw-add">+ Ajouter un exercice à partir de la semaine ${WK.w}</button>
     <div class="row mt12" style="gap:8px"><button class="btn btn-ghost grow" data-a="bw-w" data-v="${WK.w - 1}" ${WK.w > 1 ? "" : "disabled"}>← S${WK.w - 1}</button><button class="btn btn-ghost grow" data-a="bw-w" data-v="${WK.w + 1}" ${WK.w < W ? "" : "disabled"}>S${WK.w + 1} →</button></div>
-    ${D.forMember ? `<button class="btn btn-red mt16" style="width:100%" data-a="bd-send">Envoyer à ${esc(D.forMember.name)}</button>` : `<button class="btn btn-red mt16" style="width:100%" data-a="bd-save">Enregistrer</button>`}
+    ${D.forMember ? envoiMembre(D) : `<button class="btn btn-red mt16" style="width:100%" data-a="bd-save">Enregistrer</button>`}
   </main>`;
 };
 const wkRow = (r) => draft.s[WK.si][2][+r][5];
@@ -1254,15 +1267,28 @@ actions["bd-publish"] = async () => {
   const { id, from, lib, publish, ...data } = JSON.parse(JSON.stringify(draft));
   const c = await cloud(); try { if (lib) await c.libraryUpdate(lib, { name: draft.name, data }); else await c.libraryAdd("program", draft.name, data); const { refreshLibrary } = await import("../library.js"); await refreshLibrary(); toast(lib ? "Programme mis à jour pour tous" : "Programme publié : tes membres le voient dans la banque"); draft = null; go("admin-db"); } catch (e) { toast("Publication impossible : " + e.message); }
 };
-actions["bd-send"] = async () => {
+// Deux façons d'envoyer (décision C72) : ajuster le programme en cours (charges, exercice ajouté, séries…) sans rien remettre
+// à zéro, ou envoyer un nouveau programme qui repart en semaine 1.
+function envoiMembre(D) {
+  const n = esc(D.forMember.name);
+  if (!D.forMember.enCours) return `<button class="btn btn-red mt12" style="width:100%" data-a="bd-send" data-m="nouveau">Envoyer à ${n}</button><p class="xs muted mt8">Nouveau programme : il démarre en semaine 1.</p>`;
+  return `<button class="btn btn-red mt12" style="width:100%" data-a="bd-send" data-m="ajustement">🔧 Enregistrer l'ajustement</button>
+    <p class="xs muted mt4">${n} garde ce programme, sa semaine, sa séance suivante et toutes ses stats. Seules tes modifications changent.</p>
+    <button class="btn btn-line btn-sm mt8" style="width:100%" data-a="bd-send" data-m="nouveau">📤 L'envoyer comme nouveau programme (repart en semaine 1)</button>`;
+}
+actions["bd-send"] = async (b, dd = {}) => {
   if (!draft?.forMember) return;
+  const mode = dd.m === "ajustement" ? "ajustement" : "nouveau";
+  if (mode === "nouveau" && draft.forMember.enCours && !confirm(`Envoyer un nouveau programme ? ${draft.forMember.name} repartira en semaine 1.`)) return;
   if (!draft.s.some(s => s[2].length)) return toast("Ajoute au moins un exercice.");
   let k = 0; draft.days.forEach((on, i) => { if (on && draft.s[k]) draft.s[k++][1] = E.DAY_NAMES[i]; });
   const { id, forMember, from, lib, publish, prof, ...prog } = JSON.parse(JSON.stringify(draft));
   try {
+    prog.envoi = { mode, at: new Date().toISOString() };
     const c = await cloud(); await c.coachPlanSet(forMember.id, prog);
-    await c.notify("📋 Ton programme", `Thomas a mis à jour ton programme : « ${prog.name} ». Il s'applique dans l'onglet Coaching.`, forMember.id).catch(() => { });
-    buzz(); toast("Programme envoyé : il s'applique chez le client à sa prochaine ouverture"); draft = null; go("member", forMember.id);
+    if (mode === "ajustement") await c.notify("🔧 Programme ajusté", `Thomas a ajusté ton programme « ${prog.name} ». Tu restes à la même semaine.`, forMember.id).catch(() => { });
+    else await c.notify("📋 Ton nouveau programme", `Thomas t'a préparé « ${prog.name} ». Il démarre en semaine 1 dans l'onglet Coaching.`, forMember.id).catch(() => { });
+    buzz(); toast(mode === "ajustement" ? "Ajustement enregistré : il s'applique chez le client à sa prochaine ouverture" : "Programme envoyé : il s'applique chez le client à sa prochaine ouverture"); draft = null; go("member", forMember.id);
   } catch (e) { toast("Envoi impossible : " + e.message); }
 };
 actions["bd-save"] = () => {

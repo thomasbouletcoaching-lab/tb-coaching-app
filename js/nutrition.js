@@ -401,7 +401,9 @@ export function addEntry(e, date = today()) {
 }
 export function setEntryTime(id, time, date = today()) { update(st => { const e = (st.food[date] || []).find(x => x.id === id); if (e) e.time = time; }); }
 export const isFavFood = (n) => S().favFoods.some(f => f.n === n);
-export function toggleFavFood(f) { update(st => { st.favFoods = isFavFood(f.n) ? st.favFoods.filter(x => x.n !== f.n) : [f, ...st.favFoods]; }); }
+// Favoris toujours rangés par ordre alphabétique (accents et majuscules ignorés), pour les retrouver vite
+export const triAlpha = (l) => [...(l || [])].sort((a, b) => String(a.n || "").localeCompare(String(b.n || ""), "fr", { sensitivity: "base", numeric: true }));
+export function toggleFavFood(f) { update(st => { st.favFoods = triAlpha(isFavFood(f.n) ? st.favFoods.filter(x => x.n !== f.n) : [f, ...st.favFoods]); }); }
 export function lastMealTime(date = today()) { const l = dayLog(date); return l.length ? l.map(e => e.time || "00:00").sort().at(-1) : null; }
 export function replaceEntry(id, date, ne) { update(st => { const l = st.food[date] || [], i = l.findIndex(x => x.id === id); if (i < 0) return; const o = l[i]; l[i] = { ...ne, id: o.id, meal: o.meal, time: o.time }; }); }
 export function removeEntry(id, date = today()) { update(st => { st.food[date] = (st.food[date] || []).filter(e => e.id !== id); }); }

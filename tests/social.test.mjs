@@ -157,8 +157,8 @@ test("réactions : un geste parmi une liste fermée, résumé trié", () => {
 });
 
 test("textes d'invitation : lien et code, jamais d'e-mail", () => {
-  const t = SO.texteInvitation({ prenom: "Tom", code: "K7M2QX", lien: "https://x.invalid/?r=K7M2QX", jours: 30 });
-  assert.match(t, /Tom t'invite/); assert.match(t, /30 jours offerts/); assert.match(t, /K7M2QX/);
+  const t = SO.texteInvitation({ prenom: "Tom", code: "K7M2QX", lien: "https://x.invalid/?r=K7M2QX", jours: 14 });
+  assert.match(t, /Tom t'invite/); assert.match(t, /14 jours offerts/); assert.match(t, /K7M2QX/);
   const s = SO.texteSeance({ titre: "Push", min: 60, series: 18, tonnes: 8.5, records: ["Squat"] }, "L");
   assert.match(s, /60 min · 18 séries · 8,5 t/); assert.match(s, /Record : Squat/); assert.ok(s.length < 120, "message court : " + s.length);
 });

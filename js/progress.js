@@ -59,7 +59,7 @@ export function summaryBetween(from, to = today()) {
   return progressSummary({ from, to, weights: weightSeries(), measures: S().measures || [], workouts: S().workouts || [], lifts: S().lifts || {}, checkins: checkins() });
 }
 
-// ---------- Défi 30 jours (essai guidé) ----------
+// ---------- Défi 14 jours (essai guidé) ----------
 export const DEFI_DAYS = TRIAL_DAYS;
 export function defiDay(t = today()) { const s = S().trialStart; return s ? Math.max(1, daysBetween(s, t) + 1) : null; }
 export function defiOn() { const d = defiDay(); return d != null && !S().me?.isCoach && d <= DEFI_DAYS + 7 && !(S().me?.tier && S().me.tier !== "free") && !S().defi?.closed; }
@@ -74,9 +74,7 @@ export function defiSteps(photosStart = !!S().defi?.photos) {
     { id: "s1", day: 1, t: "Ma première séance", s: "Elle est prête dans Entraînement", ok: (S().workouts || []).length > 0, r: "carnet" },
     { id: "b1", day: 7, t: "Bilan de la semaine 1", s: "Moins d'une minute, pré-rempli", ok: wk(1), r: "bilan" },
     { id: "b2", day: 14, t: "Bilan de la semaine 2", s: "Et on compare avec la semaine 1", ok: wk(2), r: "bilan" },
-    { id: "b3", day: 21, t: "Bilan de la semaine 3", s: "Mi-parcours : tes premiers chiffres", ok: wk(3), r: "bilan" },
-    { id: "b4", day: 28, t: "Bilan de la semaine 4", s: "Dernière ligne droite", ok: wk(4), r: "bilan" },
-    { id: "rap", day: 28, t: "Mon rapport de 30 jours", s: "Avant / après, chiffres, régularité", ok: !!S().defi?.report, r: "rapport" },
-    { id: "cand", day: 21, t: "Passer à la suite avec Thomas", s: "Candidater au coaching personnalisé", ok: !!S().application, r: "apply-defi" },
+    { id: "rap", day: DEFI_DAYS, t: `Mon rapport de ${DEFI_DAYS} jours`, s: "Avant / après, chiffres, régularité", ok: !!S().defi?.report, r: "rapport" },
+    { id: "cand", day: 10, t: "Passer à la suite avec Thomas", s: "Candidater au coaching personnalisé", ok: !!S().application, r: "apply-defi" },
   ];
 }

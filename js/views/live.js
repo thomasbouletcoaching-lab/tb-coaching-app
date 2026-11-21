@@ -350,9 +350,9 @@ export async function pullLive() {
     if (changed && R.route === "home") render();
   } catch { }
 }
-export function liveBanner() {
+export function liveBanner(accueil = false) {
   if (isCoach()) return "";
-  if (!LIVE_NOW) return `<button class="btn btn-line btn-sm mt12" data-a="live-self" style="width:100%">🔴 Partager ma séance en direct avec Thomas</button>`;
+  if (!LIVE_NOW) return accueil ? "" : `<button class="btn btn-line btn-sm mt12" data-a="live-self" style="width:100%">🔴 Partager ma séance en direct avec Thomas</button>`;
   return `<button class="card tap mt12" data-a="go" data-r="live" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;box-shadow:0 0 0 2px var(--red) inset"><span style="font-size:26px">🔴</span><span class="grow"><b>Séance en cours avec Thomas</b><br><span class="small muted">${esc(LIVE_NOW.title)} · touche pour la suivre et ajouter</span></span></button>`;
 }
 

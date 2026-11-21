@@ -13,13 +13,14 @@ export const CONFIG = {
 // Les identifiants (free, premium, essentiel, suivi, avance, surmesure) sont ceux du serveur : ne pas les changer.
 // Prix pensés pour la conversion : .99 sur l'app (achat d'impulsion), prix ronds sur le coaching (prestige),
 // une offre d'ancrage en haut (Élite, places limitées) pour rendre l'offre du milieu évidente, l'annuel très avantageux.
-// Essai : 30 jours d'app complète, guidés par le « Défi 30 jours » (voir js/progress.js), qui mène à la candidature.
-export const TRIAL_DAYS = 30;
+// Essai : 14 jours d'app complète, guidés par le « Défi 14 jours » (voir js/progress.js), qui mène à la candidature.
+export const TRIAL_DAYS = 14;
+export const TRIAL_ANCIEN = { avant: "2026-11-21", jours: 30 }; // essais commencés avant le passage à 14 jours : on garde les 30 jours promis
 export const OFFERS = [
   // « free » = compte sans accès (essai terminé, pas d'abonnement) : plus vendu, l'app est alors verrouillée (voir locked() dans core.js).
   { id: "free", rank: 0, name: "Sans accès (essai terminé)", price: "", per: "", msgs: "Messages avec Thomas réservés aux personnes coachées", tagline: "", feats: [] },
   { id: "premium", rank: 1, name: "Bâtisseur", price: "19,99 €", per: "/mois", alt: "ou 119,99 € par an, soit 6 mois offerts", msgs: "Messages avec Thomas : avec le coaching",
-    tagline: "L'app complète, pour avancer seul avec ma méthode.", ribbon: "30 jours offerts",
+    tagline: "L'app complète, pour avancer seul avec ma méthode.", ribbon: "14 jours offerts",
     feats: ["Apprendre, journal alimentaire (base Ciqual), carnet de séance et minuteur", "Les 111 programmes (salle, maison, street, force, femmes, parents, santé) et les cycles de 12 semaines", "Charges calculées et surcharge progressive selon ton RPE, alertes plateau et blessure", "Plan alimentaire selon ton profil, ton régime et ton nombre de repas, modifiable au gramme", "Recettes, batch cooking, liste de courses et budget par magasin", "Vitamines, minéraux et compléments : ce qu'il te faut, à quelle dose", "Bilan énergétique, statistiques, photos et mensurations", "Créer et modifier tes propres programmes"],
     pay: { month: "https://buy.stripe.com/9B6eVc8nO6x8bL8a9GeUU01", year: "https://buy.stripe.com/9B600i6fG6x802qepWeUU02" } },
   { id: "essentiel", rank: 2, name: "Fraternité (ancienne formule)", price: "59 €", per: "/mois", msgs: "10 messages par semaine",
@@ -46,7 +47,7 @@ export const COMPARE = [
   ["Micronutriments et compléments", "–", "✓", "✓", "✓"], ["Stats, photos, bilan énergétique", "–", "✓", "✓", "✓"], ["Groupe, live, corrections vidéo", "–", "–", "✓", "✓"],
   ["Connaissances version experte", "–", "–", "✓", "✓"], ["Bilans par Thomas", "–", "–", "Mensuel", "Hebdo"], ["Messages avec Thomas", "–", "–", "10 / sem.", "20+ / sem."],
 ];
-// Ce qui est proposé à la vente dans l'app : Bâtisseur (essai de 30 jours puis 19,99 €/mois), et le coaching personnalisé sur candidature.
+// Ce qui est proposé à la vente dans l'app : Bâtisseur (essai de 14 jours puis 19,99 €/mois), et le coaching personnalisé sur candidature.
 // Les autres formules restent dans la base (le coach peut les attribuer) mais ne sont plus affichées.
 export const PUBLIC_OFFERS = OFFERS.filter(o => ["premium", "avance"].includes(o.id));
 // Formules qu'on peut attribuer aujourd'hui. Les anciennes (Fraternité, Coaching Essentiel, accès total) restent
@@ -56,7 +57,7 @@ export const assignable = (current) => OFFERS.filter(o => ACTIVE_TIERS.includes(
 export const offer = (id) => OFFERS.find(o => o.id === id) || OFFERS[0];
 export const MSGS_PER_WEEK = { free: 0, premium: 0, essentiel: 10, suivi: 20, avance: 50, invite: null, surmesure: null };
 // Programmes accessibles sans Premium
-export const ALL_FREE = false; // essai de TRIAL_DAYS jours (Défi 30 jours), puis Bâtisseur payant, coaching sur candidature, ou accès Invité offert par Thomas
+export const ALL_FREE = false; // essai de TRIAL_DAYS jours (Défi 14 jours), puis Bâtisseur payant, coaching sur candidature, ou accès Invité offert par Thomas
 export const FREE_PROGRAMS = ["tb-rep2", "tb-rep3", "bk-home-rien-30", "bk-sa-dos3-30", "bk-sw-deb3", "bk-bb-fbdeb3-45"];
 export const FREE_WEEKS = 4;
 export const FREE_FAVORITES = 5;

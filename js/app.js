@@ -54,7 +54,8 @@ window.addEventListener("hashchange", render);
   try { applyTheme(); } catch { }
   await Promise.all([E.loadPrograms(), N.loadModels()]).catch(() => { });
   if (S().profile && !S().trialStart) update(st => st.trialStart = today());
-  if (S().demoTier) update(st => st.demoTier = null); // plus de mode démo : essai de TRIAL_DAYS jours (Défi 30 jours)
+  if ((S().favFoods || []).some((f, i, l) => i && String(l[i - 1].n || "").localeCompare(String(f.n || ""), "fr", { sensitivity: "base", numeric: true }) > 0)) update(st => { st.favFoods = N.triAlpha(st.favFoods); });
+  if (S().demoTier) update(st => st.demoTier = null); // plus de mode démo : essai de TRIAL_DAYS jours (Défi 14 jours)
   try { const u = new URL(location.href), cc = u.searchParams.get("coach"); if (cc) { update(st => { st.coachCode = cc.trim().toUpperCase(); st.inviteDone = false; }); u.searchParams.delete("coach"); history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams : "") + u.hash); } } catch { }
   // Notifications : ouvrir l'écran visé quand on touche une notification ; mettre à jour les pastilles à la réception
   try { navigator.serviceWorker?.addEventListener("message", (e) => { const d = e.data || {}; if (d.type === "open" && d.url) { const u = new URL(d.url); if (u.pathname === location.pathname) { if (u.searchParams.get("notifs")) actions.notifs?.(); else if (u.hash) location.hash = u.hash; } else location.href = d.url; } else if (d.type === "push") refreshMe(); }); } catch { }

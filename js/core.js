@@ -1,6 +1,6 @@
 // Noyau d'interface : état partagé, routeur, en-tête, barre d'onglets, feuilles, graphiques, formules.
 import { S, update, today, APP_MODE } from "./store.js";
-import { CONFIG, offer, MSGS_PER_WEEK, FREE_PROGRAMS, FREE_WEEKS, ALL_FREE, TRIAL_DAYS } from "./config.js";
+import { CONFIG, offer, MSGS_PER_WEEK, FREE_PROGRAMS, FREE_WEEKS, ALL_FREE, TRIAL_DAYS, TRIAL_ANCIEN } from "./config.js";
 import { joursEssai } from "./social.js";
 
 export const $app = document.getElementById("app");
@@ -15,7 +15,7 @@ export const hhmm = (d = new Date()) => d.toTimeString().slice(0, 5);
 
 // ---------- Formules ----------
 // Essai : les 7 premiers jours, l'app complète (Bâtisseur) est ouverte
-export const trialLeft = () => { const t = S().trialStart; if (!t || (S().me?.tier && S().me.tier !== "free" && !echu(S().me))) return 0; return Math.max(0, joursEssai(TRIAL_DAYS, S().invite) - Math.floor((Date.now() - new Date(t + "T00:00:00").getTime()) / 864e5)); };
+export const trialLeft = () => { const t = S().trialStart; if (!t || (S().me?.tier && S().me.tier !== "free" && !echu(S().me))) return 0; return Math.max(0, joursEssai(t < TRIAL_ANCIEN.avant ? TRIAL_ANCIEN.jours : TRIAL_DAYS, S().invite) - Math.floor((Date.now() - new Date(t + "T00:00:00").getTime()) / 864e5)); };
 // Bâtisseur offert jusqu'à une date (mois de parrainage, accès donné par Thomas) : fermé 3 jours après la date.
 // Les abonnés Stripe ne sont pas concernés en pratique : chaque renouvellement repousse la date (webhook).
 const echu = (me) => me?.tier === "premium" && !!me.until && me.until < addDays(today(), -3);

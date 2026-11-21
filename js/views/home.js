@@ -16,13 +16,14 @@ import * as E from "../engine.js";
 import * as N from "../nutrition.js";
 import * as EN from "../energy.js";
 import { $app, esc, num, fr, toast, buzz, routes, R, actions, changes, go, I, header, tabbar, seg, ring, gradDef, lineChart, barChart, greet, wordOn, fmtDate, addDays, isCoach, rank, premium, badges, msgQuotaText, weekOpen, rerender, canMsg } from "../core.js";
-import { carteAccueil } from "./hybride.js";
 import { carteSociale } from "./social.js";
 import { pushStats } from "../sync.js";
 import { liveBanner } from "./live.js";
 import { coachFoodCard } from "./coachfood.js";
 import { agendaWeekView, agendaMonthView, agendaYearView } from "./agenda.js";
-const restDayOn = (d = today()) => { const sb = S().settings?.sabbat; if (sb && sb.on === false) return false; return new Date(d + "T12:00:00").getDay() === (sb?.dow ?? 6); };
+// Jour de repos choisi (désactivé par défaut) ; jamais affiché quand une séance est prévue ce jour-là (décision C72)
+const seancePrevue = (d) => { const ag = E.agenda(d, d)[d]; return !!ag && !["rest", "away"].includes(ag.st); };
+const restDayOn = (d = today()) => { const sb = S().settings?.sabbat; if (!sb || sb.on === false) return false; return new Date(d + "T12:00:00").getDay() === sb.dow && !seancePrevue(d); };
 const restDayCard = () => `<div class="card"><div class="lbl">Jour de repos</div><p class="mt8" style="margin:0">Aujourd'hui, pas de performance à battre. Marche, dors, mange en famille. Le repos fait partie du plan.</p></div>`;
 import { durationSheet } from "./train.js";
 import { seasonTimeline, goalsMini } from "./season.js";
@@ -150,9 +151,6 @@ function triadeCard() {
     <div class="minis mt8">${item("🏋️", "Corps", x.corps, x.corps ? 1 : 0, "#B3263A")}${item("🍽️", "Nutrition", x.nutri, x.nutriFrac, "#E0A93B")}${item("📋", "Routine", x.routine, x.routine ? 1 : 0, "#4F5D2A")}</div>
     <p class="xs muted mt8" style="margin:8px 0 0">2 piliers sur 3 suffisent pour compter le jour. Un écart n'efface rien : tu reprends le lendemain.</p></div>`;
 }
-function quickActions() {
-  return `<div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="go" data-r="food">🍽️ Ajouter un repas</button><button class="btn btn-line btn-sm grow" data-a="go" data-r="carnet">🏋️ Séance</button><button class="btn btn-red btn-sm grow" data-a="go" data-r="crise">🆘 Je craque</button></div>`;
-}
 
 routes.home = async () => {
   await Promise.all([N.loadModels(), E.loadPrograms()]);
@@ -173,8 +171,6 @@ routes.home = async () => {
     ${d === today() ? cycleCard(ns) : ""}
     ${trainingCard(d)}
     ${d === today() ? carteSociale() : ""}
-    ${d === today() ? carteAccueil() : ""}
-    ${d === today() ? quickActions() : ""}
     ${d === today() ? strengthCard() : ""}
     ${d === today() ? cheatCard() : ""}
     <h2 class="sec">📊 Récap du jour</h2>
@@ -182,7 +178,7 @@ routes.home = async () => {
     ${recoveryMini(d)}
     ${fs ? `<button class="card tap mt12" data-a="go" data-r="food" data-p="jeune"><div class="row"><span style="font-size:30px">${fs.stage[1]}</span><div class="grow"><div class="lbl">⏳ Jeûne en cours</div><b class="h3">${Math.floor(fs.hours)} h ${String(Math.floor(fs.hours % 1 * 60)).padStart(2, "0")}</b><div class="xs muted">${esc(fs.stage[2])}</div></div>${I.chev}</div></button>` : ""}
     ${d === today() ? `<h2 class="sec">🎮 Régularité</h2>` + triadeCard() + verifierBadges() : ""}
-    ${d === today() ? liveBanner() + coachFoodCard() : ""}
+    ${d === today() ? liveBanner(true) + coachFoodCard() : ""}
     ${routineCard(d)}
     ${d === today() && rank() < 1 ? offersCard() : ""}
     ${progressCard()}

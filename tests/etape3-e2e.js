@@ -231,14 +231,27 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   await hs.p.click('[data-a="vd-tool"][data-v="barre"]'); bx = await box();
   await hs.p.mouse.click(bx.x + bx.w * 0.5, bx.y + bx.h * (40 / 240)); await hs.p.waitForFunction(() => /Trajectoire tracée/.test(document.body.innerText) || !document.getElementById('vprog') || document.getElementById('vprog').hidden, null, { timeout: 120000 }).catch(() => {}); await hs.p.waitForTimeout(1500);
   t = await txt(hs.p);
-  const npts = await hs.p.evaluate(async () => { const m = await import('./js/views/video.js'); return 0; });
+  // précision : chaque point tracé doit être sur le disque (x = 160 + (y − 40) × 0,1, en pixels de la vidéo 320 × 240)
+  const err = await hs.p.evaluate(async () => { const m = await import('./js/views/video.js'); const A = m._analyse(); const e = A.path.map(p => Math.abs(p.x * 320 - (160 + (p.y * 240 - 40) * 0.1))); globalThis.__dump = JSON.stringify(A.path.map((p, i) => [Math.round(p.t * 100) / 100, Math.round(p.x * 320), Math.round(p.y * 240), Math.round(e[i]), p.corrige ? 1 : 0])); return { dump: globalThis.__dump, n: A.path.length, max: Math.max(...e), ymin: Math.min(...A.path.map(p => p.y * 240)), ymax: Math.max(...A.path.map(p => p.y * 240)) }; });
+  if (process.env.DUMP) console.log(err.dump);
+  ok(err.n > 40 && err.max < 3 && err.ymin < 50 && err.ymax > 150, `vidéo : tracé précis sur la barre (${err.n} points, écart max ${err.max.toFixed(1)} px, de ${err.ymin.toFixed(0)} à ${err.ymax.toFixed(0)} px)`);
   ok(/Trajectoire et vitesse/.test(t), 'vidéo : trajectoire complète tracée');
-  ok(/répétitions/.test(t) && /Excentrique/.test(t) && /Concentrique/.test(t), 'vidéo : durées excentrique et concentrique par répétition');
+  ok(/répétitions/.test(t) && /Exc\./.test(t) && /Conc\./.test(t), 'vidéo : durées excentrique et concentrique par répétition');
   ok(/\d,\d+\s*VMC \(m\/s\)/.test(t), 'vidéo : vitesse en m/s grâce à l\'échelle');
   // arrêt sur image 1 : ligne du tronc ; arrêt 2 : autre ligne ; comparaison
   const ligne = async (x1, y1, x2, y2) => { const b2 = await box(); await hs.p.mouse.move(b2.x + b2.w * x1, b2.y + b2.h * y1); await hs.p.mouse.down(); await hs.p.mouse.move(b2.x + b2.w * x2, b2.y + b2.h * y2, { steps: 4 }); await hs.p.mouse.up(); await hs.p.waitForTimeout(250); };
   await hs.p.evaluate(() => { document.getElementById('vv').currentTime = 0.3; }); await hs.p.waitForTimeout(400);
   await hs.p.click('[data-a="vd-tool"][data-v="ligne"]'); await ligne(0.2, 0.2, 0.22, 0.8);
+  ok(/Ampl\./.test(await txt(hs.p)) && /Répétitions standardisées|à revoir/.test(await txt(hs.p)), 'vidéo : amplitude, écart et régularité de chaque répétition');
+  const keyA = () => hs.p.evaluate(async () => { const m = await import('./js/views/video.js'); const k = m._analyse().keys; return k.map(x => x.items.map(i => i.a ? Math.round(i.a.x * 100) : null)); });
+  await hs.p.click('[data-a="vd-undo"]'); await hs.p.waitForTimeout(300);
+  ok((await keyA()).flat().length === 0, 'vidéo : ↶ Annuler retire la dernière ligne sans tout effacer');
+  await hs.p.click('[data-a="vd-redo"]'); await hs.p.waitForTimeout(300);
+  ok((await keyA()).flat()[0] === 20, 'vidéo : ↷ Rétablir la remet');
+  // déplacer toute la ligne en la prenant par le milieu
+  await ligne(0.21, 0.5, 0.31, 0.5);
+  ok((await keyA()).flat()[0] === 30 && (await keyA()).flat().length === 1, 'vidéo : un segment se déplace en entier (pris par le milieu)');
+  await hs.p.click('[data-a="vd-undo"]'); await hs.p.waitForTimeout(300);
   await hs.p.evaluate(() => { document.getElementById('vv').currentTime = 1.0; }); await hs.p.waitForTimeout(400);
   await ligne(0.2, 0.2, 0.5, 0.8);
   t = await txt(hs.p);

@@ -124,9 +124,11 @@ const largeur = (p) => p.evaluate(() => document.documentElement.scrollWidth);
   ok(x.errs.length === 0, 'zéro erreur JavaScript (accès fermé)');
   await x.ctx.close();
 
-  console.log('\nAccueil : carte d\'accès');
+  console.log('\nAccès depuis le profil (plus sur l\'accueil, décision C72)');
   const h = await page(b, { state: PERSONAS.reprise, url: '#/home' });
-  ok(/Athlète hybride/.test(await txt(h.p)), 'carte « Athlète hybride » sur l\'accueil');
+  ok(!/Athlète hybride/.test(await txt(h.p)), 'accueil : plus de carte « Athlète hybride »');
+  await h.p.goto(BASE + '#/profile'); await h.p.waitForTimeout(700);
+  ok(/Athlète hybride/.test(await txt(h.p)), 'profil : carte « Athlète hybride »');
   ok(h.errs.length === 0, 'zéro erreur JavaScript (accueil)');
   await h.ctx.close();
 

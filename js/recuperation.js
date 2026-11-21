@@ -12,7 +12,9 @@
 import { indiceSeance, pctDe } from "./indice.js";
 
 export const VERSION = 1;
-export const FEUX = { vert: { id: "vert", nom: "Vert", icone: "🟢", rang: 1 }, orange: { id: "orange", nom: "Orange", icone: "🟠", rang: 2 }, rouge: { id: "rouge", nom: "Rouge", icone: "🔴", rang: 3 } };
+// Formulation encourageante : le feu ne dit jamais « ne t'entraîne pas », il dit comment ajuster la séance (décision C72).
+export const FEUX = { vert: { id: "vert", nom: "En forme", court: "Go", icone: "🟢", rang: 1 }, orange: { id: "orange", nom: "Séance adaptée", court: "Adaptée", icone: "🟠", rang: 2 }, rouge: { id: "rouge", nom: "Séance allégée", court: "Allégée", icone: "🔴", rang: 3 } };
+export const SEMAINES_MIN_RATIO = 3;                                   // semaines passées avec séances avant de comparer la charge
 export const SEUILS = { vert: 70, orange: 45 };                       // disponibilité ≥ 70 : vert ; ≥ 45 : orange ; sinon rouge
 export const POIDS_CHECKIN = { sommeil: 0.25, energie: 0.25, stress: 0.15, courbatures: 0.15, motivation: 0.20 };
 export const PENALITE_FATIGUE = 0.45;                                  // points retirés par point de fatigue nerveuse (0 à 100)
@@ -68,11 +70,11 @@ export function charge(workouts, de, a, { nerveuxDe = nerveuxParDefaut, jourDe =
   const t = ws.reduce((s, w) => { const i = indiceSeance(lignesDeSeance(w, nerveuxDe)); return { inol: s.inol + i.inol, nerveux: s.nerveux + i.nerveux }; }, { inol: 0, nerveux: 0 });
   return { valeur: r1(t.inol + t.nerveux), seances: ws.length };
 }
-// Ratio : les 7 derniers jours / la moyenne des 4 semaines d'avant. Il faut au moins 2 semaines passées avec des séances.
+// Ratio : les 7 derniers jours / la moyenne des 4 semaines d'avant. Il faut au moins 3 semaines passées avec des séances (une reprise n'est pas de la fatigue).
 export function ratioCharge(workouts, auj, opts = {}) {
   const recent = charge(workouts, addJ(auj, -6), auj, opts);
   const avant = [1, 2, 3, 4].map(k => charge(workouts, addJ(auj, -6 - 7 * k), addJ(auj, -7 * k), opts)).filter(x => x.seances > 0);
-  if (avant.length < 2) return { ratio: null, recent, habituelle: null, semainesConnues: avant.length };
+  if (avant.length < SEMAINES_MIN_RATIO) return { ratio: null, recent, habituelle: null, semainesConnues: avant.length };
   const habituelle = moy(avant.map(x => x.valeur));
   return { ratio: habituelle > 0 ? r1(recent.valeur / habituelle) : null, recent, habituelle: r1(habituelle), semainesConnues: avant.length };
 }
@@ -97,14 +99,18 @@ export function seriesManquees(workouts, auj, { jourDe = jourParDefaut } = {}) {
   workouts.filter(w => w.end && dansFenetre(w, addJ(auj, -13), auj, jourDe)).forEach(w => (w.exercises || []).forEach(ex => (ex.sets || []).filter(s => s.type !== "W").forEach(s => { prevues++; if (!s.done) manquees++; })));
   return prevues >= 8 ? { part: r1(manquees / prevues), prevues, manquees } : null;
 }
-// Baisse de performance : la dernière charge maximale estimée d'un mouvement comparée au meilleur des 28 jours d'avant
-export function baissePerformance(lifts, auj) {
+// Baisse de performance : les DEUX dernières séances d'un mouvement sous le meilleur des 28 jours d'avant (une seule mauvaise
+// séance ne compte pas). exclure(nom) écarte les mouvements au poids du corps ou lestés, dont l'e1RM dépend de la saisie du lest.
+export const EXCLURE_BAISSE = /lest|poids du corps|traction|chin.?up|pull.?up|dips|pompe|muscle.?up|gainage|planche/i;
+export function baissePerformance(lifts, auj, { exclure = (n) => EXCLURE_BAISSE.test(n) } = {}) {
   let pire = null;
   Object.entries(lifts || {}).forEach(([nom, h]) => {
-    if ((h || []).length < 3) return;
-    const der = h.at(-1), avant = h.slice(0, -1).filter(x => x.d >= addJ(auj, -28) && x.d < der.d); if (!avant.length || der.d < addJ(auj, -14)) return;
-    const best = Math.max(...avant.map(x => x.e1rm)), baisse = best > 0 ? (best - der.e1rm) / best : 0;
-    if (baisse > 0 && (!pire || baisse > pire.baisse)) pire = { nom, baisse: r1(baisse * 100) / 100, pct: Math.round(baisse * 100) };
+    if ((h || []).length < 4 || exclure(nom)) return;
+    const der = h.at(-1), avd = h.at(-2); if (der.d < addJ(auj, -14)) return;
+    const avant = h.slice(0, -2).filter(x => x.d >= addJ(avd.d, -28) && x.d < avd.d); if (!avant.length) return;
+    const best = Math.max(...avant.map(x => x.e1rm)); if (!(best > 0)) return;
+    const baisse = Math.min((best - der.e1rm) / best, (best - avd.e1rm) / best);
+    if (baisse >= 0.04 && (!pire || baisse > pire.baisse)) pire = { nom, baisse: r1(baisse * 100) / 100, pct: Math.round(baisse * 100) };
   });
   return pire;
 }
@@ -157,6 +163,8 @@ export function etat(ctx) {
   const ci = ctx.checkin || {};
   // Garde-fou : une nuit très courte et une énergie basse ne donnent jamais un feu vert
   if (feu.rang < 2 && ci.sleep > 0 && ci.sleep < 5 && ci.energy != null && ci.energy <= 3) feu = FEUX.orange;
+  // Garde-fou : sans check-in, les seules données des séances ne descendent jamais sous l'orange
+  if (!sc && feu.rang > 2) feu = FEUX.orange;
   const raisons = [];
   if (sc) { const p = sc.parts;
     if (p.sommeil != null && p.sommeil < 60) raisons.push(ci.sleep < 6 ? `Nuit courte (${String(r1(ci.sleep)).replace(".", ",")} h).` : "Sommeil de moins bonne qualité.");
@@ -166,7 +174,7 @@ export function etat(ctx) {
     if (p.motivation != null && p.motivation < 40) raisons.push("Motivation basse."); }
   fatigue.actifs.slice(0, 2).forEach(a => raisons.push(a.texte));
   if (!raisons.length) raisons.push(feu.id === "vert" ? (sc ? "Tout va bien : tu peux suivre ta séance comme prévu." : "Rien d'inquiétant dans tes dernières séances.") : "Plusieurs petits signaux de fatigue s'additionnent.");
-  const conseil = { vert: "Séance comme prévue. Écoute-toi, et profite de la forme.", orange: `Version allégée : environ un quart de séries en moins, effort plafonné à RPE ${vir(ALLEGEMENT.orange.rpe)}. Tu gardes les mouvements.`, rouge: `Aujourd'hui : repos actif (marche, mobilité) ou une séance courte, effort plafonné à RPE ${vir(ALLEGEMENT.rouge.rpe)}.` }[feu.id];
+  const conseil = { vert: "Séance comme prévue. Profite de la forme.", orange: `Fais ta séance en gardant de la marge : environ un quart de séries en moins, effort plafonné à RPE ${vir(ALLEGEMENT.orange.rpe)}. Tu gardes les mouvements.`, rouge: `Fais ta séance en version allégée : moins de séries, effort plafonné à RPE ${vir(ALLEGEMENT.rouge.rpe)}. Venir et bouger compte plus que la performance aujourd'hui.` }[feu.id];
   return { v: VERSION, feu, disponibilite: dispo, checkin: sc, signaux: sg, fatigue, locale: fatigueLocale(ctx.workouts || [], ctx.auj, { patternDe: ctx.patternDe, jourDe: ctx.jourDe }), raisons: raisons.slice(0, 3), conseil, confiance: sc ? (sg.ratio.ratio != null ? "bonne" : "moyenne") : "à affiner" };
 }
 

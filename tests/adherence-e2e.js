@@ -51,16 +51,16 @@ const overflow = (p) => p.evaluate(() => [...document.querySelectorAll('#app *')
   const b = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
 
   // ===================== MEMBRE =====================
-  console.log('Membre (Défi 30 jours)');
+  console.log('Membre (Défi 14 jours)');
   const { p, errs } = await page(b, { url: '#/home', state: STATE });
-  ok(/Défi 30 jours/.test(await txt(p)), 'accueil : carte du Défi 30 jours');
-  ok(/jour 21 \/ 30/.test(await txt(p)), 'accueil : jour du défi affiché');
+  ok(/Défi 14 jours/.test(await txt(p)), 'accueil : carte du Défi 14 jours');
+  ok(/jour 14 \/ 14/.test(await txt(p)), 'accueil : jour du défi affiché (14 jours)');
   await shot(p, '01-accueil');
 
   await go(p, 'defi');
   let t = await txt(p);
-  ok(/Mon point de départ/.test(t) && /Bilan de la semaine 3/.test(t), 'défi : étapes listées');
-  ok(/s'ouvre au jour 28/.test(t), 'défi : étapes futures verrouillées');
+  ok(/Mon point de départ/.test(t) && /Bilan de la semaine 2/.test(t) && /Mon rapport de 14 jours/.test(t) && !/semaine 3/.test(t), 'défi : étapes listées (14 jours)');
+  ok(!/s'ouvre au jour/.test(t), 'défi : au jour 21, toutes les étapes sont ouvertes');
   ok(/Candidater au coaching/.test(t), 'défi : candidature proposée à partir du jour 21');
   ok((await overflow(p)).length === 0, 'défi : rien ne dépasse de l\'écran');
   await shot(p, '02-defi');
@@ -174,9 +174,9 @@ const overflow = (p) => p.evaluate(() => [...document.querySelectorAll('#app *')
   await go(p, 'profile');
   t = await txt(p);
   ok(/Ma régularité/.test(t) && /Avant \/ après/.test(t) && /Mon rapport/.test(t), 'profil : tuiles « Suivi et résultats »');
-  // Offres : essai de 30 jours affiché
+  // Offres : essai de 14 jours affiché
   await go(p, 'offers');
-  ok(/30 jours d'essai/.test(await txt(p)) && !/7 jours d'essai/.test(await txt(p)), 'offres : essai de 30 jours affiché');
+  ok(/14 jours d'essai/.test(await txt(p)) && !/30 jours d'essai/.test(await txt(p)), 'offres : essai de 14 jours affiché');
   // Instantané pour le coach
   const snap = await p.evaluate(async () => { const m = await import('./js/sync.js'); return m.snapshot(); });
   ok(snap.summary.adh?.score != null && snap.summary.lastCheckin === snap.data.checkins.at(-1).d && snap.data.anamnese?.consent && snap.summary.testi, 'instantané coach : régularité, bilans, anamnèse, témoignage');
@@ -186,7 +186,7 @@ const overflow = (p) => p.evaluate(() => [...document.querySelectorAll('#app *')
   console.log('Nouvel inscrit');
   const NEW = { ...STATE, profile: { ...STATE.profile, createdAt: T }, trialStart: T, plan: { ...STATE.plan, startedAt: T }, workouts: [], daily: {}, food: {}, checkins: [], measures: [], lifts: {} };
   const n1 = await page(b, { url: '#/defi', state: NEW });
-  ok(/jour 1 sur 30/i.test(await txt(n1.p)) || /Jour 1 sur 30/.test(await txt(n1.p)), 'défi : jour 1');
+  ok(/jour 1 sur 14/i.test(await txt(n1.p)) && /s'ouvre au jour 7/.test(await txt(n1.p)), 'défi : jour 1 sur 14, étapes futures verrouillées');
   const al = await n1.p.evaluate(async () => (await import('./js/progress.js')).myAlerts().map(a => a.code));
   ok(!al.includes('checkin') && !al.includes('score'), 'pas d\'alerte « bilan manquant » ni « décroche » le premier jour');
   ok(n1.errs.length === 0, 'nouvel inscrit : aucune erreur JavaScript');

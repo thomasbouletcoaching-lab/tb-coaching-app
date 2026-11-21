@@ -4,7 +4,7 @@
 
 // ---------- Réglages ----------
 export const PARRAINAGE = {
-  bonusFilleulJours: 0,     // pas de jours d'essai en plus pour la personne invitée (décision de Thomas, 19/11 : 30 jours pour tous)
+  bonusFilleulJours: 0,     // pas de jours d'essai en plus pour la personne invitée (décision de Thomas, 21/11 : 14 jours pour tous)
   moisParFilleul: 1,        // mois de Bâtisseur offert au parrain par filleul qui passe Bâtisseur
   plafondAnnuel: 6,         // au plus 6 mois offerts par an (rentabilité : on récompense l'apport, pas la gratuité)
   lienJours: 30,            // le code se lie dans les 30 jours qui suivent la création du compte

@@ -1,4 +1,5 @@
 // Synchronisation avec le serveur : profil, formule, compteurs (messages, notifications).
+import { planApresEnvoi } from "./envoi-programme.js";
 import { PARTAGE_MAX } from "./crise.js";
 import { S, update, today, onSave } from "./store.js";
 import * as E from "./engine.js";
@@ -135,7 +136,6 @@ export async function claimInvite(c, code = S().coachCode) {
   } catch (e) { console.warn("Invitation coach :", e.message); return null; }
 }
 
-// Programme posé par le coach : remplace le programme actif du membre. La position (semaine, séance) est gardée si elle existe déjà.
 export async function pullCoachPlan() {
   const c = await cloud(); if (!c || !S().profile) return;
   let row; try { row = await c.coachPlan(); } catch (e) { return; }
@@ -145,8 +145,7 @@ export async function pullCoachPlan() {
     st.coachPlanSeen = row.updated_at;
     const prog = { ...row.program, id: "coach-plan" };
     st.customPrograms = [...(st.customPrograms || []).filter(x => x.id !== "coach-plan"), prog];
-    const keep = st.plan && st.plan.programId === "coach-plan";
-    st.plan = { programId: "coach-plan", startedAt: keep && st.plan.startedAt ? st.plan.startedAt : today(), week: keep ? (st.plan.week || 1) : 1, idx: keep ? Math.min(st.plan.idx || 0, prog.s.length - 1) : 0, cycle: 1 };
+    st.plan = planApresEnvoi(st.plan, prog, today());
   });
 }
 

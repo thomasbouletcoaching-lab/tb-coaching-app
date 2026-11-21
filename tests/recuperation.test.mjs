@@ -77,10 +77,14 @@ test("séries manquées : part des séries prévues non faites sur 14 jours", ()
   assert.equal(R.seriesManquees([seance(A, [ex("X", [set(), set()])])], A), null);
 });
 
-test("baisse de performance : dernière charge maximale estimée face au meilleur des 28 jours d'avant", () => {
-  const l = { "Squat barre": [{ d: add(A, -40), e1rm: 130 }, { d: add(A, -20), e1rm: 135 }, { d: add(A, -12), e1rm: 134 }, { d: add(A, -1), e1rm: 125 }] };
+test("baisse de performance : les deux dernières séances sous le meilleur des 28 jours d'avant", () => {
+  const une = { "Squat barre": [{ d: add(A, -40), e1rm: 130 }, { d: add(A, -20), e1rm: 135 }, { d: add(A, -12), e1rm: 134 }, { d: add(A, -1), e1rm: 125 }] };
+  assert.equal(R.baissePerformance(une, A), null, "une seule mauvaise séance ne compte pas");
+  const lest = { "Tractions lestées (pronation)": [{ d: add(A, -30), e1rm: 120 }, { d: add(A, -20), e1rm: 125 }, { d: add(A, -8), e1rm: 90 }, { d: add(A, -1), e1rm: 91 }] };
+  assert.equal(R.baissePerformance(lest, A), null, "mouvements lestés ou au poids du corps exclus");
+  const l = { "Squat barre": [{ d: add(A, -40), e1rm: 130 }, { d: add(A, -20), e1rm: 135 }, { d: add(A, -12), e1rm: 126 }, { d: add(A, -1), e1rm: 125 }] };
   assert.equal(R.baissePerformance(l, A).pct, 7); assert.equal(R.baissePerformance(l, A).nom, "Squat barre");
-  assert.equal(R.baissePerformance({ X: [{ d: add(A, -20), e1rm: 100 }, { d: add(A, -10), e1rm: 105 }, { d: add(A, -1), e1rm: 110 }] }, A), null, "en progrès");
+  assert.equal(R.baissePerformance({ X: [{ d: add(A, -30), e1rm: 95 }, { d: add(A, -20), e1rm: 100 }, { d: add(A, -10), e1rm: 105 }, { d: add(A, -1), e1rm: 110 }] }, A), null, "en progrès");
   assert.equal(R.baissePerformance({ X: [{ d: add(A, -20), e1rm: 100 }, { d: add(A, -10), e1rm: 105 }] }, A), null, "pas assez de points");
   assert.equal(R.baissePerformance({ X: [{ d: add(A, -60), e1rm: 100 }, { d: add(A, -50), e1rm: 120 }, { d: add(A, -40), e1rm: 90 }] }, A), null, "trop ancien");
 });
@@ -117,11 +121,18 @@ test("feu du jour : bon check-in = vert ; nuit courte, énergie basse et stress 
 
 test("feu du jour : les séances comptent, même sans check-in ; un bon check-in ne masque pas une surcharge", () => {
   const chargee = [...habitude(), ...[0, 1, 2, 3, 4, 6].map(k => normale(add(A, -k), 9.5, 8))];
-  const lifts = { "Squat barre": [{ d: add(A, -40), e1rm: 130 }, { d: add(A, -20), e1rm: 135 }, { d: add(A, -12), e1rm: 134 }, { d: add(A, -1), e1rm: 125 }] };
+  const lifts = { "Squat barre": [{ d: add(A, -40), e1rm: 130 }, { d: add(A, -20), e1rm: 135 }, { d: add(A, -12), e1rm: 126 }, { d: add(A, -1), e1rm: 125 }] };
   const sans = R.etat({ ...base, workouts: chargee, lifts }), avec = R.etat({ ...base, checkin: bon, workouts: chargee, lifts });
   assert.notEqual(sans.feu.id, "vert"); assert.notEqual(avec.feu.id, "vert", "bon check-in mais semaine très chargée");
   assert.ok(avec.fatigue.niveau === "élevée" && avec.raisons.some(t => /fois ta moyenne/.test(t)));
   const neutre = R.etat({ ...base }); assert.equal(neutre.feu.id, "vert"); assert.equal(neutre.confiance, "à affiner"); assert.equal(neutre.checkin, null);
+});
+
+test("garde-fou : sans check-in, les séances seules ne donnent jamais le rouge", () => {
+  const enorme = [...habitude(), ...[0, 1, 2, 3, 4, 5, 6].map(k => normale(add(A, -k), 10, 7))];
+  const lifts = { "Squat barre": [{ d: add(A, -40), e1rm: 130 }, { d: add(A, -20), e1rm: 140 }, { d: add(A, -8), e1rm: 110 }, { d: add(A, -1), e1rm: 108 }] };
+  const e = R.etat({ ...base, workouts: enorme, lifts, daily: { [add(A, -1)]: { sleep: 4 } } });
+  assert.equal(e.feu.id, "orange", `dispo ${e.disponibilite}`);
 });
 
 test("garde-fou : une nuit sous 5 h avec une énergie très basse n'est jamais verte", () => {
@@ -133,7 +144,7 @@ test("raisons : au plus 3, formulées sans jugement", () => {
   const e = R.etat({ ...base, checkin: { sleep: 4, sleepQ: 1, energy: 2, stress: 9, sore: 8, motiv: 2 }, workouts: [...habitude(), ...[0, 1, 2].map(k => normale(add(A, -k), 9.5, 8))] });
   assert.ok(e.raisons.length <= 3 && e.raisons.length >= 1);
   e.raisons.forEach(t => assert.ok(!/paresse|faible|échec|nul|honte|raté|mauvais/i.test(t), t));
-  assert.match(e.conseil, /repos actif/);
+  assert.match(e.conseil, /version allégée/); assert.ok(!/repos/i.test(e.conseil), "jamais « repos » quand une séance est prévue");
 });
 
 // ---------- Décharge ----------

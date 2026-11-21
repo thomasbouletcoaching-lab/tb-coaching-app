@@ -59,7 +59,7 @@ forms["fc-checkin"] = (v) => {
   });
   const e = etatDuJour(); update(st => { st.daily[d].feu = e.feu.id; });
   closeSheet(); buzz();
-  toast(e.feu.id === "vert" ? "🟢 Feu vert : séance comme prévue" : e.feu.id === "orange" ? "🟠 Feu orange : une version allégée est conseillée" : "🔴 Feu rouge : on y va doucement aujourd'hui");
+  toast(e.feu.id === "vert" ? "🟢 En forme : séance comme prévue" : e.feu.id === "orange" ? "🟠 Séance adaptée : garde de la marge" : "🔴 Séance allégée : l'important est de venir");
   rerender();
 };
 
@@ -76,7 +76,7 @@ export function feuStartBlock() {
   const mode = modeAllegement(); choix = { mode, on: !!mode };
   if (!mode) return "";
   const e = etatDuJour(), dec = mode === "decharge", c = R.ALLEGEMENT[mode];
-  return `<div class="card soft mt8"><b class="small">${dec ? "🛌 Semaine de décharge" : `${e.feu.icone} Ton feu du jour : ${e.feu.nom.toLowerCase()}`}</b>
+  return `<div class="card soft mt8"><b class="small">${dec ? "🛌 Semaine de décharge" : `${e.feu.icone} Ta forme du jour : ${e.feu.nom.toLowerCase()}`}</b>
     <p class="xs muted" style="margin:4px 0 8px">${dec ? `Cette semaine, on allège : environ ${Math.round(c.retire * 100)} % de séries en moins, effort plafonné à RPE ${String(c.rpe).replace(".", ",")}.` : esc(e.conseil)}</p>
     <div class="chips wrap"><button class="chip on" data-a="fa-pick" data-v="1">Version allégée</button><button class="chip" data-a="fa-pick" data-v="0">Telle que prévue</button></div></div>`;
 }
@@ -107,6 +107,16 @@ function prochaineDecharge() {
   return null;
 }
 
+// « Pourquoi ? » : les facteurs réels du calcul et leur poids, pour que le chiffre ne soit jamais une boîte noire
+const NOMS_CI = { sommeil: "Sommeil", energie: "Énergie", stress: "Stress", courbatures: "Courbatures", motivation: "Motivation" };
+function pourquoi(e) {
+  const ci = e.checkin, l = [];
+  if (ci) Object.entries(ci.parts).forEach(([k, v]) => l.push(`${NOMS_CI[k]} : ${v}/100 (poids ${Math.round(R.POIDS_CHECKIN[k] * 100)} %)`));
+  else l.push(`Pas de check-in : base de ${R.SANS_CHECKIN}/100`);
+  e.fatigue.actifs.forEach(a => l.push(`${a.texte} (−${Math.round(a.points * R.PENALITE_FATIGUE)})`));
+  return `<details class="mt8"><summary class="small link">Pourquoi ${e.disponibilite}/100 ?</summary><div class="xs muted mt4">${l.map(t => `<p style="margin:4px 0 0">• ${esc(t)}</p>`).join("")}<p style="margin:6px 0 0">Check-in ${ci ? ci.score : R.SANS_CHECKIN}/100, moins la fatigue nerveuse (${e.fatigue.score} × ${String(R.PENALITE_FATIGUE).replace(".", ",")}). En forme à partir de ${R.SEUILS.vert}, séance adaptée à partir de ${R.SEUILS.orange}.</p></div></details>`;
+}
+
 // ---------- Bloc de l'onglet Récupération ----------
 export function fatigueBlock(conseilsNutrition = []) {
   if (isCoach()) return "";
@@ -114,12 +124,13 @@ export function fatigueBlock(conseilsNutrition = []) {
   const d = today(), ci = checkinDe(d), e = etatDuJour(d), dec = dechargeActuelle();
   const prop = R.dechargeConseillee(feuxRecents(), d, { actuelle: S().decharge, refusLe: S().dechargeRefus, fatigue: e.fatigue });
   const r = e.signaux.ratio, pc = (n) => String(n).replace(".", ","), pn = prochaineDecharge();
-  return `<div class="card mt8 feu ${e.feu.id}"><div class="row" style="gap:12px;align-items:center"><span class="feupuce ${e.feu.id}" aria-hidden="true"></span><div class="grow"><div class="xs muted">Ton feu du jour</div><b class="h2">${esc(e.feu.nom)}</b></div><span class="tag">${e.disponibilite}/100</span></div>
+  return `<div class="card mt8 feu ${e.feu.id}"><div class="row" style="gap:12px;align-items:center"><span class="feupuce ${e.feu.id}" aria-hidden="true"></span><div class="grow"><div class="xs muted">Ta forme du jour</div><b class="h2">${esc(e.feu.nom)}</b></div><span class="tag">${e.disponibilite}/100</span></div>
       <p class="small mt8" style="margin:0"><b>${esc(e.conseil)}</b></p>
       ${e.raisons.map(t => `<p class="small muted" style="margin:6px 0 0">• ${esc(t)}</p>`).join("")}
       ${conseilsNutrition.map(t => `<p class="small muted" style="margin:6px 0 0">• ${esc(t)}</p>`).join("")}
+      ${pourquoi(e)}
       <button class="btn ${ci ? "btn-line" : "btn-red"} mt12" style="width:100%" data-a="fc-open">${ci ? "Modifier mon check-in" : "☀️ Faire mon check-in (10 secondes)"}</button>
-      ${ci ? "" : `<p class="xs muted mt8" style="margin:8px 0 0">Sans check-in, je me base seulement sur tes séances : le feu est moins précis.</p>`}</div>
+      ${ci ? "" : `<p class="xs muted mt8" style="margin:8px 0 0">Sans check-in, je me base seulement sur tes séances : l'indication est moins précise et ne descend jamais sous l'orange.</p>`}</div>
     ${dec ? `<div class="card mt12" style="box-shadow:0 0 0 1.5px var(--good) inset"><b>🛌 Semaine de décharge en cours</b><p class="small muted mt4" style="margin:0">Jusqu'au ${esc(fmtDate(dec.fin, { weekday: "long", day: "numeric", month: "long" }))}. Tes séances sont allégées pour que ton corps récupère : tu reviendras plus fort.</p><button class="btn btn-ghost btn-sm mt8" data-a="fc-decharge-stop">Arrêter la décharge</button></div>` : ""}
     ${prop.propose ? `<div class="card mt12 hl"><b>Une semaine de décharge ?</b><p class="small muted mt4" style="margin:0 0 8px">${esc(prop.raison)}. Une semaine plus légère (environ 40 % de séries en moins, effort plafonné à RPE ${String(R.ALLEGEMENT.decharge.rpe).replace(".", ",")}) aide à repartir. C'est toi qui décides.</p><div class="row" style="gap:8px"><button class="btn btn-red btn-sm grow" data-a="fc-decharge-oui">Oui, 7 jours</button><button class="btn btn-line btn-sm grow" data-a="fc-decharge-non">Pas maintenant</button></div></div>` : ""}
     <div class="card mt12"><div class="row between small"><b>Fatigue nerveuse</b><span class="tag ${e.fatigue.niveau === "faible" ? "g" : ""}">${esc(e.fatigue.niveau)}</span></div>
@@ -142,5 +153,5 @@ export function feuCard() {
   if (dec) return `<button class="card tap mt12" data-a="go" data-r="recup" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:28px">🛌</span><span class="grow"><b>Semaine de décharge</b><br><span class="small muted">Jusqu'au ${esc(fmtDate(dec.fin, { weekday: "long", day: "numeric" }))} : séances allégées.</span></span>${I.chev}</button>`;
   if (!ci) return `<button class="card tap mt12" data-a="fc-open" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:28px">☀️</span><span class="grow"><b>Check-in du jour</b><br><span class="small muted">Dix secondes pour savoir si ta séance doit être complète ou allégée.</span></span>${I.chev}</button>`;
   const e = etatDuJour(d);
-  return `<button class="card tap mt12" data-a="go" data-r="recup" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span class="feupuce ${e.feu.id}" aria-hidden="true"></span><span class="grow"><b>Feu ${esc(e.feu.nom.toLowerCase())}</b><br><span class="small muted">${esc(e.feu.id === "vert" ? "Séance comme prévue." : e.feu.id === "orange" ? "Une version allégée est conseillée." : "Repos actif ou séance courte.")}</span></span>${I.chev}</button>`;
+  return `<button class="card tap mt12" data-a="go" data-r="recup" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span class="feupuce ${e.feu.id}" aria-hidden="true"></span><span class="grow"><b>Forme du jour : ${esc(e.feu.nom.toLowerCase())}</b><br><span class="small muted">${esc(e.feu.id === "vert" ? "Séance comme prévue." : e.feu.id === "orange" ? "Fais ta séance en gardant de la marge." : "Fais ta séance en version allégée.")}</span></span>${I.chev}</button>`;
 }

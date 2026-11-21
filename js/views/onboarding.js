@@ -7,6 +7,7 @@ import * as N from "../nutrition.js";
 import { $app, esc, buzz, num, toast, routes, actions, forms, go, I, logo, markImg, wordOn } from "../core.js";
 import { syncProfile } from "../sync.js";
 import { importJSON } from "../store.js";
+import { TRIAL_DAYS } from "../config.js";
 
 const OB = { i: -1, a: {}, echo: null };
 const STEPS = [
@@ -69,7 +70,7 @@ function welcome() {
     <div class="mt24" style="display:flex;flex-direction:column;gap:14px;align-items:flex-start">${markImg(150)}${logo(30)}</div>
     <div><p class="kicker">Corps · régularité · méthode</p><h1 class="hello mt8" style="font-size:46px">Un seul plan pour ton corps.</h1>
       <p class="mt16 muted" style="font-size:17px">Entraînement, nutrition et progression calculés pour toi par un coach diplômé STAPS. Des charges qui suivent ce que tu fais vraiment.</p></div>
-    <div class="stack"><button class="btn btn-red" data-a="ob-start">Commencer mes 30 jours gratuits</button>
+    <div class="stack"><button class="btn btn-red" data-a="ob-start">Commencer mes ${TRIAL_DAYS} jours gratuits</button>
       <button class="btn btn-line" data-a="go" data-r="account">J'ai déjà un compte : me connecter</button>
       <label class="btn btn-line" style="cursor:pointer">Restaurer une sauvegarde<input type="file" accept="application/json" data-c="import" hidden></label></div></section>`;
 }

@@ -348,7 +348,7 @@ export function buildSession(at = null) {
         if (kg && addKg && !sp.kg) kg = Math.max(0, kg - addKg);
         if (kg) kg = roundTo(kg, step);
       }
-      sets.push({ g: sp.t === "W" ? -1 : 0, type: sp.t || "N", kg, reps: sp.lo, lo: sp.lo, hi: sp.hi || sp.lo, rpe: null, trpe: sp.rpe || (sp.t === "W" ? 5 : 8), pct: sp.pct || (e && kg ? Math.round((kg + addKg) / e * 100) : null), tech: [...(sp.tech || [])], note: sp.note || "", done: false });
+      sets.push({ g: sp.t === "W" ? -1 : 0, type: sp.t || "N", kg, pkg: kg, reps: sp.lo, lo: sp.lo, hi: sp.hi || sp.lo, rpe: null, trpe: sp.rpe || (sp.t === "W" ? 5 : 8), pct: sp.pct || (e && kg ? Math.round((kg + addKg) / e * 100) : null), tech: [...(sp.tech || [])], note: sp.note || "", done: false });
     });
     else groups.forEach((g, gi) => {
       for (let k = 0; k < g.sets; k++) {
@@ -362,7 +362,7 @@ export function buildSession(at = null) {
           if (kg) kg = roundTo(kg, step);
         }
         const type = g.ds && k === g.sets - 1 ? "D" : groups.length > 1 ? (gi === 0 ? "T" : "B") : "N";
-        sets.push({ g: gi, type, kg, reps: g.lo, lo: g.lo, hi: g.hi, rpe: null, trpe: g.rpe || 8, pct: g.pct || (e && kg ? Math.round((kg + addKg) / e * 100) : null), tech: g.ds && k === g.sets - 1 ? ["Dropset"] : [...plannedTech], note: "", done: false });
+        sets.push({ g: gi, type, kg, pkg: kg, reps: g.lo, lo: g.lo, hi: g.hi, rpe: null, trpe: g.rpe || 8, pct: g.pct || (e && kg ? Math.round((kg + addKg) / e * 100) : null), tech: g.ds && k === g.sets - 1 ? ["Dropset"] : [...plannedTech], note: "", done: false });
       }
     });
     // Échauffement proposé sur les mouvements de force
@@ -426,6 +426,9 @@ export function expressSession(s, min) {
 }
 
 // Fin de séance : e1RM, records, volume, avance le plan (sauf séance libre)
+// Temps actif d'une séance en cours : les pauses (coaching à donner, imprévu) ne comptent pas (décision C72)
+export const pauseMs = (cur, now = Date.now()) => (cur?.pauseMs || 0) + (cur?.pausedAt ? Math.max(0, now - new Date(cur.pausedAt).getTime()) : 0);
+export const actifMs = (cur, now = Date.now()) => Math.max(0, now - new Date(cur.start).getTime() - pauseMs(cur, now));
 export function finishSession(cur) {
   if (cur.reopen) return replaceReopened(cur);
   const d = cur.backdate || today(), records = [];
@@ -453,7 +456,9 @@ export function finishSession(cur) {
       cur.start = t0.toISOString(); cur.end = new Date(t0.getTime() + min * 6e4).toISOString();
       delete cur.backdate; delete cur.backTime; delete cur.durMin; cur.late = true;
     } else if (cur.durMin) { cur.end = new Date().toISOString(); cur.start = new Date(Date.now() - cur.durMin * 6e4).toISOString(); delete cur.durMin; }
+    else if (pauseMs(cur) > 0) { const p = pauseMs(cur); cur.end = new Date(new Date(cur.start).getTime() + actifMs(cur)).toISOString(); cur.pauseMin = Math.round(p / 6e4); }
     else cur.end = new Date().toISOString();
+    delete cur.pausedAt; delete cur.pauseMs;
     cur.volume = Math.round(volume); cur.setsDone = sets; cur.records = records;
     st.workouts.push(cur);
     if (cur.late) st.workouts.sort((a, b) => a.end.localeCompare(b.end));

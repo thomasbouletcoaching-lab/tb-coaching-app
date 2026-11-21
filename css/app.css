@@ -783,3 +783,24 @@ pre.code{white-space:pre-wrap;word-break:break-all;font-size:11.5px;line-height:
 .vtools{display:flex;flex-wrap:wrap;gap:6px}
 .vtool{flex:1 0 64px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border-radius:12px;border:1px solid var(--line);background:var(--paper);font-size:11px;color:var(--ink)}
 .vtool span{font-size:19px}.vtool.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+/* Statistiques sur le réalisé : jauges MV → MRV, radar des patterns, ratios (décision C72) */
+.jg { padding: 8px 0 10px; border-top: 1px solid var(--line); }
+.jg:first-child { border-top: 0; padding-top: 0; }
+.jbar { position: relative; height: 12px; border-radius: 6px; background: var(--line); margin-top: 6px; overflow: visible; }
+.jbar > i { position: absolute; top: 0; bottom: 0; }
+.jbar > i:first-child { border-radius: 6px 0 0 6px; }
+.jbar > i.z0 { background: #e3e7ee; } .jbar > i.z1 { background: #cfd8e6; } .jbar > i.z2 { background: #bfe3cc; }
+.jbar > i.z3 { background: #5cbf7f; } .jbar > i.z4 { background: #f2c46b; } .jbar > i.z5 { background: #ef8c7a; border-radius: 0 6px 6px 0; }
+.jmk { position: absolute; top: -4px; width: 4px; height: 20px; margin-left: -2px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 2px #fff; }
+.jlb { position: relative; height: 16px; margin-top: 3px; }
+.jlb span { position: absolute; transform: translateX(-50%); white-space: nowrap; font-size: 10px; }
+.jlb span:first-child { transform: none; }
+.tag.jz.optimal, .tag.jz.progression { background: #e3f5e9; color: #1d7a3e; }
+.tag.jz.haut { background: #fdf1d8; color: #8a5a00; } .tag.jz.trop { background: #fde4df; color: #b3261e; }
+.radar { width: 100%; max-width: 340px; display: block; margin: 0 auto; }
+.radar .rg { fill: none; stroke: var(--line); stroke-width: 1; }
+.radar .rv { fill: rgba(47, 111, 237, .25); stroke: #2f6fed; stroke-width: 2; }
+.radar .rl { font-size: 10px; fill: var(--ink); font-weight: 600; }
+.vz{position:relative;transition:transform .2s ease}
+.vzbadge{position:absolute;right:8px;top:8px;background:rgba(0,0,0,.65);color:#fff;border:0;border-radius:999px;padding:6px 10px;font-size:12px;line-height:1.2;font-weight:700}

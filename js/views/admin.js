@@ -1,5 +1,6 @@
 // Espace coach (administrateur) : Mes clients, Messages, Business, Abonnés, Base de données.
 // Présentation reprise de TB my Coach.
+import { videosEnAttente, blocAdmin } from "./video-canal.js";
 import { S, update, today } from "../store.js";
 import * as E from "../engine.js";
 import * as N from "../nutrition.js";
@@ -297,7 +298,8 @@ routes["admin-today"] = async () => {
     }
     return true;
   });
-  frame("admin-today", `${homeHead()}${kpiBlock()}${liveNowBlock()}${alertsBlock()}${dayAthletes()}${eventsBlock()}${decrochageBlock()}${agendaBlock()}${todoBlock()}${fabBtn()}`, "Accueil");
+  let vids = []; try { vids = await videosEnAttente(); } catch { }
+  frame("admin-today", `${homeHead()}${kpiBlock()}${liveNowBlock()}${blocAdmin(vids)}${alertsBlock()}${dayAthletes()}${eventsBlock()}${decrochageBlock()}${agendaBlock()}${todoBlock()}${fabBtn()}`, "Accueil");
 };
 
 routes.admin = async () => {

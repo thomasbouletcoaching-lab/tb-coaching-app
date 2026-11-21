@@ -54,7 +54,7 @@ const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.
   console.log('Premium : check-in de 10 secondes, feu vert');
   const a = await page(b, {});
   let t = await txt(a.p);
-  ok(/Ton feu du jour/.test(t) && /Faire mon check-in \(10 secondes\)/.test(t) && !/Pour ta séance du jour/.test(t), 'bloc « feu du jour » (l\'ancien conseil est intégré, pas dupliqué)');
+  ok(/Ta forme du jour/.test(t) && /Faire mon check-in \(10 secondes\)/.test(t) && !/Pour ta séance du jour/.test(t), 'bloc « feu du jour » (l\'ancien conseil est intégré, pas dupliqué)');
   ok(/Courbatures/.test(t) && /Motivation/.test(t), 'les curseurs du ressenti incluent courbatures et motivation');
   ok(/Sans check-in, je me base seulement sur tes séances/.test(t), 'sans check-in : le feu est annoncé moins précis');
   await tap(a.p, '[data-a="fc-open"]');
@@ -64,7 +64,7 @@ const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.
   await pick(a.p, 'sleepQ', 4); for (const [k, v] of [['energy', 8], ['stress', 2], ['sore', 2], ['motiv', 8]]) await pick(a.p, k, v);
   await tap(a.p, '#sheet form button'); await a.p.waitForTimeout(500);
   t = await txt(a.p);
-  ok(await a.p.locator('.card.feu.vert').count() === 1 && /Vert/.test(t) && /Séance comme prévue/.test(t), 'feu vert affiché');
+  ok(await a.p.locator('.card.feu.vert').count() === 1 && /En forme/.test(t) && /Séance comme prévue/.test(t), 'feu vert affiché');
   const s1 = await S(a.p), x = s1.daily[T];
   ok(x.feu === 'vert' && x.sleep === 8 && x.sleepQ === 4 && x.feel.energy === 8 && x.feel.stress === 2 && x.feel.sore === 2 && x.feel.motiv === 8, 'réponses enregistrées dans le journal du jour');
   ok(/Fatigue nerveuse/.test(t) && /faible/.test(t) && /Pas encore assez de séances/.test(t), 'fatigue nerveuse faible, sans recul annoncé honnêtement');
@@ -80,10 +80,10 @@ const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.
   await tap(r.p, '[data-a="fc-open"]');
   for (const [k, v] of [['sleep', 5], ['sleepQ', 2], ['energy', 4], ['stress', 8], ['sore', 8], ['motiv', 2]]) await pick(r.p, k, v);
   await tap(r.p, '#sheet form button'); await r.p.waitForTimeout(500);
-  ok(/Feu rouge/.test(await txt(r.p)), 'accueil : « Feu rouge » après le check-in');
+  ok(/Forme du jour : séance allégée/.test(await txt(r.p)) && !/Jour de repos/.test(await txt(r.p)), 'accueil : « séance allégée » après le check-in, jamais « repos »');
   await tap(r.p, '.card.tap[data-r="recup"]'); await r.p.waitForTimeout(500);
   t = await txt(r.p);
-  ok(await r.p.locator('.card.feu.rouge').count() === 1 && /repos actif/.test(t) && /Nuit courte \(5 h\)/.test(t), 'feu rouge : repos actif conseillé, raisons concrètes');
+  ok(await r.p.locator('.card.feu.rouge').count() === 1 && /version allégée/.test(t) && !/repos actif/.test(t) && /Nuit courte \(5 h\)/.test(t) && /Pourquoi \d+\/100/.test(t), 'rouge : séance allégée conseillée (jamais « repos »), raisons concrètes et détail du calcul');
   ok(!/paresse|honte|raté|nul/i.test(t), 'ton positif, jamais culpabilisant');
   await shot(r.p, '02-rouge');
   await r.ctx.close();
@@ -93,7 +93,7 @@ const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.
   const base = await o.p.evaluate(async () => { const E = await import('./js/engine.js'); await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]); const s = E.buildSession(); return { n: s.exercises.reduce((t, ex) => t + ex.sets.filter(x => x.type !== 'W').length, 0), rpe: Math.max(...s.exercises.flatMap(ex => ex.sets.filter(x => x.type !== 'W').map(x => x.trpe || 0))) }; });
   await tap(o.p, '[data-a="start"]');
   t = await txt(o.p, '#sheet');
-  ok(/Ton feu du jour : orange/.test(t) && /Version allégée/.test(t) && /Telle que prévue/.test(t), 'au démarrage : le feu orange propose une version allégée, sans l\'imposer');
+  ok(/Ta forme du jour : séance adaptée/.test(t) && /Version allégée/.test(t) && /Telle que prévue/.test(t), 'au démarrage : le feu orange propose une version allégée, sans l\'imposer');
   ok(await o.p.locator('#sheet [data-a="fa-pick"].chip.on').first().textContent().then(x => /allégée/.test(x)), 'la version allégée est préselectionnée');
   await shot(o.p, '03-demarrage-orange');
   await o.p.evaluate(() => document.querySelector('#sheet [data-a="dur-go"]').click()); await o.p.waitForTimeout(900);

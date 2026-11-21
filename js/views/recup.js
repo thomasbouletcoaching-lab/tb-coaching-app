@@ -6,7 +6,7 @@ import * as E from "../engine.js";
 import * as EN from "../energy.js";
 import { $app, esc, num, fr, toast, buzz, routes, R, actions, forms, changes, I, header, tabbar, barChart, addDays, rerender, fmtDate, seg, modeBar } from "../core.js";
 import { TRAIN_MODES } from "./train.js";
-import { fatigueBlock } from "./fatigue.js";
+import { fatigueBlock, etatDuJour } from "./fatigue.js";
 import { premium } from "../core.js";
 
 const D = (d) => S().daily[d] || {};
@@ -33,22 +33,16 @@ export function glycogen(d = today()) {
   return { pct: known ? pct : 0, known, lvl, carbs24: Math.round(carbs24), need: Math.round(need), sinceMeal, yLift };
 }
 
-// Conseil du jour pour la séance : sommeil + nutrition + ressenti
+// Conseil du jour pour la séance : UN seul calcul dans toute l'app, celui de la forme du jour (js/recuperation.js).
+// Le glycogène n'ajoute qu'un conseil pratique, jamais une baisse de note (décision C72).
 export function readiness(d = today()) {
-  const s = D(d).sleep, s1 = D(addDays(d, -1)).sleep, f = D(d).feel || {}, g = glycogen(d);
-  const short2 = s != null && s < 6 && s1 != null && s1 < 6;
-  const tips = [];
-  let score = 3;
-  if (s == null) tips.push("Note ta nuit pour un conseil plus précis.");
-  else if (short2) { score -= 2; tips.push("Deux nuits courtes : on baisse d'un cran. Séance express de 30 min ou RPE −1 sur toutes les séries."); }
-  else if (s < 6) { score -= 1; tips.push("Nuit courte : garde tes charges mais arrête-toi à RPE 8, pas de série à l'échec."); }
-  else if (s >= 7.5) tips.push("Bonne nuit : c'est le jour pour viser un record.");
-  if (g.lvl === "basses") { score -= 1; tips.push(`Réserves de glycogène basses (≈ ${g.pct} %). Avant une séance de plus de 45 min : 30 à 60 g de glucides 1 à 2 h avant, ou choisis une séance express.`); }
+  const e = etatDuJour(d), s = D(d).sleep, g = glycogen(d);
+  const tips = [...e.raisons.filter(t => !/Tout va bien|Rien d'inquiétant/.test(t))];
+  if (g.lvl === "basses") tips.push(`Réserves de glycogène basses (≈ ${g.pct} %). Avant une séance de plus de 45 min : 30 à 60 g de glucides 1 à 2 h avant.`);
   else if (g.lvl === "correctes") tips.push("Réserves correctes : une collation avec glucides 1 h avant aide pour une séance longue.");
-  if (f.stress >= 8) { score -= 1; tips.push("Stress élevé : moins de séries, même intensité. Le mouvement aide, l'épuisement non."); }
-  if (f.energy != null && f.energy <= 3) score -= 1;
-  const lv = score >= 3 ? ["🟢", "feu vert", "Tu peux suivre ta séance comme prévu."] : score >= 2 ? ["🟠", "à surveiller", "Séance oui, en gardant de la marge."] : ["🔴", "fatigue", "Séance courte ou repos actif aujourd'hui."];
-  return { icon: lv[0], label: lv[1], short: s != null ? `${fr(s, 1)} h de sommeil · glycogène ${g.lvl}` : lv[2], text: lv[2], tips, g, score };
+  if (s == null) tips.push("Note ta nuit pour un conseil plus précis.");
+  const score = { vert: 3, orange: 2, rouge: 1 }[e.feu.id];
+  return { icon: e.feu.icone, label: e.feu.nom.toLowerCase(), short: s != null ? `${fr(s, 1)} h de sommeil · glycogène ${g.lvl}` : e.conseil, text: e.conseil, tips, g, score, etat: e };
 }
 
 // Habitudes qui améliorent la sensibilité à l'insuline (repères de la littérature, pas un diagnostic)

@@ -463,3 +463,34 @@ export async function healthTokenNew() { const { data, error } = await sb.rpc("c
 export async function healthStatus() { if (!uid) await ensureSession(); const { data } = await sb.from("cxs_health_tokens").select("created_at,last_used").eq("user_id", uid).maybeSingle(); return data || null; }
 export async function healthDel() { const { error } = await sb.from("cxs_health_tokens").delete().eq("user_id", uid); if (error) throw error; }
 export async function healthDaily(since) { if (!uid) return []; const { data, error } = await sb.from("cxs_health_daily").select("d,data").eq("user_id", uid).gte("d", since).order("d"); if (error) throw error; return data || []; }
+
+// ---------- Vidéos à analyser (table cxs_video_demandes, bucket « media », dossier <client>/analyses/<id>/) ----------
+export async function videoEnvoyer(blob, { mvt = null, note = "" } = {}) {
+  if (!uid) await ensureSession(); const cid = await myClientId(); if (!cid) throw new Error("Aucune fiche client liée à ce compte : écris à Thomas");
+  const id = crypto.randomUUID(), ext = /quicktime/.test(blob.type) ? "mov" : /webm/.test(blob.type) ? "webm" : /m4v/.test(blob.type) ? "m4v" : "mp4";
+  const path = `${cid}/analyses/${id}/source.${ext}`;
+  const { error: e1 } = await sb.storage.from("media").upload(path, blob, { contentType: blob.type || "video/mp4", upsert: false }); if (e1) throw e1;
+  const { error } = await sb.from("cxs_video_demandes").insert({ id, mvt, note: note || null, source_path: path });
+  if (error) { await sb.storage.from("media").remove([path]).catch(() => { }); throw error; }
+  return id;
+}
+export async function videosMiennes() {
+  if (!uid) await ensureSession();
+  const { data, error } = await sb.from("cxs_video_demandes").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(100); if (error) throw error; return data || [];
+}
+export async function videosCoach(memberId = null) {
+  let q = sb.from("cxs_video_demandes").select("*").order("created_at", { ascending: false }).limit(200); if (memberId) q = q.eq("user_id", memberId);
+  const { data, error } = await q; if (error) throw error; return data || [];
+}
+export async function videoUrl(path) { const { data, error } = await sb.storage.from("media").createSignedUrl(path, 3600); if (error) throw error; return data.signedUrl; }
+export async function videoStatut(id, statut) { const { error } = await sb.from("cxs_video_demandes").update({ statut }).eq("id", id); if (error) throw error; }
+// Le coach partage son analyse : compte rendu (JSON) et vidéo commentée (facultative), dans le dossier de la demande
+export async function videoPartager(d, compteRendu, blob = null) {
+  let analyse_path = d.analyse_path || null;
+  if (blob) { const dir = d.source_path.replace(/\/source\.[^/]+$/, ""), ext = /webm/.test(blob.type) ? "webm" : "mp4"; analyse_path = `${dir}/analyse.${ext}`;
+    const { error: e1 } = await sb.storage.from("media").upload(analyse_path, blob, { contentType: blob.type || "video/mp4", upsert: true }); if (e1) throw e1; }
+  const { error } = await sb.from("cxs_video_demandes").update({ statut: "analysee", compte_rendu: compteRendu, analyse_path, analysed_at: new Date().toISOString() }).eq("id", d.id); if (error) throw error;
+  await notify("🎥 Ton analyse vidéo est prête", `Thomas a analysé ta vidéo${compteRendu?.mvtNom ? ` (${compteRendu.mvtNom.toLowerCase()})` : ""}. Ouvre Entraînement › Analyses vidéo.`, d.user_id).catch(() => { });
+}
+export async function videoVue(id) { const { error } = await sb.rpc("cxs_video_vue", { p_id: id }); if (error) throw error; }
+export async function videoSupprimer(d) { await sb.storage.from("media").remove([d.source_path, d.analyse_path].filter(Boolean)).catch(() => { }); const { error } = await sb.from("cxs_video_demandes").delete().eq("id", d.id); if (error) throw error; }

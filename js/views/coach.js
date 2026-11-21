@@ -1,3 +1,4 @@
+import { analyseHtml } from "./stats.js";
 import { libelleGenre, libelleSexe } from "../genre.js";
 import { PUBLIC_OFFERS } from "../config.js";
 // Coach : messagerie (avec réactions), offres et démo, candidature, bilans, notifications, espace coach.
@@ -101,7 +102,7 @@ actions.prefill = (b, d) => { closeSheet(); window.__prefill = d.t; go("chat"); 
 
 // ---------- Candidature ----------
 const AP = { i: 0, a: {} };
-// Ouvre la candidature (depuis les offres, le Défi 30 jours…) avec des réponses déjà connues
+// Ouvre la candidature (depuis les offres, le Défi 14 jours…) avec des réponses déjà connues
 export function startApply(offerId = "avance", prefill = {}) { AP.i = 0; AP.a = { offer: offerId, ...prefill }; go("apply"); }
 const AQ = [
   { id: "goal", q: "🎯 Ton objectif précis dans 12 semaines ?", type: "text", ph: "Ex. perdre 6 kg, ou passer de 100 à 120 kg au squat" },
@@ -373,7 +374,7 @@ routes.member = async () => {
   const o = m.onboarding || {}, ap = o.application, st = m.stats || {};
   if (mbr.id !== m.id) Object.assign(mbr, { id: m.id, tab: "suivi", day: null, data: null, settings: null });
   if (!mbr.data) { $app.innerHTML = header(esc(m.name || "Membre"), "", { back: "admin" }) + `<main class="page"><p class="empty">Chargement de ses données…</p></main>`; await Promise.all([E.loadPrograms(), N.loadModels()]); try { mbr.data = (await c.memberData(m.id)) || { data: null }; mbr.settings = await c.coachSettingsGet(m.id).catch(() => ({})); mbr.reviews = await c.reviewsOf(m.id).catch(() => ({})); await XO.loadExercices().catch(() => { }); } catch (e) { mbr.data = { data: null, err: e.message }; } }
-  const tabs = [["suivi", "📈 Suivi"], ["jour", "☀️ Journée"], ["seances", "🏋️ Séances"], ["agenda", "🗓️ Agenda"], ["corps", "⚖️ Corps"], ["profil", "👤 Profil"]];
+  const tabs = [["suivi", "📈 Suivi"], ["jour", "☀️ Journée"], ["seances", "🏋️ Séances"], ["stats", "📊 Stats"], ["agenda", "🗓️ Agenda"], ["corps", "⚖️ Corps"], ["profil", "👤 Profil"]];
   const D = mbr.data.data;
   const cur = D?.current?.exercises?.length ? D.current : null, curDone = cur ? cur.exercises.reduce((a, e) => a + e.sets.filter(x => x.done).length, 0) : 0, curTot = cur ? cur.exercises.reduce((a, e) => a + e.sets.filter(x => x.type !== "W").length, 0) : 0;
   const liveBan = cur ? `<button class="card" data-a="go" data-r="live" data-p="${esc(m.id)}" style="width:100%;text-align:left;margin-bottom:10px;box-shadow:0 0 0 2px var(--red) inset"><div class="row between"><span><b>🔴 Séance en direct</b><br><span class="small">${esc(cur.title || "Séance")} · ${curDone} séries faites${curTot ? ` / ${curTot}` : ""}</span></span><span class="btn btn-red btn-sm">Ouvrir ▶</span></div></button>` : "";
@@ -382,7 +383,7 @@ routes.member = async () => {
     <div class="mt12">${chips(tabs, mbr.tab, "mb-tab")}</div>
     ${D ? `<p class="xs muted mt4">Données mises à jour ${ago(mbr.data.updated_at)}</p>` : ""}`;
   if (mbr.tab !== "profil") {
-    const body = !D ? `<p class="empty small">${mbr.data.err ? esc(mbr.data.err) : "Pas encore de données : elles arrivent la prochaine fois que ce membre ouvre l'app (version à jour)."}</p>` : withState(D, () => mbr.tab === "suivi" ? memberSuivi(D, m) : mbr.tab === "jour" ? memberDay(D) : mbr.tab === "seances" ? memberSessions(D) : mbr.tab === "agenda" ? memberAgenda(D) : memberBody(D));
+    const body = !D ? `<p class="empty small">${mbr.data.err ? esc(mbr.data.err) : "Pas encore de données : elles arrivent la prochaine fois que ce membre ouvre l'app (version à jour)."}</p>` : withState(D, () => mbr.tab === "stats" ? statsMembre() : mbr.tab === "suivi" ? memberSuivi(D, m) : mbr.tab === "jour" ? memberDay(D) : mbr.tab === "seances" ? memberSessions(D) : mbr.tab === "agenda" ? memberAgenda(D) : memberBody(D));
     const cards = mbr.tab === "suivi" && D ? withState(D, () => fileCards(m, D)) : "";
     $app.innerHTML = header(esc(m.name || "Membre"), esc(D?.plan ? `${(E.program(D.plan.programId)?.name || "").split("·")[0]} · semaine ${D.plan.week}` : m.email || ""), { back: "admin", actions: `<button class="pill" data-a="go" data-r="member-prog" data-p="${esc(m.id)}">📋 Programme</button>` }) + `<main class="page">${top}${cards}${body}</main>${adminTabbar("admin")}`;
     return;
@@ -409,6 +410,11 @@ actions["set-tier"] = async (b, d) => {
 };
 forms.broadcast = async (v, f) => { const c = await cloud(); try { await c.notify(v.t, v.b, null); f.reset(); toast("Notification envoyée à tous"); } catch (err) { toast(err.message); } };
 forms["notify-one"] = async (v, f) => { const c = await cloud(); try { await c.notify(v.t, v.b, f.dataset.id); f.reset(); toast("Notification envoyée"); } catch (err) { toast(err.message); } };
+
+// ---------- Fiche membre : statistiques sur le réalisé (mêmes calculs que chez le membre) ----------
+let statsPer = "month";
+const statsMembre = () => `<div class="mt8">${chips([["week", "7 jours"], ["month", "4 semaines"], ["quarter", "12 semaines"]], statsPer, "mb-stper")}</div>${analyseHtml(statsPer)}`;
+actions["mb-stper"] = (b, d) => { statsPer = d.v; rerender(false); };
 
 // ---------- Fiche membre : journée, séances, agenda, corps ----------
 const mbr = { id: null, tab: "jour", day: null, data: null };

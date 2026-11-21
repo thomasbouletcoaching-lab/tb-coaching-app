@@ -1,4 +1,4 @@
-// Régularité (score d'adhérence), Défi 30 jours, rapport de progression partageable, comparateur de photos avant / après.
+// Régularité (score d'adhérence), Défi 14 jours, rapport de progression partageable, comparateur de photos avant / après.
 import { S, update, today, listPhotos } from "../store.js";
 import * as E from "../engine.js";
 import { CONFIG } from "../config.js";
@@ -66,7 +66,7 @@ routes.defi = async () => {
   const end = d >= DEFI_DAYS, sum = summaryBetween(S().trialStart || since() || today());
   const row = (s) => { const locked = s.day > d; return `<${locked ? "div" : "button"} class="li" ${locked ? "" : `data-a="defi-go" data-r="${s.r}"`} style="${locked ? "opacity:.5" : ""}"><span class="em">${s.ok ? "✅" : locked ? "🔒" : "⭕"}</span><span class="grow"><b class="small">${esc(s.t)}</b><br><span class="xs muted">${locked ? `s'ouvre au jour ${s.day}` : esc(s.s)}</span></span>${locked ? "" : I.chev}</${locked ? "div" : "button"}>`; };
   $app.innerHTML = header(`Défi ${DEFI_DAYS} jours`, end ? "Terminé : place aux résultats" : `Jour ${d} sur ${DEFI_DAYS} · l'app complète est ouverte`, { back: "home", offers: false }) + `<main class="page">
-    <div class="card grad"><div class="row between"><b class="h3">${end ? "🏁 Tu as tenu jusqu'au bout" : d >= 21 ? "🚀 Dernière ligne droite" : d >= 8 ? "💪 Tu tiens" : "🔥 C'est parti"}</b><span class="small">${Math.min(d, DEFI_DAYS)} / ${DEFI_DAYS}</span></div>
+    <div class="card grad"><div class="row between"><b class="h3">${end ? "🏁 Tu as tenu jusqu'au bout" : d >= 10 ? "🚀 Dernière ligne droite" : d >= 5 ? "💪 Tu tiens" : "🔥 C'est parti"}</b><span class="small">${Math.min(d, DEFI_DAYS)} / ${DEFI_DAYS}</span></div>
       <div class="gauge mt8" style="background:rgba(255,255,255,.25)"><i style="width:${Math.min(100, d / DEFI_DAYS * 100)}%;background:#fff"></i></div>
       <p class="small mt8" style="margin:0">Pendant ${DEFI_DAYS} jours, tout est ouvert : programme calculé, plan alimentaire, suivi. Ta seule mission : la régularité, et tes bilans. À la fin, tu as tes chiffres, ton avant / après, et tu décides de la suite.</p></div>
     <div class="card mt12" style="display:flex;gap:14px;align-items:center">${scoreRing(a.score, 72)}<div class="grow"><b>Régularité</b> ${toneTag(st)}<p class="xs muted mt4" style="margin:0">${sum.sessions} séance${sum.sessions > 1 ? "s" : ""}${sum.weight ? ` · ${sum.weight.delta > 0 ? "+" : ""}${fr(sum.weight.delta, 1)} kg` : ""}${sum.waist ? ` · taille ${sum.waist.delta > 0 ? "+" : ""}${fr(sum.waist.delta, 1)} cm` : ""}</p></div></div>
