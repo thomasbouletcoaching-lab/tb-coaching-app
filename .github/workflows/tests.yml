@@ -61,7 +61,7 @@ jobs:
       - name: Tester les règles d'accès SQL de la communauté et du parrainage (Postgres local, aucune connexion à la production)
         run: PGHOST=/var/run/postgresql PGDATABASE=postgres tests/sql/run-social.sh
       - name: Tester les quantités naturelles, la quantité habituelle et la semaine nutrition en anneaux
-        run: node --test tests/portions.test.mjs tests/nutri-semaine.test.mjs tests/anneaux-seances.test.mjs tests/double-progression.test.mjs tests/bilan-reglages.test.mjs tests/recap.test.mjs tests/reseau.test.mjs tests/activite-calc.test.mjs tests/douleur.test.mjs
+        run: node --test tests/portions.test.mjs tests/nutri-semaine.test.mjs tests/anneaux-seances.test.mjs tests/double-progression.test.mjs tests/bilan-reglages.test.mjs tests/recap.test.mjs tests/reseau.test.mjs tests/revue.test.mjs tests/activite-calc.test.mjs tests/douleur.test.mjs
       - name: Tester la liste hors ligne du service worker (modules réellement chargés)
         run: node --test tests/sw.test.mjs
       - name: Vérifier que la messagerie n'écrit plus dans l'ancienne table
@@ -95,5 +95,6 @@ jobs:
           node tests/retours-client-e2e.js
           node tests/refonte-coach-e2e.js
           node tests/refonte-etape2-e2e.js
+          node tests/etape3-e2e.js
         env:
           BASE_URL: http://localhost:8765/

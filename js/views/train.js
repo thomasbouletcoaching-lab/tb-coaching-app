@@ -1,4 +1,7 @@
 // Entraînement : programme et cycle, banque, programme perso, carnet de séance, stats, records, simulateur, fiches.
+import { scheduleRest, unlockAudio, beep } from "../push.js";
+import * as SC from "../science.js";
+import * as RV from "../revue.js";
 import { recapExercice, serieTxt } from "../recap.js";
 import { tagMoteur, indiceDuMoteur, feuilleIndice } from "./indice-ui.js";
 import { feuStartBlock, apresFeu } from "./fatigue.js";
@@ -60,7 +63,7 @@ routes.carnet = async () => {
   const ns = E.nextSession();
   let body;
   if (tMode === "cardio") body = cardioBody();
-  else if (tMode === "savoir") body = `<h2 class="sec">📖 Exercices</h2>${exosBody()}` + await kbSection("train");
+  else if (tMode === "savoir") body = `<div class="mt12">${seg([["exos", "Exercices"], ["doc", "Documentation"], ["science", "Science"]], savoirSub, "savoir-sub")}</div>` + (savoirSub === "doc" ? await kbSection("train") : savoirSub === "science" ? scienceBody() : `<h2 class="sec">📖 Exercices</h2>${exosBody()}`);
   else {
     const sub = `<div class="mt12">${seg([["seances", "Séances"], ["programmes", "Programmes"], ["historique", "Historique"], ["graphiques", "Stats"]], carnetSub, "carnet-sub")}</div>`;
     const inner = carnetSub === "programmes" ? programmesBody() : carnetSub === "historique" ? historyBody() : carnetSub === "graphiques" ? statsBody() : programBody(ns);
@@ -274,7 +277,7 @@ const e1rmOf = (x) => E.e1rm(x.kg, x.reps, x.rpe ?? x.trpe);
 
 function historyBody() {
   const ws = S().workouts.slice().reverse();
-  return ws.length ? `<div class="list mt12">${ws.slice(0, 60).map(w => `<div class="li" style="padding:0;gap:0"><button class="li grow" style="border-bottom:0" data-a="ag-day" data-v="${today(new Date(w.end))}"><span class="em">${w.free ? "🤸" : "🏋️"}</span><span class="grow"><b>${esc(w.title)}</b><br><span class="xs muted">${new Date(w.end).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })} · ${w.setsDone} séries · ${(w.volume / 1000).toFixed(1).replace(".", ",")} t</span></span><span class="small muted">${Math.round((new Date(w.end) - new Date(w.start)) / 6e4)} min</span></button><button class="icon-btn" style="flex:none;margin-right:10px;width:38px;height:38px;font-size:17px" data-a="soc-hist" data-k="${esc("w:" + (w.start || w.end || w.id))}" aria-label="Partager la séance ${esc(w.title)}" title="Partager cette séance">📤</button></div>`).join("")}</div><p class="xs muted mt8">Touche une séance pour la corriger ou la supprimer, 📤 pour la partager.</p>` : `<p class="empty">Tes séances terminées apparaîtront ici.</p>`;
+  return ws.length ? `<div class="list mt12">${ws.slice(0, 60).map(w => `<div class="li" style="padding:0;gap:0"><button class="li grow" style="border-bottom:0" data-a="ag-day" data-v="${today(new Date(w.end))}"><span class="em">${w.free ? "🤸" : "🏋️"}</span><span class="grow"><b>${esc(w.title)}</b>${S().reviews?.[String(w.id)] ? ` <span class="tag" style="background:#E6EEFF;color:#2F6FED">${esc(S().reviews[String(w.id)].data.reaction || "✅")} vue par Thomas${S().reviews[String(w.id)].seen_at ? "" : " · nouveau"}</span>` : ""}<br><span class="xs muted">${new Date(w.end).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })} · ${w.setsDone} séries · ${(w.volume / 1000).toFixed(1).replace(".", ",")} t</span></span><span class="small muted">${Math.round((new Date(w.end) - new Date(w.start)) / 6e4)} min</span></button><button class="icon-btn" style="flex:none;margin-right:10px;width:38px;height:38px;font-size:17px" data-a="soc-hist" data-k="${esc("w:" + (w.start || w.end || w.id))}" aria-label="Partager la séance ${esc(w.title)}" title="Partager cette séance">📤</button></div>`).join("")}</div><p class="xs muted mt8">Touche une séance pour la corriger ou la supprimer, 📤 pour la partager.</p>` : `<p class="empty">Tes séances terminées apparaîtront ici.</p>`;
 }
 
 // ---------- Statistiques ----------
@@ -427,6 +430,8 @@ actions["w-detail"] = (b, d) => {
   const w = S().workouts.find(x => x.id === +d.id); if (!w) return;
   const mins = Math.round((new Date(w.end) - new Date(w.start)) / 6e4), g = gradeOf(w.volume || 0), like = weightLike(w.volume || 0);
   const rpe = (v) => v != null ? ` @${String(v).replace(".", ",")}` : "";
+  const rv = S().reviews?.[String(w.id)]?.data, rvE = (e) => rv?.ex?.[w.exercises.indexOf(e)];
+  if (rv && !S().reviews[String(w.id)].seen_at) { update(st => { st.reviews[String(w.id)].seen_at = new Date().toISOString(); }); cloud().then(c => c?.reviewSeen?.([w.id])).catch(() => { }); }
   const exs = w.exercises.filter(e => e.sets.some(s => s.done)).map(e => {
     const as = E.isAssisted(e.name), n = { i: 0 };
     return `<div class="card soft mt8" style="padding:12px"><b>${esc(e.name)}</b>${e.name !== e.orig && e.orig ? ` <span class="xs muted">(remplace ${esc(e.orig)})</span>` : ""}
@@ -435,10 +440,11 @@ actions["w-detail"] = (b, d) => {
         const lab = s.type === "W" ? "Échauf." : "Série " + (++n.i), tech = (s.tech || []).map(t => `${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${t}${E.techSummary(t, s.td?.[t]) ? " (" + E.techSummary(t, s.td[t]) + ")" : ""}`);
         return `<div class="row between small" style="padding:5px 0;border-top:1px solid var(--line);align-items:flex-start;gap:8px"><span class="muted" style="min-width:64px">${lab}${s.type && s.type !== "N" && s.type !== "W" ? `<br><span class="xs">${E.SET_TYPES[s.type]}</span>` : ""}</span>
           <span class="grow" style="text-align:right"><b>${s.kg ? (as ? "aide " : "") + E.fmtKg(s.kg) + " kg × " : ""}${s.reps ?? "–"}${e.unit === "s" ? " s" : ""}</b>${rpe(s.rpe)}${s.pain ? " ⚠️" : ""}${tech.length ? `<br><span class="xs muted">${tech.map(esc).join(" · ")}</span>` : ""}${s.note ? `<br><span class="xs muted">📝 ${esc(s.note)}</span>` : ""}</span></div>`; }).join("")}
-      ${e.myNote ? `<div class="xs muted mt4">📝 ${esc(e.myNote)}</div>` : ""}${recapBloc(w, e)}</div>`; }).join("");
+      ${e.myNote ? `<div class="xs muted mt4">📝 ${esc(e.myNote)}</div>` : ""}${recapBloc(w, e)}${rvE(e) ? `<div class="rv-box mt8 xs">${rvE(e).c ? `<b>✍️ Thomas :</b> ${esc(rvE(e).c)}` : "<b>✍️ Thomas</b>"}${Object.entries(rvE(e).sets || {}).map(([j, t]) => `<br>· Série ${+j + 1} : ${esc(t)}`).join("")}</div>` : ""}</div>`; }).join("");
   sheet(`<h2 class="h2">${esc(w.title)}</h2><p class="xs muted">${fmtDate(today(new Date(w.end)), { weekday: "long", day: "numeric", month: "long" })} · ${new Date(w.start).toTimeString().slice(0, 5)}</p>
     <div class="stat3 mt8"><div><b>${mins}</b><span>min</span></div><div><b>${w.setsDone ?? 0}</b><span>séries</span></div><div><b>${((w.volume || 0) / 1000).toFixed(1).replace(".", ",")}</b><span>tonnes</span></div></div>
     <div class="card soft mt8" style="padding:12px;text-align:center"><b>${g.icon} Grade ${g.name}</b><div class="xs muted mt4">${(w.volume || 0) >= 100 ? `Tu as soulevé l'équivalent ${like.txt.replace(/^une? /, m => m.startsWith("une") ? "d'une " : "d'un ").replace(/^(\d)/, "de $1")} ${like.icon}` : ""}</div></div>
+    ${rv ? revueHaut(rv) : ""}
     ${exs}
     <button class="btn btn-red mt12" data-a="w-reopen" data-id="${w.id}">✏️ Rouvrir et modifier la séance</button>
     <div class="row mt8" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="w-edit" data-id="${w.id}">Correction rapide (date, durée)</button><button class="btn btn-ghost btn-sm grow" data-a="w-del" data-id="${w.id}" style="color:var(--red)">🗑️ Supprimer</button></div>
@@ -530,7 +536,7 @@ function exerciseBlock(ex, xi) {
       <div>${ex.ss ? `<span class="tag r">Superset ${esc(ex.ss)}</span>` : ""}<span class="tag">${E.KIND_LABEL[ex.kind] || ex.kind}</span>${ex.tempo ? `<span class="tag">Tempo ${esc(ex.tempo)}</span>` : ""}<span class="tag">⏱️ ${Math.floor(ex.rest / 60)}:${String(ex.rest % 60).padStart(2, "0")}</span></div>
       <h3 class="mt8">${esc(ex.name)} <button class="link xs" data-a="ex-hist" data-x="${xi}" style="font-weight:600">📈 Historique</button></h3><div class="xs muted mt4">🎯 ${targetTxt(ex)}${ex.name !== ex.orig ? ` · remplace ${esc(ex.orig)}` : ""}${adv() && ex.e1 ? ` · e1RM ${fr(ex.e1)} kg` : ""}</div>
       ${!ex.bw && ex.sets.every(s => !s.kg) ? `<div class="xs mt8 red">Première fois : choisis une charge qui te laisse 2 à 3 répétitions en réserve. L'app calcule la suite.</div>` : ""}
-      ${ex.note ? `<div class="xs mt8">📝 ${esc(ex.note)}</div>` : ""}</div></div>
+      ${ex.note ? `<div class="xs mt8">📝 ${esc(ex.note)}</div>` : ""}${cueOf(ex) ? `<div class="cue mt8">🗣️ <b>Thomas :</b> ${esc(cueOf(ex))}</div>` : ""}</div></div>
     <div class="acts"><button data-a="go" data-r="fiche" data-p="${esc(ex.name)}">📖 Fiche</button><button data-a="ex-swap" data-x="${xi}">🔄 Remplacer</button><button data-a="ex-prog" data-x="${xi}">📈 Progression</button><button data-a="ex-rest" data-x="${xi}">⏱️ Repos</button><button data-a="ex-more" data-x="${xi}">${I.dots.replace("<svg", '<svg width="18"')}</button></div>
     ${sugBox}
     ${L ? `<details class="prevbox"><summary>↺ La dernière fois · ${fmtDate(today(new Date(L.date)), { weekday: "short", day: "numeric", month: "short" })}${L.week ? ` · semaine ${L.week}` : ""}</summary><div class="xs mt4">${L.ex.sets.filter(s => s.done).map((s, i) => `<div>${s.type === "W" ? "Échauf." : "Série " + (L.ex.sets.filter(x => x.done && x.type !== "W").indexOf(s) + 1)} : ${esc(prevTxt(s))}</div>`).join("")}${L.ex.myNote ? `<div class="mt4">📝 ${esc(L.ex.myNote)}</div>` : ""}</div></details>` : ""}
@@ -929,14 +935,16 @@ function showRest() {
     const left = Math.max(0, Math.ceil((restEnd - Date.now()) / 1000)), t = document.getElementById("rest-t"), b = document.getElementById("rest-bar");
     if (!t) return clearInterval(restT);
     t.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`; b.style.width = `${100 - left / restTotal * 100}%`;
-    if (left <= 0) { clearInterval(restT); buzz([180, 90, 180]); el.remove(); }
+    if (left <= 0) { clearInterval(restT); buzz([180, 90, 180]); if (Date.now() - restEnd < 3000) beep(); el.remove(); }
   };
   clearInterval(restT); tick(); restT = setInterval(tick, 250);
 }
-function startRest(sec) { restTotal = sec; restEnd = Date.now() + sec * 1000; showRest(); }
-actions["rest-add"] = (b, d) => { restEnd += +d.v * 1000; restTotal = Math.max(1, restTotal + +d.v); };
+function startRest(sec) { restTotal = sec; restEnd = Date.now() + sec * 1000; showRest(); unlockAudio(); scheduleRest(sec, nextLabel()); }
+// Ce qui vient après le repos (pour la notification) : prochain exercice avec une série à faire
+function nextLabel() { const ex = (S().current?.exercises || []).find(e => e.sets.some(x => !x.done)); return ex ? ex.name : ""; }
+actions["rest-add"] = (b, d) => { restEnd += +d.v * 1000; restTotal = Math.max(1, restTotal + +d.v); scheduleRest(Math.max(0, Math.round((restEnd - Date.now()) / 1000)), nextLabel()); };
 actions["rest-big"] = () => { const big = sessionStorage.getItem("cxs.restBig") !== "1"; sessionStorage.setItem("cxs.restBig", big ? "1" : "0"); showRest(); };
-actions["rest-skip"] = () => { restEnd = 0; clearInterval(restT); document.querySelector(".rest")?.remove(); };
+actions["rest-skip"] = () => { if (restEnd > Date.now()) scheduleRest(0); restEnd = 0; clearInterval(restT); document.querySelector(".rest")?.remove(); };
 onLeave(() => { });
 
 actions.finish = () => {
@@ -1396,3 +1404,38 @@ export function phaseFrise(p, W, cur) {
     <div class="frise mt8">${bl.map(b => `<div class="fz ph-${phaseKey(b.ph)} ${cur >= b.from && cur < b.from + b.n ? "on" : ""}" style="flex:${b.n}"><b>${esc(b.ph)}</b><span>S${b.from}${b.n > 1 ? "–" + (b.from + b.n - 1) : ""}</span></div>`).join("")}</div>
     <div class="frise-pin" style="left:${((cur - 0.5) / W * 100).toFixed(1)}%"></div></div>`;
 }
+
+// ---------- Connaissances : Exercices | Documentation | Science ----------
+let savoirSub = "exos", sciTh = "tout", sciQ = "";
+actions["savoir-sub"] = (b, d) => { savoirSub = d.v; rerender(); };
+function scienceBody() {
+  const l = SC.filtrer(SC.FICHES, sciTh, sciQ), coach = (S().coachPublic?.biblio?.items || []).filter(x => !sciQ || (x.t + " " + (x.r || "")).toLowerCase().includes(sciQ));
+  return `<p class="small muted mt12">Ce que disent les études, résumé et expliqué. Chaque fiche renvoie vers les articles sur PubMed.</p>
+    <div class="mt8">${chips(SC.THEMES, sciTh, "sci-th")}</div>
+    <input class="mt8" id="sci-q" data-i="sci-q" type="search" placeholder="Chercher : protéines, repos, sommeil…" value="${esc(sciQ)}" autocomplete="off">
+    ${coach.length ? `<h2 class="sec">📌 Choisis par Thomas</h2><div class="list">${coach.map(x => `<a class="li" href="${esc(x.url || "#")}" target="_blank" rel="noopener"><span class="em">${{ podcast: "🎧", video: "🎬", article: "📰" }[x.type] || "📰"}</span><span class="grow"><b class="small">${esc(x.t)}</b>${x.r ? `<br><span class="xs muted">${esc(x.r)}</span>` : ""}</span>${I.chev}</a>`).join("")}</div>` : ""}
+    <h2 class="sec">🔬 Les fiches</h2>${l.length ? `<div class="list">${l.map(f => `<button class="li" data-a="sci-open" data-id="${f.id}"><span class="em">${f.ic}</span><span class="grow"><b class="small">${esc(f.t)}</b><br><span class="xs muted">${esc(f.court)}</span></span>${S().sciRead?.[f.id] ? `<span class="xs muted">lu</span>` : I.chev}</button>`).join("")}</div>` : `<p class="empty small">Rien pour « ${esc(sciQ)} ».</p>`}
+    <h2 class="sec">🎧 Podcasts</h2><div class="list">${SC.PODCASTS.map(p => `<a class="li" href="${esc(p.url)}" target="_blank" rel="noopener"><span class="em">🎧</span><span class="grow"><b class="small">${esc(p.t)}</b><br><span class="xs muted">${esc(p.d)}</span></span>${I.chev}</a>`).join("")}</div>`;
+}
+actions["sci-th"] = (b, d) => { sciTh = d.v; rerender(); };
+changes["i:sci-q"] = (el) => { sciQ = el.value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); clearTimeout(window.__sciT); window.__sciT = setTimeout(() => { rerender(); const i = document.getElementById("sci-q"); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 350); };
+actions["sci-open"] = (b, d) => {
+  const f = SC.FICHES.find(x => x.id === d.id); if (!f) return; update(st => { st.sciRead = st.sciRead || {}; st.sciRead[f.id] = true; });
+  sheet(`<div class="xs muted">${esc((SC.THEMES.find(t => t[0] === f.th) || ["", ""])[1])}</div><h2 class="h2 mt4">${f.ic} ${esc(f.t)}</h2>
+    <div class="card soft mt12"><b class="small">En bref</b><p class="small mt4" style="margin-bottom:0">${esc(f.court)}</p></div>
+    <div class="prose mt12">${f.corps.map(x => `<p class="small">${esc(x)}</p>`).join("")}</div>
+    <div class="card mt8" style="box-shadow:0 0 0 1.5px var(--red) inset"><b class="small">👉 En pratique</b><p class="small mt4" style="margin-bottom:0">${esc(f.faire)}</p></div>
+    <h3 class="lbl mt16">Les études</h3><div class="list">${f.refs.map(([t, u]) => `<a class="li" href="${esc(u)}" target="_blank" rel="noopener"><span class="em">📄</span><span class="grow xs">${esc(t)}</span>${I.chev}</a>`).join("")}</div>
+    <p class="xs muted mt8">Résumé rédigé pour l'app à partir des études citées. Ouvre le lien pour lire le résumé officiel sur PubMed.</p>`);
+};
+
+// Correction de Thomas en haut du détail de la séance
+function revueHaut(rv) {
+  const m = RV.moyenne(rv.grades);
+  return `<div class="card mt8" style="box-shadow:0 0 0 1.5px #2F6FED inset"><div class="row between"><b class="small">${rv.reaction || "✅"} Vue par ton coach</b>${m != null ? `<span class="tag">${String(m).replace(".", ",")}/5 · ${RV.verdict(m)}</span>` : ""}</div>
+    ${rv.grades ? `<div class="mt8">${RV.CRITERES.filter(([k]) => rv.grades[k]).map(([k, l]) => `<div class="row between xs" style="padding:2px 0"><span>${l}</span><span style="color:#F5A623;letter-spacing:1px">${"★".repeat(rv.grades[k])}<span style="color:var(--line)">${"★".repeat(5 - rv.grades[k])}</span></span></div>`).join("")}</div>` : ""}
+    ${rv.note ? `<p class="small mt8" style="margin-bottom:0;white-space:pre-wrap">${esc(rv.note)}</p>` : ""}</div>`;
+}
+
+// Consignes personnelles écrites par Thomas pour cet exercice (fiche athlète › Consignes par exercice)
+export const cueOf = (ex) => { const c = S().coachSettings?.cues || {}; return c[ex.name] || (ex.orig && c[ex.orig]) || ""; };

@@ -167,3 +167,10 @@ export function coachMotCard() {
   return `<div class="card mt12" style="box-shadow:0 0 0 1.5px var(--red) inset"><div class="row between"><b class="small">💬 Le mot de Thomas</b><button class="icon-btn sm" data-a="fb-hide" aria-label="Masquer">✓</button></div><p class="small mt8" style="margin-bottom:0;white-space:pre-wrap">${esc(fb.txt)}</p><div class="xs muted mt4">${fmtDate(fb.d, { weekday: "long", day: "numeric", month: "long" })}</div></div>`;
 }
 actions["fb-hide"] = () => { const fb = S().coachSettings?.feedback; update(st => { st.fbHidden = fb.d + fb.txt.length; }); rerender(); };
+
+// Séances corrigées par Thomas et pas encore ouvertes
+export function revuesCard() {
+  const l = Object.entries(S().reviews || {}).filter(([, r]) => !r.seen_at).map(([id, r]) => ({ w: (S().workouts || []).find(w => String(w.id) === id), r })).filter(x => x.w);
+  if (!l.length) return "";
+  return `<div class="card mt12" style="box-shadow:0 0 0 1.5px #2F6FED inset"><b class="small">✍️ Thomas a corrigé ${l.length > 1 ? l.length + " séances" : "ta séance"}</b>${l.slice(0, 3).map(x => `<button class="li" data-a="w-detail" data-id="${x.w.id}" style="width:100%"><span class="grow small"><b>${esc(x.w.title)}</b><br><span class="xs muted">${esc((x.r.data.reaction || "✅") + " " + fmtDate(today(new Date(x.w.end)), { weekday: "long", day: "numeric", month: "short" }))}</span></span>${I.chev}</button>`).join("")}</div>`;
+}

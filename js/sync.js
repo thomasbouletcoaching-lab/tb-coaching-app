@@ -34,7 +34,7 @@ export async function refreshMe() {
     const me = await c.fetchMe();
     if (me) update(st => st.me = { id: me.id, tier: me.tier, isCoach: me.is_coach, msgsLeft: me.msgsLeft, until: me.tier_until });
     const [un, ns] = await Promise.all([c.unreadFromCoach(), c.notifications()]);
-    badges.msgs = un; badges.notifs = ns.filter(n => new Date(n.created_at).getTime() > S().notifSeen).length;
+    badges.msgs = un; badges.notifs = ns.filter(n => !n.read).length;
     if (isCoach()) { const ms = await c.members(); window.__members = ms; badges.msgs = ms.reduce((a, m) => a + m.unread, 0); }
     document.querySelectorAll(".top [data-a=notifs]").forEach(b => { b.querySelector(".badge")?.remove(); if (badges.notifs) b.insertAdjacentHTML("beforeend", `<span class="badge">${badges.notifs}</span>`); });
     document.querySelectorAll('.tab[href="#/coach"]').forEach(b => { b.querySelector(".badge")?.remove(); if (badges.msgs) b.insertAdjacentHTML("beforeend", `<span class="badge">${badges.msgs}</span>`); });
@@ -118,8 +118,9 @@ export async function pullCoachSettings() {
   try { if (!(await c.currentSession())) return; } catch { return; }
   await claimInvite(c);
   try { const d = await c.myCoachSettings(); update(st => { st.coachSettings = d || null; }); } catch { }
-  try { const pub = await c.coachPublic(["absence", "annonces", "sondages", "defis"]); update(st => { st.coachPublic = pub; }); } catch { }
+  try { const pub = await c.coachPublic(["absence", "annonces", "sondages", "defis", "biblio"]); update(st => { st.coachPublic = pub; }); } catch { }
   try { const { syncDefis } = await import("./views/reseau.js"); await syncDefis(); } catch { }
+  try { const rv = await c.myReviews(); update(st => { st.reviews = rv; }); } catch { }
 }
 // Espace préparé par le coach avant l'inscription : rattaché une fois, par le code reçu (lien ?coach=) ou par l'e-mail
 export async function claimInvite(c, code = S().coachCode) {

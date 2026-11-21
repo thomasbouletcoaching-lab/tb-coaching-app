@@ -2,7 +2,8 @@ import { S, update, today } from "../store.js";
 import { alerteLigne } from "./douleur.js";
 import { verifierBadges } from "./trophees.js";
 import { defiCard, adherenceCard } from "./suivi.js";
-import { checkinCard, echeancesCard, coachMotCard } from "./checkin.js";
+import { checkinCard, echeancesCard, coachMotCard, revuesCard } from "./checkin.js";
+import { pushState, isStandalone } from "../push.js";
 import { revueCard } from "./semaine.js";
 import { monteeCard } from "./soutenabilite.js";
 import { feuCard } from "./fatigue.js";
@@ -234,9 +235,16 @@ actions["free-session"] = async () => {
 // Cartes de suivi en haut de l'accueil : défi en cours, bilan de la semaine (vendredi → dimanche), point de départ, régularité
 async function suiviCards() {
   if (isCoach()) return "";
-  const defi = defiOn(), out = [coachMotCard(), defi ? await defiCard() : "", checkinCard(), echeancesCard()];
+  const defi = defiOn(), out = [pushCard(), coachMotCard(), revuesCard(), defi ? await defiCard() : "", checkinCard(), echeancesCard()];
   out.push(criseCard(), feuCard(), revueCard(), monteeCard());
   if (!defi) out.push(anamneseCard());
   if (!defi && (myAdherence().age ?? 0) >= 3) out.push(adherenceCard());
   return out.join("");
 }
+
+// Proposition d'activer les notifications (app installée, pas encore activées, pas refusée de la main)
+function pushCard() {
+  if (pushState() !== "off" || !isStandalone() || S().pushAsked) return "";
+  return `<div class="card mt12 row" style="gap:12px;align-items:center"><span style="font-size:26px">🔔</span><span class="grow"><b class="small">Active les notifications</b><br><span class="xs muted">Fin de repos qui sonne même écran verrouillé, messages de Thomas, rappels.</span></span><div class="stack" style="gap:4px"><button class="btn btn-red btn-xs" data-a="push-on">Activer</button><button class="link xs" data-a="push-later">Plus tard</button></div></div>`;
+}
+actions["push-later"] = () => { update(st => { st.pushAsked = true; }); rerender(); };

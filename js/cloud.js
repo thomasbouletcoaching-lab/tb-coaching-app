@@ -121,9 +121,20 @@ export async function legacyCheckins(memberId = uid) {
 // Notifications
 export async function notifications() {
   if (!uid) return [];
-  const { data } = await sb.from("cxs_notifications").select("id,user_id,title,body,created_at").or(`user_id.is.null,user_id.eq.${uid}`).order("created_at", { ascending: false }).limit(50);
-  return data || [];
+  const [{ data }, { data: rd }] = await Promise.all([
+    sb.from("cxs_notifications").select("id,user_id,title,body,created_at").or(`user_id.is.null,user_id.eq.${uid}`).order("created_at", { ascending: false }).limit(50),
+    sb.from("cxs_notif_reads").select("notif_id").eq("user_id", uid).limit(500)]);
+  const lus = new Set((rd || []).map(r => r.notif_id));
+  return (data || []).map(n => ({ ...n, read: lus.has(n.id) }));
 }
+// Lu / non lu, par notification (aussi pour celles envoyées à tous)
+export async function notifRead(ids) { if (!uid || !ids.length) return; const { error } = await sb.from("cxs_notif_reads").upsert(ids.map(id => ({ user_id: uid, notif_id: id })), { ignoreDuplicates: true }); if (error) throw error; }
+export async function notifUnread(id) { const { error } = await sb.from("cxs_notif_reads").delete().eq("user_id", uid).eq("notif_id", id); if (error) throw error; }
+// Notifications push (abonnement de ce téléphone, test, rappel de fin de repos programmé côté serveur)
+export async function pushPublicKey() { const { data, error } = await sb.rpc("push_public_key"); if (error) throw error; return data; }
+export async function pushRegister(sub) { const j = sub.toJSON(); const { error } = await sb.rpc("push_register", { p_endpoint: j.endpoint, p_sub: j }); if (error) throw error; }
+export async function pushTest() { const { data, error } = await sb.rpc("push_test"); if (error) throw error; return data; }
+export async function pushRest(seconds, title, body) { if (!uid) return; const { error } = await sb.rpc("cxs_push_rest", { p_seconds: Math.round(seconds), ...(title ? { p_title: title } : {}), ...(body ? { p_body: body } : {}) }); if (error) throw error; }
 
 // Espace coach
 export async function members() {
@@ -434,3 +445,10 @@ export async function defiParts(id) { const { data, error } = await sb.from("cxs
 export async function defiJoin(id, alias, value) { if (!uid) await ensureSession(); const { error } = await sb.from("cxs_defi_parts").upsert({ defi_id: id, user_id: uid, alias, value, updated_at: new Date().toISOString() }); if (error) throw error; }
 export async function defiLeave(id) { if (!uid) await ensureSession(); const { error } = await sb.from("cxs_defi_parts").delete().eq("defi_id", id).eq("user_id", uid); if (error) throw error; }
 export const myUid = () => uid;
+
+// ---------- Correction des séances (coach ↔ athlète) ----------
+export async function reviewsOf(memberId) { const { data, error } = await sb.from("cxs_session_reviews").select("workout_id,data,updated_at,seen_at").eq("user_id", memberId).order("updated_at", { ascending: false }).limit(300); if (error) throw error; return Object.fromEntries((data || []).map(r => [r.workout_id, r])); }
+export async function reviewSave(memberId, workoutId, data) { const { error } = await sb.from("cxs_session_reviews").upsert({ user_id: memberId, workout_id: String(workoutId), data, updated_at: new Date().toISOString(), seen_at: null }); if (error) throw error; }
+export async function reviewDel(memberId, workoutId) { const { error } = await sb.from("cxs_session_reviews").delete().eq("user_id", memberId).eq("workout_id", String(workoutId)); if (error) throw error; }
+export async function myReviews() { if (!uid) await ensureSession(); return reviewsOf(uid); }
+export async function reviewSeen(ids) { if (!ids.length) return; const { error } = await sb.rpc("cxs_review_seen", { p_ids: ids.map(String) }); if (error) throw error; }

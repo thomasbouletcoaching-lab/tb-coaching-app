@@ -283,3 +283,15 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 - Côté athlète : frise des phases du cycle, mot du coach en haut de l'accueil, repos retenu par exercice, « ✓ Tout valider » par exercice.
 - Réseau privé (Profil › Réseau privé) : mode absence (bandeau sur Coaching et Messages), annonces (épinglables), sondages (votes anonymes entre membres), défis de groupe (séances, jours de repas notés, minutes de cardio ; prénom et score visibles par le groupe, score calculé sur le téléphone).
 - Tables : cxs_coach_public (lecture membres, écriture coach), cxs_poll_votes (+ cxs_poll_results), cxs_defi_parts.
+
+## C67 · Étape 3, premiers lots (21/11/2026)
+- Notifications push de l'app : abonnement du téléphone (Réglages ou carte d'accueil), push pour chaque message (membre ↔ coach) et chaque notification du coach. File cxs_push_queue envoyée par la fonction push (tâche toutes les 5 s + envoi immédiat).
+- Fin de repos : le serveur programme une notification « ⏱️ Repos terminé » (sonne écran verrouillé, une seule à la fois), annulée si on passe le repos. Bip et vibration quand l'app est ouverte (coupables dans Réglages).
+- Centre de notifications : non lues en bleu, lues en neutre, une par une (cxs_notif_reads, aussi pour celles envoyées à tous) ; « Tout marquer lu ».
+- Connaissances en menus : Exercices | Documentation | Science. Science : 14 fiches résumées (volume, fréquence, échec, charges, repos, protéines, déficit, créatine, caféine, sommeil, étirements, endurance polarisée, concurrent, pas) avec liens PubMed, podcasts, et la bibliothèque de Thomas (Réseau privé › Bibliothèque).
+- Libellés entiers : plus de « … » dans les barres d'onglets et les titres (taille adaptée à l'écran).
+- Nutrition : balayage horizontal pour changer de jour (page) ou de semaine (bandeau).
+- Correction des séances (cxs_session_reviews) : réaction, 5 critères notés sur 5, commentaire par exercice et par série, retour global ; « 👀 Vue » en un geste. Visible par l'athlète seulement (détail de séance, historique, accueil), jamais dans la communauté.
+- Consignes par exercice écrites par le coach (réglages de l'athlète) : affichées sur l'exercice pendant la séance et dans Coaching.
+- Programme d'un athlète : de zéro, sur le squelette des 8 patterns (générateur, favoris d'abord, détestés exclus) puis isolation et spécifique à la main, ou depuis un modèle.
+- Quiz « exos aimés / détestés » envoyé depuis la conversation (bouton 📋 Quiz exos), rempli par l'athlète pattern par pattern, réponses envoyées dans la conversation et enregistrées pour le générateur.

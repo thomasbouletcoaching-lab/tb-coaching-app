@@ -1,4 +1,5 @@
 // Profil, réglages, sauvegarde, connaissances, mon compte, confidentialité.
+import { pushState } from "../push.js";
 import { GENRES, SEXES, genreChoisi, sexeValide } from "../genre.js";
 import { S, update, resetAll, exportJSON, importJSON, today } from "../store.js";
 import * as E from "../engine.js";
@@ -91,6 +92,8 @@ routes.settings = async () => {
     </div>
     <h2 class="sec">Application</h2>
     <div class="list">
+      <div class="li"><span class="em">🔔</span><span class="grow">Notifications sur ce téléphone<br><span class="xs muted">${{ on: "Activées : messages, fin de repos, rappels", off: "Coupées", denied: "Refusées dans les réglages du téléphone", unsupported: "Ajoute l'app à l'écran d'accueil pour les activer" }[pushState()]}</span></span><button class="switch ${pushState() === "on" ? "on" : ""}" data-a="${pushState() === "on" ? "push-off" : "push-on"}" aria-label="Notifications"></button></div>
+      <div class="li"><span class="em">🔊</span><span class="grow">Bip en fin de repos</span><button class="switch ${S().settings.sound !== false ? "on" : ""}" data-a="sound-tg" aria-label="Bip"></button></div>
       <div class="li"><span class="em">📳</span><span class="grow">Vibrations</span><button class="switch ${S().settings.haptics ? "on" : ""}" data-a="haptics" aria-label="Vibrations"></button></div>
       <div class="li"><span class="em">🌗</span><span class="grow">Thème</span><select data-c="theme" class="inp" style="width:auto;padding:4px 8px;font-size:15px"><option value="">Automatique</option><option value="light" ${localStorage.getItem("cxs.theme") === "light" ? "selected" : ""}>Clair</option><option value="dark" ${localStorage.getItem("cxs.theme") === "dark" ? "selected" : ""}>Sombre</option></select></div>
       <button class="li" data-a="go" data-r="kb"><span class="em">📚</span><span class="grow">Connaissances</span>${I.chev}</button>
@@ -109,6 +112,7 @@ actions["simple-nutri"] = () => { update(st => { const on = !(st.settings.nutriL
 
 actions["word-set"] = (b, d) => { update(st => st.settings.word = d.v); rerender(); };
 changes["sabbat-dow"] = (el) => { const v = +el.value; update(st => st.settings.sabbat = v < 0 ? { on: false, dow: 6 } : { on: true, dow: v }); toast(v < 0 ? "Jour de repos désactivé" : "Jour de repos enregistré"); };
+actions["sound-tg"] = () => { update(st => st.settings.sound = st.settings.sound === false); rerender(); };
 actions.haptics = () => { update(st => st.settings.haptics = !st.settings.haptics); rerender(); };
 changes.theme = (el) => { if (el.value) localStorage.setItem("cxs.theme", el.value); else localStorage.removeItem("cxs.theme"); applyTheme(); };
 export function applyTheme() { const t = localStorage.getItem("cxs.theme"); if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }

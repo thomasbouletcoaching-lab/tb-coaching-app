@@ -1,7 +1,7 @@
 // Point d'entrée TB my Coach : charge les vues, installe les événements, démarre.
 import * as E from "./engine.js";
 import * as N from "./nutrition.js";
-import { R, render, installEvents } from "./core.js";
+import { R, render, installEvents, actions } from "./core.js";
 import { S, update, today } from "./store.js";
 import { refreshMe, pullCoachSlots, pullCoachPlan, pullCoachSettings } from "./sync.js";
 import { refreshLibrary } from "./library.js";
@@ -36,6 +36,7 @@ import "./views/fatigue.js";
 import "./views/profil.js";
 import "./views/hybride.js";
 import "./views/reseau.js";
+import "./views/quizexos.js";
 import { captureInvitation, pullSocial } from "./views/social.js";
 import { pullLive } from "./views/live.js";
 import { pullCoachFood } from "./views/coachfood.js";
@@ -52,6 +53,9 @@ window.addEventListener("hashchange", render);
   if (S().profile && !S().trialStart) update(st => st.trialStart = today());
   if (S().demoTier) update(st => st.demoTier = null); // plus de mode démo : essai de TRIAL_DAYS jours (Défi 30 jours)
   try { const u = new URL(location.href), cc = u.searchParams.get("coach"); if (cc) { update(st => { st.coachCode = cc.trim().toUpperCase(); st.inviteDone = false; }); u.searchParams.delete("coach"); history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams : "") + u.hash); } } catch { }
+  // Notifications : ouvrir l'écran visé quand on touche une notification ; mettre à jour les pastilles à la réception
+  try { navigator.serviceWorker?.addEventListener("message", (e) => { const d = e.data || {}; if (d.type === "open" && d.url) { const u = new URL(d.url); if (u.pathname === location.pathname) { if (u.searchParams.get("notifs")) actions.notifs?.(); else if (u.hash) location.hash = u.hash; } else location.href = d.url; } else if (d.type === "push") refreshMe(); }); } catch { }
+  try { const u = new URL(location.href); if (u.searchParams.get("notifs")) { u.searchParams.delete("notifs"); history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams : "") + u.hash); setTimeout(() => actions.notifs?.(), 800); } } catch { }
   try { captureInvitation(); } catch (e) { console.warn("Lien d'invitation illisible :", e.message); }
   render();
   refreshMe().then(() => { if (["home", "coach", "account", "offers"].includes(R.route) && !document.querySelector(".sheet-wrap, .composer, input:focus, textarea:focus")) render(); });

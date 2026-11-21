@@ -10,6 +10,10 @@ import { checkinCard } from "./checkin.js";
 import { memberSuivi } from "./suivi-coach.js";
 import * as BR from "../bilan-reglages.js";
 import { recapExercice, serieTxt } from "../recap.js";
+import { pushState, enablePush, disablePush } from "../push.js";
+import * as RV from "../revue.js";
+import { QUIZ_TOKEN } from "./quizexos.js";
+import * as XO from "../exercices.js";
 import { absenceBanner, reseauBlock } from "./reseau.js";
 import { claimInvite } from "../sync.js";
 import { myAdherence, summaryBetween, checkins as myCheckins, defiDay, since as sinceStart } from "../progress.js";
@@ -35,6 +39,7 @@ routes.coach = async () => {
     ${progs.length || plans.length ? `${progs.map(r => { const id = "lib-" + r.id, on = curP === id; return `<div class="card"><div class="lbl">🏋️ Entraînement</div><b class="h3">${esc(r.name)}</b><p class="small muted mt4">${esc(r.data?.desc || "Écrit pour toi par Thomas.")}</p>${on ? `<span class="tag r">Programme suivi</span> <button class="link small" data-a="go" data-r="carnet">Ouvrir le carnet</button>` : `<button class="btn btn-red btn-sm mt8" data-a="coach-follow" data-id="${id}">Suivre ce programme</button>`}</div>`; }).join("")}
       ${plans.map(r => { const k = (r.data?.meals || []).flatMap(m => m.items || []).reduce((a, x) => a + (x.kcal || 0), 0); return `<div class="card"><div class="lbl">🍽️ Nutrition</div><b class="h3">${esc(r.name)}</b><p class="small muted mt4">${(r.data?.meals || []).length} repas · ${fr(k)} kcal par jour${r.data?.note ? " · " + esc(r.data.note) : ""}</p><button class="btn ${S().coachPlanId === r.id ? "btn-line" : "btn-red"} btn-sm mt8" data-a="coach-plan" data-id="${r.id}">${S().coachPlanId === r.id ? "✓ Plan appliqué · le réappliquer" : "Appliquer ce plan à mon journal"}</button></div>`; }).join("")}`
       : `<div class="card"><p class="small" style="margin:0">${coached ? "Thomas t'envoie ici ton programme d'entraînement et ton plan alimentaire, écrits pour toi. Ils apparaissent dès qu'il les a préparés." : "Avec le coaching personnalisé, Thomas écrit ton programme d'entraînement et ton plan alimentaire : ils arrivent ici, et il suit tes séances et ton journal."}</p>${coached ? "" : `<button class="btn btn-red btn-sm mt12" data-a="go" data-r="apply">Candidater au coaching</button>`}</div>`}
+    ${mesConsignes()}
     ${await reseauBlock()}
     <h2 class="sec">🎯 Ta formule <small>${esc(o.name)}</small></h2>
     ${rank() >= 2 ? followUp() : `<button class="card tap" data-a="go" data-r="offers" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left"><span style="font-size:28px">🚀</span><span class="grow"><b>${premium() ? "Passer au coaching avec Thomas" : "Voir les offres"}</b><br><span class="small muted">${premium() ? "Programme et plan écrits pour toi, bilans, messages" : `Bâtisseur : ${TRIAL_DAYS} jours offerts, puis 19,99 €/mois`}</span></span>${I.chev}</button>`}
@@ -150,7 +155,8 @@ function msgHtml(x) {
     if (t.startsWith("video")) return `<video controls playsinline preload="none" data-mp="${p}" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px"></video>`;
     return `<audio controls preload="none" data-ap="${p}" style="width:220px;max-width:100%;display:block"></audio>`;
   }).join("");
-  const content = x.audio_path ? `<audio controls preload="none" data-ap="${esc(x.audio_path)}" style="width:220px;max-width:100%;display:block"></audio>` : pj + esc(x.body);
+  const quiz = (x.body || "").includes(QUIZ_TOKEN), body = (x.body || "").replace(QUIZ_TOKEN, "").trim();
+  const content = x.audio_path ? `<audio controls preload="none" data-ap="${esc(x.audio_path)}" style="width:220px;max-width:100%;display:block"></audio>` : pj + esc(body) + (quiz ? (isCoach() ? `<div class="xs mt4" style="opacity:.8">📋 Quiz envoyé : ses réponses arrivent dans la conversation.</div>` : `<button class="btn btn-red btn-sm mt8" data-a="go" data-r="quiz-exos" style="width:100%">📋 Faire le quiz</button>`) : "");
   return `<div class="msg ${mine ? "me" : "them"}" data-a="msg" data-id="${x.id}">${content}<time>${ago(x.created_at)}${mine && x.read_at ? " · lu" : ""}</time></div>${rs.length ? `<div class="reacts ${mine ? "me" : "them"}">${Object.entries(grouped).map(([e, n]) => `<span>${e}${n > 1 ? " " + n : ""}</span>`).join("")}</div>` : ""}`;
 }
 // Messages prêts (espace coach) : phrases réutilisables, stockées dans l'espace coach (clé « ready »)
@@ -166,7 +172,7 @@ const readyList = () => READY || READY0;
 export { readyList };
 export async function ensureReady() { if (READY === null) await readyLoad(); return readyList(); }
 function readyBar() {
-  return `<div id="ready-bar" style="display:flex;gap:6px;overflow-x:auto;padding:8px 0;white-space:nowrap">${readyList().map(r => `<button class="chip sm" data-a="ready-use" data-v="${esc(r.id)}">${esc(r.label)}</button>`).join("")}<button class="chip sm" data-a="ready-manage">⚙️ Gérer</button></div>`;
+  return `<div id="ready-bar" style="display:flex;gap:6px;overflow-x:auto;padding:8px 0;white-space:nowrap"><button class="chip sm" data-a="quiz-send">📋 Quiz exos</button>${readyList().map(r => `<button class="chip sm" data-a="ready-use" data-v="${esc(r.id)}">${esc(r.label)}</button>`).join("")}<button class="chip sm" data-a="ready-manage">⚙️ Gérer</button></div>`;
 }
 async function readyLoad() {
   try { const c = await cloud(); const s = await c.storeGet(["ready"]); READY = Array.isArray(s.ready) ? s.ready : READY0; }
@@ -299,14 +305,28 @@ forms.checkin = async (v) => {
 
 // ---------- Notifications ----------
 actions.notifs = () => {
-  sheet(`<h2 class="h1">🔔 Notifications</h2><div id="nl" class="mt12"><p class="empty small">Chargement…</p></div>`, async (w) => {
+  sheet(`<div class="row between"><h2 class="h1" style="margin:0">🔔 Notifications</h2><button class="link xs" data-a="notif-all">Tout marquer lu</button></div><div id="nl" class="mt12"><p class="empty small">Chargement…</p></div>${pushState() === "on" ? "" : `<div class="card soft mt12"><b class="small">📲 Recevoir les notifications sur ce téléphone</b><p class="xs muted mt4">Messages, fin de repos (même écran verrouillé), rappels.</p><button class="btn btn-red btn-sm mt8" data-a="push-on">Activer</button></div>`}`, async (w) => {
     const c = await cloud(); let list = [];
     try { await c.currentSession(); list = await c.notifications(); } catch { }
-    const seen = S().notifSeen;
-    w.querySelector("#nl").innerHTML = list.length ? `<div class="list">${list.map(n => `<div class="li" style="align-items:flex-start"><span style="width:8px;height:8px;border-radius:50%;margin-top:8px;background:${new Date(n.created_at).getTime() > seen ? "var(--red)" : "transparent"};flex:none"></span><span class="grow"><b>${esc(n.title)}</b>${n.body ? `<br><span class="small muted">${esc(n.body)}</span>` : ""}<br><span class="xs muted">${ago(n.created_at)}</span></span></div>`).join("")}</div>` : `<p class="empty">Aucune notification pour l'instant.</p>`;
-    update(st => st.notifSeen = Date.now()); badges.notifs = 0; document.querySelectorAll("[data-a=notifs] .badge").forEach(b => b.remove());
+    NL = list; drawNotifs(w);
+    navigator.serviceWorker?.controller?.postMessage("clear-badge");
   });
 };
+let NL = [];
+function drawNotifs(w = document) {
+  const box = w.querySelector("#nl"); if (!box) return;
+  box.innerHTML = NL.length ? `<div class="stack" style="gap:6px">${NL.map(n => `<button class="nt ${n.read ? "" : "unread"}" data-a="notif-open" data-id="${n.id}"><span class="dot"></span><span class="grow" style="min-width:0"><b>${esc(n.title)}</b>${n.body ? `<span class="small nb">${esc(n.body)}</span>` : ""}<span class="xs muted">${ago(n.created_at)}</span></span></button>`).join("")}</div>` : `<p class="empty small">Aucune notification pour l'instant.</p>`;
+  const un = NL.filter(n => !n.read).length; badges.notifs = un;
+  document.querySelectorAll("[data-a=notifs] .badge").forEach(b => { if (un) b.textContent = un; else b.remove(); });
+}
+actions["notif-open"] = async (b, d) => {
+  const n = NL.find(x => x.id === +d.id); if (!n) return;
+  b.classList.toggle("open");
+  if (!n.read) { n.read = true; drawNotifs(); document.querySelector(`[data-a="notif-open"][data-id="${n.id}"]`)?.classList.add("open"); try { (await cloud()).notifRead([n.id]); } catch { } }
+};
+actions["notif-all"] = async () => { const ids = NL.filter(n => !n.read).map(n => n.id); NL.forEach(n => n.read = true); drawNotifs(); try { (await cloud()).notifRead(ids); } catch { } };
+actions["push-on"] = async (b) => { try { b && (b.disabled = true); await enablePush(); toast("🔔 Notifications activées"); const c = await cloud(); await c.pushTest().catch(() => { }); closeSheet(); rerender(); } catch (e) { toast(e.message); if (b) b.disabled = false; } };
+actions["push-off"] = async () => { await disablePush(); toast("Notifications coupées sur ce téléphone"); rerender(); };
 
 // ---------- Espace coach ----------
 let adminFilter = "";
@@ -349,7 +369,7 @@ routes.member = async () => {
   const m = (window.__members || []).find(x => x.id === R.param); if (!m) return go("admin");
   const o = m.onboarding || {}, ap = o.application, st = m.stats || {};
   if (mbr.id !== m.id) Object.assign(mbr, { id: m.id, tab: "suivi", day: null, data: null, settings: null });
-  if (!mbr.data) { $app.innerHTML = header(esc(m.name || "Membre"), "", { back: "admin" }) + `<main class="page"><p class="empty">Chargement de ses données…</p></main>`; await Promise.all([E.loadPrograms(), N.loadModels()]); try { mbr.data = (await c.memberData(m.id)) || { data: null }; mbr.settings = await c.coachSettingsGet(m.id).catch(() => ({})); } catch (e) { mbr.data = { data: null, err: e.message }; } }
+  if (!mbr.data) { $app.innerHTML = header(esc(m.name || "Membre"), "", { back: "admin" }) + `<main class="page"><p class="empty">Chargement de ses données…</p></main>`; await Promise.all([E.loadPrograms(), N.loadModels()]); try { mbr.data = (await c.memberData(m.id)) || { data: null }; mbr.settings = await c.coachSettingsGet(m.id).catch(() => ({})); mbr.reviews = await c.reviewsOf(m.id).catch(() => ({})); await XO.loadExercices().catch(() => { }); } catch (e) { mbr.data = { data: null, err: e.message }; } }
   const tabs = [["suivi", "📈 Suivi"], ["jour", "☀️ Journée"], ["seances", "🏋️ Séances"], ["agenda", "🗓️ Agenda"], ["corps", "⚖️ Corps"], ["profil", "👤 Profil"]];
   const D = mbr.data.data;
   const cur = D?.current?.exercises?.length ? D.current : null, curDone = cur ? cur.exercises.reduce((a, e) => a + e.sets.filter(x => x.done).length, 0) : 0, curTot = cur ? cur.exercises.reduce((a, e) => a + e.sets.filter(x => x.type !== "W").length, 0) : 0;
@@ -397,7 +417,7 @@ function workoutCard(w, open = false) {
   const mins = Math.round((new Date(w.end || Date.now()) - new Date(w.start)) / 6e4);
   return `<details class="card mt8" ${open ? "open" : ""}><summary style="list-style:none;cursor:pointer"><div class="row between"><b>${esc(w.title)}</b><span class="xs muted">${fmtDate(today(new Date(w.end || w.start)), { weekday: "short", day: "numeric", month: "short" })}</span></div>
     <div class="xs muted mt4">${w.end ? "" : "EN COURS · "}${mins} min${w.target ? ` / ${w.target} visées` : ""} · ${w.setsDone ?? w.exercises.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0)} séries${w.volume ? ` · ${fr(w.volume / 1000, 1)} t` : ""}${w.week ? ` · semaine ${w.week}` : ""}${w.records?.length ? ` · 🏆 ${w.records.length} record${w.records.length > 1 ? "s" : ""}` : ""}</div></summary>
-    ${w.end ? "" : `<button class="btn btn-red btn-sm mt8" style="width:100%" data-a="go" data-r="live" data-p="${esc(mbr.id)}">🔴 Ouvrir en direct</button>`}<div class="mt8">${w.exercises.map(e => `<div class="small" style="padding:6px 0;border-top:1px solid var(--line)"><b>${esc(e.name)}</b>${e.name !== e.orig ? ` <span class="xs muted">(remplace ${esc(e.orig)})</span>` : ""}<br><span class="xs">${esc(setsLine(e)) || "<span class='muted'>pas fait</span>"}</span>${w.end ? recapLine(w, e) : ""}${e.sets.some(s => s.note) ? `<br><span class="xs muted">📝 ${esc(e.sets.filter(s => s.note).map(s => s.note).join(" · "))}</span>` : ""}${e.myNote ? `<br><span class="xs muted">📝 ${esc(e.myNote)}</span>` : ""}</div>`).join("")}</div></details>`;
+    ${w.end ? "" : `<button class="btn btn-red btn-sm mt8" style="width:100%" data-a="go" data-r="live" data-p="${esc(mbr.id)}">🔴 Ouvrir en direct</button>`}<div class="mt8">${w.exercises.map(e => `<div class="small" style="padding:6px 0;border-top:1px solid var(--line)"><b>${esc(e.name)}</b>${e.name !== e.orig ? ` <span class="xs muted">(remplace ${esc(e.orig)})</span>` : ""}<br><span class="xs">${esc(setsLine(e)) || "<span class='muted'>pas fait</span>"}</span>${w.end ? recapLine(w, e) : ""}${e.sets.some(s => s.note) ? `<br><span class="xs muted">📝 ${esc(e.sets.filter(s => s.note).map(s => s.note).join(" · "))}</span>` : ""}${e.myNote ? `<br><span class="xs muted">📝 ${esc(e.myNote)}</span>` : ""}</div>`).join("")}</div>${w.end && mbr.id && mbr.reviews ? reviewBar(w) : ""}</details>`;
 }
 function memberDay(D) {
   const d = mbr.day || today(), ag = E.agenda(d, d)[d], t = N.targets(), log = N.dayLog(d), tot = N.dayTotals(d), R0 = S().daily[d] || {};
@@ -501,6 +521,7 @@ function applyDossier() {
 // =====================================================================
 const DL_TYPES = [["compet", "🏁 Compétition"], ["bilan", "📝 Bilan"], ["cycle", "🔁 Fin de cycle"], ["rdv", "📅 Rendez-vous"], ["objectif", "🎯 Objectif"]];
 function fileCards(m, D) {
+  mbr.exNames = [...new Set([...(E.nextSession()?.p?.s || []).flatMap(x => (x[2] || []).map(r => r[0])), ...(D.workouts || []).slice(-20).flatMap(w => w.exercises.map(e => e.name))])].filter(Boolean).sort((a, b) => a.localeCompare(b, "fr"));
   const ns = E.nextSession(), st = mbr.settings || {}, bl = st.bilan, dls = (st.deadlines || []).slice().sort((a, b) => a.d.localeCompare(b.d));
   const plan = D.myPlan?.meals?.length ? D.myPlan.meals : null, kcal = plan ? plan.flatMap(x => x.items || []).reduce((a, i) => a + (i.kcal || 0), 0) : null, t = N.targets();
   const nb = ns?.p?.s?.length || 0, startD = D.plan?.startedAt;
@@ -508,11 +529,15 @@ function fileCards(m, D) {
   const fb = st.feedback;
   return `<div class="row between mt16"><b class="lbl" style="margin:0">Mon mot sur son accueil</b><button class="link xs" data-a="mb-fb">${fb?.txt ? "Modifier" : "+ Écrire"}</button></div>
     ${fb?.txt ? `<div class="card mt4 soft"><p class="small" style="margin:0;white-space:pre-wrap">${esc(fb.txt)}</p><div class="xs muted mt4">Écrit le ${fmtDate(fb.d, { day: "numeric", month: "long" })}${fb.seen ? ` · lu le ${fmtDate(fb.seen, { day: "numeric", month: "long" })}` : " · pas encore lu"}</div></div>` : `<p class="xs muted mt4">Un retour sur sa semaine, une consigne : il le voit en haut de son accueil.</p>`}
+    <div class="row between mt16"><b class="lbl" style="margin:0">🗣️ Consignes par exercice</b><button class="link xs" data-a="cue-add">+ Ajouter</button></div>
+    ${Object.keys(st.cues || {}).length ? `<div class="card mt4" style="padding:4px 8px">${Object.entries(st.cues).map(([n, t]) => `<div class="li" style="gap:8px;align-items:flex-start"><span class="grow small"><b>${esc(n)}</b><br><span class="xs" style="white-space:pre-wrap">${esc(t)}</span></span><button class="icon-btn sm" data-a="cue-add" data-n="${esc(n)}" aria-label="Modifier">✏️</button><button class="icon-btn sm" data-a="cue-del" data-n="${esc(n)}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>` : `<p class="xs muted mt4">Ses cues à lui (« pousse le sol », « coudes à 45° ») : elles s'affichent sur l'exercice pendant sa séance.</p>`}
     <div class="row between mt16"><b class="lbl" style="margin:0">Programme sport</b><span class="xs muted">${ns ? "1 actif" : "aucun"}</span></div>
     ${ns ? `<div class="card grad mt4"><div class="xs" style="opacity:.85">● EN COURS · VISIBLE PAR ${esc((m.name || "l'athlète").split(" ")[0].toUpperCase())}</div><b class="h3 mt4" style="display:block">${esc(ns.p.name)}</b>
       <div class="xs mt4" style="opacity:.9">${startD ? `Depuis le ${fmtDate(startD, { day: "numeric", month: "short" })} · ` : ""}semaine ${ns.week}/${ns.weeks} · ${nb} séance${nb > 1 ? "s" : ""}/sem. · ${esc(ns.phase)}</div>
       <div class="row mt12" style="gap:8px"><button class="btn btn-sm grow" style="background:rgba(255,255,255,.2);color:#fff" data-a="mb-tab" data-v="agenda">🗓️ Planning</button><button class="btn btn-sm grow" style="background:#fff;color:var(--ink)" data-a="go" data-r="member-prog" data-p="${esc(m.id)}">✏️ Modifier</button></div></div>`
-      : `<div class="card mt4"><p class="small muted" style="margin:0 0 8px">Pas de programme en cours.</p><button class="btn btn-red btn-sm" data-a="mb-assign">📋 Assigner un programme</button></div>`}
+      : `<div class="card mt4"><p class="small muted" style="margin:0">Pas de programme en cours.</p></div>`}
+    <div class="grid3 mt8"><button class="btn btn-line btn-sm" data-a="mb-zero">✨ De zéro</button><button class="btn btn-line btn-sm" data-a="mb-squel">🦴 8 patterns</button><button class="btn btn-line btn-sm" data-a="mb-assign">📋 Un modèle</button></div>
+    ${prefsCard(D)}
     <div class="row between mt16"><b class="lbl" style="margin:0">Plan diète</b><span class="xs muted">${plan ? "1 actif" : t ? "calculé par l'app" : "aucun"}</span></div>
     <div class="card mt4"><b class="small">${plan ? "Plan écrit" : "Plan calculé pour son profil"}</b><div class="xs muted mt4">${plan ? `${fr(kcal)} kcal · ${plan.length} repas` : t ? `${fr(t.kcal)} kcal · ${t.prot} g de protéines` : "Profil incomplet"}</div>
       <div class="row mt8" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="go" data-r="member-food" data-p="${esc(m.id)}">✏️ Modifier</button><button class="btn btn-line btn-sm grow" data-a="mb-plan">🍽️ Envoyer un plan</button></div></div>
@@ -566,3 +591,95 @@ forms["mb-fb"] = async (v) => {
 
 actions["code-coach"] = () => sheet(`<h2 class="h2">🔑 Mon code coach</h2><form data-f="code-coach" class="mt12"><label class="field"><span>Code reçu de Thomas</span><input name="code" maxlength="12" placeholder="TB-XXXXX" autocapitalize="characters" required></label><button class="btn btn-red mt12">Valider</button></form>`);
 forms["code-coach"] = async (v) => { const c = await cloud(); const r = await claimInvite(c, v.code.trim().toUpperCase()); if (r) { closeSheet(); rerender(); } else toast("Code inconnu ou déjà utilisé"); };
+
+// =====================================================================
+// CORRECTION DES SÉANCES (coach) : comme une copie qu'on corrige. Entre le coach et l'athlète seulement.
+// =====================================================================
+function reviewBar(w) {
+  const r = mbr.reviews?.[String(w.id)];
+  return `<div class="row between mt8" style="gap:8px;border-top:1px dashed var(--line);padding-top:8px"><span class="xs ${r ? "" : "muted"}">${r ? esc(RV.resumeRevue(r.data)) + (r.seen_at ? " · lu" : "") : "Pas encore corrigée"}</span>
+    <div class="row" style="gap:6px">${r ? "" : `<button class="btn btn-line btn-xs" data-a="rv-quick" data-id="${esc(w.id)}">👀 Vue</button>`}<button class="btn btn-red btn-xs" data-a="rv-open" data-id="${esc(w.id)}">✍️ ${r ? "Modifier" : "Corriger"}</button></div></div>`;
+}
+const wOf = (id) => (mbr.data?.data?.workouts || []).find(w => String(w.id) === String(id));
+async function saveReview(w, data, msg = true) {
+  const c = await cloud(); const clean = RV.nettoyer(data);
+  try { await c.reviewSave(mbr.id, w.id, clean); mbr.reviews = { ...(mbr.reviews || {}), [String(w.id)]: { data: clean, updated_at: new Date().toISOString(), seen_at: null } };
+    if (msg) await c.notify(`${clean.reaction || "✅"} Thomas a corrigé ta séance`, `${w.title} · ${RV.resumeRevue(clean)}`, mbr.id).catch(() => { });
+    return true; } catch (e) { toast("Enregistrement impossible : " + e.message); return false; }
+}
+actions["rv-quick"] = async (b, d) => { const w = wOf(d.id); if (!w) return; if (await saveReview(w, { reaction: "👀", vu: true })) { toast("Marquée « vue par ton coach »"); rerender(false); } };
+actions["rv-open"] = (b, d) => {
+  const w = wOf(d.id); if (!w) return; const r = mbr.reviews?.[String(w.id)]?.data || {};
+  const stars = (k, v) => `<div class="stars" data-k="${k}">${[1, 2, 3, 4, 5].map(n => `<button type="button" class="${v >= n ? "on" : ""}" data-a="rv-star" data-k="${k}" data-v="${n}" aria-label="${n} sur 5">★</button>`).join("")}<input type="hidden" name="g_${k}" value="${v || ""}"></div>`;
+  sheet(`<h2 class="h2">✍️ ${esc(w.title)}</h2><div class="xs muted">${fmtDate(today(new Date(w.end)), { weekday: "long", day: "numeric", month: "long" })} · ${w.setsDone ?? ""} séries</div>
+    <form data-f="rv-save" class="mt12"><input type="hidden" name="id" value="${esc(w.id)}"><input type="hidden" name="reaction" value="${esc(r.reaction || "")}">
+    <div class="lbl">Ta réaction</div><div class="chips wrap">${RV.REACTIONS.map(e => `<button type="button" class="chip ${r.reaction === e ? "on" : ""}" data-a="rv-react" data-v="${e}" style="font-size:20px">${e}</button>`).join("")}</div>
+    <div class="lbl mt12">Notation</div><div class="card" style="padding:6px 12px">${RV.CRITERES.map(([k, l]) => `<div class="row between" style="padding:6px 0"><span class="small">${l}</span>${stars(k, r.grades?.[k] || 0)}</div>`).join("")}</div>
+    <div class="lbl mt12">Par exercice</div>
+    ${w.exercises.map((e, i) => { const done = e.sets.filter(x => x.done); if (!done.length) return ""; const re = r.ex?.[i] || {};
+      return `<div class="card mt8"><b class="small">${esc(e.name)}</b><div class="xs muted">${esc(setsLine(e))}</div>
+        <textarea name="e${i}_c" rows="2" maxlength="600" class="mt8" placeholder="Ton commentaire sur l'exercice">${esc(re.c || "")}</textarea>
+        <details class="mt4" ${Object.keys(re.sets || {}).length ? "open" : ""}><summary class="xs" style="cursor:pointer;color:var(--red)">Commenter une série</summary>
+        ${e.sets.map((x, j) => x.done ? `<label class="row mt4" style="gap:8px;align-items:center"><span class="xs" style="min-width:74px">S${j + 1} · ${x.kg ? E.fmtKg(x.kg) + "×" : ""}${x.reps ?? "–"}</span><input name="e${i}_s${j}" maxlength="300" value="${esc(re.sets?.[j] || "")}" placeholder="Ex. dos rond en fin de série"></label>` : "").join("")}</details></div>`; }).join("")}
+    <label class="field mt12"><span>Ton retour global</span><textarea name="note" rows="4" maxlength="1500" placeholder="Ce qui est bien, ce qu'on travaille à la prochaine.">${esc(r.note || "")}</textarea></label>
+    <button class="btn btn-red mt12">Envoyer la correction</button>${mbr.reviews?.[String(w.id)] ? `<button type="button" class="btn btn-ghost mt8" data-a="rv-del" data-id="${esc(w.id)}">Retirer la correction</button>` : ""}</form>`);
+};
+actions["rv-react"] = (b, d) => { const f = b.closest("form"); const cur = f.elements.reaction.value === d.v ? "" : d.v; f.elements.reaction.value = cur; f.querySelectorAll('[data-a="rv-react"]').forEach(x => x.classList.toggle("on", x.dataset.v === cur)); };
+actions["rv-star"] = (b, d) => { const box = b.closest(".stars"), inp = box.querySelector("input"), v = inp.value === d.v ? "" : d.v; inp.value = v; box.querySelectorAll("button").forEach(x => x.classList.toggle("on", +x.dataset.v <= +v)); };
+forms["rv-save"] = async (v) => {
+  const w = wOf(v.id); if (!w) return;
+  const ex = {}; w.exercises.forEach((e, i) => { const sets = {}; e.sets.forEach((x, j) => { if (v[`e${i}_s${j}`]) sets[j] = v[`e${i}_s${j}`]; }); ex[i] = { c: v[`e${i}_c`], sets }; });
+  const grades = Object.fromEntries(RV.CRITERES.map(([k]) => [k, v["g_" + k]]));
+  if (await saveReview(w, { reaction: v.reaction, note: v.note, grades, ex })) { closeSheet(); toast("Correction envoyée"); rerender(false); }
+};
+actions["rv-del"] = async (b, d) => { if (!confirm("Retirer cette correction ?")) return; try { await (await cloud()).reviewDel(mbr.id, d.id); delete mbr.reviews[String(d.id)]; closeSheet(); rerender(false); } catch (e) { toast(e.message); } };
+
+actions["cue-add"] = (b, d) => {
+  const n = d.n || "", t = (mbr.settings?.cues || {})[n] || "";
+  sheet(`<h2 class="h2">🗣️ Consigne sur un exercice</h2><form data-f="cue-save" class="mt12"><input type="hidden" name="old" value="${esc(n)}">
+    <label class="field"><span>Exercice</span><input name="n" list="cue-ex" value="${esc(n)}" required maxlength="80" placeholder="Choisis ou tape le nom"><datalist id="cue-ex">${(mbr.exNames || []).map(x => `<option value="${esc(x)}">`).join("")}</datalist></label>
+    <label class="field mt8"><span>Ses consignes (ce sur quoi vous travaillez)</span><textarea name="t" rows="5" maxlength="600" required placeholder="Pousse le sol avec tout le pied.&#10;Genoux dans l'axe des pieds.&#10;Expire en haut.">${esc(t)}</textarea></label>
+    <p class="xs muted">Il la voit sur l'exercice pendant sa séance et dans la fiche de l'exercice.</p><button class="btn btn-red mt12">Enregistrer</button></form>`);
+};
+forms["cue-save"] = async (v) => {
+  const cues = { ...(mbr.settings?.cues || {}) }; if (v.old && v.old !== v.n) delete cues[v.old]; cues[v.n.trim()] = v.t.trim();
+  if (await saveSettings({ cues })) { closeSheet(); toast("Consigne enregistrée"); rerender(); }
+};
+actions["cue-del"] = async (b, d) => { if (!confirm("Supprimer cette consigne ?")) return; const cues = { ...(mbr.settings?.cues || {}) }; delete cues[d.n]; if (await saveSettings({ cues })) rerender(); };
+
+actions["quiz-send"] = async () => {
+  const id = R.param; if (!id) return;
+  if (!confirm("Envoyer le quiz « exercices aimés et détestés » dans la conversation ?")) return;
+  try { const c = await cloud(); await c.send(`📋 Petit quiz pour construire ton programme : pour chaque mouvement, coche les exercices que tu aimes et ceux que tu détestes. 2 minutes !\n${QUIZ_TOKEN}`, id); window.__reloadThread?.(); toast("Quiz envoyé"); } catch (e) { toast("Envoi impossible : " + e.message); }
+};
+
+// ---------- Créer le programme d'un athlète : de zéro, sur le squelette des 8 patterns, ou depuis un modèle ----------
+function prefsCard(D) {
+  const pr = D.programme?.prefs || {}, love = Object.keys(pr).filter(k => pr[k] === "love"), hate = Object.keys(pr).filter(k => pr[k] === "hate");
+  const nom = (slug) => (XO.exercices?.() || []).find(e => e.slug === slug)?.nom || slug.replace(/[-_]/g, " ");
+  return love.length || hate.length ? `<div class="card mt8"><div class="xs"><b>😍 Aime :</b> ${esc(love.map(nom).join(", ") || "–")}</div><div class="xs mt4"><b>🚫 Déteste :</b> ${esc(hate.map(nom).join(", ") || "–")}</div><div class="xs muted mt4">Le squelette 8 patterns met ses favoris en premier et écarte ce qu'il déteste.</div></div>`
+    : `<p class="xs muted mt8">Ses exercices préférés : envoie-lui le quiz « 📋 Quiz exos » depuis la conversation.</p>`;
+}
+actions["mb-zero"] = async () => {
+  const m = (window.__members || []).find(x => x.id === mbr.id) || { id: mbr.id };
+  const { openProgramEditor } = await import("./coachprog.js");
+  openProgramEditor(mbr.id, { name: `Programme de ${(m.name || "").split(" ")[0] || "l'athlète"}`, s: [["Séance A", "Lundi", []], ["Séance B", "Mercredi", []], ["Séance C", "Vendredi", []]] });
+};
+actions["mb-squel"] = async () => {
+  const D = mbr.data?.data; if (!D) return;
+  toast("Squelette en cours de construction…");
+  try {
+    await XO.loadExercices(); const G = await import("../generateur.js");
+    const prog = { answers: { daysWanted: 3, level: D.profile?.level === "beginner" ? "debutant" : "regulier", ...(D.programme?.answers || {}) }, prefs: D.programme?.prefs || {} };
+    const prop = G.generer(prog, { seed: Date.now() % 1000 }), m = (window.__members || []).find(x => x.id === mbr.id) || {};
+    const program = G.versProgramme(prop, { name: `Programme de ${(m.name || "").split(" ")[0] || "l'athlète"} · 8 patterns` });
+    const { openProgramEditor } = await import("./coachprog.js");
+    toast(`Squelette prêt : ${prop.n} séances. Ajoute l'isolation et le travail spécifique.`);
+    openProgramEditor(mbr.id, program);
+  } catch (e) { toast("Squelette impossible : " + e.message); }
+};
+
+function mesConsignes() {
+  const c = S().coachSettings?.cues || {}; if (!Object.keys(c).length) return "";
+  return `<h2 class="sec">🗣️ Mes consignes de Thomas</h2><div class="card" style="padding:4px 12px">${Object.entries(c).map(([n, t]) => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b class="small">${esc(n)}</b><div class="xs mt4" style="white-space:pre-wrap">${esc(t)}</div></div>`).join("")}<p class="xs muted" style="margin:8px 0">Elles s'affichent aussi sur l'exercice pendant ta séance.</p></div>`;
+}

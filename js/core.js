@@ -260,6 +260,13 @@ export function installEvents() {
     const fn = forms[f.dataset.f]; if (fn) await fn(Object.fromEntries(new FormData(f)), f, e);
   });
   document.addEventListener("change", async (e) => { const el = e.target.closest("[data-c]"); if (el && changes[el.dataset.c]) await changes[el.dataset.c](el, e); });
+  // Balayage horizontal : un élément [data-swipe="action"] reçoit v = 1 (vers la gauche, suivant) ou -1 (vers la droite, précédent)
+  let sw = null;
+  document.addEventListener("touchstart", (e) => { const el = e.target.closest("[data-swipe]"); const t = e.touches[0];
+    sw = el && e.touches.length === 1 && !e.target.closest("input,textarea,select,.hscroll,.chips,.modes,.seg,[data-noswipe]") ? { el, x: t.clientX, y: t.clientY, at: Date.now() } : null; }, { passive: true });
+  document.addEventListener("touchend", (e) => { if (!sw) return; const t = e.changedTouches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y, el = sw.el, at = sw.at; sw = null;
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6 || Date.now() - at > 800) return;
+    const a = actions[el.dataset.swipe]; if (a) { buzz(8); a(el, { v: dx < 0 ? "1" : "-1" }); } }, { passive: true });
   document.addEventListener("input", (e) => { const el = e.target.closest("[data-i]"); if (el && changes["i:" + el.dataset.i]) changes["i:" + el.dataset.i](el, e); });
 }
 actions.go = (b, d) => { closeSheet(); go(d.r, d.p ?? null); };

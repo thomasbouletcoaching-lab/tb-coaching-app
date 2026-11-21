@@ -80,7 +80,7 @@ const overflow = (p) => p.evaluate(() => [...document.querySelectorAll('#app *')
   const sums = [{ user_id: U1, summary: { today: ago(1), lastActive: ago(1), adh: { score: 80, status: 'ok', trend: 2, week: 80, prev: 78, age: 20 }, agenda: [] }, updated_at: new Date().toISOString(), data: { ...STATE, coachSettings: undefined } }];
   const SB_COACH = `
 const DB = ${JSON.stringify({ members, sums, COACH })};
-window.__settings = {}; window.__pub = {}; window.__inv = []; window.__store = {};
+window.__settings = {}; window.__pub = {}; window.__inv = []; window.__store = {}; window.__rv = {}; window.__msgs = [];
 function q(table, rpc) {
   const st = { table, rpc, f: {}, one: false, up: null };
   const res = () => {
@@ -91,6 +91,8 @@ function q(table, rpc) {
     else if (table === 'cxs_member_data') d = st.f.user_id ? (DB.sums.find(s => s.user_id === st.f.user_id) || null) : DB.sums.map(s => ({ user_id: s.user_id, summary: s.summary, updated_at: s.updated_at }));
     else if (table === 'cxs_coach_public') { if (st.up) { window.__pub[st.up.key] = st.up.value; d = null; } else d = Object.entries(window.__pub).map(([key, value]) => ({ key, value })); }
     else if (table === 'cxs_coach_store') { if (st.up) { window.__store[st.up.key] = st.up.value; d = null; } else d = Object.entries(window.__store).map(([key, value]) => ({ key, value })); }
+    else if (table === 'cxs_session_reviews') { if (st.up) { window.__rv[st.up.workout_id] = st.up.data; d = null; } else d = Object.entries(window.__rv).map(([workout_id, data]) => ({ workout_id, data })); }
+    else if (table === 'cxs_messages' && st.ins) { window.__msgs.push(st.ins); d = null; }
     else if (table === 'cxs_invites') { if (st.up) { window.__inv.push(st.up); d = null; } else d = window.__inv; }
     else if (rpc === 'cxs_poll_results') d = [];
     else if (table === 'cxs_coach_settings') { if (st.up) { window.__settings[st.up.user_id] = st.up.data; d = null; } else d = window.__settings[st.f.user_id] ? { data: window.__settings[st.f.user_id] } : null; }
@@ -101,6 +103,7 @@ function q(table, rpc) {
     if (k === 'then') return (ok, ko) => Promise.resolve(res()).then(ok, ko);
     if (k === 'eq') return (c, v) => { st.f[c] = v; return b; };
     if (k === 'upsert') return (row) => { st.up = row; return b; };
+    if (k === 'insert') return (row) => { st.ins = row; return b; };
     if (k === 'maybeSingle' || k === 'single') return () => { st.one = true; return b; };
     return () => b; }, apply: () => b });
   return b;
@@ -182,6 +185,31 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   await c.p.click('[data-a="tag-edit"]'); await c.p.waitForTimeout(300);
   await c.p.fill('form[data-f="tag-save"] input[name="nw"]', 'Force max'); await c.p.click('form[data-f="tag-save"] .btn-red'); await c.p.waitForTimeout(700);
   ok(/Force max/.test(await txt(c.p)) && Object.keys((await c.p.evaluate(() => window.__store.tags)) || {}).length === 1, 'programmes : étiquette posée et filtre');
+
+  // ---------- Étape 3 côté coach : correction de séance, consignes, programme de zéro, quiz ----------
+  await go(c.p, 'member/' + U1); await c.p.waitForTimeout(900);
+  await c.p.click('[data-a="mb-tab"][data-v="seances"]'); await c.p.waitForTimeout(500);
+  await c.p.evaluate(() => document.querySelectorAll('details').forEach(d => d.open = true));
+  ok(/Pas encore corrigée/.test(await txt(c.p)), 'séances : à corriger');
+  await c.p.click('[data-a="rv-open"]'); await c.p.waitForTimeout(400);
+  await c.p.click('[data-a="rv-react"][data-v="🔥"]'); await c.p.click('[data-a="rv-star"][data-k="technique"][data-v="4"]'); await c.p.click('[data-a="rv-star"][data-k="intensite"][data-v="5"]');
+  await c.p.fill('form[data-f="rv-save"] textarea[name="e0_c"]', 'Belle profondeur'); await c.p.click('form[data-f="rv-save"] details summary');
+  await c.p.fill('form[data-f="rv-save"] input[name="e0_s1"]', 'Genoux qui rentrent'); await c.p.fill('form[data-f="rv-save"] textarea[name="note"]', 'Très bonne séance');
+  await c.p.click('form[data-f="rv-save"] .btn-red'); await c.p.waitForTimeout(700);
+  const rv = await c.p.evaluate(() => Object.values(window.__rv)[0]);
+  ok(rv?.reaction === '🔥' && rv.grades?.technique === 4 && rv.ex?.[0]?.c === 'Belle profondeur' && rv.ex?.[0]?.sets?.[1] === 'Genoux qui rentrent' && rv.note === 'Très bonne séance', 'correction : réaction, notes, commentaires exercice et série');
+  ok(/Vue par Thomas · 4,5\/5/.test(await txt(c.p)), 'correction : résumé sur la séance');
+  await c.p.click('[data-a="mb-tab"][data-v="suivi"]'); await c.p.waitForTimeout(400);
+  await c.p.click('[data-a="cue-add"]'); await c.p.waitForTimeout(300);
+  await c.p.fill('form[data-f="cue-save"] input[name="n"]', 'Squat barre'); await c.p.fill('form[data-f="cue-save"] textarea[name="t"]', 'Pousse le sol');
+  await c.p.click('form[data-f="cue-save"] .btn-red'); await c.p.waitForTimeout(700);
+  ok((await c.p.evaluate((u) => window.__settings[u]?.cues?.['Squat barre'], U1)) === 'Pousse le sol' && /Pousse le sol/.test(await txt(c.p)), 'consigne par exercice enregistrée');
+  ok(/De zéro/.test(await txt(c.p)) && /8 patterns/.test(await txt(c.p)), 'programme : de zéro, 8 patterns, modèle');
+  await c.p.click('[data-a="mb-squel"]'); await c.p.waitForTimeout(2500);
+  ok(/builder/.test(c.p.url()) && await c.p.$$eval('.bd-ex', l => l.length) >= 6, 'squelette 8 patterns ouvert dans l\'éditeur');
+  await go(c.p, 'chat/' + U1); await c.p.waitForTimeout(800);
+  await c.p.click('[data-a="quiz-send"]'); await c.p.waitForTimeout(700);
+  ok((await c.p.evaluate(() => window.__msgs.at(-1)?.body || '')).includes('[[quiz-exos]]'), 'quiz exos envoyé dans la conversation');
   ok(c.errs.length === 0, 'coach : aucune erreur JavaScript' + (c.errs.length ? ' (' + c.errs.slice(0, 3).join(' | ') + ')' : ''));
   await b.close();
   console.log(`\n${passed} vérifications réussies, ${fails} échec(s).`);
