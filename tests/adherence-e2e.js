@@ -245,7 +245,7 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   await go(c.p, 'member/' + U1);
   await c.p.waitForTimeout(800);
   t = await txt(c.p);
-  ok(/Suivi/.test(t) && /Bilans/.test(t) && /Anamnèse/.test(t), 'dossier : onglet Suivi ouvert par défaut');
+  ok(/Vue d'ensemble/.test(t) && /Bilans/.test(t) && /Anamnèse/.test(t), 'dossier : vue d\'ensemble ouverte par défaut, suivi replié dessous');
   ok(/réponse « oui » santé/.test(t) && /Genou/.test(t), 'dossier : point santé et gêne au genou visibles');
   ok(/Je tiens mes séances et je dors mieux/.test(t), 'dossier : témoignage et accord visibles');
   ok(/Être en forme pour mes enfants/.test(t), 'dossier : motivation visible');

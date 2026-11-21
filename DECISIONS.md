@@ -335,3 +335,16 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 - Séance en pause : le temps de pause ne compte pas dans la durée ; valider une série reprend la séance.
 - Aliments favoris rangés par ordre alphabétique.
 - Essai de l'app : 14 jours (Défi 14 jours). Les essais commencés avant le 21/11/2026 gardent leurs 30 jours.
+
+## C73 · 21/11/2026 · Une seule app coach + athlète, cycle calé sur le calendrier, rappels, fiche athlète épurée
+
+- **Compte unique** : l'app athlète (thomboulet@gmail.com) envoie une copie complète du téléphone (`cxs_transferts`) ; depuis le compte coach en mode Athlète, « Récupérer mes données athlète » la reprend et `cxs_fusion_comptes` rattache au compte coach communauté, messages, analyses vidéo, nutrition serveur… Chaque ligne déplacée est d'abord copiée dans `cxs_fusion_backup`. Bascule Coach ↔ Athlète dans l'en-tête dès que le compte est coach.
+- **Cycle** : une séance loupée ne bloque plus. Repère `plan.ancre` (un lundi = une semaine du cycle) : si le calendrier est en avance, on passe à la bonne semaine. Après plus de 14 jours sans séance, on ne saute rien. Bouton « Me placer ici » retiré.
+- **Entraînement** : encadré du programme compact (✏️ et 📤 en petites icônes) ; ✏️ d'une séance n'ouvre que cette séance.
+- **Forme du jour** moins frileuse : vert ≥ 60, orange ≥ 38, pénalité de fatigue 0,35 ; orange = séance comme prévue avec 1 à 2 reps en réserve (RPE 8,5 max), rouge RPE 8, décharge RPE 7.
+- **Accueil** : bilan seulement le dimanche ; « Ma régularité » retirée (accueil et coaching).
+- **Communauté** : le détail complet de la séance (exercices, séries : charge × reps, RPE) est publié et consultable.
+- **Badges** : dips lestés (1RM), incliné, rowing barre, hip thrust, arraché, épaulé-jeté.
+- **Rappels push** (`cxs_rappels`, toutes les 15 min) : séance du jour (1 h avant, sinon 8 h), bilan du dimanche (10 h, relance 18 h 30), journée vide (20 h). Réglables dans Profil. Les anciens rappels push-daily / push-weekly sont retirés.
+- **Analyse vidéo auto** : sur un mouvement à barre, on touche la barre une fois et l'app suit la barre ; répétitions comptées sur les phases fiables (≥ 45 % de la plus grande amplitude, blocages fusionnés).
+- **Fiche athlète (coach)** : vue d'ensemble (prénom + objectif, profil, programme, anneaux nutrition jour et 7 jours, séances), réglages et historique repliés.

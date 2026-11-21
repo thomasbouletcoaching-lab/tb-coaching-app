@@ -83,7 +83,7 @@ const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.
   ok(/Forme du jour : séance allégée/.test(await txt(r.p)) && !/Jour de repos/.test(await txt(r.p)), 'accueil : « séance allégée » après le check-in, jamais « repos »');
   await tap(r.p, '.card.tap[data-r="recup"]'); await r.p.waitForTimeout(500);
   t = await txt(r.p);
-  ok(await r.p.locator('.card.feu.rouge').count() === 1 && /version allégée/.test(t) && !/repos actif/.test(t) && /Nuit courte \(5 h\)/.test(t) && /Pourquoi \d+\/100/.test(t), 'rouge : séance allégée conseillée (jamais « repos »), raisons concrètes et détail du calcul');
+  ok(await r.p.locator('.card.feu.rouge').count() === 1 && /séries en moins/.test(t) && !/repos actif/.test(t) && /Nuit courte \(5 h\)/.test(t) && /Pourquoi \d+\/100/.test(t), 'rouge : séance allégée conseillée (jamais « repos »), raisons concrètes et détail du calcul');
   ok(!/paresse|honte|raté|nul/i.test(t), 'ton positif, jamais culpabilisant');
   await shot(r.p, '02-rouge');
   await r.ctx.close();
@@ -98,8 +98,8 @@ const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.
   await shot(o.p, '03-demarrage-orange');
   await o.p.evaluate(() => document.querySelector('#sheet [data-a="dur-go"]').click()); await o.p.waitForTimeout(900);
   const cur = (await S(o.p)).current;
-  ok(cur && cur.allege === 'orange' && travail(cur) < base.n, `séance allégée : ${travail(cur)} séries au lieu de ${base.n}`);
-  ok(rpeMax(cur) <= 7.5 && /séries au lieu de/.test(cur.allegeNote), 'effort plafonné à RPE 7,5 : ' + cur.allegeNote);
+  ok(cur && cur.allege === 'orange' && travail(cur) <= base.n, `séance adaptée (C73 : légère, parfois aucune série retirée) : ${travail(cur)} séries au lieu de ${base.n}`);
+  ok(rpeMax(cur) <= 8.5 && /séries au lieu de/.test(cur.allegeNote), 'effort plafonné à RPE 8,5 : ' + cur.allegeNote);
   ok(cur.exercises.every(ex => ex.sets.filter(x => x.type !== 'W').length >= Math.min(2, 2)), 'au moins 2 séries par exercice');
   ok(o.errs.length === 0, 'aucune erreur JavaScript' + (o.errs.length ? ' (' + o.errs.slice(0, 3).join(' | ') + ')' : ''));
   await o.ctx.close();
@@ -138,10 +138,10 @@ const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.
   ok(/Semaine de décharge/.test(await txt(e.p)), 'accueil : rappel de la décharge en cours');
   const base2 = await e.p.evaluate(async () => { const E = await import('./js/engine.js'); await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]); const s = E.buildSession(); return s.exercises.reduce((t, ex) => t + ex.sets.filter(x => x.type !== 'W').length, 0); });
   await tap(e.p, '[data-a="start"]');
-  ok(/Semaine de décharge/.test(await txt(e.p, '#sheet')) && /RPE 6,5/.test(await txt(e.p, '#sheet')), 'au démarrage : la décharge allège les séances');
+  ok(/Semaine de décharge/.test(await txt(e.p, '#sheet')) && /RPE 7/.test(await txt(e.p, '#sheet')), 'au démarrage : la décharge allège les séances');
   await e.p.evaluate(() => document.querySelector('#sheet [data-a="dur-go"]').click()); await e.p.waitForTimeout(900);
   const cur3 = (await S(e.p)).current;
-  ok(cur3.allege === 'decharge' && travail(cur3) < base2 && rpeMax(cur3) <= 6.5, `décharge : ${travail(cur3)} séries au lieu de ${base2}, effort ≤ RPE 6,5`);
+  ok(cur3.allege === 'decharge' && travail(cur3) < base2 && rpeMax(cur3) <= 7, `décharge : ${travail(cur3)} séries au lieu de ${base2}, effort ≤ RPE 7`);
   await e.ctx.close();
   const f = await page(b, { state: { daily: feuxRouges(3), decharge: { debut: T, fin: add(T, 6) } } });
   await tap(f.p, '[data-a="fc-decharge-stop"]');
