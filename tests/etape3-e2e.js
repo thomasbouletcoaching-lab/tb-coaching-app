@@ -58,6 +58,9 @@ const NOTIFS = [{ id: 11, user_id: null, title: 'Nouveau créneau', body: 'Cours
 function q(table, rpc, args) {
   const st = { f: {}, up: null };
   const res = () => {
+    if (rpc === 'cxs_health_token_new') return { data: 'tb_' + 'ab'.repeat(24), error: null };
+    if (table === 'cxs_health_daily') return { data: [{ d: new Date().toISOString().slice(0, 10), data: { steps: 8421, sleep: 7.2 } }], error: null };
+    if (table === 'cxs_health_tokens') return { data: null, error: null };
     if (table === 'cxs_notifications') return { data: NOTIFS, error: null };
     if (table === 'cxs_notif_reads') { if (st.up) { window.__reads.push(...st.up.map(r => r.notif_id)); return { data: null, error: null }; } return { data: [{ notif_id: 12 }], error: null }; }
     if (table === 'cxs_coach_settings' || table === 'cxs_coach_public' || table === 'cxs_session_reviews') return { data: null, error: { message: 'hors ligne' } };
@@ -180,6 +183,17 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   ok(/Tour 1/.test(await txt(c4.p)), 'activité libre : chrono et tours');
   ok((await overflow(c4.p)).length === 0, 'cardio : rien ne dépasse');
   ok(c4.errs.length === 0, 'cardio : aucune erreur JavaScript' + (c4.errs.length ? ' (' + c4.errs.slice(0, 3).join(' | ') + ')' : ''));
+
+  console.log('Apple Santé');
+  const hs = await page(b, { url: '#/sante', state: { ...STATE, coachPublic: null, coachSettings: null }, sb: SB_MEMBER });
+  await hs.p.waitForTimeout(1200); t = await txt(hs.p);
+  ok(/Raccourcis/.test(t) && /Créer mon jeton/.test(t) && /functions\/v1\/sante/.test(t) && /Scriptable/.test(t), 'santé : guide pas à pas et adresse');
+  await hs.p.click('[data-a="sante-tok"]'); await hs.p.waitForTimeout(600);
+  ok(/tb_abab/.test(await txt(hs.p)) && /quoi=widget&token=tb_abab/.test(await txt(hs.p)), 'santé : jeton créé et reporté dans le widget');
+  const dly = (await S(hs.p)).daily[new Date().toISOString().slice(0, 10)] || {};
+  ok(dly.steps === 8421 && dly.sleep === 7.2, 'santé : pas et sommeil récupérés dans le journal');
+  ok((await overflow(hs.p)).length === 0, 'santé : rien ne dépasse');
+  ok(hs.errs.length === 0, 'santé : aucune erreur JavaScript' + (hs.errs.length ? ' (' + hs.errs.slice(0, 3).join(' | ') + ')' : ''));
   ok(errs.length === 0, 'aucune erreur JavaScript' + (errs.length ? ' (' + errs.slice(0, 3).join(' | ') + ')' : ''));
   await b.close();
   console.log(`\n${passed} vérifications réussies, ${fails} échec(s).`);

@@ -302,3 +302,8 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 - Séance guidée : bloc en cours en grand (couleur de zone, temps restant, allure, FC, ressenti), bloc suivant, bip + vibration + notification push à chaque changement (même écran verrouillé), pause, bloc suivant, tours pour l'activité libre (n'importe quel sport). Enregistrement : distance, FC, ressenti, kcal montre ; dépense par MET de chaque bloc × durée × poids.
 - Coach : « 🏃 Cardio programmé » dans la fiche athlète, même éditeur + plan de progression (durée, + min par bloc d'effort, + répétitions, toutes les 1 ou 2 semaines).
 - Communauté : toutes les séances (muscu, cardio guidé, activités ajoutées) sont publiées dans la communauté, sans option pour s'en retirer (décision de Thomas) ; profil créé automatiquement au premier envoi. Commentaires courts sous les séances (sans coordonnées ni liens, 60/jour), l'auteur est notifié. Page confidentialité mise à jour.
+
+## C69 · Apple Santé et widget par Raccourcis (21/11/2026)
+- Une web app ne peut pas lire Apple Santé : le pont passe par l'app Raccourcis. Profil › Réglages › Apple Santé et widget : jeton personnel (cxs_health_tokens, stocké haché, révocable), guide pas à pas.
+- Fonction « sante » (sans connexion, jeton obligatoire) : POST pas / sommeil / poids / FC repos / kcal actives → cxs_health_daily ; GET ?quoi=export → séances du jour (muscu + cardio, type, début, fin, kcal, km) et repas (kcal, protéines, glucides, lipides) à écrire dans Santé ; GET ?quoi=widget → lignes pour un widget Scriptable (code fourni).
+- Dans l'app : les données de Santé des 14 derniers jours sont rangées dans le journal (pas : Santé remplace si plus élevé ; sommeil et poids : seulement si rien n'a été noté à la main).

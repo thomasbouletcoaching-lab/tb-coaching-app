@@ -456,3 +456,10 @@ export const socCommenter = (id, texte) => soc("cxs_soc_commenter", { p_activite
 export const socCommentaires = (id) => soc("cxs_soc_commentaires_lire", { p_activite: id }).then(r => r || []);
 export const socNbCommentaires = (ids) => soc("cxs_soc_nb_commentaires", { p_ids: ids }).then(r => Object.fromEntries((r || []).map(x => [x.activite_id, Number(x.n)])));
 export const socRetirerCommentaire = (id) => soc("cxs_soc_commentaire_retirer", { p_id: id });
+
+// ---------- Apple Santé via l'app Raccourcis (fonction « sante ») ----------
+export const SANTE_URL = CONFIG.supabaseUrl + "/functions/v1/sante";
+export async function healthTokenNew() { const { data, error } = await sb.rpc("cxs_health_token_new"); if (error) throw error; return data; }
+export async function healthStatus() { if (!uid) await ensureSession(); const { data } = await sb.from("cxs_health_tokens").select("created_at,last_used").eq("user_id", uid).maybeSingle(); return data || null; }
+export async function healthDel() { const { error } = await sb.from("cxs_health_tokens").delete().eq("user_id", uid); if (error) throw error; }
+export async function healthDaily(since) { if (!uid) return []; const { data, error } = await sb.from("cxs_health_daily").select("d,data").eq("user_id", uid).gte("d", since).order("d"); if (error) throw error; return data || []; }

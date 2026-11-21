@@ -121,6 +121,7 @@ export async function pullCoachSettings() {
   try { const pub = await c.coachPublic(["absence", "annonces", "sondages", "defis", "biblio"]); update(st => { st.coachPublic = pub; }); } catch { }
   try { const { syncDefis } = await import("./views/reseau.js"); await syncDefis(); } catch { }
   try { const rv = await c.myReviews(); update(st => { st.reviews = rv; }); } catch { }
+  try { const { pullSante } = await import("./views/sante.js"); await pullSante(); } catch { }
 }
 // Espace préparé par le coach avant l'inscription : rattaché une fois, par le code reçu (lien ?coach=) ou par l'e-mail
 export async function claimInvite(c, code = S().coachCode) {
