@@ -168,7 +168,10 @@ export function adminTabbar(active) {
     msgs: I.coach, biz: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17.5 6.5A7 7 0 1 0 17.5 17.5"/><path d="M4 10.5h9M4 13.5h9"/></svg>`,
     subs: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg>`,
     db: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="7.5" ry="2.8"/><path d="M4.5 6v12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V6M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8"/></svg>` };
-  const t = [["admin-today", "Aujourd'hui", ic.today], ["admin", "Mes clients", ic.clients], ["admin-msg", `Messages${adminBadges.msgs ? ` (${adminBadges.msgs})` : ""}`, ic.msgs], ["admin-biz", "Business", ic.biz], ["admin-subs", "Abonnés", ic.subs], ["admin-db", "Base de données", ic.db]];
+  // Barre du coach : Accueil | Athlètes | Messages | Programmes | Profil (Business, Abonnés, Base de données sont rangés dans Profil)
+  const t = [["admin-today", "Accueil", I.home], ["admin", "Athlètes", ic.clients], ["admin-msg", `Messages${adminBadges.msgs ? ` (${adminBadges.msgs})` : ""}`, ic.msgs], ["admin-prog", "Programmes", I.clip], ["admin-profile", "Profil", I.user]];
+  const PARENT = { "admin-biz": "admin-profile", "admin-subs": "admin-profile", "admin-db": "admin-profile", "admin-social": "admin-profile", member: "admin", live: "admin", chat: "admin-msg", "member-prog": "admin", "member-food": "admin" };
+  active = PARENT[active] || active;
   const ix = Math.max(0, t.findIndex(([r]) => r === active));
   return `<nav class="tabbar" aria-label="Espace coach" style="--n:${t.length};--i:${ix}"><span class="lens" aria-hidden="true"></span>${t.map(([r, l, i]) => `<a href="#/${r}" class="tab" ${r === active ? 'aria-current="page"' : ""}>${i}<span>${l}</span></a>`).join("")}</nav>`;
 }

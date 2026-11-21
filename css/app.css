@@ -702,3 +702,25 @@ a.card{text-decoration:none;color:inherit}
 .emo5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
 .emo5 button{border:1.5px solid var(--line);background:var(--paper);border-radius:12px;font-size:22px;padding:6px 0;line-height:1.2}
 .emo5 button.on{border-color:var(--red);box-shadow:0 0 0 2px var(--red) inset;background:var(--card,var(--paper))}
+
+/* Espace coach (refonte 21/11/2026) : chiffres, semaine, avatars, bouton + */
+.kpi3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.kpi3>div{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:12px 10px;min-width:0}
+.kpi3 b{display:block;font-size:26px;font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums}
+.kpi3 b small{font-size:13px;color:var(--soft);font-weight:600;margin-left:2px}
+.kpi3 span{display:block;font-size:10.5px;color:var(--soft);text-transform:uppercase;letter-spacing:.05em;margin-top:4px;line-height:1.25}
+.kpi3 .warn b{color:#E5484D}
+.wk7{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.wk7 button{border:1px solid var(--line);background:var(--paper);border-radius:12px;padding:6px 0 4px;display:flex;flex-direction:column;align-items:center;font:inherit;color:var(--ink)}
+.wk7 small{font-size:10px;color:var(--soft);font-weight:700}.wk7 b{font-size:16px}.wk7 i{font-style:normal;color:var(--good);height:12px;line-height:12px;font-size:16px}
+.wk7 .today{border-color:var(--red)}
+.wk7 .on{background:var(--red2,#2E5FC9);border-color:transparent;color:#fff}.wk7 .on small,.wk7 .on i{color:#fff}
+.ava{position:relative;flex:none;width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;background:var(--tint2,rgba(110,155,240,.22));color:var(--ink)}
+.ava .dt{position:absolute;right:-1px;bottom:-1px;border:2px solid var(--paper)}
+.ava.big{width:58px;height:58px;font-size:20px;background:rgba(255,255,255,.22);color:#fff}
+.tag.st-dn{color:var(--good);background:color-mix(in srgb,var(--good) 12%,transparent);border-color:transparent}
+.tag.st-ip{color:#2E5FC9;background:rgba(46,95,201,.12);border-color:transparent}
+.tag.st-ms{color:#E5484D;background:rgba(229,72,77,.12);border-color:transparent}
+.tag.st-pl{color:var(--soft)}
+.fab{position:fixed;right:max(16px,calc(50% - 300px));bottom:calc(96px + var(--safe-b));z-index:30;width:56px;height:56px;border-radius:50%;border:0;background:#F26B4F;color:#fff;box-shadow:0 10px 24px rgba(242,107,79,.4);display:flex;align-items:center;justify-content:center}
+.fab svg{width:26px;height:26px}

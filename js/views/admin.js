@@ -14,23 +14,23 @@ import { alerts as adhAlerts, STATUS } from "../adherence.js";
 import { loadBibliotheque, bibliothequeBody, mountBibliotheque } from "./bibliotheque.js";
 
 // ---------- Données ----------
-const A = { members: null, sums: {}, threads: {}, at: 0, err: null, store: { todo: [], biz: null, notes: {}, handled: {} } };
+const A = { members: null, sums: {}, threads: {}, at: 0, err: null, store: { todo: [], biz: null, notes: {}, handled: {}, dismiss: {}, events: [] } };
 const BIZ0 = () => ({ payments: [], cycles: [], settings: { rate: null, freq: "trimestre", goal: null } });
 async function load(force = false) {
   if (!force && A.members && Date.now() - A.at < 30000) return;
   const c = await cloud(); if (!c) { A.err = "Pas de connexion au serveur."; return; }
   try {
     await (c.currentSession().then(u => u || c.ensureSession()));
-    const [ms, sums, th, st, nut] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled"]).catch(() => ({})), c.nutriRecent(7).catch(() => [])]);
+    const [ms, sums, th, st, nut] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled", "dismiss", "events"]).catch(() => ({})), c.nutriRecent(7).catch(() => [])]);
     A.members = ms.filter(m => m.name || m.email); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.snapAt = Object.fromEntries(sums.map(x => [x.user_id, x.updated_at])); A.threads = th; A.nutri = {}; (nut || []).forEach(r => { (A.nutri[r.user_id] = A.nutri[r.user_id] || []).push(r); });
-    A.store = { todo: st.todo?.items || [], biz: st.biz || BIZ0(), notes: st.notes || {}, handled: st.handled || {} };
+    A.store = { todo: st.todo?.items || [], biz: st.biz || BIZ0(), notes: st.notes || {}, handled: st.handled || {}, dismiss: st.dismiss || {}, events: st.events?.items || [] };
     A.store.biz.payments = A.store.biz.payments || []; A.store.biz.cycles = A.store.biz.cycles || []; A.store.biz.settings = A.store.biz.settings || {};
     window.__members = ms; A.at = Date.now(); A.err = null;
     adminBadges.msgs = A.members.reduce((a, m) => a + (A.threads[m.id]?.unread || 0), 0);
   } catch (e) { A.err = e.message; }
 }
 async function saveStore(key) {
-  const c = await cloud(); const v = key === "todo" ? { items: A.store.todo } : A.store[key];
+  const c = await cloud(); const v = key === "todo" || key === "events" ? { items: A.store[key] } : A.store[key];
   try { await c.storeSet(key, v); } catch (e) { toast("Enregistrement impossible : " + e.message); }
 }
 const priceOf = (id) => { const o = offer(id); return parseFloat(String(o.price).replace(/[^\d,]/g, "").replace(",", ".")) || 0; };
@@ -228,17 +228,18 @@ forms["adm-bulk"] = async (v, f) => {
 function clientRow(m) {
   const th = A.threads[m.id] || {}, s = A.sums[m.id] || {}, la = lastAct(m), n = daysSince(la), s7 = s.s7 || {};
   const act = n == null ? `inscrit ${ago(m.created_at)}` : n === 0 ? "actif aujourd'hui" : n === 1 ? "actif hier" : `inactif depuis ${n} j`;
-  return `<div class="crow"><span class="dt ${dotOf(n)}"></span><button class="grow" style="text-align:left" data-a="go" data-r="member" data-p="${m.id}"><b>${esc(first(m))}</b>${th.unread ? ` <span class="pill-b">💬 ${th.unread}</span>` : ""}${th.bilan ? ` <span class="pill-b">Bilan</span>` : ""}${adhOf(m)?.score != null ? ` <span class="tag ${"st-" + STATUS[adhOf(m).status].tone}">${adhOf(m).score}</span>` : ""}${isClient(m) ? "" : ` <span class="tag">${esc(offer(m.tier).name)}</span>`}<br><span class="xs muted">${act} · ${s7.ex ?? 0} exo${(s7.ex ?? 0) > 1 ? "s" : ""} · nutri ${s7.nutri ?? 0}/7${s.program ? ` · ${esc(s.program.split("·")[0].trim())} S${s.week}` : ""}</span></button>${I.chev}<button class="icon-btn" data-a="adm-more" data-id="${m.id}" aria-label="Actions">•••</button></div>`;
+  return `<div class="crow"><span class="ava">${esc(initials(m))}<i class="dt ${dotOf(n)}"></i></span><button class="grow" style="text-align:left" data-a="go" data-r="member" data-p="${m.id}"><b>${esc(first(m))}</b>${th.unread ? ` <span class="pill-b">💬 ${th.unread}</span>` : ""}${th.bilan ? ` <span class="pill-b">Bilan</span>` : ""}${adhOf(m)?.score != null ? ` <span class="tag ${"st-" + (STATUS[adhOf(m).status]?.tone || "pl")}">${adhOf(m).score}</span>` : ""}${isClient(m) ? "" : ` <span class="tag">${esc(offer(m.tier).name)}</span>`}<br><span class="xs muted">${act} · ${s7.ex ?? 0} exo${(s7.ex ?? 0) > 1 ? "s" : ""} · nutri ${s7.nutri ?? 0}/7${s.program ? ` · ${esc(s.program.split("·")[0].trim())} S${s.week}` : ""}</span></button>${I.chev}<button class="icon-btn" data-a="adm-more" data-id="${m.id}" aria-label="Actions">•••</button></div>`;
 }
 function clientsBlock() {
   const all = A.members || [], scope = UI.scope ?? (all.some(isClient) ? "clients" : "tous");
-  const q = UI.q.toLowerCase(), list = all.filter(m => (scope === "tous" || isClient(m)) && (!q || first(m).toLowerCase().includes(q) || (m.email || "").toLowerCase().includes(q)));
+  const q = UI.q.toLowerCase(), list = all.filter(m => (scope === "tous" || isClient(m)) && statOk(m, UI.filt || "tous") && (!q || first(m).toLowerCase().includes(q) || (m.email || "").toLowerCase().includes(q)));
   const prio = (m) => (A.threads[m.id]?.unread ? 1000 : 0) + (A.threads[m.id]?.bilan ? 500 : 0) + (adhOf(m)?.status === "risk" ? 300 : adhOf(m)?.status === "watch" ? 100 : 0) + (daysSince(lastAct(m) || m.last_seen) ?? 0);
   list.sort(UI.sort === "az" ? (a, b) => first(a).localeCompare(first(b), "fr") : (a, b) => prio(b) - prio(a));
   const late = list.filter(m => (daysSince(lastAct(m) || m.last_seen) ?? 0) >= 4).length;
-  return `<h2 class="h1 mt16" style="font-size:30px">${scope === "clients" ? "Mes clients" : "Tous les membres"} (${list.length})</h2>
-    <div class="card mt8"><div class="row" style="gap:8px"><input class="inp grow" id="adm-q" placeholder="Rechercher un client" value="${esc(UI.q)}" style="text-align:left"><button class="btn btn-red btn-sm" data-a="adm-new" style="width:auto">+ Client</button></div>
+  const base = all.filter(m => scope === "tous" || isClient(m)), cnt = (f) => base.filter(m => statOk(m, f)).length;
+  return `<div class="card mt12"><div class="search">${I.search}<input id="adm-q" placeholder="Rechercher un athlète" value="${esc(UI.q)}" autocomplete="off"></div>
       <div class="mt8">${seg([["clients", "Coaching"], ["tous", "Tous les membres"]], scope, "adm-scope")}</div>
+      <div class="chips mt8">${[["tous", "Tous"], ["actifs", "Actifs"], ["attente", "En attente"], ["alerte", "● Alerte"]].map(([v, l]) => `<button class="chip ${(UI.filt || "tous") === v ? "on" : ""}" data-a="adm-filt" data-v="${v}">${l} ${cnt(v)}</button>`).join("")}</div>
       <p class="small mt8" style="margin-bottom:6px">${late ? `<b class="red">${late} à relancer</b> · ` : ""}<span class="crow" style="display:inline-flex;border:0;padding:0;gap:4px"><span class="dt g"></span>actif · <span class="dt o"></span>2-3 j · <span class="dt r"></span>4 j et plus</span></p>
       ${seg([["prio", "Priorité"], ["az", "A → Z"]], UI.sort, "adm-sort")}
       <div class="mt8" id="adm-list">${list.map(clientRow).join("") || `<p class="empty small">${scope === "clients" ? "Pas encore de client en coaching. Active une formule de coaching dans « Abonnés » et le dossier arrive ici." : "Aucun membre."}</p>`}</div></div>`;
@@ -292,15 +293,14 @@ routes["admin-today"] = async () => {
     }
     return true;
   });
-  frame("admin-today", `${liveNowBlock()}${decrochageBlock()}${agendaBlock()}${todayBlock()}${todoBlock()}`, "Aujourd'hui");
+  frame("admin-today", `${homeHead()}${kpiBlock()}${liveNowBlock()}${alertsBlock()}${dayAthletes()}${eventsBlock()}${decrochageBlock()}${agendaBlock()}${todoBlock()}${fabBtn()}`, "Accueil");
 };
 
 routes.admin = async () => {
   if (!(await guard("admin"))) return;
   await ensureReady().catch(() => { });
-  frame("admin", `<div class="adm-links mt8"><button class="adm-link" data-a="adm-rank">🏆 Classement des clients</button><button class="adm-link" data-a="go" data-r="kb">📘 Méthode & théorie</button></div>
-    ${candBlock()}${bulkBlock()}${clientsBlock()}`);
-  const i = document.getElementById("adm-q"); i?.addEventListener("input", () => { UI.q = i.value; clearTimeout(i._t); i._t = setTimeout(() => { const box = document.getElementById("adm-list"); if (box) { const tmp = document.createElement("div"); tmp.innerHTML = clientsBlock(); box.innerHTML = tmp.querySelector("#adm-list").innerHTML; } }, 150); });
+  frame("admin", `${athletesHead()}${clientsBlock()}${candBlock()}${bulkBlock()}<div class="adm-links mt12"><button class="adm-link" data-a="adm-rank">🏆 Classement des clients</button><button class="adm-link" data-a="go" data-r="kb">📘 Méthode & théorie</button></div>${fabBtn()}`, "Athlètes");
+  const i = document.getElementById("adm-q"); i?.addEventListener("input", () => { UI.q = i.value; clearTimeout(i._t); i._t = setTimeout(() => { const box = document.getElementById("adm-list"); if (box) { const tmp = document.createElement("div"); tmp.innerHTML = clientsBlock(); box.innerHTML = tmp.querySelector("#adm-list").innerHTML; } }, 200); });
 };
 
 // =====================================================================
@@ -531,3 +531,144 @@ function acquisitionCard() {
     <div class="card mt12"><b class="h3">🎯 Ce qu'ils cherchent en premier</b><div class="mt8">${hbars(pr, (v) => String(v))}</div></div>
     ${who.length ? `<div class="card mt12"><b class="h3">👤 Qui ils sont</b><div class="mt8">${hbars(who, (v) => String(v))}</div></div>` : ""}`;
 }
+
+// =====================================================================
+// REFONTE (21/11/2026) : accueil en un écran, athlètes filtrés, programmes, profil coach
+// =====================================================================
+const initials = (m) => (first(m).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map(x => x[0]).join("") || "?").toUpperCase();
+const weekNo = (d) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDate() + 3 - (x.getDay() + 6) % 7); const y = new Date(x.getFullYear(), 0, 4); return 1 + Math.round(((x - y) / 864e5 - 3 + (y.getDay() + 6) % 7) / 7); };
+const alertLevel = (m) => { const al = memberAlerts(m); return al.some(a => a.level === "risk") ? 2 : al.some(a => a.level === "watch") ? 1 : 0; };
+// Statut d'un athlète pour les filtres : actif (3 derniers jours), en attente (aucune activité), en alerte (décrochage)
+function statOk(m, f) {
+  const n = daysSince(lastAct(m));
+  if (f === "actifs") return n != null && n <= 3;
+  if (f === "attente") return n == null || !!(m.onboarding?.application && !A.store.handled[m.id + ":" + m.onboarding.application.at]);
+  if (f === "alerte") return alertLevel(m) > 0;
+  return true;
+}
+actions["adm-filt"] = (b, d) => { UI.filt = d.v; rerender(); };
+function athletesHead() {
+  const all = A.members || [], team = all.filter(isClient), base = team.length ? team : all;
+  const actToday = base.filter(m => daysSince(lastAct(m)) === 0).length, al = base.filter(m => alertLevel(m) > 0).length;
+  return `<div class="xs muted mt8" style="letter-spacing:.08em;text-transform:uppercase">${fmtDate(today(), { weekday: "short", day: "numeric", month: "short" })} · S${weekNo(today())}</div>
+    <h1 class="h1" style="margin:2px 0 0">Mes athlètes,<br><span class="muted" style="font-weight:600">${base.length} au programme</span></h1>
+    <div class="kpi3 mt12"><div><b>${base.length}</b><span>${team.length ? "en coaching" : "membres"}</span></div><div><b>${actToday}<small>/${base.length}</small></b><span>actifs aujourd'hui</span></div><div class="${al ? "warn" : ""}"><b>${al}</b><span>en alerte</span></div></div>`;
+}
+// En-tête de l'accueil : bonjour, semaine en pastilles
+function homeHead() {
+  const t = today(), d = UI.agDay || t, mon = addDays(t, -E.dowOf(t)), days = Array.from({ length: 7 }, (_, i) => addDays(mon, i));
+  const name = (S().profile?.name || "Thomas").split(" ")[0];
+  return `<div class="xs muted mt8" style="letter-spacing:.08em;text-transform:uppercase">${fmtDate(t, { weekday: "short", day: "numeric", month: "short" })} · S${weekNo(t)}</div>
+    <h1 class="h1" style="margin:2px 0 0">Bonjour ${esc(name)},<br><span class="muted" style="font-weight:600">on coache ?</span></h1>
+    <div class="wk7 mt12">${days.map((k, i) => { const n = agendaRows(k).length; return `<button class="${k === d ? "on" : ""} ${k === t ? "today" : ""}" data-a="adm-agday" data-v="${k}"><small>${["L", "M", "M", "J", "V", "S", "D"][i]}</small><b>${Number(k.slice(8))}</b><i>${n ? "•" : ""}</i></button>`; }).join("")}</div>`;
+}
+function kpiBlock() {
+  const all = A.members || [], base = all.filter(isClient).length ? all.filter(isClient) : all;
+  const act = base.filter(m => { const n = daysSince(lastAct(m)); return n != null && n <= 7; }).length;
+  const rows = agendaRows(today()), done = rows.filter(r => r.a.st === "done").length;
+  return `<div class="kpi3 mt12"><div><b>${act}</b><span>athlètes actifs (7 j)</span></div><div><b>${done}<small>/${rows.length}</small></b><span>séances faites</span></div><div><b>${LIVE_LIST.length}</b><span>en cours</span></div></div>`;
+}
+// Notifications et alertes : chacune se ferme d'un ×, et ne revient que si elle change (ou après 7 jours)
+const alertKey = (e, t) => (e + " " + t).slice(0, 160);
+function alertsBlock() {
+  const t = today(), dis = A.store.dismiss || {};
+  const l = todoToday().filter(([e, tx]) => { const k = alertKey(e, tx); return !dis[k] || dis[k] < addDays(t, -7); });
+  return `<div class="row between mt16"><b class="lbl" style="margin:0">Notifs & alertes</b><span class="xs muted">${l.length || "rien"} à traiter</span></div>
+    ${l.length ? `<div class="card mt4" style="padding:4px 8px">${l.map(([e, tx, r]) => `<div class="li" style="gap:8px"><span class="em">${e}</span><button class="grow small" style="text-align:left" data-a="adm-go" data-r="${esc(r)}">${esc(tx)}</button><button class="icon-btn sm" data-a="adm-dismiss" data-k="${esc(alertKey(e, tx))}" aria-label="Fermer l'alerte">${I.close}</button></div>`).join("")}</div>`
+    : `<div class="card mt4"><p class="small" style="margin:0">✅ Tout est traité pour aujourd'hui.</p></div>`}`;
+}
+actions["adm-dismiss"] = async (b, d) => { A.store.dismiss = A.store.dismiss || {}; A.store.dismiss[d.k] = today(); Object.keys(A.store.dismiss).forEach(k => { if (A.store.dismiss[k] < addDays(today(), -30)) delete A.store.dismiss[k]; }); rerender(); await saveStore("dismiss"); };
+// Athlètes du jour : qui s'entraîne, à quelle heure, où il en est
+function dayAthletes() {
+  const d = UI.agDay || today(), rows = agendaRows(d);
+  if (!rows.length) return "";
+  const tag = (r) => { const [l, c] = stLbl(r); return `<span class="tag st-${c}">${l}</span>`; };
+  return `<div class="row between mt16"><b class="lbl" style="margin:0">Athlètes ${d === today() ? "du jour" : "du " + fmtDate(d, { weekday: "long", day: "numeric" })}</b><span class="xs muted">${rows.filter(r => r.a.st === "done").length}/${rows.length} séances faites</span></div>
+    <div class="card mt4" style="padding:4px 8px">${rows.map(r => `<button class="li" style="gap:10px;width:100%;text-align:left" ${r.ip ? `data-a="go" data-r="live" data-p="${r.m.id}"` : `data-a="go" data-r="member" data-p="${r.m.id}"`}><span class="ava">${esc(initials(r.m))}</span><span class="grow small"><b>${esc(r.name)}</b><br><span class="xs muted">${r.a.time || "heure libre"} · ${esc(r.a.title || "Séance")}</span></span>${tag(r)}</button>`).join("")}</div>`;
+}
+// Mon agenda : rendez-vous du coach (visio, séance, cours collectif, 1-to-1, évaluation…)
+const EV_TYPES = [["visio", "Visio", "#2F6F8F"], ["seance", "Séance", "#22A45D"], ["cours", "Cours collectif", "#E5484D"], ["presentiel", "1-to-1 présentiel", "#3557C9"], ["eval", "Évaluation", "#8F3510"], ["autre", "Autre", "#6E5A4E"]];
+const evType = (k) => EV_TYPES.find(x => x[0] === k) || EV_TYPES.at(-1);
+function eventsBlock() {
+  const d = UI.agDay || today(), l = (A.store.events || []).filter(e => e.d === d).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+  return `<div class="row between mt16"><b class="lbl" style="margin:0">Mon agenda · ${d === today() ? "aujourd'hui" : fmtDate(d, { weekday: "long", day: "numeric" })}</b><button class="link xs" data-a="ev-new" data-d="${d}">+ Rendez-vous</button></div>
+    ${l.length ? `<div class="card mt4" style="padding:4px 8px">${l.map(e => { const [, lab, col] = evType(e.type), m = (A.members || []).find(x => x.id === e.member); return `<div class="li" style="gap:10px"><span style="width:4px;align-self:stretch;border-radius:2px;background:${col}"></span><span style="min-width:46px"><b class="small">${esc(e.time || "–")}</b><br><span class="xs muted">${e.dur ? e.dur + " min" : ""}</span></span><span class="grow small"><b>${esc(e.title || lab)}</b><br><span class="xs muted">${m ? esc(first(m)) + " · " : ""}<span style="color:${col}">${lab}</span></span></span><button class="icon-btn sm" data-a="ev-del" data-id="${e.id}" aria-label="Supprimer le rendez-vous">${I.close}</button></div>`; }).join("")}</div>`
+    : `<p class="xs muted mt4">Aucun rendez-vous. Ajoute tes visios, bilans et cours ici.</p>`}`;
+}
+actions["ev-new"] = (b, d) => {
+  const day = d.d || UI.agDay || today();
+  sheet(`<h2 class="h2">📅 Nouveau rendez-vous</h2><form data-f="ev-new" class="mt12"><label class="field"><span>Titre</span><input name="title" maxlength="80" placeholder="Visio bilan, cours renfo…" required></label>
+    <div class="grid2 mt8"><label class="field"><span>Jour</span><input type="date" name="d" value="${day}" required></label><label class="field"><span>Heure</span><input type="time" name="time" required></label></div>
+    <div class="grid2 mt8"><label class="field"><span>Durée</span><select name="dur">${[15, 30, 45, 60, 75, 90, 120].map(x => `<option value="${x}" ${x === 60 ? "selected" : ""}>${x} min</option>`).join("")}</select></label><label class="field"><span>Type</span><select name="type">${EV_TYPES.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></label></div>
+    <label class="field mt8"><span>Athlète (facultatif)</span><select name="member"><option value="">–</option>${(A.members || []).map(m => `<option value="${m.id}">${esc(first(m))}</option>`).join("")}</select></label>
+    <button class="btn btn-red mt12">Ajouter</button></form>`);
+};
+forms["ev-new"] = async (v) => { A.store.events = [...(A.store.events || []).filter(e => e.d >= addDays(today(), -60)), { id: Date.now(), d: v.d, time: v.time, dur: +v.dur || null, type: v.type, title: v.title.trim(), member: v.member || null }]; UI.agDay = v.d === today() ? null : v.d; closeSheet(); toast("Rendez-vous ajouté"); rerender(); await saveStore("events"); };
+actions["ev-del"] = async (b, d) => { if (!confirm("Supprimer ce rendez-vous ?")) return; A.store.events = (A.store.events || []).filter(e => e.id !== +d.id); rerender(); await saveStore("events"); };
+// Bouton + : les gestes les plus fréquents, depuis n'importe quel écran du coach
+const fabBtn = () => `<button class="fab" data-a="adm-fab" aria-label="Ajouter">${I.plus}</button>`;
+actions["adm-fab"] = () => sheet(`<h2 class="h2">Ajouter</h2><div class="list mt12">
+  <button class="li" data-a="ev-new"><span class="em">📅</span><span class="grow"><b>Un rendez-vous</b><br><span class="xs muted">Visio, séance, cours, évaluation</span></span>${I.chev}</button>
+  <button class="li" data-a="adm-new"><span class="em">➕</span><span class="grow"><b>Un athlète</b><br><span class="xs muted">Lien d'invitation à partager</span></span>${I.chev}</button>
+  <button class="li" data-a="fab-todo"><span class="em">📋</span><span class="grow"><b>Une tâche</b><br><span class="xs muted">Dans ta to-do</span></span>${I.chev}</button>
+  <button class="li" data-a="fab-bulk"><span class="em">📣</span><span class="grow"><b>Un message à plusieurs athlètes</b></span>${I.chev}</button>
+  <button class="li" data-a="go" data-r="admin-prog"><span class="em">🗂️</span><span class="grow"><b>Un programme à assigner</b></span>${I.chev}</button></div>`);
+actions["fab-todo"] = () => sheet(`<h2 class="h2">📋 Nouvelle tâche</h2><form data-f="adm-todo" class="mt12"><label class="field"><span>Tâche</span><input name="t" required maxlength="140"></label><label class="field mt8"><span>Pour le</span><input type="date" name="due" value="${today()}"></label><button class="btn btn-red mt12">Ajouter</button></form>`);
+actions["fab-bulk"] = () => { closeSheet(); UI.open.bulk = true; go("admin"); setTimeout(() => document.querySelector('[data-fold="bulk"]')?.scrollIntoView({ block: "start" }), 400); };
+
+// ---------- Programmes : modèles prêts à assigner ----------
+let PQ = "", PTAB = "sport";
+const progOf = (r) => r.data?.s ? r.data : r.data?.program || r.data;
+routes["admin-prog"] = async () => {
+  if (!(await guard("admin-prog"))) return;
+  await Promise.all([E.loadPrograms(), refreshLibrary().catch(() => { })]);
+  const q = N.norm(PQ);
+  let body;
+  if (PTAB === "diete") {
+    const plans = LIB("plan").filter(r => !q || N.norm(r.name).includes(q));
+    body = `<button class="card tap grad mt12" data-a="go" data-r="admin" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:26px">＋</span><span class="grow"><b>Nouveau plan diète</b><br><span class="small" style="opacity:.85">Depuis la fiche d'un athlète : « Plan alimentaire »</span></span></button>
+      <div class="row between mt16"><b class="lbl" style="margin:0">Plans envoyés</b><span class="xs muted">${plans.length}</span></div>
+      ${plans.length ? plans.map(r => { const k = (r.data?.meals || []).flatMap(m => m.items || []).reduce((a, x) => a + (x.kcal || 0), 0), m = (A.members || []).find(x => x.id === r.data?.for); return `<div class="card mt8"><b class="small">${esc(r.name)}</b><div class="xs muted mt4">${fr(k)} kcal · ${(r.data?.meals || []).length} repas${m ? " · pour " + esc(first(m)) : ""}</div><button class="btn btn-line btn-sm mt8" style="width:100%" data-a="plan-assign" data-id="${r.id}">Assigner à un athlète</button></div>`; }).join("") : `<p class="empty small">Tes plans alimentaires envoyés apparaîtront ici, réutilisables.</p>`}`;
+  } else {
+    const mine = LIB("program").filter(r => !q || N.norm(r.name).includes(q));
+    const bank = E.programs().filter(p => !p.custom && !p.lib && (!q || N.norm(p.name + " " + (p.cat || "")).includes(q))).slice(0, q ? 40 : 10);
+    const card = (p, id, libId) => { const w = E.weeksOf(p) || p.weeks || 0, n = p.s?.length || 0; return `<div class="card mt8"><div class="row" style="gap:12px;align-items:center"><div style="text-align:center;min-width:42px"><b class="num" style="font-size:24px;color:var(--good,#22A45D)">${w || "–"}</b><div class="xs muted">sem.</div></div><div class="grow" style="min-width:0"><b class="small">${esc(p.name)}</b><div class="xs muted mt4">${n} séance${n > 1 ? "s" : ""} · ${p.days?.filter?.(Boolean).length || n}/sem.${p.cat ? " · " + esc(p.cat) : ""}</div></div></div>
+      <div class="row mt8" style="gap:8px"><button class="btn btn-red btn-sm grow" data-a="prog-assign" data-id="${esc(id)}">Assigner à un athlète</button>${libId ? `<button class="btn btn-line btn-sm" style="width:auto" data-a="go" data-r="builder" data-p="lib/${libId}">Modifier</button>` : ""}</div></div>`; };
+    body = `<button class="card tap grad mt12" data-a="go" data-r="builder" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:26px">＋</span><span class="grow"><b>Nouveau programme</b><br><span class="small" style="opacity:.85">Séances, exercices, cycles : tu composes</span></span></button>
+      <div class="row between mt16"><b class="lbl" style="margin:0">Mes modèles</b><span class="xs muted">${mine.length}</span></div>
+      ${mine.length ? mine.map(r => { const p = E.extra.programs.find(x => x.lib === r.id) || progOf(r); return p?.s ? card(p, p.id || "lib:" + r.id, r.id) : ""; }).join("") : `<p class="xs muted mt4">Crée un programme avec « Nouveau programme » : il sera réutilisable pour tous tes athlètes.</p>`}
+      <div class="row between mt16"><b class="lbl" style="margin:0">La banque</b><span class="xs muted">${E.programs().filter(p => !p.custom && !p.lib).length} programmes</span></div>
+      ${bank.map(p => card(p, p.id)).join("")}`;
+  }
+  frame("admin-prog", `<div class="xs muted mt8" style="letter-spacing:.08em;text-transform:uppercase">Bibliothèque</div><h1 class="h1" style="margin:2px 0 0">Programmes,<br><span class="muted" style="font-weight:600">prêts à assigner.</span></h1>
+    <div class="mt12">${seg([["sport", "🏋️ Sport"], ["diete", "🍽️ Diète"]], PTAB, "prog-tab")}</div>
+    <div class="search mt8">${I.search}<input id="pq" placeholder="Rechercher un programme…" value="${esc(PQ)}" autocomplete="off"></div>${body}${fabBtn()}`, "Programmes");
+  const i = document.getElementById("pq"); i?.addEventListener("change", () => { PQ = i.value; rerender(); });
+};
+actions["prog-tab"] = (b, d) => { PTAB = d.v; rerender(); };
+const pickMember = (title, act, id) => sheet(`<h2 class="h2">${esc(title)}</h2><p class="xs muted">Choisis l'athlète : tu pourras encore tout ajuster avant d'envoyer.</p><div class="list mt12">${(A.members || []).filter(isClient).concat((A.members || []).filter(m => !isClient(m))).map(m => `<button class="li" data-a="${act}" data-id="${esc(id)}" data-m="${m.id}"><span class="ava">${esc(initials(m))}</span><span class="grow"><b class="small">${esc(first(m))}</b><br><span class="xs muted">${esc(offer(m.tier).name)}</span></span>${I.chev}</button>`).join("")}</div>`);
+actions["prog-assign"] = (b, d) => pickMember("Assigner ce programme", "prog-assign-go", d.id);
+actions["prog-assign-go"] = async (b, d) => {
+  const { openProgramEditor } = await import("./coachprog.js");
+  const p = d.id.startsWith("lib:") ? progOf(libraryRows().find(r => r.id === +d.id.slice(4))) : E.program(d.id); if (!p) return toast("Programme introuvable");
+  window.__members = window.__members || A.members; closeSheet(); openProgramEditor(d.m, JSON.parse(JSON.stringify(p)));
+};
+actions["plan-assign"] = (b, d) => pickMember("Assigner ce plan", "plan-assign-go", String(d.id));
+actions["plan-assign-go"] = async (b, d) => {
+  const r = libraryRows().find(x => x.id === +d.id), m = (A.members || []).find(x => x.id === d.m); if (!r || !m) return;
+  try { const c = await cloud(); await c.libraryAdd("plan", `Plan alimentaire · ${m.name || "client"}`, { ...r.data, for: m.id }); await c.notify("🍽️ Ton plan alimentaire", "Thomas t'a envoyé ton plan. Ouvre l'onglet Coaching pour l'appliquer.", m.id).catch(() => { }); await refreshLibrary(); closeSheet(); toast(`Plan envoyé à ${first(m)}`); }
+  catch (e) { toast("Envoi impossible : " + e.message); }
+};
+
+// ---------- Profil coach : ton espace et les outils d'administration ----------
+routes["admin-profile"] = async () => {
+  if (!(await guard("admin-profile"))) return;
+  const p = S().profile || {}, all = A.members || [], team = all.filter(isClient);
+  const tile = (r, ic, l, sub) => `<button class="tile" data-a="go" data-r="${r}"><span class="tile-ic">${ic}</span><span><b>${l}</b><br><span class="xs muted">${sub}</span></span></button>`;
+  frame("admin-profile", `<div class="card grad mt12"><div class="xs" style="opacity:.8;letter-spacing:.08em;text-transform:uppercase">Coach</div><div class="row mt8" style="gap:14px;align-items:center"><span class="ava big">${esc(((p.name || "T B").split(" ").map(x => x[0]).join("") || "TB").slice(0, 2).toUpperCase())}</span><div><b class="h2">${esc(p.name || "Thomas Boulet")}</b><div class="small" style="opacity:.9">${team.length} athlète${team.length > 1 ? "s" : ""} en coaching · ${all.length} membres</div></div></div></div>
+    <h2 class="sec">Pilotage</h2>
+    <div class="tiles">${tile("admin-biz", "📈", "Business", "Revenus, paiements, objectifs")}${tile("admin-subs", "⭐", "Abonnés", "Formules et abonnements")}${tile("admin-db", "🗄️", "Base de données", "Aliments, recettes, exercices")}${tile("admin-social", "🏟️", "Communauté", "Modération, parrainage")}</div>
+    <h2 class="sec">Mon compte</h2>
+    <div class="list">${[["settings", "⚙️", "Réglages"], ["kb", "📘", "Méthode & théorie"], ["account", "👤", "Mon compte"]].map(([r, e, l]) => `<button class="li" data-a="go" data-r="${r}"><span class="em">${e}</span><span class="grow">${l}</span>${I.chev}</button>`).join("")}
+      <a class="li" href="./"><span class="em">🏋️</span><span class="grow">Mon espace athlète<br><span class="xs muted">Ton propre suivi, séparé de ton espace coach</span></span>${I.chev}</a></div>`, "Profil");
+};

@@ -1,4 +1,5 @@
 // Entraînement : programme et cycle, banque, programme perso, carnet de séance, stats, records, simulateur, fiches.
+import { recapExercice, serieTxt } from "../recap.js";
 import { tagMoteur, indiceDuMoteur, feuilleIndice } from "./indice-ui.js";
 import { feuStartBlock, apresFeu } from "./fatigue.js";
 import * as XO from "../exercices.js";
@@ -415,6 +416,12 @@ actions["mg-pick"] = (b, d) => { const w = document.getElementById("sheet"); w._
 // ---------- Corriger ou supprimer une séance faite ----------
 let wEdit = null;
 // Détail complet d'une séance faite : séries, RPE, techniques, notes, records, grade
+// Récap : prévu et écart avec la dernière fois, série par série
+function recapBloc(w, e) {
+  const r = recapExercice(w, e, S().workouts); if (!r.series.length || (!r.prevu && !r.avant.length)) return "";
+  const col = (x) => x > 0 ? "var(--good)" : x < 0 ? "var(--red)" : "var(--muted)";
+  return `<div class="xs mt8" style="padding-top:6px;border-top:1px dashed var(--line)">${r.prevu ? `<span class="muted">Prévu : ${esc(r.prevu.replace(/x/g, "×"))}</span><br>` : ""}${r.avant.length ? `<span class="muted">Dernière fois : ${r.avant.map(serieTxt).join(" · ")}</span><br>${r.series.map((x, i) => `Série ${i + 1} <b style="color:${col(x.ecart.sens)}">${esc(x.ecart.txt)}</b>`).join(" · ")}` : ""}</div>`;
+}
 actions["w-detail"] = (b, d) => {
   const w = S().workouts.find(x => x.id === +d.id); if (!w) return;
   const mins = Math.round((new Date(w.end) - new Date(w.start)) / 6e4), g = gradeOf(w.volume || 0), like = weightLike(w.volume || 0);
@@ -427,7 +434,7 @@ actions["w-detail"] = (b, d) => {
         const lab = s.type === "W" ? "Échauf." : "Série " + (++n.i), tech = (s.tech || []).map(t => `${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${t}${E.techSummary(t, s.td?.[t]) ? " (" + E.techSummary(t, s.td[t]) + ")" : ""}`);
         return `<div class="row between small" style="padding:5px 0;border-top:1px solid var(--line);align-items:flex-start;gap:8px"><span class="muted" style="min-width:64px">${lab}${s.type && s.type !== "N" && s.type !== "W" ? `<br><span class="xs">${E.SET_TYPES[s.type]}</span>` : ""}</span>
           <span class="grow" style="text-align:right"><b>${s.kg ? (as ? "aide " : "") + E.fmtKg(s.kg) + " kg × " : ""}${s.reps ?? "–"}${e.unit === "s" ? " s" : ""}</b>${rpe(s.rpe)}${s.pain ? " ⚠️" : ""}${tech.length ? `<br><span class="xs muted">${tech.map(esc).join(" · ")}</span>` : ""}${s.note ? `<br><span class="xs muted">📝 ${esc(s.note)}</span>` : ""}</span></div>`; }).join("")}
-      ${e.myNote ? `<div class="xs muted mt4">📝 ${esc(e.myNote)}</div>` : ""}</div>`; }).join("");
+      ${e.myNote ? `<div class="xs muted mt4">📝 ${esc(e.myNote)}</div>` : ""}${recapBloc(w, e)}</div>`; }).join("");
   sheet(`<h2 class="h2">${esc(w.title)}</h2><p class="xs muted">${fmtDate(today(new Date(w.end)), { weekday: "long", day: "numeric", month: "long" })} · ${new Date(w.start).toTimeString().slice(0, 5)}</p>
     <div class="stat3 mt8"><div><b>${mins}</b><span>min</span></div><div><b>${w.setsDone ?? 0}</b><span>séries</span></div><div><b>${((w.volume || 0) / 1000).toFixed(1).replace(".", ",")}</b><span>tonnes</span></div></div>
     <div class="card soft mt8" style="padding:12px;text-align:center"><b>${g.icon} Grade ${g.name}</b><div class="xs muted mt4">${(w.volume || 0) >= 100 ? `Tu as soulevé l'équivalent ${like.txt.replace(/^une? /, m => m.startsWith("une") ? "d'une " : "d'un ").replace(/^(\d)/, "de $1")} ${like.icon}` : ""}</div></div>

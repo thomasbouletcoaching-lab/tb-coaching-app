@@ -403,3 +403,19 @@ export async function partageLire(id) {
   if (error) throw error;
   return data;
 }
+
+// Réglages du coach pour un membre (table cxs_coach_settings) : bilans réglés et échéances. Le coach écrit, le membre lit les siens.
+export async function coachSettingsGet(memberId) {
+  if (!uid) await ensureSession();
+  const { data, error } = await sb.from("cxs_coach_settings").select("data,updated_at").eq("user_id", memberId).maybeSingle();
+  if (error) throw error; return data?.data || {};
+}
+export async function coachSettingsSet(memberId, data) {
+  const { error } = await sb.from("cxs_coach_settings").upsert({ user_id: memberId, data, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
+export async function myCoachSettings() {
+  if (!uid) await ensureSession();
+  const { data, error } = await sb.from("cxs_coach_settings").select("data,updated_at").eq("user_id", uid).maybeSingle();
+  if (error) throw error; return data?.data || null;
+}

@@ -112,6 +112,12 @@ export async function pullCoachSlots() {
   });
 }
 
+// Réglages posés par le coach (bilans : jour, fréquence, questions ; échéances) : simplement copiés sur le téléphone
+export async function pullCoachSettings() {
+  const c = await cloud(); if (!c || !S().profile || !c.myCoachSettings) return;
+  try { const d = await c.myCoachSettings(); update(st => { st.coachSettings = d || null; }); } catch { }
+}
+
 // Programme posé par le coach : remplace le programme actif du membre. La position (semaine, séance) est gardée si elle existe déjà.
 export async function pullCoachPlan() {
   const c = await cloud(); if (!c || !S().profile) return;

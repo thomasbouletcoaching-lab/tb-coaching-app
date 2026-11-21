@@ -2,7 +2,7 @@ import { S, update, today } from "../store.js";
 import { alerteLigne } from "./douleur.js";
 import { verifierBadges } from "./trophees.js";
 import { defiCard, adherenceCard } from "./suivi.js";
-import { checkinCard } from "./checkin.js";
+import { checkinCard, echeancesCard } from "./checkin.js";
 import { revueCard } from "./semaine.js";
 import { monteeCard } from "./soutenabilite.js";
 import { feuCard } from "./fatigue.js";
@@ -234,7 +234,7 @@ actions["free-session"] = async () => {
 // Cartes de suivi en haut de l'accueil : défi en cours, bilan de la semaine (vendredi → dimanche), point de départ, régularité
 async function suiviCards() {
   if (isCoach()) return "";
-  const defi = defiOn(), out = [defi ? await defiCard() : "", checkinCard()];
+  const defi = defiOn(), out = [defi ? await defiCard() : "", checkinCard(), echeancesCard()];
   out.push(criseCard(), feuCard(), revueCard(), monteeCard());
   if (!defi) out.push(anamneseCard());
   if (!defi && (myAdherence().age ?? 0) >= 3) out.push(adherenceCard());

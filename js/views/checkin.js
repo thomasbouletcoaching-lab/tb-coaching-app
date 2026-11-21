@@ -6,7 +6,11 @@ import { $app, esc, num, fr, toast, routes, actions, forms, go, header, tabbar, 
 import { refreshMe } from "../sync.js";
 import { myAdherence, checkins, checkinThisWeek, lastCheckin, weightAvg7, dayFacts, addDays, mondayOf, defiOn, defiDay } from "../progress.js";
 import { STATUS } from "../adherence.js";
+import * as BR from "../bilan-reglages.js";
+// Réglages du coach (jour, fréquence, questions en plus, transit et digestion)
+const reglage = () => S().coachSettings?.bilan || null;
 
+const DIGEST = [["transit", "🚽 Transit", "très perturbé", "parfait"], ["digest", "🫃 Digestion", "très inconfortable", "parfaite"]];
 const MOODS = [[1, "😣", "Dur"], [2, "😕", "Bof"], [3, "😐", "Correct"], [4, "🙂", "Bien"], [5, "😄", "Top"]];
 const SCALES = [
   ["energy", "⚡ Énergie dans la semaine", "à plat", "en pleine forme"],
@@ -52,6 +56,8 @@ routes.bilan = async () => {
         <p class="xs muted mt8" style="margin-bottom:0">Le matin, à jeun, au même endroit. Les chiffres gris sont tes dernières mesures.</p></div></details>
       <div class="card"><div class="lbl">🙂 Ma semaine en un mot</div><div class="moods mt8" role="radiogroup">${MOODS.map(([n, e, l]) => `<label><input type="radio" name="mood" value="${n}" ${+v.mood === n ? "checked" : ""}><span><b>${e}</b>${l}</span></label>`).join("")}</div></div>
       ${SCALES.map(([k, l, lo, hi]) => `<div class="card"><div class="row between"><b class="small">${l}</b><span class="xs muted">1 = ${lo} · 10 = ${hi}</span></div>${scale(k, v[k])}</div>`).join("")}
+      ${reglage()?.digest ? DIGEST.map(([k, l, lo, hi]) => `<div class="card"><div class="row between"><b class="small">${l}</b><span class="xs muted">1 = ${lo} · 10 = ${hi}</span></div>${scale(k, v[k])}</div>`).join("") : ""}
+      ${(reglage()?.questions || []).map((q, i) => `<label class="field"><span>💬 ${esc(q)}</span><textarea name="q_${i}" maxlength="600">${esc(v.answers?.[q] || "")}</textarea></label>`).join("")}
       <label class="field"><span>🏆 Ma victoire de la semaine</span><textarea name="win" maxlength="400" placeholder="Même petite : une séance de plus, un repas tenu…">${esc(v.win || "")}</textarea></label>
       <label class="field"><span>🧱 Ce qui a été difficile</span><textarea name="hard" maxlength="400">${esc(v.hard || "")}</textarea></label>
       ${canMsg() ? `<label class="field"><span>❓ Ma question pour Thomas</span><textarea name="question" maxlength="400">${esc(v.question || "")}</textarea></label>` : ""}
@@ -67,7 +73,8 @@ forms.bilan = async (v) => {
   const measures = {}; CI_MEASURES.forEach(([k]) => { const y = n(v["m_" + k], 10, 250); if (y != null) measures[k] = y; });
   const ci = { d: cur?.d || t, at: new Date().toISOString(), week: wk, weight: n(v.weight, 30, 250), sleepH: n(v.sleepH, 2, 14), measures,
     mood: v.mood ? +v.mood : null, energy: v.energy ? +v.energy : null, sleepQ: v.sleepQ ? +v.sleepQ : null, stress: v.stress ? +v.stress : null,
-    hunger: v.hunger ? +v.hunger : null, plan: v.plan ? +v.plan : null, win: (v.win || "").trim(), hard: (v.hard || "").trim(), question: (v.question || "").trim() };
+    hunger: v.hunger ? +v.hunger : null, plan: v.plan ? +v.plan : null, transit: v.transit ? +v.transit : null, digest: v.digest ? +v.digest : null,
+    answers: Object.fromEntries((reglage()?.questions || []).map((q, i) => [q, (v["q_" + i] || "").trim()]).filter(([, a]) => a)), win: (v.win || "").trim(), hard: (v.hard || "").trim(), question: (v.question || "").trim() };
   if (ci.weight == null && String(v.weight || "").trim()) return toast("Vérifie ton poids.");
   const wf = weekFacts(t); ci.sessions = wf.done; ci.planned = wf.planned; ci.foodDays = wf.food;
   update(st => {
@@ -88,7 +95,9 @@ export function checkinText(c) {
   return `📝 Bilan du ${new Date(c.d + "T12:00:00").toLocaleDateString("fr-FR")}\nPoids moyen : ${f(c.weight)} kg · Séances : ${c.sessions ?? "–"}${c.planned ? "/" + c.planned : ""} · Repas notés : ${c.foodDays ?? "–"}/7 · Régularité : ${c.score ?? "–"}/100`
     + (ms ? `\nMensurations : ${ms}` : "")
     + `\nMoral ${MOODS.find(m => m[0] === c.mood)?.[1] || "–"} · Énergie ${c.energy ?? "–"}/10 · Sommeil ${f(c.sleepH)} h (qualité ${c.sleepQ ?? "–"}/10) · Stress ${c.stress ?? "–"}/10 · Faim ${c.hunger ?? "–"}/10 · Plan suivi ${c.plan ?? "–"}/10`
-    + `\nVictoire : ${c.win || "–"}\nDifficulté : ${c.hard || "–"}` + (c.question ? `\nQuestion : ${c.question}` : "");
+    + (c.transit != null || c.digest != null ? `\nTransit ${c.transit ?? "–"}/10 · Digestion ${c.digest ?? "–"}/10` : "")
+    + `\nVictoire : ${c.win || "–"}\nDifficulté : ${c.hard || "–"}` + (c.question ? `\nQuestion : ${c.question}` : "")
+    + Object.entries(c.answers || {}).map(([q, a]) => `\n${q} → ${a}`).join("");
 }
 
 function done(ci, sent) {
@@ -137,7 +146,17 @@ async function loadOldBilans() {
 // Carte d'accueil : du vendredi au lundi, si le bilan de la semaine n'est pas fait
 export function checkinCard(t = today()) {
   const dow = (new Date(t + "T12:00:00").getDay() + 6) % 7; // 0 = lundi
-  if (checkinThisWeek(t) || dow < 4 || !S().profile) return "";
+  const rg = reglage();
+  if (rg) { if (!S().profile || !BR.bilanAFaire(rg, t, lastCheckin()?.d).due) return ""; }
+  else if (checkinThisWeek(t) || dow < 4 || !S().profile) return "";
   const last = lastCheckin();
   return `<button class="card tap hl mt12" data-a="go" data-r="bilan" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:30px">📝</span><span class="grow"><b>Ton bilan de la semaine</b><br><span class="small muted">${dow === 6 ? "Semaine terminée : 1 minute pour faire le point" : "Déjà pré-rempli, 1 minute"}${last ? ` · dernier le ${fmtDate(last.d, { day: "numeric", month: "short" })}` : ""}</span></span>${I.chev}</button>`;
+}
+
+// Échéances posées par le coach (compétition, bilan, fin de cycle…) : les 60 prochains jours, sur l'accueil
+export function echeancesCard(t = today()) {
+  const l = (S().coachSettings?.deadlines || []).filter(e => e.visible !== false && e.d >= t && e.d <= addDays(t, 60)).sort((a, b) => a.d.localeCompare(b.d));
+  if (!l.length) return "";
+  const j = (d) => Math.round((new Date(d + "T12:00:00") - new Date(t + "T12:00:00")) / 864e5);
+  return `<div class="card mt12"><div class="lbl">🎯 Échéances fixées par Thomas</div>${l.slice(0, 3).map(e => `<div class="row between mt8"><span class="small"><b>${esc(e.title)}</b><br><span class="xs muted">${fmtDate(e.d, { weekday: "long", day: "numeric", month: "long" })}</span></span><span class="tag r">${j(e.d) === 0 ? "aujourd'hui" : "J-" + j(e.d)}</span></div>`).join("")}</div>`;
 }

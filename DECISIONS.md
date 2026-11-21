@@ -262,3 +262,15 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 - **Récupération** en trois parties : Fatigue (feu du jour, fatigue nerveuse, ressenti), Sommeil, Apport (calories des 3 derniers jours face au maintien, protéines à 1,6 g/kg, glycogène). Les curseurs sont remplacés par 5 visages, comme le check-in.
 - **Jeûne** : onglet de Nutrition. **Sensibilité à l'insuline** : Nutrition › Conseils.
 - **Accueil et Récupération disent la même chose** : avec le Bâtisseur, l'accueil n'affiche plus l'ancienne estimation (sommeil + glycogène) à côté du feu du jour ; seul le feu du jour reste, avec le même calcul que dans Récupération.
+
+## C65 · Refonte de l'espace coach, étape 1 (21/11/2026)
+- Barre coach : Accueil | Athlètes | Messages | Programmes | Profil. Business, Abonnés, Base de données et Communauté passent dans Profil.
+- Accueil : semaine en bandeau, 3 chiffres (actifs 7 j, séances faites/prévues, en cours), alertes qu'on peut écarter 7 jours, agenda typé (visio, séance, cours, présentiel, évaluation), bouton +.
+- Athlètes : avatar avec pastille, filtres Tous / Actifs / En attente / Alerte avec compteurs.
+- Programmes : mes modèles et la banque, « Assigner à un athlète » en 1 geste ; plans diète assignables.
+- Fiche athlète en cartes : programme en cours, plan diète, bilans, échéances.
+- Bilans réglés par athlète (table cxs_coach_settings) : activés, jour, rythme 1/2/4 semaines, questions en plus, transit et digestion. Le rappel côté membre suit ce réglage ; sans réglage, l'ancien rappel (vendredi à lundi) reste.
+- Échéances visibles par l'athlète (compte à rebours sur l'accueil) ou privées.
+- Récap de séance : schéma prévu, séries de la dernière fois, écart série par série (+2,5 kg, +1 rep), côté coach et côté membre.
+- Pas d'ouverture aux autres coachs pour l'instant : Thomas reste le seul à percevoir des paiements.
+- L'ancien espace coach (coach/index.html) ne fait déjà plus que rediriger vers coach.html : rien à retirer de plus.
