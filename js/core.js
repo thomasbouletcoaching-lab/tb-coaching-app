@@ -170,7 +170,7 @@ export function adminTabbar(active) {
     db: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="7.5" ry="2.8"/><path d="M4.5 6v12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V6M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8"/></svg>` };
   // Barre du coach : Accueil | Athlètes | Messages | Programmes | Profil (Business, Abonnés, Base de données sont rangés dans Profil)
   const t = [["admin-today", "Accueil", I.home], ["admin", "Athlètes", ic.clients], ["admin-msg", `Messages${adminBadges.msgs ? ` (${adminBadges.msgs})` : ""}`, ic.msgs], ["admin-prog", "Programmes", I.clip], ["admin-profile", "Profil", I.user]];
-  const PARENT = { "admin-biz": "admin-profile", "admin-subs": "admin-profile", "admin-db": "admin-profile", "admin-social": "admin-profile", member: "admin", live: "admin", chat: "admin-msg", "member-prog": "admin", "member-food": "admin" };
+  const PARENT = { "admin-biz": "admin-profile", "admin-subs": "admin-profile", "admin-db": "admin-profile", "admin-social": "admin-profile", "admin-reseau": "admin-profile", "admin-invites": "admin", member: "admin", live: "admin", chat: "admin-msg", "member-prog": "admin", "member-food": "admin" };
   active = PARENT[active] || active;
   const ix = Math.max(0, t.findIndex(([r]) => r === active));
   return `<nav class="tabbar" aria-label="Espace coach" style="--n:${t.length};--i:${ix}"><span class="lens" aria-hidden="true"></span>${t.map(([r, l, i]) => `<a href="#/${r}" class="tab" ${r === active ? 'aria-current="page"' : ""}>${i}<span>${l}</span></a>`).join("")}</nav>`;

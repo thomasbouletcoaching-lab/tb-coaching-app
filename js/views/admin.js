@@ -12,6 +12,7 @@ import { filterExercises, ficheSheet } from "./train.js";
 import { openRecipeEditor } from "./food.js";
 import { alerts as adhAlerts, STATUS } from "../adherence.js";
 import { loadBibliotheque, bibliothequeBody, mountBibliotheque } from "./bibliotheque.js";
+import * as RS from "../reseau.js";
 
 // ---------- Données ----------
 const A = { members: null, sums: {}, threads: {}, at: 0, err: null, store: { todo: [], biz: null, notes: {}, handled: {}, dismiss: {}, events: [] } };
@@ -21,16 +22,17 @@ async function load(force = false) {
   const c = await cloud(); if (!c) { A.err = "Pas de connexion au serveur."; return; }
   try {
     await (c.currentSession().then(u => u || c.ensureSession()));
-    const [ms, sums, th, st, nut] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled", "dismiss", "events"]).catch(() => ({})), c.nutriRecent(7).catch(() => [])]);
+    const [ms, sums, th, st, nut] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled", "dismiss", "events", "tags", "seances"]).catch(() => ({})), c.nutriRecent(7).catch(() => [])]);
     A.members = ms.filter(m => m.name || m.email); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.snapAt = Object.fromEntries(sums.map(x => [x.user_id, x.updated_at])); A.threads = th; A.nutri = {}; (nut || []).forEach(r => { (A.nutri[r.user_id] = A.nutri[r.user_id] || []).push(r); });
-    A.store = { todo: st.todo?.items || [], biz: st.biz || BIZ0(), notes: st.notes || {}, handled: st.handled || {}, dismiss: st.dismiss || {}, events: st.events?.items || [] };
+    A.store = { todo: st.todo?.items || [], biz: st.biz || BIZ0(), notes: st.notes || {}, handled: st.handled || {}, dismiss: st.dismiss || {}, events: st.events?.items || [], tags: st.tags || {}, seances: st.seances?.items || [] };
     A.store.biz.payments = A.store.biz.payments || []; A.store.biz.cycles = A.store.biz.cycles || []; A.store.biz.settings = A.store.biz.settings || {};
+    A.invites = await c.invites().catch(() => []);
     window.__members = ms; A.at = Date.now(); A.err = null;
     adminBadges.msgs = A.members.reduce((a, m) => a + (A.threads[m.id]?.unread || 0), 0);
   } catch (e) { A.err = e.message; }
 }
 async function saveStore(key) {
-  const c = await cloud(); const v = key === "todo" || key === "events" ? { items: A.store[key] } : A.store[key];
+  const c = await cloud(); const v = key === "todo" || key === "events" || key === "seances" ? { items: A.store[key] } : A.store[key];
   try { await c.storeSet(key, v); } catch (e) { toast("Enregistrement impossible : " + e.message); }
 }
 const priceOf = (id) => { const o = offer(id); return parseFloat(String(o.price).replace(/[^\d,]/g, "").replace(",", ".")) || 0; };
@@ -258,7 +260,8 @@ actions["adm-new"] = () => {
   const url = location.origin + location.pathname, txt = `Je t'ouvre ton espace dans TB my Coach, l'app de mon coaching. Ouvre ce lien, crée ton profil en 2 minutes avec ton e-mail, et ajoute l'app à ton écran d'accueil : ${url}`;
   sheet(`<h2 class="h2">+ Nouveau client</h2><p class="small muted mt4">Ton client crée son compte lui-même depuis le lien. Dès qu'il a fini son profil, il apparaît ici : active ensuite sa formule de coaching dans « Abonnés ».</p>
     <div class="card soft mt12"><p class="small" style="margin:0">${esc(txt)}</p></div>
-    <div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="adm-share" data-t="${esc(txt)}">Partager l'invitation</button><button class="btn btn-line grow" data-a="adm-copy" data-t="${esc(txt)}">Copier</button></div>`);
+    <div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="adm-share" data-t="${esc(txt)}">Partager l'invitation</button><button class="btn btn-line grow" data-a="adm-copy" data-t="${esc(txt)}">Copier</button></div>
+    <div class="card mt16"><b class="small">🔑 Ou prépare son espace avant son inscription</b><p class="xs muted mt4">Formule, programme, bilans : tout est prêt. Il reçoit un code ; à son inscription (avec ce code ou le même e-mail), il retrouve tout.</p><button class="btn btn-line btn-sm mt8" data-a="inv-new">Préparer un athlète</button></div>`);
 };
 actions["adm-share"] = async (b, d) => { try { await navigator.share({ text: d.t }); } catch { navigator.clipboard?.writeText(d.t); toast("Invitation copiée"); } };
 actions["adm-copy"] = (b, d) => { navigator.clipboard?.writeText(d.t); toast("Copié"); };
@@ -299,7 +302,7 @@ routes["admin-today"] = async () => {
 routes.admin = async () => {
   if (!(await guard("admin"))) return;
   await ensureReady().catch(() => { });
-  frame("admin", `${athletesHead()}${clientsBlock()}${candBlock()}${bulkBlock()}<div class="adm-links mt12"><button class="adm-link" data-a="adm-rank">🏆 Classement des clients</button><button class="adm-link" data-a="go" data-r="kb">📘 Méthode & théorie</button></div>${fabBtn()}`, "Athlètes");
+  frame("admin", `${athletesHead()}${invitesBlock()}${clientsBlock()}${candBlock()}${bulkBlock()}<div class="adm-links mt12"><button class="adm-link" data-a="adm-rank">🏆 Classement des clients</button><button class="adm-link" data-a="go" data-r="kb">📘 Méthode & théorie</button></div>${fabBtn()}`, "Athlètes");
   const i = document.getElementById("adm-q"); i?.addEventListener("input", () => { UI.q = i.value; clearTimeout(i._t); i._t = setTimeout(() => { const box = document.getElementById("adm-list"); if (box) { const tmp = document.createElement("div"); tmp.innerHTML = clientsBlock(); box.innerHTML = tmp.querySelector("#adm-list").innerHTML; } }, 200); });
 };
 
@@ -617,7 +620,7 @@ actions["fab-todo"] = () => sheet(`<h2 class="h2">📋 Nouvelle tâche</h2><form
 actions["fab-bulk"] = () => { closeSheet(); UI.open.bulk = true; go("admin"); setTimeout(() => document.querySelector('[data-fold="bulk"]')?.scrollIntoView({ block: "start" }), 400); };
 
 // ---------- Programmes : modèles prêts à assigner ----------
-let PQ = "", PTAB = "sport";
+let PQ = "", PTAB = "sport", TAGF = "";
 const progOf = (r) => r.data?.s ? r.data : r.data?.program || r.data;
 routes["admin-prog"] = async () => {
   if (!(await guard("admin-prog"))) return;
@@ -630,13 +633,19 @@ routes["admin-prog"] = async () => {
       <div class="row between mt16"><b class="lbl" style="margin:0">Plans envoyés</b><span class="xs muted">${plans.length}</span></div>
       ${plans.length ? plans.map(r => { const k = (r.data?.meals || []).flatMap(m => m.items || []).reduce((a, x) => a + (x.kcal || 0), 0), m = (A.members || []).find(x => x.id === r.data?.for); return `<div class="card mt8"><b class="small">${esc(r.name)}</b><div class="xs muted mt4">${fr(k)} kcal · ${(r.data?.meals || []).length} repas${m ? " · pour " + esc(first(m)) : ""}</div><button class="btn btn-line btn-sm mt8" style="width:100%" data-a="plan-assign" data-id="${r.id}">Assigner à un athlète</button></div>`; }).join("") : `<p class="empty small">Tes plans alimentaires envoyés apparaîtront ici, réutilisables.</p>`}`;
   } else {
-    const mine = LIB("program").filter(r => !q || N.norm(r.name).includes(q));
-    const bank = E.programs().filter(p => !p.custom && !p.lib && (!q || N.norm(p.name + " " + (p.cat || "")).includes(q))).slice(0, q ? 40 : 10);
-    const card = (p, id, libId) => { const w = E.weeksOf(p) || p.weeks || 0, n = p.s?.length || 0; return `<div class="card mt8"><div class="row" style="gap:12px;align-items:center"><div style="text-align:center;min-width:42px"><b class="num" style="font-size:24px;color:var(--good,#22A45D)">${w || "–"}</b><div class="xs muted">sem.</div></div><div class="grow" style="min-width:0"><b class="small">${esc(p.name)}</b><div class="xs muted mt4">${n} séance${n > 1 ? "s" : ""} · ${p.days?.filter?.(Boolean).length || n}/sem.${p.cat ? " · " + esc(p.cat) : ""}</div></div></div>
+    const tagOk = (id) => !TAGF || tagsOf(id).includes(TAGF);
+    const mine = LIB("program").filter(r => (!q || N.norm(r.name).includes(q)) && tagOk((E.extra.programs.find(x => x.lib === r.id) || {}).id || "lib:" + r.id));
+    const bank = E.programs().filter(p => !p.custom && !p.lib && (!q || N.norm(p.name + " " + (p.cat || "")).includes(q)) && tagOk(p.id)).slice(0, q || TAGF ? 40 : 10);
+    const allTags = [...new Set(Object.values(A.store.tags || {}).flat())].sort((a, b) => a.localeCompare(b, "fr"));
+    const seances = (A.store.seances || []).filter(x => !q || N.norm(x.name).includes(q));
+    const card = (p, id, libId) => { const w = E.weeksOf(p) || p.weeks || 0, n = p.s?.length || 0; return `<div class="card mt8"><div class="row" style="gap:12px;align-items:center"><div style="text-align:center;min-width:42px"><b class="num" style="font-size:24px;color:var(--good,#22A45D)">${w || "–"}</b><div class="xs muted">sem.</div></div><div class="grow" style="min-width:0"><b class="small">${esc(p.name)}</b><div class="xs muted mt4">${n} séance${n > 1 ? "s" : ""} · ${p.days?.filter?.(Boolean).length || n}/sem.${p.cat ? " · " + esc(p.cat) : ""}</div>${tagsOf(id).length ? `<div class="mt4">${tagsOf(id).map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}</div><button class="icon-btn sm" data-a="tag-edit" data-id="${esc(id)}" aria-label="Étiquettes">🏷️</button></div>
       <div class="row mt8" style="gap:8px"><button class="btn btn-red btn-sm grow" data-a="prog-assign" data-id="${esc(id)}">Assigner à un athlète</button>${libId ? `<button class="btn btn-line btn-sm" style="width:auto" data-a="go" data-r="builder" data-p="lib/${libId}">Modifier</button>` : ""}</div></div>`; };
     body = `<button class="card tap grad mt12" data-a="go" data-r="builder" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:26px">＋</span><span class="grow"><b>Nouveau programme</b><br><span class="small" style="opacity:.85">Séances, exercices, cycles : tu composes</span></span></button>
+      ${allTags.length ? `<div class="mt12">${chips([["", "Toutes"], ...allTags.map(t => [t, esc(t)])], TAGF, "tag-filter")}</div>` : ""}
       <div class="row between mt16"><b class="lbl" style="margin:0">Mes modèles</b><span class="xs muted">${mine.length}</span></div>
       ${mine.length ? mine.map(r => { const p = E.extra.programs.find(x => x.lib === r.id) || progOf(r); return p?.s ? card(p, p.id || "lib:" + r.id, r.id) : ""; }).join("") : `<p class="xs muted mt4">Crée un programme avec « Nouveau programme » : il sera réutilisable pour tous tes athlètes.</p>`}
+      <div class="row between mt16"><b class="lbl" style="margin:0">Mes séances modèles</b><span class="xs muted">${seances.length}</span></div>
+      ${seances.length ? `<div class="card mt4" style="padding:4px 8px">${seances.map(x => `<div class="li" style="gap:8px"><span class="grow small"><b>${esc(x.name)}</b><br><span class="xs muted">${x.rows.length} exercice${x.rows.length > 1 ? "s" : ""} · ${esc(x.rows.slice(0, 3).map(r => r[0]).join(", "))}${x.rows.length > 3 ? "…" : ""}</span></span><button class="icon-btn sm" data-a="seance-del" data-id="${x.id}" aria-label="Supprimer le modèle">${I.close}</button></div>`).join("")}</div>` : `<p class="xs muted mt4">Dans l'éditeur de programme, « 💾 Modèle » sur une séance la range ici ; « + Séance depuis un modèle » la réutilise.</p>`}
       <div class="row between mt16"><b class="lbl" style="margin:0">La banque</b><span class="xs muted">${E.programs().filter(p => !p.custom && !p.lib).length} programmes</span></div>
       ${bank.map(p => card(p, p.id)).join("")}`;
   }
@@ -646,6 +655,23 @@ routes["admin-prog"] = async () => {
   const i = document.getElementById("pq"); i?.addEventListener("change", () => { PQ = i.value; rerender(); });
 };
 actions["prog-tab"] = (b, d) => { PTAB = d.v; rerender(); };
+// Étiquettes des programmes (Force, Débutant, Perte de poids…) : rangées dans l'espace coach, filtrables
+const tagsOf = (id) => (A.store?.tags || {})[id] || [];
+actions["tag-filter"] = (b, d) => { TAGF = d.v; rerender(); };
+actions["tag-edit"] = (b, d) => {
+  const all = [...new Set([...Object.values(A.store.tags || {}).flat(), "Force", "Hypertrophie", "Perte de poids", "Débutant", "Reprise", "Hybride"])].sort((a, b) => a.localeCompare(b, "fr"));
+  sheet(`<h2 class="h2">🏷️ Étiquettes</h2><form data-f="tag-save" class="mt12"><input type="hidden" name="id" value="${esc(d.id)}">
+    <div class="chips wrap">${all.map(t => `<label class="chip ${tagsOf(d.id).includes(t) ? "on" : ""}"><input type="checkbox" name="t" value="${esc(t)}" ${tagsOf(d.id).includes(t) ? "checked" : ""} style="display:none" onchange="this.parentNode.classList.toggle('on',this.checked)">${esc(t)}</label>`).join("")}</div>
+    <label class="field mt12"><span>Nouvelle étiquette</span><input name="nw" maxlength="24" placeholder="Ex. Prépa compétition"></label>
+    <button class="btn btn-red mt12">Enregistrer</button></form>`);
+};
+forms["tag-save"] = async (v) => {
+  const f = document.querySelector('form[data-f="tag-save"]'), list = [...f.querySelectorAll('input[name="t"]:checked')].map(x => x.value);
+  if ((v.nw || "").trim()) list.push(v.nw.trim());
+  A.store.tags = { ...(A.store.tags || {}) }; if (list.length) A.store.tags[v.id] = [...new Set(list)]; else delete A.store.tags[v.id];
+  await saveStore("tags"); closeSheet(); rerender();
+};
+actions["seance-del"] = async (b, d) => { if (!confirm("Supprimer ce modèle de séance ?")) return; A.store.seances = (A.store.seances || []).filter(x => x.id !== +d.id); await saveStore("seances"); rerender(); };
 const pickMember = (title, act, id) => sheet(`<h2 class="h2">${esc(title)}</h2><p class="xs muted">Choisis l'athlète : tu pourras encore tout ajuster avant d'envoyer.</p><div class="list mt12">${(A.members || []).filter(isClient).concat((A.members || []).filter(m => !isClient(m))).map(m => `<button class="li" data-a="${act}" data-id="${esc(id)}" data-m="${m.id}"><span class="ava">${esc(initials(m))}</span><span class="grow"><b class="small">${esc(first(m))}</b><br><span class="xs muted">${esc(offer(m.tier).name)}</span></span>${I.chev}</button>`).join("")}</div>`);
 actions["prog-assign"] = (b, d) => pickMember("Assigner ce programme", "prog-assign-go", d.id);
 actions["prog-assign-go"] = async (b, d) => {
@@ -667,8 +693,43 @@ routes["admin-profile"] = async () => {
   const tile = (r, ic, l, sub) => `<button class="tile" data-a="go" data-r="${r}"><span class="tile-ic">${ic}</span><span><b>${l}</b><br><span class="xs muted">${sub}</span></span></button>`;
   frame("admin-profile", `<div class="card grad mt12"><div class="xs" style="opacity:.8;letter-spacing:.08em;text-transform:uppercase">Coach</div><div class="row mt8" style="gap:14px;align-items:center"><span class="ava big">${esc(((p.name || "T B").split(" ").map(x => x[0]).join("") || "TB").slice(0, 2).toUpperCase())}</span><div><b class="h2">${esc(p.name || "Thomas Boulet")}</b><div class="small" style="opacity:.9">${team.length} athlète${team.length > 1 ? "s" : ""} en coaching · ${all.length} membres</div></div></div></div>
     <h2 class="sec">Pilotage</h2>
-    <div class="tiles">${tile("admin-biz", "📈", "Business", "Revenus, paiements, objectifs")}${tile("admin-subs", "⭐", "Abonnés", "Formules et abonnements")}${tile("admin-db", "🗄️", "Base de données", "Aliments, recettes, exercices")}${tile("admin-social", "🏟️", "Communauté", "Modération, parrainage")}</div>
+    <div class="tiles">${tile("admin-biz", "📈", "Business", "Revenus, paiements, objectifs")}${tile("admin-subs", "⭐", "Abonnés", "Formules et abonnements")}${tile("admin-db", "🗄️", "Base de données", "Aliments, recettes, exercices")}${tile("admin-reseau", "📣", "Réseau privé", "Annonces, sondages, défis, absence")}${tile("admin-social", "🏟️", "Communauté", "Modération, parrainage")}</div>
     <h2 class="sec">Mon compte</h2>
     <div class="list">${[["settings", "⚙️", "Réglages"], ["kb", "📘", "Méthode & théorie"], ["account", "👤", "Mon compte"]].map(([r, e, l]) => `<button class="li" data-a="go" data-r="${r}"><span class="em">${e}</span><span class="grow">${l}</span>${I.chev}</button>`).join("")}
       <a class="li" href="./"><span class="em">🏋️</span><span class="grow">Mon espace athlète<br><span class="xs muted">Ton propre suivi, séparé de ton espace coach</span></span>${I.chev}</a></div>`, "Profil");
 };
+
+// ---------- Athlète préparé avant son inscription (code coach) ----------
+function invitesBlock() {
+  const l = (A.invites || []).filter(x => !x.used_by); if (!l.length) return "";
+  return `<div class="row between mt12"><b class="lbl" style="margin:0">🔑 Préparés, pas encore inscrits</b><span class="xs muted">${l.length}</span></div>
+    <div class="card mt4" style="padding:4px 8px">${l.map(x => `<div class="li" style="gap:8px"><span class="grow small"><b>${esc(x.name || x.email || x.code)}</b><br><span class="xs muted">${esc(x.code)}${x.tier ? " · " + esc(offer(x.tier).name) : ""}${x.program ? " · programme prêt" : ""} · créé ${ago(x.created_at)}</span></span><button class="icon-btn sm" data-a="inv-share" data-code="${esc(x.code)}" aria-label="Partager">📤</button><button class="icon-btn sm" data-a="inv-del" data-code="${esc(x.code)}" aria-label="Supprimer">${I.close}</button></div>`).join("")}</div>`;
+}
+const invLink = (code) => location.origin + location.pathname.replace(/coach\.html$/, "") + "?coach=" + code;
+actions["inv-new"] = async () => {
+  await E.loadPrograms(); await refreshLibrary().catch(() => { });
+  const progs = [...LIB("program").map(r => ["lib:" + r.id, r.name]), ...E.programs().filter(p => !p.custom && !p.lib).slice(0, 60).map(p => [p.id, String(p.name).split("·")[0].trim()])];
+  sheet(`<h2 class="h2">🔑 Préparer un athlète</h2><form data-f="inv-new" class="mt12">
+    <div class="grid2"><label class="field"><span>Prénom et nom</span><input name="name" maxlength="60" required></label><label class="field"><span>E-mail (facultatif)</span><input name="email" type="email" maxlength="120"></label></div>
+    <div class="grid2 mt8"><label class="field"><span>Formule</span><select name="tier"><option value="">À choisir plus tard</option>${assignable().filter(o => o.rank >= 1).map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}</select></label><label class="field"><span>Jusqu'au (facultatif)</span><input type="date" name="until" min="${today()}"></label></div>
+    <label class="field mt8"><span>Programme prêt (facultatif)</span><select name="prog"><option value="">Aucun pour l'instant</option>${progs.map(([id, n]) => `<option value="${esc(id)}">${esc(n)}</option>`).join("")}</select></label>
+    <label class="li mt8" style="padding:6px 0"><span class="grow small">Bilan chaque dimanche dès son arrivée</span><input type="checkbox" name="bilan" checked></label>
+    <label class="field mt8"><span>Note pour toi</span><input name="note" maxlength="200" placeholder="Ex. rencontré au club, reprise après blessure"></label>
+    <button class="btn btn-red mt12">Créer son code</button></form>`);
+};
+forms["inv-new"] = async (v) => {
+  const code = RS.codeInvitation();
+  let program = null;
+  if (v.prog) { program = v.prog.startsWith("lib:") ? progOf(libraryRows().find(r => r.id === +v.prog.slice(4))) : E.program(v.prog); program = program ? JSON.parse(JSON.stringify(program)) : null; if (program) { program.custom = true; program.id = "coach-" + Date.now(); } }
+  const row = { code, name: v.name.trim(), email: (v.email || "").trim().toLowerCase() || null, tier: v.tier || null, tier_until: v.until || null, program, settings: v.bilan ? { bilan: { on: true, dow: 6, every: 1, from: today(), questions: [], digest: false } } : null, note: (v.note || "").trim() || null };
+  try { const c = await cloud(); await c.inviteSave(row); A.invites = [row, ...(A.invites || [])]; closeSheet(); invShareSheet(row); }
+  catch (e) { toast("Création impossible : " + e.message); }
+};
+function invShareSheet(x) {
+  const txt = `${String(x.name || "").split(" ")[0] || "Salut"}, ton espace TB my Coach est prêt${x.program ? " avec ton programme" : ""}. Ouvre ce lien et crée ton compte : tout sera là. Ton code : ${x.code}\n${invLink(x.code)}`;
+  sheet(`<h2 class="h2">✅ Espace prêt</h2><div class="card soft mt12 center"><div class="xs muted">Code</div><b class="num" style="font-size:30px;letter-spacing:.08em">${esc(x.code)}</b></div><div class="card mt8"><p class="small" style="margin:0;white-space:pre-wrap">${esc(txt)}</p></div>
+    <div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="adm-share" data-t="${esc(txt)}">Partager</button><button class="btn btn-line grow" data-a="adm-copy" data-t="${esc(txt)}">Copier</button></div>`);
+  rerender();
+}
+actions["inv-share"] = (b, d) => { const x = (A.invites || []).find(i => i.code === d.code); if (x) invShareSheet(x); };
+actions["inv-del"] = async (b, d) => { if (!confirm("Supprimer cette invitation ?")) return; try { const c = await cloud(); await c.inviteDel(d.code); A.invites = (A.invites || []).filter(i => i.code !== d.code); rerender(); } catch (e) { toast("Impossible : " + e.message); } };

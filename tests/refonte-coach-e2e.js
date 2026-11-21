@@ -80,15 +80,19 @@ const overflow = (p) => p.evaluate(() => [...document.querySelectorAll('#app *')
   const sums = [{ user_id: U1, summary: { today: ago(1), lastActive: ago(1), adh: { score: 80, status: 'ok', trend: 2, week: 80, prev: 78, age: 20 }, agenda: [] }, updated_at: new Date().toISOString(), data: { ...STATE, coachSettings: undefined } }];
   const SB_COACH = `
 const DB = ${JSON.stringify({ members, sums, COACH })};
-window.__settings = {};
+window.__settings = {}; window.__pub = {}; window.__inv = []; window.__store = {};
 function q(table, rpc) {
   const st = { table, rpc, f: {}, one: false, up: null };
   const res = () => {
     let d = null;
     if (rpc === 'cxs_inbox') d = [];
-    else if (rpc) d = null;
+    else if (rpc && rpc !== 'cxs_poll_results') d = null;
     else if (table === 'cxs_profiles') d = st.f.id === DB.COACH ? { id: DB.COACH, email: 'coach@exemple.fr', name: 'Thomas', tier: 'surmesure', is_coach: true } : DB.members;
     else if (table === 'cxs_member_data') d = st.f.user_id ? (DB.sums.find(s => s.user_id === st.f.user_id) || null) : DB.sums.map(s => ({ user_id: s.user_id, summary: s.summary, updated_at: s.updated_at }));
+    else if (table === 'cxs_coach_public') { if (st.up) { window.__pub[st.up.key] = st.up.value; d = null; } else d = Object.entries(window.__pub).map(([key, value]) => ({ key, value })); }
+    else if (table === 'cxs_coach_store') { if (st.up) { window.__store[st.up.key] = st.up.value; d = null; } else d = Object.entries(window.__store).map(([key, value]) => ({ key, value })); }
+    else if (table === 'cxs_invites') { if (st.up) { window.__inv.push(st.up); d = null; } else d = window.__inv; }
+    else if (rpc === 'cxs_poll_results') d = [];
     else if (table === 'cxs_coach_settings') { if (st.up) { window.__settings[st.up.user_id] = st.up.data; d = null; } else d = window.__settings[st.f.user_id] ? { data: window.__settings[st.f.user_id] } : null; }
     else d = st.one ? null : [];
     return { data: d, error: null, count: 0 };
@@ -140,6 +144,44 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   await c.p.click('[data-a="mb-tab"][data-v="seances"]').catch(() => {}); await c.p.waitForTimeout(500);
   t = await txt(c.p);
   ok(/\+2,5 kg/.test(t) || /Dernière fois/.test(t), 'séances côté coach : écarts avec la dernière fois');
+
+  // ---------- Étape 2 côté coach ----------
+  await c.p.click('[data-a="mb-tab"][data-v="suivi"]'); await c.p.waitForTimeout(400);
+  await c.p.click('[data-a="mb-fb"]'); await c.p.waitForTimeout(300);
+  await c.p.fill('form[data-f="mb-fb"] textarea', 'Super semaine Karim'); await c.p.click('form[data-f="mb-fb"] .btn-red'); await c.p.waitForTimeout(700);
+  saved = await c.p.evaluate((u) => window.__settings[u], U1);
+  ok(saved?.feedback?.txt === 'Super semaine Karim' && saved.deadlines?.length === 1, 'mot du coach publié sans perdre le reste');
+  await go(c.p, 'admin-reseau'); await c.p.waitForTimeout(800);
+  ok(/Mode absence/.test(await txt(c.p)) && /Sondages/.test(await txt(c.p)), 'réseau privé : page');
+  await c.p.click('[data-a="net-abs"]'); await c.p.waitForTimeout(300);
+  await c.p.fill('form[data-f="net-abs"] input[name="to"]', iso(new Date(Date.now() + 5 * 864e5))); await c.p.click('form[data-f="net-abs"] .btn-red'); await c.p.waitForTimeout(700);
+  ok((await c.p.evaluate(() => window.__pub.absence))?.on === true && /En cours/.test(await txt(c.p)), 'mode absence activé');
+  await c.p.click('[data-a="net-poll"]'); await c.p.waitForTimeout(300);
+  await c.p.fill('form[data-f="net-poll"] input[name="q"]', 'Horaire du cours ?'); await c.p.fill('form[data-f="net-poll"] textarea', 'Mardi\nJeudi');
+  await c.p.click('form[data-f="net-poll"] .btn-red'); await c.p.waitForTimeout(700);
+  ok((await c.p.evaluate(() => window.__pub.sondages?.items?.[0]?.opts?.length)) === 2, 'sondage créé');
+  await c.p.click('[data-a="net-defi"]'); await c.p.waitForTimeout(300);
+  await c.p.fill('form[data-f="net-defi"] input[name="title"]', 'Décembre 12 séances'); await c.p.fill('form[data-f="net-defi"] input[name="to"]', iso(new Date(Date.now() + 20 * 864e5)));
+  await c.p.click('form[data-f="net-defi"] .btn-red'); await c.p.waitForTimeout(700);
+  await c.p.click('[data-a="net-an"]'); await c.p.waitForTimeout(300);
+  await c.p.fill('form[data-f="net-an"] input[name="title"]', 'Info'); await c.p.fill('form[data-f="net-an"] textarea', 'Salle fermée lundi');
+  await c.p.click('form[data-f="net-an"] .btn-red'); await c.p.waitForTimeout(700);
+  t = await txt(c.p);
+  ok(/Décembre 12 séances/.test(t) && /Salle fermée lundi/.test(t) && /Horaire du cours/.test(t), 'défi, annonce et sondage listés');
+  ok((await overflow(c.p)).length === 0, 'réseau privé : rien ne dépasse');
+  await shot(c.p, 'refonte-coach-reseau');
+  await go(c.p, 'admin'); await c.p.click('.fab'); await c.p.waitForTimeout(300);
+  await c.p.evaluate(() => { const b = document.createElement('button'); b.dataset.a = 'inv-new'; document.body.appendChild(b); b.click(); }); await c.p.waitForTimeout(900);
+  await c.p.fill('form[data-f="inv-new"] input[name="name"]', 'Julie Test'); await c.p.click('form[data-f="inv-new"] .btn-red'); await c.p.waitForTimeout(800);
+  t = await txt(c.p, 'body');
+  ok(/Espace prêt/.test(t) && /TB-[A-Z0-9]{5}/.test(t) && /\?coach=TB-/.test(t), 'athlète préparé : code et lien');
+  await c.p.click('[data-a="sheet-close"], .sheet-wrap .backdrop').catch(() => {}); await c.p.evaluate(() => document.querySelector('.sheet-wrap')?.remove());
+  await go(c.p, 'admin'); await c.p.waitForTimeout(500);
+  ok(/Préparés, pas encore inscrits/.test(await txt(c.p)) && /Julie Test/.test(await txt(c.p)), 'athlètes : préparés listés');
+  await go(c.p, 'admin-prog'); await c.p.waitForTimeout(800);
+  await c.p.click('[data-a="tag-edit"]'); await c.p.waitForTimeout(300);
+  await c.p.fill('form[data-f="tag-save"] input[name="nw"]', 'Force max'); await c.p.click('form[data-f="tag-save"] .btn-red'); await c.p.waitForTimeout(700);
+  ok(/Force max/.test(await txt(c.p)) && Object.keys((await c.p.evaluate(() => window.__store.tags)) || {}).length === 1, 'programmes : étiquette posée et filtre');
   ok(c.errs.length === 0, 'coach : aucune erreur JavaScript' + (c.errs.length ? ' (' + c.errs.slice(0, 3).join(' | ') + ')' : ''));
   await b.close();
   console.log(`\n${passed} vérifications réussies, ${fails} échec(s).`);

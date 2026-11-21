@@ -109,6 +109,7 @@ function programBody(ns) {
       <p class="small mt8">Tu es en <b>semaine ${ns.week}</b> sur ${ns.weeks} · ${esc(ns.phase)}</p><div class="gauge mt8" style="background:rgba(255,255,255,.25)"><i style="width:${Math.round((ns.week - 1 + weekDone(ns.week) / p.s.length) / ns.weeks * 100)}%;background:#fff"></i></div>
       <div class="row mt12" style="gap:8px;flex-wrap:wrap"><button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;width:auto" data-a="bd-copy" data-id="${esc(p.id)}">✏️ Modifier le programme</button><button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;width:auto" data-a="soc-prog" data-id="${esc(p.id)}">📤 Montrer</button></div></div>
     ${weekRingsTraining()}
+    ${phaseFrise(p, ns.weeks, ns.week)}
     <div class="chips mt12">${chipsW}</div>
     <div class="card mt8"><div class="row between"><div><b class="h3">Semaine ${vw}</b> <span class="tag ${vw === ns.week ? "r" : ""}">${vw === ns.week ? "en cours" : vw < ns.week ? "passée" : "à venir"}</span><div class="xs muted mt4">${esc(E.phaseOf(p, vw))} · ${done.size}/${p.s.length} séances faites</div></div>
       ${vw !== ns.week ? `<button class="btn btn-line btn-xs" data-a="cy-place" data-v="${vw}">Me placer ici</button>` : ""}</div>
@@ -546,7 +547,7 @@ function exerciseBlock(ex, xi) {
         <button class="tick" data-a="tick" data-x="${xi}" data-s="${si}" aria-label="Valider la série">${I.check}</button>
         <div class="setmeta">${meta}${ex.unit === "s" && s.type !== "W" ? ` <button class="chip sm" data-a="chrono" data-x="${xi}" data-s="${si}">⏱️ Chrono</button>` : ""}</div></div></div>`;
     }).join("")}
-    <div class="row mt8" style="gap:8px"><button class="btn btn-ghost btn-xs" data-a="add-set" data-x="${xi}">+ Série</button><button class="btn btn-ghost btn-xs" data-a="add-set" data-x="${xi}" data-t="W">+ Échauffement</button></div>
+    <div class="row mt8" style="gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-xs" data-a="add-set" data-x="${xi}">+ Série</button><button class="btn btn-ghost btn-xs" data-a="add-set" data-x="${xi}" data-t="W">+ Échauffement</button>${ex.sets.some(s => !s.done) && ex.sets.length > 1 ? `<button class="btn btn-ghost btn-xs" data-a="ex-all" data-x="${xi}" style="margin-left:auto">✓ Tout valider</button>` : ""}</div>
     <label class="field mt8"><span>📝 Note sur l'exercice (réglages, sensations, douleur…)</span><textarea rows="1" data-i="exnote" data-x="${xi}" placeholder="Ex. siège cran 4, gêne épaule droite">${esc(ex.myNote || "")}</textarea></label>
   </article>`;
 }
@@ -704,9 +705,22 @@ actions["pg-e1"] = (b, d) => {
 };
 actions["ex-rest"] = (b, d) => {
   const ex = S().current.exercises[+d.x];
-  sheet(`<h2 class="h2">Temps de repos</h2><p class="small muted">${esc(ex.name)}</p><div class="chips wrap mt12">${[45, 60, 75, 90, 120, 150, 180, 240, 300].map(x => `<button class="chip ${ex.rest === x ? "on" : ""}" data-a="ex-rest-set" data-x="${d.x}" data-v="${x}">${Math.floor(x / 60)}:${String(x % 60).padStart(2, "0")}</button>`).join("")}</div><p class="xs muted mt12">Le minuteur démarre tout seul dès que tu valides une série.</p>`);
+  sheet(`<h2 class="h2">Temps de repos</h2><p class="small muted">${esc(ex.name)}</p><div class="chips wrap mt12">${[45, 60, 75, 90, 120, 150, 180, 240, 300].map(x => `<button class="chip ${ex.rest === x ? "on" : ""}" data-a="ex-rest-set" data-x="${d.x}" data-v="${x}">${Math.floor(x / 60)}:${String(x % 60).padStart(2, "0")}</button>`).join("")}</div><label class="li mt12" style="padding:6px 0"><span class="grow small">📌 Toujours ce repos pour ${esc(ex.name)}</span><input type="checkbox" id="rest-keep" ${S().restFor?.[ex.name] ? "checked" : ""} style="width:22px;height:22px;accent-color:var(--red)"></label><p class="xs muted mt8">Le minuteur démarre tout seul dès que tu valides une série.</p>`);
 };
-actions["ex-rest-set"] = (b, d) => { S().current.exercises[+d.x].rest = +d.v; save(); closeSheet(); rerender(); };
+actions["ex-rest-set"] = (b, d) => {
+  const ex = S().current.exercises[+d.x], keep = document.getElementById("rest-keep")?.checked;
+  update(st => { st.current.exercises[+d.x].rest = +d.v; st.restFor = st.restFor || {}; if (keep) st.restFor[ex.name] = +d.v; else delete st.restFor[ex.name]; });
+  closeSheet(); rerender();
+};
+// Tout valider : chaque série pas encore faite est validée avec ce qui est écrit (ou la cible), un seul minuteur ensuite
+actions["ex-all"] = (b, d) => {
+  const ex = S().current.exercises[+d.x], todo = ex.sets.filter(s => !s.done); if (!todo.length) return;
+  let last = null; const recs = [];
+  ex.sets.forEach(s => { if (s.done) { if (s.kg != null) last = s.kg; return; } if (s.kg == null && last != null && s.type !== "W") s.kg = last; if (s.reps == null) s.reps = s.lo; s.done = true; if (s.kg != null) last = s.kg; if (s.type !== "W") recs.push(...recordsFor(ex, s)); });
+  save(); buzz(25); rerender(); toast(`${todo.length} série${todo.length > 1 ? "s" : ""} validée${todo.length > 1 ? "s" : ""}`);
+  if (recs.length) setTimeout(() => celebrate(ex.name, recs), 250);
+  startRest(ex.rest);
+};
 actions["ex-more"] = (b, d) => {
   const xi = +d.x, ex = S().current.exercises[xi], L = S().current.exercises.length;
   sheet(`<h2 class="h2">${esc(ex.name)}</h2><div class="list mt12">
@@ -1027,16 +1041,19 @@ routes.builder = async () => {
   $app.innerHTML = header(D.forMember ? "Programme de " + esc(D.forMember.name) : D.from ? "Personnaliser" : "Créer mon programme", "", { back: D.forMember ? "admin" : "train" }) + `<main class="page">
     <label class="field"><span>Nom</span><input data-c="bd" data-k="name" value="${esc(D.name)}" maxlength="70"></label>
     <div class="grid2 mt8"><label class="field"><span>Durée du cycle</span><select data-c="bd" data-k="weeks">${Array.from({ length: 14 }, (_, i) => i + 3).map(w => `<option ${D.weeks === w ? "selected" : ""} value="${w}">${w} semaines</option>`).join("")}</select></label>
-      <label class="field"><span>Semaines d'allègement</span><select data-c="bd-deload">${D.phases ? `<option value="phases" selected>Selon les phases du programme</option>` : ""}<option value="4" ${dl === "4" ? "selected" : ""}>Toutes les 4 semaines</option><option value="5" ${dl === "5" ? "selected" : ""}>Toutes les 5 semaines</option><option value="6" ${dl === "6" ? "selected" : ""}>Toutes les 6 semaines</option><option value="last" ${dl === "last" ? "selected" : ""}>Dernière semaine du cycle</option><option value="none" ${dl === "none" ? "selected" : ""}>Aucune</option></select></label></div>
+      <label class="field"><span>Semaines d'allègement</span><select data-c="bd-deload"><option value="phases" ${D.phases ? "selected" : ""}>Par phases nommées</option><option value="4" ${dl === "4" ? "selected" : ""}>Toutes les 4 semaines</option><option value="5" ${dl === "5" ? "selected" : ""}>Toutes les 5 semaines</option><option value="6" ${dl === "6" ? "selected" : ""}>Toutes les 6 semaines</option><option value="last" ${dl === "last" ? "selected" : ""}>Dernière semaine du cycle</option><option value="none" ${dl === "none" ? "selected" : ""}>Aucune</option></select></label></div>
     <div class="field mt8"><span>Jours d'entraînement</span><div class="row" style="gap:4px">${E.DAY_SHORT.map((l, i) => `<button class="chip sm ${D.days[i] ? "on" : ""}" data-a="bd-day" data-v="${i}" style="padding:6px 10px">${l}</button>`).join("")}</div></div>
-    ${D.s.map((se, si) => `<div class="card mt16" id="bd-s-${si}"><div class="row" style="gap:6px"><input class="inp grow" data-c="bd-s" data-s="${si}" value="${esc(se[0])}" aria-label="Nom de la séance" style="text-align:left;font-weight:800">${D.s.length > 1 ? `<button class="icon-btn" data-a="bd-smv" data-s="${si}" data-v="-1" aria-label="Monter la séance" ${si ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn" data-a="bd-sdel" data-s="${si}" aria-label="Supprimer la séance">${I.close}</button>` : ""}</div>
+    ${D.phases ? `<div class="field mt8"><span>Phases (touche une semaine pour la renommer)</span><div class="phases-row hscroll">${D.phases.map((ph, i) => `<button class="ph ph-${phaseKey(ph)}" data-a="bd-ph" data-v="${i}"><b>S${i + 1}</b><span>${esc(ph === "Deload" ? "Allègement" : ph)}</span></button>`).join("")}</div></div>` : ""}
+    ${D.s.map((se, si) => `<div class="card mt16" id="bd-s-${si}"><div class="row" style="gap:6px"><input class="inp grow" data-c="bd-s" data-s="${si}" value="${esc(se[0])}" aria-label="Nom de la séance" style="text-align:left;font-weight:800">${D.s.length > 1 ? `<button class="icon-btn" data-a="bd-smv" data-s="${si}" data-v="-1" aria-label="Monter la séance" ${si ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn" data-a="bd-sdel" data-s="${si}" aria-label="Supprimer la séance">${I.close}</button>` : ""}${isCoach() ? `<button class="icon-btn" data-a="bd-stpl" data-s="${si}" aria-label="Ranger la séance dans mes modèles">💾</button>` : ""}</div>
       ${se[2].map((r, ri) => { const x = r[5], pr = x.prog || {}; const rules = [pr.load === "double" ? `double progression jusqu'à ${pr.to || "?"} reps puis +${String(pr.step).replace(".", ",")}${x.sets.some(z => z.pct) ? " %" : " kg"}` : pr.load !== "auto" ? `${pr.load === "rpe" ? "RPE" : "charge"} +${String(pr.step).replace(".", ",")}${pr.load === "pct" ? " %" : pr.load === "kg" ? " kg" : ""}${pr.every > 1 ? ` / ${pr.every} sem.` : " / sem."}` : "progression auto", pr.addSet?.every ? `+1 série / ${pr.addSet.every} sem.` : "", pr.reps?.every ? `${pr.reps.delta > 0 ? "+" : ""}${pr.reps.delta} rep / ${pr.reps.every} sem.` : "", Object.keys(x.weeks || {}).length ? `${Object.keys(x.weeks).length} sem. écrites` : ""].filter(Boolean).join(" · ");
-        return `<div class="bd-ex"><div class="row" style="gap:6px;align-items:flex-start"><span class="num xs" style="width:18px;padding-top:3px">${ri + 1}</span><button class="grow" style="text-align:left" data-a="bd-edit" data-s="${si}" data-r="${ri}"><b class="small" style="color:var(--red)">${r[3] ? `[${esc(r[3])}] ` : ""}${esc(r[0])}</b><br><span class="xs">S1 : ${esc(E.setsTxt(E.weekPlan(x, 1, D).sets).replace(/x/g, "×") || "aucune série")}</span><br><span class="xs muted">${esc(rules)}</span></button>
-          <div class="col" style="gap:4px"><button class="icon-btn sm" data-a="bd-rmv" data-s="${si}" data-r="${ri}" data-v="-1" aria-label="Monter" ${ri ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn sm" data-a="bd-rmv" data-s="${si}" data-r="${ri}" data-v="1" aria-label="Descendre" ${ri < se[2].length - 1 ? "" : "disabled style=\"opacity:.3\""}>↓</button></div></div></div>`; }).join("")}
+        const nx = se[2][ri + 1], linked = r[3] && nx && nx[3] === r[3];
+        return `<div class="bd-ex ${r[3] ? "ss" : ""}"><div class="row" style="gap:6px;align-items:flex-start"><span class="num xs" style="width:18px;padding-top:3px">${ri + 1}</span><button class="grow" style="text-align:left" data-a="bd-edit" data-s="${si}" data-r="${ri}">${r[3] ? `<span class="tag r">🔗 Superset ${esc(r[3])}</span> ` : ""}${x.ab ? `<span class="tag">${x.ab === "A" ? "Semaines A (impaires)" : "Semaines B (paires)"}</span> ` : ""}<br><b class="small" style="color:var(--red)">${esc(r[0])}</b><br><span class="xs">S1 : ${esc(E.setsTxt(E.weekPlan(x, 1, D).sets).replace(/x/g, "×") || "aucune série")}</span><br><span class="xs muted">${esc(rules)}</span></button>
+          <div class="col" style="gap:4px"><button class="icon-btn sm" data-a="bd-rmv" data-s="${si}" data-r="${ri}" data-v="-1" aria-label="Monter" ${ri ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn sm" data-a="bd-rmv" data-s="${si}" data-r="${ri}" data-v="1" aria-label="Descendre" ${ri < se[2].length - 1 ? "" : "disabled style=\"opacity:.3\""}>↓</button></div></div>
+          <div class="row" style="gap:4px 12px;padding-left:24px;flex-wrap:wrap"><button class="link xs" data-a="bd-ab" data-s="${si}" data-r="${ri}">${x.ab ? "A/B : " + x.ab : "Alterner A/B"}</button>${nx ? `<button class="link xs" data-a="bd-link" data-s="${si}" data-r="${ri}">${linked ? "✂️ Délier" : "🔗 Superset avec ↓"}</button>` : ""}</div></div>`; }).join("")}
       <button class="btn btn-line btn-sm mt12" data-a="bd-add" data-s="${si}" style="width:100%">+ Exercices</button></div>`).join("")}
     <button class="btn btn-line mt12" style="width:100%" data-a="vol-open">🧮 Construire par volume hebdo (séries par muscle, MV → MRV)</button>
     <button class="btn btn-red mt12" style="width:100%" data-a="go" data-r="builder-weeks">📅 Écrire la séance semaine par semaine</button>
-    <button class="btn btn-ghost mt12" data-a="bd-sadd">+ Ajouter une séance</button>
+    <button class="btn btn-ghost mt12" data-a="bd-sadd">+ Ajouter une séance</button>${isCoach() ? `<button class="btn btn-ghost mt8" data-a="bd-sfrom">+ Séance depuis un modèle</button>` : ""}
     <p class="xs muted mt12">Touche un exercice pour écrire ses séries, ses règles de surcharge et chaque semaine du cycle. Les charges en % se calculent sur ton 1RM estimé.</p>
     ${D.forMember ? `<button class="btn btn-red mt12" style="width:100%" data-a="bd-send">Envoyer à ${esc(D.forMember.name)}</button><p class="xs muted mt8">Le programme remplace celui du client ; sa semaine en cours est conservée.</p>` : `<div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="bd-save">Enregistrer</button><button class="btn btn-line grow" data-a="bd-use">Enregistrer et suivre</button></div>`}
     ${isCoach() ? `<label class="field mt12"><span>Pour qui (affiché dans la banque)</span><input data-c="bd" data-k="prof" value="${esc(D.prof || "")}" placeholder="Ex. père de famille, 3 séances, reprise"></label><button class="btn btn-red mt8" data-a="bd-publish" style="width:100%">📤 ${D.lib ? "Mettre à jour dans la banque des membres" : "Publier dans la banque des membres"}</button>` : ""}
@@ -1044,8 +1061,8 @@ routes.builder = async () => {
   </main>${tabbar("train")}`;
   if (bdFocus != null) { const el = document.getElementById("bd-s-" + bdFocus); bdFocus = null; if (el) { el.scrollIntoView({ block: "start" }); el.style.boxShadow = "0 0 0 2px var(--red) inset"; } }
 };
-changes.bd = (el) => { const k = el.dataset.k; draft[k] = k === "weeks" ? +el.value : el.value; if (k === "weeks" && draft.phases) draft.phases = Array.from({ length: +el.value }, (_, i) => draft.phases[i] || "Accumulation"); rerender(); };
-changes["bd-deload"] = (el) => { const v = el.value; if (v === "phases") return; delete draft.phases; draft.deload = v === "none" ? null : v === "last" ? { w: [draft.weeks] } : { every: +v }; rerender(); };
+changes.bd = (el) => { const k = el.dataset.k; draft[k] = k === "weeks" ? +el.value : el.value; if (k === "weeks") draft.s.forEach(se => se[2].forEach(r => { const x = r[5]; if (x?.ab) for (let w = 1; w <= +el.value; w++) if ((w % 2 === 1) !== (x.ab === "A")) { x.weeks = x.weeks || {}; x.weeks[w] = []; } })); if (k === "weeks" && draft.phases) draft.phases = Array.from({ length: +el.value }, (_, i) => draft.phases[i] || "Accumulation"); rerender(); };
+changes["bd-deload"] = (el) => { const v = el.value; if (v === "phases") { if (!draft.phases) { const W = draft.weeks || 8; draft.phases = Array.from({ length: W }, (_, i) => i === W - 1 ? "Deload" : i < Math.ceil(W / 2) ? "Accumulation" : "Intensification"); delete draft.deload; } return rerender(); } delete draft.phases; draft.deload = v === "none" ? null : v === "last" ? { w: [draft.weeks] } : { every: +v }; rerender(); };
 changes["bd-s"] = (el) => { draft.s[+el.dataset.s][0] = el.value; };
 actions["bd-day"] = (b, d) => { draft.days[+d.v] = !draft.days[+d.v]; rerender(); };
 actions["bd-sadd"] = () => { draft.s.push([`Séance ${String.fromCharCode(65 + draft.s.length)}`, "", []]); rerender(); };
@@ -1330,3 +1347,52 @@ actions["ex-ss-next"] = (b, d) => {
   update(st => { const a = st.current.exercises, i = +d.x, used = a.map(e => e.ss).filter(Boolean); const l = a[i].ss || a[i + 1].ss || "ABCDEFGH".split("").find(x => !used.includes(x)) || "A"; a[i].ss = l; a[i + 1].ss = l; });
   closeSheet(); rerender(); toast("Superset créé");
 };
+
+// ---------- Éditeur : phases nommées, semaines A/B, supersets visuels, modèles de séance ----------
+export const PHASES = ["Accumulation", "Intensification", "Réalisation", "Deload", "Test"];
+export const phaseKey = (ph) => ({ Accumulation: "acc", Intensification: "int", "Réalisation": "rea", Deload: "dl", "Allègement": "dl", Test: "test" })[ph] || "perso";
+actions["bd-ph"] = (b, d) => {
+  const i = +d.v, cur = draft.phases[i];
+  sheet(`<h2 class="h2">Semaine ${i + 1}</h2><div class="chips wrap mt12">${PHASES.map(p => `<button class="chip ${cur === p ? "on" : ""}" data-a="bd-ph-set" data-i="${i}" data-v="${p}">${p === "Deload" ? "Allègement" : p}</button>`).join("")}</div>
+    <form data-f="bd-ph" class="mt12"><input type="hidden" name="i" value="${i}"><label class="field"><span>Ou un nom à toi</span><input name="nm" maxlength="24" value="${PHASES.includes(cur) ? "" : esc(cur)}" placeholder="Ex. Prépa compétition"></label><label class="li mt8" style="padding:6px 0"><span class="grow small">Appliquer aussi aux semaines suivantes</span><input type="checkbox" name="all"></label><button class="btn btn-red mt8">OK</button></form>`);
+};
+const setPhase = (i, v, all) => { for (let k = i; k < (all ? draft.phases.length : i + 1); k++) draft.phases[k] = v; closeSheet(); rerender(); };
+actions["bd-ph-set"] = (b, d) => setPhase(+d.i, d.v, false);
+forms["bd-ph"] = (v) => { const nm = (v.nm || "").trim(); if (nm) setPhase(+v.i, nm, !!v.all); else closeSheet(); };
+// A/B : l'exercice ne tombe qu'une semaine sur deux (A = semaines impaires, B = paires). Les autres semaines restent écrites à la main.
+actions["bd-ab"] = (b, d) => {
+  const x = draft.s[+d.s][2][+d.r][5], W = draft.weeks || 8, next = !x.ab ? "A" : x.ab === "A" ? "B" : null;
+  x.weeks = x.weeks || {};
+  for (let w = 1; w <= W; w++) { if (Array.isArray(x.weeks[w]) && !x.weeks[w].length) delete x.weeks[w]; }
+  if (next) for (let w = 1; w <= W; w++) if ((w % 2 === 1) !== (next === "A")) x.weeks[w] = [];
+  if (next) x.ab = next; else delete x.ab;
+  rerender();
+};
+actions["bd-link"] = (b, d) => {
+  const a = draft.s[+d.s][2], i = +d.r, r = a[i], n = a[i + 1]; if (!n) return;
+  if (r[3] && n[3] === r[3]) { n[3] = null; if (!(a[i - 1] && a[i - 1][3] === r[3])) r[3] = null; }
+  else { const used = a.map(x => x[3]).filter(Boolean); const l = r[3] || n[3] || "ABCDEFGH".split("").find(x => !used.includes(x)) || "A"; r[3] = l; n[3] = l; }
+  rerender();
+};
+// Modèles de séance (coach) : rangés dans l'espace coach, réutilisables dans n'importe quel programme
+async function seancesTpl() { const c = await cloud(); const st = await c.storeGet(["seances"]); return { c, items: st.seances?.items || [] }; }
+actions["bd-stpl"] = async (b, d) => {
+  const se = draft.s[+d.s]; if (!se[2].length) return toast("Séance vide");
+  try { const { c, items } = await seancesTpl(); items.push({ id: Date.now(), name: String(se[0]).split("·")[0].trim(), rows: JSON.parse(JSON.stringify(se[2])) }); await c.storeSet("seances", { items }); toast("Séance rangée dans tes modèles"); }
+  catch (e) { toast("Enregistrement impossible : " + e.message); }
+};
+actions["bd-sfrom"] = async () => {
+  try { const { items } = await seancesTpl(); window.__tpl = items;
+    sheet(`<h2 class="h2">Séance depuis un modèle</h2>${items.length ? `<div class="list mt12">${items.map(x => `<button class="li" data-a="bd-sfrom-go" data-id="${x.id}"><span class="grow small"><b>${esc(x.name)}</b><br><span class="xs muted">${x.rows.length} exercices · ${esc(x.rows.slice(0, 3).map(r => r[0]).join(", "))}</span></span>${I.chev}</button>`).join("")}</div>` : `<p class="small muted mt8">Aucun modèle : touche 💾 sur une séance pour la ranger.</p>`}`);
+  } catch (e) { toast("Chargement impossible : " + e.message); }
+};
+actions["bd-sfrom-go"] = (b, d) => { const x = (window.__tpl || []).find(t => t.id === +d.id); if (!x) return; draft.s.push([x.name, "", JSON.parse(JSON.stringify(x.rows))]); closeSheet(); bdFocus = draft.s.length - 1; rerender(); };
+
+// Frise des phases du cycle : blocs consécutifs (accumulation, intensification, allègement…), semaine en cours marquée
+export function phaseFrise(p, W, cur) {
+  const bl = []; for (let w = 1; w <= W; w++) { const ph = E.phaseOf(p, w), l = bl[bl.length - 1]; if (l && l.ph === ph) l.n++; else bl.push({ ph, n: 1, from: w }); }
+  if (bl.length < 2) return "";
+  return `<div class="card mt12"><div class="row between"><b class="small">🧭 Les phases de ton cycle</b><span class="xs muted">semaine ${cur}/${W}</span></div>
+    <div class="frise mt8">${bl.map(b => `<div class="fz ph-${phaseKey(b.ph)} ${cur >= b.from && cur < b.from + b.n ? "on" : ""}" style="flex:${b.n}"><b>${esc(b.ph)}</b><span>S${b.from}${b.n > 1 ? "–" + (b.from + b.n - 1) : ""}</span></div>`).join("")}</div>
+    <div class="frise-pin" style="left:${((cur - 0.5) / W * 100).toFixed(1)}%"></div></div>`;
+}

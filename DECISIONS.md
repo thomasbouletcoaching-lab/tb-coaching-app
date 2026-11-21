@@ -274,3 +274,12 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 - Récap de séance : schéma prévu, séries de la dernière fois, écart série par série (+2,5 kg, +1 rep), côté coach et côté membre.
 - Pas d'ouverture aux autres coachs pour l'instant : Thomas reste le seul à percevoir des paiements.
 - L'ancien espace coach (coach/index.html) ne fait déjà plus que rediriger vers coach.html : rien à retirer de plus.
+
+## C66 · Refonte de l'espace coach, étape 2 (21/11/2026)
+- Thème sombre : pas de réglage dans l'app, il suit celui du téléphone (décision de Thomas).
+- Programmes : étiquettes (Force, Débutant…) et filtre ; modèles de séance (💾 dans l'éditeur, « + Séance depuis un modèle »).
+- Éditeur : supersets visuels (lier un exercice au suivant), exercices en semaines A (impaires) ou B (paires), phases nommées semaine par semaine (Accumulation, Intensification, Réalisation, Allègement, Test ou nom libre).
+- Athlète préparé avant son inscription : formule, programme, bilans. Code TB-XXXXX et lien ?coach= ; rattachement par le code ou le même e-mail (fonction cxs_invite_claim, table cxs_invites, coach seul).
+- Côté athlète : frise des phases du cycle, mot du coach en haut de l'accueil, repos retenu par exercice, « ✓ Tout valider » par exercice.
+- Réseau privé (Profil › Réseau privé) : mode absence (bandeau sur Coaching et Messages), annonces (épinglables), sondages (votes anonymes entre membres), défis de groupe (séances, jours de repas notés, minutes de cardio ; prénom et score visibles par le groupe, score calculé sur le téléphone).
+- Tables : cxs_coach_public (lecture membres, écriture coach), cxs_poll_votes (+ cxs_poll_results), cxs_defi_parts.

@@ -10,6 +10,8 @@ import { checkinCard } from "./checkin.js";
 import { memberSuivi } from "./suivi-coach.js";
 import * as BR from "../bilan-reglages.js";
 import { recapExercice, serieTxt } from "../recap.js";
+import { absenceBanner, reseauBlock } from "./reseau.js";
+import { claimInvite } from "../sync.js";
 import { myAdherence, summaryBetween, checkins as myCheckins, defiDay, since as sinceStart } from "../progress.js";
 import { coachLogo, trialLeft, $app, esc, num, fr, buzz, toast, ago, routes, R, actions, forms, changes, go, I, header, tabbar, adminTabbar, seg, chips, sheet, closeSheet, badges, fmtDate, addDays, rerender, tier, rank, premium, isCoach, msgQuotaText, cloud, cloudNow, render, onLeave, canMsg, locked } from "../core.js";
 import { refreshMe, syncProfile } from "../sync.js";
@@ -26,12 +28,14 @@ routes.coach = async () => {
   $app.innerHTML = header("Coaching", esc(CONFIG.coachName), { actions: bubble, offers: false }) + `<main class="page">
     ${badges.msgs || badges.notifs ? `<button class="card tap mt12" data-a="${badges.msgs ? "coach-msg" : "notifs"}" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left;box-shadow:0 0 0 2px var(--red) inset"><span style="font-size:26px">🔔</span><span class="grow"><b>${badges.msgs ? `${badges.msgs} nouveau${badges.msgs > 1 ? "x" : ""} message${badges.msgs > 1 ? "s" : ""} de Thomas` : `${badges.notifs} notification${badges.notifs > 1 ? "s" : ""} de ton coach`}</b><br><span class="small muted">Touche pour lire</span></span>${I.chev}</button>`
       : `<p class="small muted mt12">${coached ? "Aucune nouvelle notification de ton coach." : "Les messages avec Thomas sont réservés aux personnes coachées."}</p>`}
+    ${absenceBanner()}${coached ? "" : `<button class="card tap mt12" data-a="code-coach" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:24px">🔑</span><span class="grow"><b class="small">J'ai un code de Thomas</b><br><span class="xs muted">Il a préparé ton espace : entre ton code pour le retrouver</span></span>${I.chev}</button>`}
     ${await defiCard()}${adherenceCard()}${checkinCard()}
     <div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="go" data-r="bilan">📝 Mon bilan</button><button class="btn btn-line btn-sm grow" data-a="go" data-r="bilans">Mes bilans</button><button class="btn btn-line btn-sm grow" data-a="go" data-r="rapport">📤 Rapport</button></div>
     <h2 class="sec">📋 Mon programme du coach</h2>
     ${progs.length || plans.length ? `${progs.map(r => { const id = "lib-" + r.id, on = curP === id; return `<div class="card"><div class="lbl">🏋️ Entraînement</div><b class="h3">${esc(r.name)}</b><p class="small muted mt4">${esc(r.data?.desc || "Écrit pour toi par Thomas.")}</p>${on ? `<span class="tag r">Programme suivi</span> <button class="link small" data-a="go" data-r="carnet">Ouvrir le carnet</button>` : `<button class="btn btn-red btn-sm mt8" data-a="coach-follow" data-id="${id}">Suivre ce programme</button>`}</div>`; }).join("")}
       ${plans.map(r => { const k = (r.data?.meals || []).flatMap(m => m.items || []).reduce((a, x) => a + (x.kcal || 0), 0); return `<div class="card"><div class="lbl">🍽️ Nutrition</div><b class="h3">${esc(r.name)}</b><p class="small muted mt4">${(r.data?.meals || []).length} repas · ${fr(k)} kcal par jour${r.data?.note ? " · " + esc(r.data.note) : ""}</p><button class="btn ${S().coachPlanId === r.id ? "btn-line" : "btn-red"} btn-sm mt8" data-a="coach-plan" data-id="${r.id}">${S().coachPlanId === r.id ? "✓ Plan appliqué · le réappliquer" : "Appliquer ce plan à mon journal"}</button></div>`; }).join("")}`
       : `<div class="card"><p class="small" style="margin:0">${coached ? "Thomas t'envoie ici ton programme d'entraînement et ton plan alimentaire, écrits pour toi. Ils apparaissent dès qu'il les a préparés." : "Avec le coaching personnalisé, Thomas écrit ton programme d'entraînement et ton plan alimentaire : ils arrivent ici, et il suit tes séances et ton journal."}</p>${coached ? "" : `<button class="btn btn-red btn-sm mt12" data-a="go" data-r="apply">Candidater au coaching</button>`}</div>`}
+    ${await reseauBlock()}
     <h2 class="sec">🎯 Ta formule <small>${esc(o.name)}</small></h2>
     ${rank() >= 2 ? followUp() : `<button class="card tap" data-a="go" data-r="offers" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left"><span style="font-size:28px">🚀</span><span class="grow"><b>${premium() ? "Passer au coaching avec Thomas" : "Voir les offres"}</b><br><span class="small muted">${premium() ? "Programme et plan écrits pour toi, bilans, messages" : `Bâtisseur : ${TRIAL_DAYS} jours offerts, puis 19,99 €/mois`}</span></span>${I.chev}</button>`}
     ${rank() >= 2 ? `<button class="card tap mt12" data-a="go" data-r="offers" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left"><span class="grow"><b>Toutes les offres</b><br><span class="small muted">Comparer et changer de formule</span></span>${I.chev}</button>` : ""}
@@ -230,7 +234,7 @@ routes.chat = async () => {
   const memberId = isCoach() ? R.param : null;
   const m = memberId ? (window.__members || []).find(x => x.id === memberId) : null;
   $app.innerHTML = header(memberId ? esc(m?.name || "Membre") : "Thomas", memberId ? esc(m?.email || "") : "Je réponds moi-même", { back: memberId ? "admin-msg" : "coach" })
-    + `<main class="page" style="padding-bottom:calc(100px + var(--safe-b))"><div class="thread" id="thread"><p class="empty small">Chargement…</p></div>${memberId ? readyBar() : ""}${memberId ? "" : `<p class="xs muted center">${msgQuotaText()} · touche un message pour réagir</p>`}</main>
+    + `<main class="page" style="padding-bottom:calc(100px + var(--safe-b))">${memberId ? "" : absenceBanner()}<div class="thread" id="thread"><p class="empty small">Chargement…</p></div>${memberId ? readyBar() : ""}${memberId ? "" : `<p class="xs muted center">${msgQuotaText()} · touche un message pour réagir</p>`}</main>
     <form class="composer" data-f="send"><textarea name="v" rows="1" placeholder="Ton message" maxlength="2000" aria-label="Message">${esc(window.__prefill || "")}</textarea><button type="button" class="send" id="rec-btn" data-a="rec" aria-label="Message vocal">🎙️</button><button class="send" aria-label="Envoyer">${I.send}</button></form>`;
   window.__prefill = "";
   const load = async (first) => {
@@ -501,7 +505,10 @@ function fileCards(m, D) {
   const plan = D.myPlan?.meals?.length ? D.myPlan.meals : null, kcal = plan ? plan.flatMap(x => x.items || []).reduce((a, i) => a + (i.kcal || 0), 0) : null, t = N.targets();
   const nb = ns?.p?.s?.length || 0, startD = D.plan?.startedAt;
   const lastCi = (D.checkins || []).at(-1);
-  return `<div class="row between mt16"><b class="lbl" style="margin:0">Programme sport</b><span class="xs muted">${ns ? "1 actif" : "aucun"}</span></div>
+  const fb = st.feedback;
+  return `<div class="row between mt16"><b class="lbl" style="margin:0">Mon mot sur son accueil</b><button class="link xs" data-a="mb-fb">${fb?.txt ? "Modifier" : "+ Écrire"}</button></div>
+    ${fb?.txt ? `<div class="card mt4 soft"><p class="small" style="margin:0;white-space:pre-wrap">${esc(fb.txt)}</p><div class="xs muted mt4">Écrit le ${fmtDate(fb.d, { day: "numeric", month: "long" })}${fb.seen ? ` · lu le ${fmtDate(fb.seen, { day: "numeric", month: "long" })}` : " · pas encore lu"}</div></div>` : `<p class="xs muted mt4">Un retour sur sa semaine, une consigne : il le voit en haut de son accueil.</p>`}
+    <div class="row between mt16"><b class="lbl" style="margin:0">Programme sport</b><span class="xs muted">${ns ? "1 actif" : "aucun"}</span></div>
     ${ns ? `<div class="card grad mt4"><div class="xs" style="opacity:.85">● EN COURS · VISIBLE PAR ${esc((m.name || "l'athlète").split(" ")[0].toUpperCase())}</div><b class="h3 mt4" style="display:block">${esc(ns.p.name)}</b>
       <div class="xs mt4" style="opacity:.9">${startD ? `Depuis le ${fmtDate(startD, { day: "numeric", month: "short" })} · ` : ""}semaine ${ns.week}/${ns.weeks} · ${nb} séance${nb > 1 ? "s" : ""}/sem. · ${esc(ns.phase)}</div>
       <div class="row mt12" style="gap:8px"><button class="btn btn-sm grow" style="background:rgba(255,255,255,.2);color:#fff" data-a="mb-tab" data-v="agenda">🗓️ Planning</button><button class="btn btn-sm grow" style="background:#fff;color:var(--ink)" data-a="go" data-r="member-prog" data-p="${esc(m.id)}">✏️ Modifier</button></div></div>`
@@ -550,3 +557,12 @@ function recapLine(w, e) {
   const col = (x) => x > 0 ? "var(--good)" : x < 0 ? "var(--red)" : "var(--muted)";
   return `<div class="xs mt4" style="line-height:1.5">${r.prevu ? `<span class="muted">Prévu ${esc(r.prevu.replace(/x/g, "×"))}</span>` : ""}${r.avant.length ? `${r.prevu ? " · " : ""}<span class="muted">Dernière fois (${fmtDate(today(new Date(r.avantLe)), { day: "numeric", month: "short" })}) : ${r.avant.map(serieTxt).join(" · ")}</span><br>${r.series.map((x, i) => `S${i + 1} <b style="color:${col(x.ecart.sens)}">${esc(x.ecart.txt)}</b>`).join(" · ")}` : ""}</div>`;
 }
+
+actions["mb-fb"] = () => sheet(`<h2 class="h2">💬 Mon mot sur son accueil</h2><form data-f="mb-fb" class="mt12"><label class="field"><span>Ton retour (vide = retirer)</span><textarea name="txt" rows="5" maxlength="600" placeholder="Belle semaine : 3 séances sur 3. On garde le cap, et on vise 8 000 pas par jour.">${esc(mbr.settings?.feedback?.txt || "")}</textarea></label><button class="btn btn-red mt12">Publier</button></form>`);
+forms["mb-fb"] = async (v) => {
+  const txt = (v.txt || "").trim(), feedback = txt ? { txt, d: today() } : null;
+  if (await saveSettings({ feedback })) { closeSheet(); toast(txt ? "Publié sur son accueil" : "Retiré"); if (txt) { try { const c = await cloud(); await c.notify("💬 Un mot de Thomas", txt.slice(0, 120), mbr.id); } catch { } } rerender(); }
+};
+
+actions["code-coach"] = () => sheet(`<h2 class="h2">🔑 Mon code coach</h2><form data-f="code-coach" class="mt12"><label class="field"><span>Code reçu de Thomas</span><input name="code" maxlength="12" placeholder="TB-XXXXX" autocapitalize="characters" required></label><button class="btn btn-red mt12">Valider</button></form>`);
+forms["code-coach"] = async (v) => { const c = await cloud(); const r = await claimInvite(c, v.code.trim().toUpperCase()); if (r) { closeSheet(); rerender(); } else toast("Code inconnu ou déjà utilisé"); };

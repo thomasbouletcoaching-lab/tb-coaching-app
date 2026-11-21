@@ -35,6 +35,7 @@ import "./views/soutenabilite.js";
 import "./views/fatigue.js";
 import "./views/profil.js";
 import "./views/hybride.js";
+import "./views/reseau.js";
 import { captureInvitation, pullSocial } from "./views/social.js";
 import { pullLive } from "./views/live.js";
 import { pullCoachFood } from "./views/coachfood.js";
@@ -50,6 +51,7 @@ window.addEventListener("hashchange", render);
   await Promise.all([E.loadPrograms(), N.loadModels()]).catch(() => { });
   if (S().profile && !S().trialStart) update(st => st.trialStart = today());
   if (S().demoTier) update(st => st.demoTier = null); // plus de mode démo : essai de TRIAL_DAYS jours (Défi 30 jours)
+  try { const u = new URL(location.href), cc = u.searchParams.get("coach"); if (cc) { update(st => { st.coachCode = cc.trim().toUpperCase(); st.inviteDone = false; }); u.searchParams.delete("coach"); history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams : "") + u.hash); } } catch { }
   try { captureInvitation(); } catch (e) { console.warn("Lien d'invitation illisible :", e.message); }
   render();
   refreshMe().then(() => { if (["home", "coach", "account", "offers"].includes(R.route) && !document.querySelector(".sheet-wrap, .composer, input:focus, textarea:focus")) render(); });
@@ -70,7 +72,7 @@ window.addEventListener("hashchange", render);
     if (S().plan?.programId && (done || (S().customPrograms || []).some(p => p.id === "tb-main"))) return;
     const { restoreMigrated } = await import("./views/account.js"); const r = await restoreMigrated(); if (r?.p) { try { localStorage.setItem("cxs.progHeal", "2"); } catch { } } if (r?.p && ["home", "train", "workout"].includes(R.route)) render(); } catch (e) { console.warn("Programme non rechargé :", e.message); } }, 2500);
   // Quand l'app revient au premier plan : programme et séance du coach tout de suite (pas d'attente de 5 min)
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { pullCoachPlan(); pullFood(); pullLive(); pullSocial(); } });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { pullCoachPlan(); pullCoachSettings(); pullFood(); pullLive(); pullSocial(); } });
   // Pas de menu « lien » sur un appui long dans la barre du bas ou sur les liens internes
   document.addEventListener("contextmenu", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });
   document.addEventListener("dragstart", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });

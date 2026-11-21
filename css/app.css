@@ -724,3 +724,19 @@ a.card{text-decoration:none;color:inherit}
 .tag.st-pl{color:var(--soft)}
 .fab{position:fixed;right:max(16px,calc(50% - 300px));bottom:calc(96px + var(--safe-b));z-index:30;width:56px;height:56px;border-radius:50%;border:0;background:#F26B4F;color:#fff;box-shadow:0 10px 24px rgba(242,107,79,.4);display:flex;align-items:center;justify-content:center}
 .fab svg{width:26px;height:26px}
+/* Refonte étape 2 : supersets visuels, phases, frise */
+.bd-ex.ss{border-left:3px solid var(--red);padding-left:8px;background:var(--tint);border-radius:10px}
+.phases-row{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px}
+.ph{flex:0 0 auto;min-width:64px;border-radius:10px;padding:6px 8px;text-align:left;font-size:11px;line-height:1.25;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+.ph b{display:block;font-size:12px}
+.ph-acc{background:#E6F0FF}.ph-int{background:#FFF0DC}.ph-rea{background:#FFE3E0}.ph-dl{background:#E7F6EC}.ph-test{background:#F1E8FF}.ph-perso{background:#EEF0F3}
+.frise{display:flex;gap:3px;border-radius:10px;overflow:hidden}
+.frise .fz{min-width:0;padding:6px 6px;font-size:10px;line-height:1.2;color:#1b2333;opacity:.7}
+.frise .fz b{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frise .fz.on{opacity:1;box-shadow:inset 0 -3px 0 var(--red)}
+.frise-pin{display:none}
+@media (prefers-color-scheme:dark){.ph-acc,.ph-int,.ph-rea,.ph-dl,.ph-test,.ph-perso{filter:brightness(.55) saturate(1.3);color:#fff}.frise .fz{color:#fff}}
+.pollbar{position:relative;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:var(--chalk);overflow:hidden;font-size:13px}
+.pollbar i{position:absolute;left:0;top:0;bottom:0;background:var(--tint2);border-radius:10px}
+.pollbar span,.pollbar b{position:relative}.pollbar span{flex:1;min-width:0}
+.pollbar.me{box-shadow:0 0 0 1.5px var(--red) inset}

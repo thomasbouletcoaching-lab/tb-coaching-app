@@ -2,7 +2,7 @@
 // Enregistré sur le téléphone (S().checkins) et dans l'instantané du coach ; envoyé aussi en message à Thomas pour les coachés.
 import { S, update, today, listPhotos } from "../store.js";
 import * as E from "../engine.js";
-import { $app, esc, num, fr, toast, routes, actions, forms, go, header, tabbar, cloud, canMsg, fmtDate, buzz, lineChart, I } from "../core.js";
+import { $app, esc, num, fr, toast, routes, actions, forms, go, header, tabbar, cloud, canMsg, fmtDate, buzz, lineChart, I, rerender } from "../core.js";
 import { refreshMe } from "../sync.js";
 import { myAdherence, checkins, checkinThisWeek, lastCheckin, weightAvg7, dayFacts, addDays, mondayOf, defiOn, defiDay } from "../progress.js";
 import { STATUS } from "../adherence.js";
@@ -160,3 +160,10 @@ export function echeancesCard(t = today()) {
   const j = (d) => Math.round((new Date(d + "T12:00:00") - new Date(t + "T12:00:00")) / 864e5);
   return `<div class="card mt12"><div class="lbl">🎯 Échéances fixées par Thomas</div>${l.slice(0, 3).map(e => `<div class="row between mt8"><span class="small"><b>${esc(e.title)}</b><br><span class="xs muted">${fmtDate(e.d, { weekday: "long", day: "numeric", month: "long" })}</span></span><span class="tag r">${j(e.d) === 0 ? "aujourd'hui" : "J-" + j(e.d)}</span></div>`).join("")}</div>`;
 }
+
+// Mot du coach (retour sur la semaine, consigne) : en haut de l'accueil jusqu'à ce que le membre le masque
+export function coachMotCard() {
+  const fb = S().coachSettings?.feedback; if (!fb?.txt || S().fbHidden === fb.d + fb.txt.length) return "";
+  return `<div class="card mt12" style="box-shadow:0 0 0 1.5px var(--red) inset"><div class="row between"><b class="small">💬 Le mot de Thomas</b><button class="icon-btn sm" data-a="fb-hide" aria-label="Masquer">✓</button></div><p class="small mt8" style="margin-bottom:0;white-space:pre-wrap">${esc(fb.txt)}</p><div class="xs muted mt4">${fmtDate(fb.d, { weekday: "long", day: "numeric", month: "long" })}</div></div>`;
+}
+actions["fb-hide"] = () => { const fb = S().coachSettings?.feedback; update(st => { st.fbHidden = fb.d + fb.txt.length; }); rerender(); };

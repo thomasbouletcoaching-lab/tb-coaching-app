@@ -3,7 +3,7 @@ import { PARTAGE_MAX } from "./crise.js";
 import { S, update, today, onSave } from "./store.js";
 import * as E from "./engine.js";
 import * as N from "./nutrition.js";
-import { cloud, badges, isCoach, addDays } from "./core.js";
+import { cloud, badges, isCoach, addDays, toast } from "./core.js";
 import { nutriRow } from "./nutri-totals.js";
 import { myAdherence, lastCheckin, defiDay } from "./progress.js";
 import { pourCoach } from "./programme.js";
@@ -115,7 +115,22 @@ export async function pullCoachSlots() {
 // Réglages posés par le coach (bilans : jour, fréquence, questions ; échéances) : simplement copiés sur le téléphone
 export async function pullCoachSettings() {
   const c = await cloud(); if (!c || !S().profile || !c.myCoachSettings) return;
+  try { if (!(await c.currentSession())) return; } catch { return; }
+  await claimInvite(c);
   try { const d = await c.myCoachSettings(); update(st => { st.coachSettings = d || null; }); } catch { }
+  try { const pub = await c.coachPublic(["absence", "annonces", "sondages", "defis"]); update(st => { st.coachPublic = pub; }); } catch { }
+  try { const { syncDefis } = await import("./views/reseau.js"); await syncDefis(); } catch { }
+}
+// Espace préparé par le coach avant l'inscription : rattaché une fois, par le code reçu (lien ?coach=) ou par l'e-mail
+export async function claimInvite(c, code = S().coachCode) {
+  if (S().inviteDone && !code) return null;
+  try {
+    if (!(await c.currentSession())) return null;
+    const r = await c.inviteClaim(code || null);
+    update(st => { st.inviteDone = true; st.coachCode = null; });
+    if (r) { toast(`🎉 Thomas a préparé ton espace${r.program ? " et ton programme" : ""}`); refreshMe(); pullCoachPlan(); }
+    return r;
+  } catch (e) { console.warn("Invitation coach :", e.message); return null; }
 }
 
 // Programme posé par le coach : remplace le programme actif du membre. La position (semaine, séance) est gardée si elle existe déjà.

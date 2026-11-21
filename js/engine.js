@@ -372,7 +372,7 @@ export function buildSession(at = null) {
     }
     const sug = bw ? null : isAssisted(name) ? assistSuggestion(name, groups.at(-1).rpe || 8, groups.at(-1).hi, step) : suggestion(name, groups.at(-1).rpe || 8, groups.at(-1).lo, groups.at(-1).hi, step);
     if (isAssisted(name) && sug?.kg != null && prev) sets.forEach(x => { if (x.type !== "W" && x.kg === prev.kg) x.kg = sug.kg; });
-    return { orig, name, kind, note: row[2] || "", ss: row[3] || null, tempo: plan?.tempo || row[4] || null, scheme, unit, bw, step, rest: (row[5]?.rest) || REST[kind] || 90, sets, e1: e, bwAdd: addKg, sug, myNote: "", off: !!plan && !plan.sets.length };
+    return { orig, name, kind, note: row[2] || "", ss: row[3] || null, tempo: plan?.tempo || row[4] || null, scheme, unit, bw, step, rest: S().restFor?.[name] || (row[5]?.rest) || REST[kind] || 90, sets, e1: e, bwAdd: addKg, sug, myNote: "", off: !!plan && !plan.sets.length };
   }).filter(e => !e.off);
   return { id: Date.now(), programId: p.id, week, idx: ns.idx % p.s.length, cycle: ns.cycle, title: ns.title, phase: ns.phase, start: new Date().toISOString(), comeback, exercises };
 }

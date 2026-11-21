@@ -419,3 +419,18 @@ export async function myCoachSettings() {
   const { data, error } = await sb.from("cxs_coach_settings").select("data,updated_at").eq("user_id", uid).maybeSingle();
   if (error) throw error; return data?.data || null;
 }
+
+// ---------- Refonte étape 2 : invitations (athlète préparé), infos publiques du coach, sondages, défis de groupe ----------
+export async function invites() { const { data, error } = await sb.from("cxs_invites").select("*").order("created_at", { ascending: false }).limit(200); if (error) throw error; return data || []; }
+export async function inviteSave(row) { const { error } = await sb.from("cxs_invites").upsert(row); if (error) throw error; }
+export async function inviteDel(code) { const { error } = await sb.from("cxs_invites").delete().eq("code", code); if (error) throw error; }
+export async function inviteClaim(code = null) { if (!uid) await ensureSession(); const { data, error } = await sb.rpc("cxs_invite_claim", { p_code: code }); if (error) throw error; return data; }
+export async function coachPublic(keys) { const { data, error } = await sb.from("cxs_coach_public").select("key,value,updated_at").in("key", keys); if (error) throw error; return Object.fromEntries((data || []).map(r => [r.key, r.value])); }
+export async function coachPublicSet(key, value) { const { error } = await sb.from("cxs_coach_public").upsert({ key, value, updated_at: new Date().toISOString() }); if (error) throw error; }
+export async function pollVote(id, choice) { if (!uid) await ensureSession(); const { error } = await sb.from("cxs_poll_votes").upsert({ poll_id: id, user_id: uid, choice, at: new Date().toISOString() }); if (error) throw error; }
+export async function myVotes() { if (!uid) await ensureSession(); const { data, error } = await sb.from("cxs_poll_votes").select("poll_id,choice").eq("user_id", uid); if (error) throw error; return Object.fromEntries((data || []).map(r => [r.poll_id, r.choice])); }
+export async function pollResults(id) { const { data, error } = await sb.rpc("cxs_poll_results", { p_id: id }); if (error) throw error; return Object.fromEntries((data || []).map(r => [r.choice, Number(r.n)])); }
+export async function defiParts(id) { const { data, error } = await sb.from("cxs_defi_parts").select("user_id,alias,value,updated_at").eq("defi_id", id).order("value", { ascending: false }).limit(100); if (error) throw error; return data || []; }
+export async function defiJoin(id, alias, value) { if (!uid) await ensureSession(); const { error } = await sb.from("cxs_defi_parts").upsert({ defi_id: id, user_id: uid, alias, value, updated_at: new Date().toISOString() }); if (error) throw error; }
+export async function defiLeave(id) { if (!uid) await ensureSession(); const { error } = await sb.from("cxs_defi_parts").delete().eq("defi_id", id).eq("user_id", uid); if (error) throw error; }
+export const myUid = () => uid;
