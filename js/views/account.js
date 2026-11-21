@@ -2,7 +2,8 @@
 import * as C from "../cloud.js";
 import { convertTb, tbPosition } from "../tbconvert.js";
 import { S, update, APP_MODE, today } from "../store.js";
-import { refreshMe } from "../sync.js";
+import { refreshMe, pushData } from "../sync.js";
+import { COMPTE_PERSO } from "../config.js";
 import { $app, esc, toast, routes, forms, actions, I, header, tabbar, rerender, go, isCoach } from "../core.js";
 
 let mode = "signin"; // signin | signup | reset
@@ -23,6 +24,7 @@ async function body() {
     return `<div class="card mt12"><div class="lbl">Connexion active</div><p class="mt8" style="margin:0"><b>${esc(email)}</b></p>
       <p class="small muted mt8">Tes séances, ta nutrition et tes mesures restent sur ce téléphone. Le coaching et la messagerie passent par ton compte TB my Coach.</p>
       <button class="btn btn-red mt12" data-a="account-restore">Restaurer mes données TB my Coach</button>
+      ${fusionHtml(email)}
       <button class="btn btn-line mt12" data-a="account-out">Me déconnecter</button></div>`;
   }
   const tab = (m, l) => `<button class="btn ${mode === m ? "btn-red" : "btn-line"} btn-sm" data-a="account-mode" data-v="${m}">${l}</button>`;
@@ -162,3 +164,39 @@ export async function restorePersonalProgram(email = "thomboulet@gmail.com") {
   return true;
 }
 const C_cloud = async () => (await import("../core.js")).cloud();
+
+// Une seule app pour Thomas : son compte athlète (COMPTE_PERSO) est rassemblé dans son compte coach.
+// Étape 1, depuis l'app athlète : copie complète du téléphone. Étape 2, depuis le compte coach (mode Athlète) : récupération et rattachement.
+function fusionHtml(email) {
+  const e = String(email || "").toLowerCase();
+  if (e === COMPTE_PERSO) return `<div class="card mt12" style="background:var(--tint)"><b>Une seule app coach + athlète</b>
+    <p class="small muted mt8">Étape 1 : envoie toutes les données de ce téléphone (séances, carnet, nutrition, mesures, programme) vers ton compte coach.</p>
+    <button class="btn btn-line mt8" data-a="fusion-envoyer">📦 Envoyer mes données au compte coach</button></div>`;
+  if (S().me?.isCoach && APP_MODE !== "coach" && !S().fusionAt) return `<div class="card mt12" style="background:var(--tint)"><b>Récupérer mon suivi athlète</b>
+    <p class="small muted mt8">Étape 2 : reprend ici tout ce qui vient de ${esc(COMPTE_PERSO)}. Ensuite tu bascules Coach ↔ Athlète dans cette app, avec cette adresse.</p>
+    <button class="btn btn-red mt8" data-a="fusion-recuperer">📥 Récupérer mes données athlète</button></div>`;
+  return "";
+}
+const SANS = new Set(["me", "demoTier", "notifSeen", "synced", "fusionAt"]);
+actions["fusion-envoyer"] = async (b) => {
+  b.disabled = true; b.textContent = "Envoi…";
+  try {
+    const st = S(), copie = Object.fromEntries(Object.entries(st).filter(([k]) => !SANS.has(k)));
+    await C.transfertDeposer(JSON.parse(JSON.stringify(copie)));
+    toast("Données envoyées ✅ Ouvre l'app coach › 🏋️ Athlète › Mon compte");
+    b.textContent = "✅ Envoyé · tu peux recommencer si besoin"; b.disabled = false;
+  } catch (e) { b.disabled = false; b.textContent = "📦 Envoyer mes données au compte coach"; toast("Envoi impossible : " + e.message); }
+};
+actions["fusion-recuperer"] = async (b) => {
+  b.disabled = true; b.textContent = "Récupération…";
+  try {
+    const r = await C.transfertRecuperer(COMPTE_PERSO);
+    if (!r?.depot) { toast("Rien reçu : fais d'abord l'étape 1 depuis ton app athlète"); b.disabled = false; b.textContent = "📥 Récupérer mes données athlète"; return; }
+    const n = (r.depot.workouts || []).length;
+    if (!confirm(`Remplacer le suivi athlète de ce compte par celui de ${COMPTE_PERSO} (${n} séances) ? Le reste de ton espace coach ne change pas.`)) { b.disabled = false; b.textContent = "📥 Récupérer mes données athlète"; return; }
+    await C.fusionComptes(r.id); // communauté, messages, analyses vidéo, nutrition serveur… rattachés au compte coach (sauvegarde côté serveur)
+    update(st => { Object.entries(r.depot).forEach(([k, v]) => { if (!SANS.has(k)) st[k] = v; }); st.synced = true; st.fusionAt = new Date().toISOString(); });
+    pushData(true); await refreshMe().catch(() => { });
+    toast(`Suivi récupéré : ${n} séances ✅`); go("home");
+  } catch (e) { b.disabled = false; b.textContent = "📥 Récupérer mes données athlète"; toast("Récupération impossible : " + e.message); }
+};

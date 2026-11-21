@@ -22,7 +22,7 @@ export async function syncProfile() {
   try {
     await c.ensureSession();
     const p = S().profile;
-    await c.saveProfile({ email: p.email, name: p.name, onboarding: { ...p, word: S().settings.word, application: S().application || null } });
+    await c.saveProfile({ ...(S().me?.isCoach ? {} : { email: p.email }), name: p.name, onboarding: { ...p, word: S().settings.word, application: S().application || null } });
     update(st => st.synced = true);
     await refreshMe();
   } catch (e) { console.warn("Synchronisation impossible :", e.message); }

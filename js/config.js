@@ -61,3 +61,6 @@ export const ALL_FREE = false; // essai de TRIAL_DAYS jours (Défi 14 jours), pu
 export const FREE_PROGRAMS = ["tb-rep2", "tb-rep3", "bk-home-rien-30", "bk-sa-dos3-30", "bk-sw-deb3", "bk-bb-fbdeb3-45"];
 export const FREE_WEEKS = 4;
 export const FREE_FAVORITES = 5;
+
+// Compte athlète personnel de Thomas, à rassembler dans son compte coach (une seule app, bascule Coach / Athlète)
+export const COMPTE_PERSO = "thomboulet@gmail.com";

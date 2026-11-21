@@ -494,3 +494,19 @@ export async function videoPartager(d, compteRendu, blob = null) {
 }
 export async function videoVue(id) { const { error } = await sb.rpc("cxs_video_vue", { p_id: id }); if (error) throw error; }
 export async function videoSupprimer(d) { await sb.storage.from("media").remove([d.source_path, d.analyse_path].filter(Boolean)).catch(() => { }); const { error } = await sb.from("cxs_video_demandes").delete().eq("id", d.id); if (error) throw error; }
+
+// Fusion d'un compte athlète dans le compte coach : le téléphone athlète dépose une copie complète,
+// le compte coach la récupère puis rattache les données serveur (cxs_fusion_comptes).
+export async function transfertDeposer(store) {
+  if (!uid) await ensureSession();
+  const { error } = await sb.from("cxs_transferts").upsert({ user_id: uid, data: store, created_at: new Date().toISOString() });
+  if (error) throw error;
+}
+export async function transfertRecuperer(email) {
+  const { data: id, error: e1 } = await sb.rpc("cxs_id_par_email", { p_email: email });
+  if (e1) throw e1; if (!id) return null;
+  const { data, error } = await sb.from("cxs_transferts").select("data,created_at").eq("user_id", id).maybeSingle();
+  if (error) throw error;
+  return { id, depot: data?.data || null, at: data?.created_at || null };
+}
+export async function fusionComptes(src) { const { data, error } = await sb.rpc("cxs_fusion_comptes", { src }); if (error) throw error; return data; }
