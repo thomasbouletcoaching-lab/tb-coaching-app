@@ -544,7 +544,7 @@ export function detailHtml(d) {
   return (d.detail || []).map(e => `<div class="mt12"><b class="small">${esc(e.n)}</b>${e.s.map((x, i) => `<div class="row between xs" style="padding:3px 0;border-bottom:1px solid var(--line)"><span class="muted">Série ${i + 1}</span><span>${serie(x, e.u)}</span></div>`).join("")}</div>`).join("");
 }
 actions["soc-detail"] = (b, d) => {
-  const a = Object.values(FIL).flat().find(x => String(x.id) === String(d.id)); if (!a) return;
+  const a = Object.values(FIL).flat().filter(Boolean).find(x => String(x.id) === String(d.id)); if (!a) return;
   const x = a.data || {}, bits = [x.min ? `${x.min} min` : "", x.series ? `${x.series} séries` : "", x.tonnes ? `${fr(x.tonnes, 1)} t` : ""].filter(Boolean).join(" · ");
   const det = detailHtml(x);
   sheet(`<h2 class="h2">${a.type === "cardio" ? "🏃" : "💪"} ${esc(x.titre || "Séance")}</h2><p class="small muted" style="margin:4px 0 0">${esc(a.pseudo)} · ${quandFait(a)}${bits ? " · " + bits : ""}</p>${det || `<p class="small muted mt12">Cette publication n'a pas gardé le détail des séries. Republie la séance depuis ton journal pour l'afficher ici.</p>`}<button class="btn btn-line mt16" data-a="soc-detail-x">Fermer</button>`);
