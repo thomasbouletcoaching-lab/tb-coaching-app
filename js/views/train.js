@@ -564,7 +564,7 @@ function exerciseBlock(ex, xi) {
         <div class="setmeta">${meta}${ex.unit === "s" && s.type !== "W" ? ` <button class="chip sm" data-a="chrono" data-x="${xi}" data-s="${si}">⏱️ Chrono</button>` : ""}</div></div></div>`;
     }).join("")}
     <div class="row mt8" style="gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-xs" data-a="add-set" data-x="${xi}">+ Série</button><button class="btn btn-ghost btn-xs" data-a="add-set" data-x="${xi}" data-t="W">+ Échauffement</button>${ex.sets.some(s => !s.done) && ex.sets.length > 1 ? `<button class="btn btn-ghost btn-xs" data-a="ex-all" data-x="${xi}" style="margin-left:auto">✓ Tout valider</button>` : ""}</div>
-    <label class="field mt8"><span>📝 Note sur l'exercice (réglages, sensations, douleur…)</span><textarea rows="1" data-i="exnote" data-x="${xi}" placeholder="Ex. siège cran 4, gêne épaule droite">${esc(ex.myNote || "")}</textarea></label>
+    <label class="field mt8"><span>📝 Ma note sur l'exercice <small class="muted">(gardée pour la prochaine fois)</small></span><textarea rows="${(ex.myNote ?? S().exoNotes?.[ex.name] ?? "").length > 40 ? 3 : 1}" data-i="exnote" data-x="${xi}" placeholder="Ex. siège cran 4, gêne épaule droite">${esc(ex.myNote ?? S().exoNotes?.[ex.name] ?? "")}</textarea></label><button class="link xs mt4" data-a="go" data-r="notes">Toutes mes notes et conseils</button>
   </article>`;
 }
 changes["i:set"] = (el) => {
@@ -575,7 +575,7 @@ changes["i:set"] = (el) => {
   else s.rpe = isNaN(v) ? null : Math.min(10, Math.max(5, v));
   save();
 };
-changes["i:exnote"] = (el) => { S().current.exercises[+el.dataset.x].myNote = el.value; save(); };
+changes["i:exnote"] = (el) => { const ex = S().current.exercises[+el.dataset.x]; ex.myNote = el.value; const st = S(); st.exoNotes = st.exoNotes || {}; if (el.value.trim()) st.exoNotes[ex.name] = el.value; else delete st.exoNotes[ex.name]; save(); };
 changes["i:setnote"] = (el) => { S().current.exercises[+el.dataset.x].sets[+el.dataset.s].note = el.value; save(); };
 // Effort de la série : on choisit, on n'écrit pas
 export const RPE_INFO = { 6: ["Facile", "4 rép. ou plus en réserve"], 6.5: ["Facile à modéré", "3 à 4 rép. en réserve"], 7: ["Modéré", "3 rép. en réserve"], 7.5: ["Assez dur", "2 à 3 rép. en réserve"], 8: ["Dur", "2 rép. en réserve"], 8.5: ["Très dur", "1 à 2 rép. en réserve"], 9: ["Effort extrême", "1 rép. en réserve"], 9.5: ["Presque maximal", "peut-être 1 rép. de plus"], 10: ["Effort maximal", "aucune rép. en réserve"] };

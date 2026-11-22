@@ -98,6 +98,7 @@ routes.settings = async () => {
       <div class="li"><span class="em">🔊</span><span class="grow">Bip en fin de repos</span><button class="switch ${S().settings.sound !== false ? "on" : ""}" data-a="sound-tg" aria-label="Bip"></button></div>
       <div class="li"><span class="em">📳</span><span class="grow">Vibrations</span><button class="switch ${S().settings.haptics ? "on" : ""}" data-a="haptics" aria-label="Vibrations"></button></div>
       <div class="li"><span class="em">🌗</span><span class="grow">Thème</span><select data-c="theme" class="inp" style="width:auto;padding:4px 8px;font-size:15px"><option value="">Automatique</option><option value="light" ${localStorage.getItem("cxs.theme") === "light" ? "selected" : ""}>Clair</option><option value="dark" ${localStorage.getItem("cxs.theme") === "dark" ? "selected" : ""}>Sombre</option></select></div>
+      <button class="li" data-a="go" data-r="notes"><span class="em">📝</span><span class="grow">Mes notes d'exercices</span>${I.chev}</button>
       <button class="li" data-a="go" data-r="kb"><span class="em">📚</span><span class="grow">Connaissances</span>${I.chev}</button>
       <button class="li" data-a="go" data-r="account"><span class="em">👤</span><span class="grow">Mon compte</span>${I.chev}</button>
     </div>
@@ -197,3 +198,15 @@ routes.privacy = () => {
 };
 
 actions["rappel-tog"] = (b, d) => { update(st => { st.settings.rappels = { ...(st.settings.rappels || {}), [d.k]: st.settings.rappels?.[d.k] === false }; }); rerender(); };
+
+// Notes par exercice : ce que le coach a écrit pour moi (🗣️) et mes propres notes (réglages, sensations), au même endroit
+routes.notes = () => {
+  const mine = { ...(S().exoNotes || {}) };
+  for (const w of S().workouts) for (const e of w.exercises || []) if (e.myNote?.trim() && !(e.name in mine)) mine[e.name] = e.myNote;
+  const coach = S().coachSettings?.cues || {};
+  const names = [...new Set([...Object.keys(coach), ...Object.keys(mine)])].sort((a, b) => a.localeCompare(b, "fr"));
+  $app.innerHTML = header("Mes notes", "", { back: "profile" }) + `<main class="page"><p class="small muted">Tes réglages et sensations, et les conseils de Thomas pour toi. Ils réapparaissent à chaque séance.</p>
+    ${names.length ? names.map(n => `<div class="card mt12"><b>${esc(n)}</b>${coach[n] ? `<div class="cue mt8">🗣️ <b>Thomas :</b> <span style="white-space:pre-wrap">${esc(coach[n])}</span></div>` : ""}<label class="field mt8"><span>📝 Ma note</span><textarea rows="2" data-i="note-ex" data-n="${esc(n)}" placeholder="Ex. siège cran 4, prise large">${esc(mine[n] || "")}</textarea></label></div>`).join("") : `<p class="empty mt16">Aucune note pour l'instant. Écris-en une sous un exercice pendant ta séance : elle sera gardée ici.</p>`}
+  </main>${tabbar("profile")}`;
+};
+changes["i:note-ex"] = (el) => update(st => { st.exoNotes = st.exoNotes || {}; if (el.value.trim()) st.exoNotes[el.dataset.n] = el.value; else delete st.exoNotes[el.dataset.n]; });

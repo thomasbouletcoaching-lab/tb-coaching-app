@@ -52,7 +52,7 @@ const keep = (obj, days) => { const cut = new Date(Date.now() - days * 864e5).to
 export function snapshot() {
   const st = S(), t = today();
   const lifts = Object.fromEntries(Object.entries(st.lifts || {}).map(([k, h]) => [k, h.slice(-25)]));
-  const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, skips: st.skips, swaps: st.swaps, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin },
+  const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, exoNotes: st.exoNotes || {}, skips: st.skips, swaps: st.swaps, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin },
     // Suivi : bilans, anamnèse, témoignage, photos envoyées volontairement, essai
     checkins: (st.checkins || []).slice(-26), hybride: hybridePourServeur(st.hybride), anamnese: st.anamnese || null, programme: pourCoach(st.programme, !!st.anamnese?.consent), testimonial: st.testimonial || null, sharedPhotos: st.sharedPhotos || [], trialStart: st.trialStart || null, defi: st.defi || null,
     // Journal « Je craque » : uniquement avec l'accord explicite du membre ; sinon null, ce qui efface aussi une copie envoyée avant un retrait d'accord

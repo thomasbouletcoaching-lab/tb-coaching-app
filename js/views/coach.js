@@ -683,8 +683,8 @@ actions["cue-add"] = (b, d) => {
   const n = d.n || "", t = (mbr.settings?.cues || {})[n] || "";
   sheet(`<h2 class="h2">🗣️ Consigne sur un exercice</h2><form data-f="cue-save" class="mt12"><input type="hidden" name="old" value="${esc(n)}">
     <label class="field"><span>Exercice</span><input name="n" list="cue-ex" value="${esc(n)}" required maxlength="80" placeholder="Choisis ou tape le nom"><datalist id="cue-ex">${(mbr.exNames || []).map(x => `<option value="${esc(x)}">`).join("")}</datalist></label>
-    <label class="field mt8"><span>Ses consignes (ce sur quoi vous travaillez)</span><textarea name="t" rows="5" maxlength="600" required placeholder="Pousse le sol avec tout le pied.&#10;Genoux dans l'axe des pieds.&#10;Expire en haut.">${esc(t)}</textarea></label>
-    <p class="xs muted">Il la voit sur l'exercice pendant sa séance et dans la fiche de l'exercice.</p><button class="btn btn-red mt12">Enregistrer</button></form>`);
+    <label class="field mt8"><span>Ses consignes (ce sur quoi vous travaillez)</span><textarea name="t" rows="5" maxlength="1500" required placeholder="Pousse le sol avec tout le pied.&#10;Genoux dans l'axe des pieds.&#10;Expire en haut.">${esc(t)}</textarea></label>
+    <p class="xs muted">Il la voit sur l'exercice pendant sa séance et dans « Mes notes » (Profil).${(mbr.data?.data?.exoNotes || {})[n] ? `</p><div class="card soft"><b class="xs">📝 Sa note</b><p class="small" style="margin:4px 0 0;white-space:pre-wrap">${esc(mbr.data.data.exoNotes[n])}</p></div><p class="xs muted">` : ""}</p><button class="btn btn-red mt12">Enregistrer</button></form>`);
 };
 forms["cue-save"] = async (v) => {
   const cues = { ...(mbr.settings?.cues || {}) }; if (v.old && v.old !== v.n) delete cues[v.old]; cues[v.n.trim()] = v.t.trim();
