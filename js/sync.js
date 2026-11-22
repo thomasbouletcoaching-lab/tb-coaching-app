@@ -37,6 +37,7 @@ export async function refreshMe() {
     const [un, ns] = await Promise.all([c.unreadFromCoach(), c.notifications()]);
     badges.msgs = un; badges.notifs = ns.filter(n => !n.read).length;
     if (isCoach()) { const ms = await c.members(); window.__members = ms; badges.msgs = ms.reduce((a, m) => a + m.unread, 0); }
+    if (!badges.msgs && !badges.notifs) { try { navigator.clearAppBadge?.(); } catch { } }
     document.querySelectorAll(".top [data-a=notifs]").forEach(b => { b.querySelector(".badge")?.remove(); if (badges.notifs) b.insertAdjacentHTML("beforeend", `<span class="badge">${badges.notifs}</span>`); });
     document.querySelectorAll('.tab[href="#/coach"]').forEach(b => { b.querySelector(".badge")?.remove(); if (badges.msgs) b.insertAdjacentHTML("beforeend", `<span class="badge">${badges.msgs}</span>`); });
   } catch (e) { console.warn(e.message); }

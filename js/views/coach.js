@@ -244,7 +244,7 @@ routes.chat = async () => {
   if (!isCoach() && !canMsg()) { toast("Les messages avec Thomas sont réservés aux personnes coachées"); return go("offers"); }
   const memberId = isCoach() ? R.param : null;
   const m = memberId ? (window.__members || []).find(x => x.id === memberId) : null;
-  $app.innerHTML = header(memberId ? esc(m?.name || "Membre") : "Thomas", memberId ? esc(m?.email || "") : "Je réponds moi-même", { back: memberId ? "admin-msg" : "coach" })
+  $app.innerHTML = header(memberId ? esc(m?.name || "Membre") : "Thomas", memberId ? esc(m?.email || "") : "Je réponds moi-même", { back: memberId ? "admin-msg" : "coach", ...(memberId ? { actions: `<button class="pill" data-a="msg-unread" data-id="${esc(memberId)}">Marquer non lu</button>` } : {}) })
     + `<main class="page" style="padding-bottom:calc(100px + var(--safe-b))">${memberId ? "" : absenceBanner()}<div class="thread" id="thread"><p class="empty small">Chargement…</p></div>${memberId ? readyBar() : ""}${memberId ? "" : `<p class="xs muted center">${msgQuotaText()} · touche un message pour réagir</p>`}</main>
     <form class="composer" data-f="send"><textarea name="v" rows="1" placeholder="Ton message" maxlength="2000" aria-label="Message">${esc(window.__prefill || "")}</textarea><button type="button" class="send" id="rec-btn" data-a="rec" aria-label="Message vocal">🎙️</button><button class="send" aria-label="Envoyer">${I.send}</button></form>`;
   window.__prefill = "";
@@ -313,23 +313,26 @@ actions.notifs = () => {
   sheet(`<div class="row between"><h2 class="h1" style="margin:0">🔔 Notifications</h2><button class="link xs" data-a="notif-all">Tout marquer lu</button></div><div id="nl" class="mt12"><p class="empty small">Chargement…</p></div>${pushState() === "on" ? "" : `<div class="card soft mt12"><b class="small">📲 Recevoir les notifications sur ce téléphone</b><p class="xs muted mt4">Messages, fin de repos (même écran verrouillé), rappels.</p><button class="btn btn-red btn-sm mt8" data-a="push-on">Activer</button></div>`}`, async (w) => {
     const c = await cloud(); let list = [];
     try { await c.currentSession(); list = await c.notifications(); } catch { }
-    NL = list; drawNotifs(w);
+    NL = list.filter(n => !n.read || n.epingle); drawNotifs(w);
     navigator.serviceWorker?.controller?.postMessage("clear-badge");
   });
 };
 let NL = [];
+export function clearAppBadge() { try { navigator.clearAppBadge?.(); navigator.serviceWorker?.controller?.postMessage("clear-badge"); } catch { } }
 function drawNotifs(w = document) {
   const box = w.querySelector("#nl"); if (!box) return;
   box.innerHTML = NL.length ? `<div class="stack" style="gap:6px">${NL.map(n => `<button class="nt ${n.read ? "" : "unread"}" data-a="notif-open" data-id="${n.id}"><span class="dot"></span><span class="grow" style="min-width:0"><b>${esc(n.title)}</b>${n.body ? `<span class="small nb">${esc(n.body)}</span>` : ""}<span class="xs muted">${ago(n.created_at)}</span></span></button>`).join("")}</div>` : `<p class="empty small">Aucune notification pour l'instant.</p>`;
-  const un = NL.filter(n => !n.read).length; badges.notifs = un;
+  const un = NL.filter(n => !n.read).length; badges.notifs = un; if (!un && !badges.msgs) clearAppBadge();
   document.querySelectorAll("[data-a=notifs] .badge").forEach(b => { if (un) b.textContent = un; else b.remove(); });
 }
 actions["notif-open"] = async (b, d) => {
   const n = NL.find(x => x.id === +d.id); if (!n) return;
   b.classList.toggle("open");
-  if (!n.read) { n.read = true; drawNotifs(); document.querySelector(`[data-a="notif-open"][data-id="${n.id}"]`)?.classList.add("open"); try { (await cloud()).notifRead([n.id]); } catch { } }
+  if (!n.read) { n.read = true; n.garde = true; drawNotifs(); document.querySelector(`[data-a="notif-open"][data-id="${n.id}"]`)?.classList.add("open"); try { (await cloud()).notifRead([n.id]); } catch { } }
 };
-actions["notif-all"] = async () => { const ids = NL.filter(n => !n.read).map(n => n.id); NL.forEach(n => n.read = true); drawNotifs(); try { (await cloud()).notifRead(ids); } catch { } };
+actions["msg-unread"] = async (b, d) => { try { await (await cloud()).markUnread(d.id); toast("Remis en non lu"); go("admin-msg"); } catch (e) { toast(e.message); } };
+actions["msg-read"] = async (b, d) => { try { await (await cloud()).markRead(d.id); go("admin-msg"); } catch (e) { toast(e.message); } };
+actions["notif-all"] = async () => { const ids = NL.filter(n => !n.read).map(n => n.id); NL.forEach(n => n.read = true); NL = []; drawNotifs(); clearAppBadge(); try { (await cloud()).notifRead(ids); } catch { } };
 actions["push-on"] = async (b) => { try { b && (b.disabled = true); await enablePush(); toast("🔔 Notifications activées"); const c = await cloud(); await c.pushTest().catch(() => { }); closeSheet(); rerender(); } catch (e) { toast(e.message); if (b) b.disabled = false; } };
 actions["push-off"] = async () => { await disablePush(); toast("Notifications coupées sur ce téléphone"); rerender(); };
 

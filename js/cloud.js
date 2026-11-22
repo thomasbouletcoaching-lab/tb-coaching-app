@@ -106,6 +106,10 @@ export async function react(id, emoji, current = {}) {
 export async function markRead(memberId, fromOther) {
   await sb.from("cxs_messages").update({ read_at: new Date().toISOString() }).eq("user_id", ownThread(memberId) ? uid : memberId).neq("sender", uid).is("read_at", null);
 }
+export async function markUnread(memberId) {
+  const { data } = await sb.from("cxs_messages").select("id").eq("user_id", memberId).eq("sender", memberId).order("created_at", { ascending: false }).limit(1);
+  if (data?.[0]) { const { error } = await sb.from("cxs_messages").update({ read_at: null }).eq("id", data[0].id); if (error) throw error; }
+}
 export async function unreadFromCoach() {
   if (!uid) return 0;
   const { count } = await sb.from("cxs_messages").select("id", { count: "exact", head: true }).eq("user_id", uid).neq("sender", uid).is("read_at", null);
