@@ -350,8 +350,8 @@ function carteJeu() {
 function carteActivite(a) {
   const d = a.data || {}, res = SO.resumeReactions(a.reactions), mes = new Set(a.mes_reactions || []);
   const stats = [d.sport ? esc(d.sport) : "", d.min ? `⏱️ ${d.min} min` : "", d.km ? `${fr(d.km, 1)} km` : "", d.kcal ? `🔥 ${fr(d.kcal)} kcal` : "", d.series ? `${d.series} séries` : "", d.tonnes ? `${fr(d.tonnes, 1)} t` : "", d.medaille ? `Grade ${esc(d.medaille)}` : ""].filter(Boolean);
-  return `<div class="card mt12" data-act="${a.id}"><div class="row" style="gap:10px"><span class="avatar" style="font-size:22px">${esc(a.avatar)}</span><div class="grow" style="min-width:0"><b>${esc(a.pseudo)}</b>${a.moi ? ` <span class="tag">moi</span>` : a.ami ? ` <span class="tag r">ami</span>` : ""}<br><span class="xs muted">${quandFait(a)}</span></div>
-      <button class="icon-btn" data-a="soc-menu" data-id="${a.id}" data-moi="${a.moi ? 1 : 0}" aria-label="Options">⋯</button></div>
+  return `<div class="card mt12" data-act="${a.id}" data-a="soc-detail" data-id="${a.id}" style="cursor:pointer"><div class="row" style="gap:10px"><span class="avatar" style="font-size:22px">${esc(a.avatar)}</span><div class="grow" style="min-width:0"><b>${esc(a.pseudo)}</b>${a.moi ? ` <span class="tag">moi</span>` : a.ami ? ` <span class="tag r">ami</span>` : ""}<br><span class="xs muted">${quandFait(a)}</span></div>
+      ${a.moi || isCoach() ? `<button class="icon-btn" data-a="soc-menu" data-id="${a.id}" data-moi="${a.moi ? 1 : 0}" aria-label="Options">⋯</button>` : ""}</div>
     <p class="mt8" style="margin-bottom:4px"><b>${a.type === "cardio" ? "🏃" : "💪"} ${esc(d.titre || "Séance")}</b></p>
     ${stats.length ? `<div class="chips wrap">${stats.map(s => `<span class="tag">${s}</span>`).join("")}</div>` : ""}
     ${d.records?.length ? `<p class="small mt8" style="margin-bottom:0">🏆 Record : <b>${esc(d.records.join(", "))}</b></p>` : ""}
@@ -388,7 +388,7 @@ routes.communaute = async () => {
 };
 actions["soc-onglet"] = (b, d) => { onglet = d.v; history.replaceState(null, "", "#/communaute/" + d.v); rerender(); };
 actions["soc-reload"] = async () => { ETAT.at = 0; FIL.amis = FIL.communaute = FIL.moi = null; rerender(); };
-actions["soc-plus"] = async () => { const it = FIL[onglet] || []; try { const c = await cloud(); const plus = await c.socFil(onglet, it.at(-1)?.created_at); FIL[onglet] = [...it, ...plus.filter(x => !it.some(y => y.id === x.id))]; rerender(); } catch (e) { toast(e.message); } };
+actions["soc-plus"] = async () => { const it = FIL[onglet] || []; try { const c = await cloud(); const plus = await c.socFil(onglet, it.at(-1)?.data?.fait || it.at(-1)?.created_at); FIL[onglet] = [...it, ...plus.filter(x => !it.some(y => y.id === x.id))]; rerender(); } catch (e) { toast(e.message); } };
 function gerbe(btn, em) {
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const r = btn.getBoundingClientRect();
@@ -410,7 +410,8 @@ actions["soc-r"] = async (b, d) => {
 };
 actions["soc-menu"] = (b, d) => {
   if (d.moi === "1") return sheet(`<h2 class="h2">Ma publication</h2><button class="btn btn-line mt12" data-a="soc-suppr" data-id="${d.id}" style="color:var(--red)">Retirer cette séance du fil</button>`);
-  sheet(`<h2 class="h2">Signaler cette publication</h2><p class="xs muted mt4">Thomas regarde chaque signalement. Au bout de 3, la publication est masquée en attendant.</p>
+  if (!isCoach()) return;
+  sheet(`<h2 class="h2">Signaler cette publication</h2><p class="xs muted mt4">Seul le coach régule la communauté : ton signalement est examiné par Thomas.</p>
     <div class="list mt12">${[["contact", "Elle contient un contact ou une pub"], ["insulte", "Pseudo ou titre insultant"], ["faux", "Chiffres manifestement faux"], ["autre", "Autre chose"]].map(([v, l]) => `<button class="li" data-a="soc-signal" data-id="${d.id}" data-v="${v}"><span class="grow">${l}</span></button>`).join("")}</div>`);
 };
 actions["soc-signal"] = async (b, d) => { try { const c = await cloud(); await c.socSignaler(+d.id, d.v); toast("Merci, c'est signalé"); } catch (e) { toast(e.message); } closeSheet(); };
@@ -532,6 +533,7 @@ export function detailHtml(d) {
 actions["soc-detail"] = (b, d) => {
   const a = Object.values(FIL).flat().find(x => String(x.id) === String(d.id)); if (!a) return;
   const x = a.data || {}, bits = [x.min ? `${x.min} min` : "", x.series ? `${x.series} séries` : "", x.tonnes ? `${fr(x.tonnes, 1)} t` : ""].filter(Boolean).join(" · ");
-  sheet(`<h2 class="h2">${a.type === "cardio" ? "🏃" : "💪"} ${esc(x.titre || "Séance")}</h2><p class="small muted" style="margin:4px 0 0">${esc(a.pseudo)} · ${quandFait(a)}${bits ? " · " + bits : ""}</p>${detailHtml(x)}<button class="btn btn-line mt16" data-a="soc-detail-x">Fermer</button>`);
+  const det = detailHtml(x);
+  sheet(`<h2 class="h2">${a.type === "cardio" ? "🏃" : "💪"} ${esc(x.titre || "Séance")}</h2><p class="small muted" style="margin:4px 0 0">${esc(a.pseudo)} · ${quandFait(a)}${bits ? " · " + bits : ""}</p>${det || `<p class="small muted mt12">Cette publication n'a pas gardé le détail des séries. Republie la séance depuis ton journal pour l'afficher ici.</p>`}<button class="btn btn-line mt16" data-a="soc-detail-x">Fermer</button>`);
 };
 actions["soc-detail-x"] = () => closeSheet();
