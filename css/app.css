@@ -731,11 +731,13 @@ a.card{text-decoration:none;color:inherit}
 .ph b{display:block;font-size:12px}
 .ph-acc{background:#E6F0FF}.ph-int{background:#FFF0DC}.ph-rea{background:#FFE3E0}.ph-dl{background:#E7F6EC}.ph-test{background:#F1E8FF}.ph-perso{background:#EEF0F3}
 .frise{display:flex;gap:3px;border-radius:10px;overflow:hidden}
-.frise .fz{min-width:0;padding:6px 6px;font-size:10px;line-height:1.2;color:#1b2333;opacity:.7}
+.frise .fz{min-width:0;padding:6px 6px;font-size:10px;line-height:1.2;color:#1b2333;opacity:.85}
 .frise .fz b{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .frise .fz.on{opacity:1;box-shadow:inset 0 -3px 0 var(--red)}
 .frise-pin{display:none}
-@media (prefers-color-scheme:dark){.ph-acc,.ph-int,.ph-rea,.ph-dl,.ph-test,.ph-perso{filter:brightness(.55) saturate(1.3);color:#fff}.frise .fz{color:#fff}}
+/* Thème sombre : fonds sombres teintés, texte clair (sans filtre, qui rendait le texte illisible) */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ph-acc{background:#1E3A66}:root:not([data-theme="light"]) .ph-int{background:#5A3E12}:root:not([data-theme="light"]) .ph-rea{background:#5C2420}:root:not([data-theme="light"]) .ph-dl{background:#1D4A33}:root:not([data-theme="light"]) .ph-test{background:#3E2A66}:root:not([data-theme="light"]) .ph-perso{background:#2A3140}:root:not([data-theme="light"]) .frise .fz{color:#E8EDF2}}
+:root[data-theme="dark"] .ph-acc{background:#1E3A66}:root[data-theme="dark"] .ph-int{background:#5A3E12}:root[data-theme="dark"] .ph-rea{background:#5C2420}:root[data-theme="dark"] .ph-dl{background:#1D4A33}:root[data-theme="dark"] .ph-test{background:#3E2A66}:root[data-theme="dark"] .ph-perso{background:#2A3140}:root[data-theme="dark"] .frise .fz{color:#E8EDF2}
 .pollbar{position:relative;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:var(--chalk);overflow:hidden;font-size:13px}
 .pollbar i{position:absolute;left:0;top:0;bottom:0;background:var(--tint2);border-radius:10px}
 .pollbar span,.pollbar b{position:relative}.pollbar span{flex:1;min-width:0}
