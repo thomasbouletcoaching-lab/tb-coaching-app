@@ -818,3 +818,8 @@ pre.code{white-space:pre-wrap;word-break:break-all;font-size:11.5px;line-height:
 .wk7s div{padding:6px 0;border-radius:10px}.wk7s div.on{background:var(--tint2)}.wk7s span{display:block;font-size:11px;color:var(--soft)}.wk7s b{font-size:16px}
 details.plis>summary{list-style:none;cursor:pointer}details.plis>summary::-webkit-details-marker{display:none}
 details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.plis[open]>summary::after{content:"▴"}
+
+/* Sélecteur Coach | Athlète */
+.modesw{display:inline-flex;height:38px;padding:3px;border-radius:19px;background:var(--btn2);border:1px solid var(--line);gap:2px}
+.modesw a{display:inline-flex;align-items:center;padding:0 12px;border-radius:16px;font-size:13px;font-weight:700;color:var(--soft);text-decoration:none;transition:background .2s,color .2s}
+.modesw a.on{background:linear-gradient(135deg,var(--red2),var(--red));color:#fff;box-shadow:0 2px 8px rgba(47,111,237,.35)}

@@ -146,7 +146,7 @@ export function header(title, sub = "", { back = null, actions = "", offers = tr
   const lead = back ? `<button class="icon-btn" ${back === "__hist" ? `data-a="hist-back"` : `data-a="go" data-r="${back}"`} aria-label="Retour">${I.back}</button>` : "";
   return demo + `<header class="top"><div class="row1">${lead}<h1>${!back && TAB_TITLES.includes(title) ? "" : title}</h1>
     ${actions}<button class="pill ic" data-a="notifs" aria-label="Notifications">${I.bell}${badges.notifs ? `<span class="badge">${badges.notifs}</span>` : ""}</button>
-    ${isCoach() || (S().me?.isCoach && !S().demoTier) ? `<a class="pill" href="${APP_MODE === "coach" ? "./" : "./coach.html"}" aria-label="${APP_MODE === "coach" ? "Passer en mode athlète" : "Passer en mode coach"}">${APP_MODE === "coach" ? "🏋️ Athlète" : "🧑‍🏫 Coach"}</a>` : !offers ? "" : `<button class="pill" data-a="go" data-r="offers">🚀 ${rank() >= 2 ? "Coaching" : "Offres"}</button>`}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</header>`;
+    ${isCoach() || (S().me?.isCoach && !S().demoTier) ? `<span class="modesw" role="group" aria-label="Changer de mode"><a href="./coach.html" class="${APP_MODE === "coach" ? "on" : ""}" ${APP_MODE === "coach" ? 'aria-current="true"' : 'aria-label="Passer en mode coach"'}>Coach</a><a href="./" class="${APP_MODE === "coach" ? "" : "on"}" ${APP_MODE === "coach" ? 'aria-label="Passer en mode athlète"' : 'aria-current="true"'}>Athlète</a></span>` : !offers ? "" : `<button class="pill" data-a="go" data-r="offers">🚀 ${rank() >= 2 ? "Coaching" : "Offres"}</button>`}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</header>`;
 }
 export function tabbar(active) {
   if (APP_MODE === "coach") return adminTabbar("admin");

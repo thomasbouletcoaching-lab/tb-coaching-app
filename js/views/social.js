@@ -161,6 +161,18 @@ export async function publierCardio(jour, a) {
   } catch { }
 }
 window.addEventListener("cxs:cardio-fait", (e) => { const d = e.detail || {}; if (d.a) publierCardio(d.jour, d.a); });
+// Anciennes publications sans détail des séries : on les republie une fois depuis l'historique du téléphone
+let REPARE = false;
+async function reparerDetails() {
+  if (REPARE) return; REPARE = true;
+  try {
+    const pubs = S().socialPubs || {}, ws = S().workouts || [], c = await cloud(); let n = 0;
+    for (const w of ws) { const p = pubs[cleSeance(w)]; if (!p || p.detail) continue;
+      const r = recapDe(w); if (!r.detail?.length) continue;
+      await c.socPublier(cleSeance(w), r, p.vis || "communaute"); update(st => { st.socialPubs[cleSeance(w)] = { ...p, detail: 1 }; }); n++; }
+    if (n) { FIL.amis = FIL.communaute = FIL.moi = null; rerender(); }
+  } catch { REPARE = false; }
+}
 async function publier(w, vis) {
   const c = await cloud(); if (!c || !(await c.currentSession())) throw new Error("Connexion requise");
   const id = await c.socPublier(cleSeance(w), recapDe(w), vis);
@@ -373,6 +385,7 @@ routes.communaute = async () => {
   else if (!profil() || profil().pseudo === "Membre" && !profil().communaute) body = `<div class="card grad mt12"><div style="font-size:40px">🏟️</div><b class="h2">Rejoins la communauté</b><p class="small mt8" style="opacity:.9">Vois les séances des membres, encourage-les d'un geste 💪 🔥 👏, remplis ta quête du jour et grimpe les niveaux de supporter. Pas de messages, pas de contacts : juste de l'énergie.</p><button class="btn mt8" style="background:#fff;color:var(--red)" data-a="soc-profil">Choisir mon pseudo</button></div>`;
   else {
     if (!FIL[onglet]) { try { const c = await cloud(); FIL[onglet] = await c.socFil(onglet); const ids = FIL[onglet].map(x => x.id); if (ids.length) Object.assign(NBC, await c.socNbCommentaires(ids).catch(() => ({}))); } catch (e) { FIL[onglet] = []; toast("Fil indisponible : " + e.message); } }
+    reparerDetails();
     const items = FIL[onglet] || [];
     const vide = onglet === "amis" ? `<div class="card mt12 center"><p class="small muted">Aucune séance de tes amis pour l'instant.</p><button class="btn btn-line btn-sm" data-a="go" data-r="amis">Ajouter des amis</button></div>`
       : onglet === "moi" ? `<p class="empty small">Tes séances publiées apparaîtront ici.</p>` : profil().communaute ? `<p class="empty small">Sois le premier à publier une séance aujourd'hui 💪</p>` : `<div class="card mt12 center"><p class="small muted">Tu n'as pas rejoint la communauté : tu ne vois que tes amis.</p><button class="btn btn-line btn-sm" data-a="soc-profil">Rejoindre</button></div>`;
