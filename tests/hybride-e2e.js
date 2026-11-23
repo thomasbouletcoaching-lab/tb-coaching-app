@@ -79,7 +79,9 @@ const largeur = (p) => p.evaluate(() => document.documentElement.scrollWidth);
   await tap(n.p, 'form[data-f="hyb-bloc"] button[type="submit"]'); await n.p.waitForTimeout(500);
   const st = await S(n.p);
   ok(st.hybride.bloc && st.hybride.bloc.nbSeances === 3 && dow(st.hybride.bloc.debut) === 0, 'bloc enregistré, début un lundi');
-  ok(/commence le/.test(await txt(n.p)), 'avant le début : date annoncée');
+  // un lundi, le bloc commence le jour même : pas de « commence le » à annoncer (le test échouait chaque lundi)
+  const auj = await n.p.evaluate(() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); });
+  ok(st.hybride.bloc.debut === auj || /commence le/.test(await txt(n.p)), 'avant le début : date annoncée');
   ok(n.errs.length === 0, 'zéro erreur JavaScript (nouveau)');
   await n.ctx.close();
 
