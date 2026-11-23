@@ -44,7 +44,8 @@ def cat_of(g, sg, name):
     return "Plats préparés"
 
 def main():
-    raw = urllib.request.urlopen(urllib.request.Request(URL, headers={"User-Agent": "tb-coaching-app"}), timeout=120).read()
+    # Fichier local en argument (ex. copie Zenodo de la même table), sinon téléchargement sur le site de l'ANSES
+    raw = open(sys.argv[1], "rb").read() if len(sys.argv) > 1 else urllib.request.urlopen(urllib.request.Request(URL, headers={"User-Agent": "tb-coaching-app"}), timeout=120).read()
     sh = xlrd.open_workbook(file_contents=raw).sheet_by_index(0)
     head = [str(h) for h in sh.row_values(0)]
     def col(rx):
@@ -70,7 +71,13 @@ def main():
     os.makedirs("data", exist_ok=True)
     # alias usuels pointant vers un aliment Ciqual existant (mêmes valeurs, nom que les clients cherchent)
     ALIAS = [("Sashimi de saumon", "Saumon, cru"), ("Sashimi de thon", "Thon, cru"), ("Sashimi de daurade", "Daurade, crue"),
-             ("Tartare de saumon (cru, nature)", "Saumon, cru"), ("Poke bowl : saumon cru (ingrédient)", "Saumon, cru")]
+             ("Tartare de saumon (cru, nature)", "Saumon, cru"), ("Poke bowl : saumon cru (ingrédient)", "Saumon, cru"),
+             # Buffet asiatique : noms de la carte, valeurs de l'aliment Ciqual le plus proche (ajoutés en fin de liste : l'ordre des autres ne bouge pas)
+             ("California roll", "Sushi ou Maki aux produits de la mer"), ("Maki (saumon, thon, concombre…)", "Sushi ou Maki aux produits de la mer"),
+             ("Nigiri (sushi saumon, thon…)", "Sushi ou Maki aux produits de la mer"), ("Temaki", "Sushi ou Maki aux produits de la mer"),
+             ("Har gow (ravioli vapeur à la crevette)", "Ravioli chinois à la vapeur à la crevette, cuit"),
+             ("Siu mai (bouchée vapeur)", "Spécialité chinoise type bouchée à la vapeur, préemballée, cuite"),
+             ("Calamars frits", "Calmar ou Calamar ou encornet, à la romaine (beignet)")]
     by = {nrm(f[0]): f for f in out}
     for a_, src in ALIAS:
         f = by.get(nrm(src)) or next((x for k_, x in by.items() if k_.startswith(nrm(src))), None)

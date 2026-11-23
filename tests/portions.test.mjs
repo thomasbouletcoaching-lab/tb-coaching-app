@@ -39,3 +39,17 @@ test("quantité habituelle : la plus fréquente, sinon la plus récente", () => 
   let k = null; for (let i = 0; i < 12; i++) k = addHabit(k, i);
   assert.equal(k.l.length, 8);
 });
+test("buffet et cheat meal : on compte les pièces sans peser", () => {
+  const u = (n) => unitsFor({ n }).map(x => x.s);
+  assert.deepEqual(u("Sushi ou Maki aux produits de la mer"), ["maki", "sushi (nigiri)", "california"]);
+  assert.equal(gramsOf(6, unitsFor({ n: "Maki (saumon, thon, concombre…) – valeurs Ciqual « Sushi ou Maki aux produits de la mer »" })[0]), 120);
+  assert.equal(u("Nem ou Pâté impérial, au porc, préemballé, cuit")[0], "nem");
+  assert.equal(u("Har gow (ravioli vapeur à la crevette) – valeurs Ciqual « Ravioli chinois à la vapeur à la crevette, cuit »")[0], "ravioli vapeur");
+  assert.equal(u("Pizza jambon fromage, préemballée")[0], "part");
+  assert.equal(u("Pain au chocolat feuilleté, artisanal")[0], "pain au chocolat");   // pas « tranche » comme le pain
+  assert.deepEqual(u("Croissant au jambon"), []);                                      // viennoiserie garnie : pas le poids d'un croissant nature
+  assert.equal(fmtQty(2, unitsFor({ n: "Bière blanche" })[2]), "2 pintes (50 cl)");
+  assert.equal(u("Poulet, croquette panée ou nuggets")[0], "nugget");
+  // un aliment vendu à l'unité (fast-food) garde sa portion en premier
+  assert.equal(unitsFor({ n: "Frites de pommes de terre, surgelées, cuites en friteuse", ug: 114 })[0].s, "portion");
+});
