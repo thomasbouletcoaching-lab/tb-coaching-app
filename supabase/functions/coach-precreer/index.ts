@@ -38,6 +38,15 @@ Deno.serve(async (req) => {
       if (error) return out({ error: error.message }, 500);
       return out({ token: data.properties.hashed_token });
     }
+    if (b.action === "password") {
+      const A = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789", r = crypto.getRandomValues(new Uint8Array(10));
+      const pwd = Array.from(r, (x) => A[x % A.length]).join("");
+      const { data: t, error: e1 } = await admin.auth.admin.getUserById(String(b.id));
+      if (e1 || !t?.user) return out({ error: "Client introuvable" }, 404);
+      const { error } = await admin.auth.admin.updateUserById(String(b.id), { password: pwd, email_confirm: true });
+      if (error) return out({ error: error.message }, 500);
+      return out({ password: pwd, login: t.user.email });
+    }
     return out({ error: "Action inconnue" }, 400);
   } catch (e) { return out({ error: String((e as Error).message || e) }, 500); }
 });

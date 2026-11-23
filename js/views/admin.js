@@ -832,3 +832,18 @@ actions["pre-lien"] = async (b, d) => {
       <div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="adm-share" data-t="${esc(txt)}">Partager</button><button class="btn btn-line grow" data-a="adm-copy" data-t="${esc(txt)}">Copier</button></div>`);
   } catch (e) { toast(e.message); }
 };
+
+// ---------- Accès d'un client : lien de connexion ou mot de passe provisoire (compte oublié, application installée sur l'écran d'accueil) ----------
+const idDe = (e) => { const m = /^tel-(\d+)@tel\.tbcoach\.invalid$/.exec(e || ""); return m ? "le téléphone " + (m[1].startsWith("33") ? "0" + m[1].slice(2) : "+" + m[1]) : (e || "son e-mail"); };
+actions["pre-acces"] = (b, d) => { const m = (window.__members || []).find(x => x.id === d.id) || {};
+  sheet(`<h2 class="h2">🔑 Accès de ${esc(String(m.name || "ce client").split(" ")[0])}</h2><p class="small muted mt4">Identifiant : <b>${esc(idDe(m.email))}</b></p>
+    <div class="card mt12"><b class="small">Mot de passe provisoire</b><p class="xs muted mt4">Le plus simple si son application est installée sur l'écran d'accueil : il se connecte avec son identifiant et ce mot de passe, puis le garde.</p><button class="btn btn-red btn-sm mt8" data-a="pre-mdp" data-id="${esc(d.id)}">Définir un mot de passe provisoire</button></div>
+    <div class="card mt8"><b class="small">Lien de connexion</b><p class="xs muted mt4">Il l'ouvre sur son téléphone : connexion directe, sans mot de passe. Il s'ouvre dans Safari, pas dans l'application de l'écran d'accueil.</p><button class="btn btn-line btn-sm mt8" data-a="pre-lien" data-id="${esc(d.id)}">Générer un lien</button></div>`); };
+actions["pre-mdp"] = async (b, d) => {
+  try {
+    const c = await cloud(), r = await c.precreer({ action: "password", id: d.id }), m = (window.__members || []).find(x => x.id === d.id) || {};
+    const txt = `${String(m.name || "").split(" ")[0] || "Salut"}, voici ta connexion à TB my Coach.\nIdentifiant : ${/^tel-/.test(r.login || "") ? idDe(r.login).replace("le téléphone ", "") : r.login}\nMot de passe : ${r.password}\nTu peux le changer ensuite dans Profil › Mon compte.`;
+    sheet(`<h2 class="h2">🔑 Mot de passe défini</h2><div class="card mt12"><p class="small" style="margin:0;white-space:pre-wrap;word-break:break-all">${esc(txt)}</p></div><p class="xs muted mt8">Ce mot de passe n'est affiché qu'une fois : envoie-le maintenant. L'ancien ne marche plus.</p>
+      <div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="adm-share" data-t="${esc(txt)}">Partager</button><button class="btn btn-line grow" data-a="adm-copy" data-t="${esc(txt)}">Copier</button></div>`);
+  } catch (e) { toast(e.message); }
+};
