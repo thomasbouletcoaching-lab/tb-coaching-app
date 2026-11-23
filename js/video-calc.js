@@ -163,3 +163,113 @@ export function anglesBas(R, lmT, w = 1, h = 1) {
     const a = angles(x.lm, w, h), s = a?.cote === "droit" ? 1 : 0, hp = x.lm[s ? 24 : 23], kn = x.lm[s ? 26 : 25];
     return { t: x.t, genou: a?.genou ?? null, hanche: a?.hanche ?? null, coude: a?.coude ?? null, buste: buste(x.lm, w, h), sousParallele: hp && kn ? hp.y >= kn.y - 0.005 : null }; });
 }
+
+// ---------- Analyse V1 « fiable » (décision C76, cahier des charges du 23/11/2026) ----------
+// Tout est calculé sur le téléphone, avec des briques gratuites (MediaPipe, Apache 2.0) : aucun coût par analyse.
+
+// Lissage « 1 € » (One Euro filter) : supprime le tremblement des points du squelette sans retarder les mouvements rapides.
+// lmT : [{ t, lm }] (t en secondes, lm : points normalisés) → même forme, points lissés.
+export function lisserSquelette(lmT, { minCutoff = 1.5, beta = 0.6, dCutoff = 1 } = {}) {
+  const alpha = (fc, dt) => { const r = 2 * Math.PI * fc * dt; return r / (r + 1); };
+  const etat = new Map(); // clé "i:x" → { x, dx, t }
+  const filtre = (k, x, t) => { const e = etat.get(k); if (!e) { etat.set(k, { x, dx: 0, t }); return x; }
+    const dt = Math.max(1e-3, t - e.t), dx = (x - e.x) / dt, adx = alpha(dCutoff, dt), edx = adx * dx + (1 - adx) * e.dx;
+    const fc = minCutoff + beta * Math.abs(edx), a = alpha(fc, dt), nx = a * x + (1 - a) * e.x; etat.set(k, { x: nx, dx: edx, t }); return nx; };
+  return lmT.map(({ t, lm }) => ({ t, lm: lm ? lm.map((p, i) => p ? { ...p, x: filtre(i + ":x", p.x, t), y: filtre(i + ":y", p.y, t) } : p) : lm }));
+}
+
+// Disque autour du point touché : on cherche le bord du disque sur des rayons partant du point, puis on ajuste un cercle.
+// img : { w, h, d } niveaux de gris ; (cx, cy) en pixels. Renvoie { x, y, r, score } (score 0–1) ou null.
+export function trouverDisque(img, cx, cy, { rMin = 8, rMax = null, n = 72 } = {}) {
+  rMax = Math.min(rMax || Math.round(Math.min(img.w, img.h) * 0.35), Math.round(Math.min(img.w, img.h) / 2));
+  if (rMax <= rMin + 4) return null;
+  const px = (x, y) => { const xi = Math.round(x), yi = Math.round(y); return xi < 0 || yi < 0 || xi >= img.w || yi >= img.h ? null : img.d[yi * img.w + xi]; };
+  const bords = [];
+  for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n, ca = Math.cos(a), sa = Math.sin(a), g = [];
+    for (let r = rMin; r <= rMax; r++) { const i1 = px(cx + ca * (r - 2), cy + sa * (r - 2)), i2 = px(cx + ca * (r + 2), cy + sa * (r + 2)); g.push(i1 == null || i2 == null ? 0 : Math.abs(i2 - i1)); }
+    const mx = Math.max(...g); if (mx < 25) continue;
+    // le bord EXTÉRIEUR du disque : le dernier pic fort (les anneaux intérieurs du disque donnent des pics plus près du centre)
+    let j = g.length - 1; while (j > 0 && !(g[j] >= mx * 0.6 && g[j] >= (g[j - 1] ?? 0) && g[j] >= (g[j + 1] ?? 0))) j--;
+    const r = rMin + j; bords.push({ x: cx + ca * r, y: cy + sa * r, g: g[j] }); }
+  if (bords.length < n * 0.4) return null;
+  const ajuster = (P) => { // cercle par moindres carrés (méthode de Kåsa)
+    let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, sxz = 0, syz = 0, sz = 0; const m = P.length;
+    for (const { x, y } of P) { const z = x * x + y * y; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; sxz += x * z; syz += y * z; sz += z; }
+    const M = [[sxx, sxy, sx], [sxy, syy, sy], [sx, sy, m]], B = [sxz, syz, sz];
+    const det = (A) => A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) - A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) + A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
+    const D = det(M); if (!D) return null; const col = (c) => M.map((row, i) => row.map((v, j) => j === c ? B[i] : v));
+    const a = det(col(0)) / D, b = det(col(1)) / D, c = det(col(2)) / D, x0 = a / 2, y0 = b / 2, r2 = c + x0 * x0 + y0 * y0;
+    return r2 > 0 ? { x: x0, y: y0, r: Math.sqrt(r2) } : null; };
+  let C = ajuster(bords); if (!C) return null;
+  const res = (p) => Math.abs(Math.hypot(p.x - C.x, p.y - C.y) - C.r);
+  const tri = bords.map(res).sort((a, b) => a - b), seuil = Math.max(1.5, tri[Math.floor(tri.length / 2)] * 2.5);
+  const ins = bords.filter(p => res(p) <= seuil); if (ins.length < n * 0.35) return null;
+  C = ajuster(ins) || C;
+  const err = ins.reduce((s, p) => s + res(p), 0) / ins.length;
+  const score = Math.max(0, Math.min(1, (ins.length / n) * (1 - err / Math.max(1, C.r * 0.15))));
+  if (C.r < rMin || Math.hypot(C.x - cx, C.y - cy) > C.r * 0.6) return null; // le point touché doit être dans le disque
+  return { x: C.x, y: C.y, r: C.r, score: Math.round(score * 100) / 100 };
+}
+
+// Indice de fiabilité d'une analyse : élevée / moyenne / faible, avec les raisons. Sous « faible », l'app n'affirme rien.
+// suivi : { moy, perdu } (score de suivi de la barre, 0–1) ; vis : visibilité moyenne du squelette (0–1) ;
+// haut : hauteur de la vidéo (px) ; echelle : vitesses en m/s possibles ; reps : nombre de répétitions détectées.
+export function fiabilite({ suivi = null, vis = null, haut = null, echelle = false, reps = 0, auto = false } = {}) {
+  let pts = 0; const raisons = [];
+  if (suivi) { if (suivi.perdu) { pts += 2; raisons.push("la barre a été perdue en cours de route"); } else if (suivi.moy < 0.7) { pts += 2; raisons.push("suivi de la barre incertain (barre masquée, flou ou contre-jour)"); } else if (suivi.moy < 0.82) { pts += 1; raisons.push("suivi de la barre correct mais pas parfait"); } }
+  else if (auto) { pts += 1; raisons.push("pas de suivi de la barre : le point suivi vient du squelette"); }
+  if (vis != null) { if (vis < 0.55) { pts += 2; raisons.push("corps mal visible (filme de profil, tout le corps dans l'image)"); } else if (vis < 0.75) { pts += 1; raisons.push("une partie du corps est souvent cachée"); } }
+  if (haut != null && haut < 480) { pts += 1; raisons.push("vidéo en basse définition (720p conseillé)"); }
+  if (!echelle) raisons.push("pas d'échelle : vitesses en m/s indisponibles");
+  if (!reps) { pts += 2; raisons.push("aucune répétition nette détectée"); }
+  const niveau = pts >= 3 ? "faible" : pts >= 1 ? "moyenne" : "élevée";
+  return { niveau, points: pts, raisons };
+}
+
+// Juge streetlifting (traction, dips) : validation de chaque répétition selon les critères de compétition, à partir du squelette.
+// R : répétitions (phases) ; lmT : squelette lissé. Traction : bras tendus en bas (coude ≥ 155°) et menton (bouche) au-dessus
+// des mains en haut. Dips : épaule au niveau du coude ou plus bas en bas, bras tendus en haut (coude ≥ 155°).
+export const JUGE = { traction: true, dips: true };
+export function jugeRep(mvt, R, lmT, w = 1, h = 1) {
+  if (!JUGE[mvt]) return null;
+  const vis = (lm, ids) => ids.every(i => (lm[i]?.visibility ?? 1) >= 0.4);
+  return R.map((r, n) => {
+    const t0 = (r.exc || r.con).t0 - 0.35, t1 = r.con.t1 + 0.35, F = lmT.filter(q => q.lm && q.t >= t0 && q.t <= t1);
+    if (F.length < 3) return { n: n + 1, valide: null, raisons: ["rép. trop peu visible pour être jugée"] };
+    const s = cote(F[Math.floor(F.length / 2)].lm), E = s ? 12 : 11, C = s ? 14 : 13, P = s ? 16 : 15;
+    const coude = (lm) => angle({ x: lm[E].x * w, y: lm[E].y * h }, { x: lm[C].x * w, y: lm[C].y * h }, { x: lm[P].x * w, y: lm[P].y * h });
+    const ok = F.filter(q => vis(q.lm, [E, C, P])); if (ok.length < 3) return { n: n + 1, valide: null, raisons: ["bras mal visible : filme de profil"] };
+    const raisons = []; let valide = true;
+    if (mvt === "traction") {
+      const ext = Math.max(...ok.map(q => coude(q.lm) ?? 0)); if (ext < 155) { valide = false; raisons.push(`bras pas tendus en bas (${ext}°)`); }
+      const haut = Math.min(...ok.map(q => { const b = q.lm[9] && q.lm[10] ? (q.lm[9].y + q.lm[10].y) / 2 : q.lm[0]?.y; const m = (q.lm[15].y + q.lm[16].y) / 2; return b - m; }));
+      if (!(haut < 0)) { valide = false; raisons.push("menton pas au-dessus de la barre"); }
+    } else {
+      const bas = Math.max(...ok.map(q => q.lm[E].y - q.lm[C].y)); if (bas < -0.005) { valide = false; raisons.push("épaule pas descendue au niveau du coude"); }
+      const ext = Math.max(...ok.map(q => coude(q.lm) ?? 0)); if (ext < 155) { valide = false; raisons.push(`bras pas verrouillés en haut (${ext}°)`); }
+    }
+    return { n: n + 1, valide, raisons };
+  });
+}
+
+// Protocole de prise de vue par mouvement (cahier des charges, section 4)
+export const PROTOCOLES = {
+  squat: "De profil strict (90°), téléphone posé à hauteur de hanche, à 2–4 m. Tout le corps, les pieds et le disque entier dans l'image.",
+  frontsquat: "De profil strict, téléphone à hauteur de hanche, à 2–4 m. Tout le corps et le disque entier visibles.",
+  bench: "De profil, téléphone à hauteur du banc, à 2–3 m. La barre, le coude, l'épaule et le disque entier visibles.",
+  deadlift: "De profil strict, téléphone à hauteur de hanche, à 2–4 m. Tout le corps et le disque entier dans l'image.",
+  rdl: "De profil strict, téléphone à hauteur de hanche. Tout le corps et le disque entier visibles.",
+  traction: "De profil, à 3 m, téléphone assez haut pour voir la barre fixe, le menton et les bras tendus en bas.",
+  dips: "De profil, à 2–3 m, téléphone à hauteur des barres. L'épaule, le coude et la main visibles en bas comme en haut.",
+  militaire: "De profil, téléphone à hauteur d'épaule. Tout le corps et le disque entier visibles.",
+};
+export const protocole = (mvt) => PROTOCOLES[mvt] || "De profil, téléphone posé (pas tenu à la main), tout le corps et le bout de la barre dans l'image.";
+
+// Contrôle qualité de la vidéo, avant toute analyse
+export function qualiteVideo({ w = 0, h = 0, duree = 0 } = {}) {
+  const pb = [], petit = Math.min(w, h);
+  if (petit && petit < 480) pb.push("Définition basse : règle la caméra en 720p ou plus pour des mesures précises.");
+  if (duree > 90) pb.push("Vidéo longue : découpe la série (✂️) pour une analyse plus rapide et plus juste.");
+  if (duree && duree < 1.5) pb.push("Vidéo très courte : filme la série en entier, du placement au retour.");
+  return pb;
+}
