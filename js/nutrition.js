@@ -79,6 +79,15 @@ const EXTRA = [
   ["Skyr nature 0 %", "Produits laitiers", 60, 10.5, 4, 0.2],
   ["Skyr aux fruits", "Produits laitiers", 80, 9, 10, 0.2],
   ["Protéine whey en poudre", "Compléments", 380, 75, 8, 6],
+  // Plats absents de Ciqual : valeurs pour 100 g de la table USDA FNDDS 2021-2023 (FoodData Central, domaine public), plat le plus proche
+  ["Basboussa (gâteau de semoule au sirop) – valeurs USDA « Basbousa »", "Produits sucrés & desserts", 282, 4.81, 43.76, 9.94, 0.8],
+  ["Alloco (banane plantain frite) – valeurs USDA « Plantain, cooked with oil »", "Féculents & céréales", 144, 1.26, 30.87, 3.24, 1.6],
+  ["Attiéké (semoule de manioc) – valeurs USDA « Cassava, cooked »", "Féculents & céréales", 191, 1.42, 39.62, 3.03, 1.9],
+  ["Foutou / fufu – valeurs USDA « Fufu »", "Féculents & céréales", 166, 1.5, 33.59, 2.99, 3.1],
+  ["Riz jollof / riz gras à la tomate – valeurs USDA « Spanish rice, from restaurant »", "Féculents & céréales", 185, 3.28, 31.16, 5.29, 1.2],
+  ["Chou sauté (au curry, à l'huile) – valeurs USDA « Cabbage, green, cooked with oil »", "Légumes", 58, 0.97, 6.43, 3.26, 2.5],
+  ["Patate douce rôtie à l'huile – valeurs USDA « Sweet potato, baked, fat added »", "Légumes", 115, 1.58, 17.14, 4.53, 3],
+  ["Tarte ou gâteau au citron meringué – valeurs USDA « Pie, lemon meringue »", "Produits sucrés & desserts", 294, 4.53, 43.69, 11.34, 1.1],
 ];
 // Aliments de base avec un nom clair, recopiés de la table Ciqual (on les trouve en premier)
 const BASICS = [

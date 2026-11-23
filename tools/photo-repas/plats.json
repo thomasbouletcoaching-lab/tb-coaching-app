@@ -1,1 +1,1388 @@
-[["nigiri", "Sushi (nigiri)", "salmon nigiri sushi", "nigiri"], ["maki", "Makis", "maki sushi rolls", "maki"], ["california", "California rolls", "california rolls sushi", "california roll"], ["sushi_mix", "Assortiment de sushis", "a sushi platter with assorted sushi and maki", "sushi"], ["sashimi", "Sashimi", "salmon sashimi slices", "sashimi"], ["nem", "Nems", "fried vietnamese spring rolls (nem)", "nem"], ["rouleau_printemps", "Rouleaux de printemps", "fresh vietnamese rice paper spring rolls", "rouleau de printemps"], ["ravioli_vapeur", "Raviolis vapeur", "steamed shrimp dumplings dim sum", "ravioli vapeur"], ["gyoza", "Gyozas", "pan-fried gyoza dumplings", "gyoza"], ["siu_mai", "Bouchées vapeur (siu mai)", "siu mai steamed pork dumplings", "siu mai"], ["samoussa", "Samoussas", "fried samosas", "samoussa"], ["beignet_crevette", "Beignets de crevette", "fried shrimp tempura", "beignet de crevette"], ["yakitori", "Brochettes yakitori", "yakitori chicken skewers with sauce", "yakitori"], ["riz_cantonais", "Riz cantonais", "cantonese fried rice with egg and peas", "riz cantonais"], ["nouilles_sautees", "Nouilles sautées", "stir-fried noodles", "nouilles sautées"], ["pad_thai", "Pad thaï", "pad thai noodles", "pad thai"], ["ramen", "Ramen", "a bowl of japanese ramen noodle soup", "ramen"], ["pho", "Phở", "a bowl of vietnamese pho beef noodle soup", "soupe pho"], ["bo_bun", "Bò bún", "vietnamese bo bun noodle salad bowl", "bo bun"], ["soupe_miso", "Soupe miso", "a bowl of miso soup with tofu", "soupe miso"], ["poulet_curry", "Poulet au curry", "chicken curry", "poulet curry"], ["poulet_aigre_doux", "Poulet aigre-doux", "sweet and sour chicken", "poulet aigre doux"], ["canard_laque", "Canard laqué", "peking duck", "canard laqué"], ["poke", "Poke bowl", "a poke bowl with raw fish, rice and vegetables", "poke bowl"], ["perle_coco", "Perles de coco", "chinese coconut balls dessert", "perle de coco"], ["burger", "Hamburger", "a hamburger", "hamburger"], ["cheeseburger", "Cheeseburger", "a cheeseburger with melted cheese", "cheeseburger"], ["frites", "Frites", "french fries", "frites"], ["nuggets", "Nuggets de poulet", "chicken nuggets", "nuggets poulet"], ["ailes_poulet", "Ailes de poulet", "fried chicken wings", "ailes de poulet"], ["poulet_frit", "Poulet frit (tenders)", "fried chicken tenders", "poulet pané"], ["wrap", "Wrap", "a tortilla wrap", "wrap"], ["tacos_fr", "Tacos (french tacos)", "a french tacos, a grilled folded tortilla filled with meat, fries and cheese sauce", "tacos"], ["kebab", "Kebab", "a doner kebab sandwich", "sandwich kebab"], ["hot_dog", "Hot-dog", "a hot dog", "hot-dog"], ["pizza", "Pizza", "pizza", "pizza"], ["panini", "Panini", "a grilled panini sandwich", "panini"], ["croque", "Croque-monsieur / madame", "a croque monsieur or croque madame", "croque"], ["sandwich_baguette", "Sandwich baguette", "a french baguette sandwich", "sandwich baguette"], ["club_sandwich", "Club sandwich", "a club sandwich", "club sandwich"], ["poisson_pane", "Poisson pané", "breaded fried fish fillet", "poisson pané"], ["onion_rings", "Rondelles d'oignon frites", "onion rings", "onion rings"], ["milkshake", "Milk-shake", "a milkshake", "milk-shake"], ["nachos", "Nachos", "nachos with cheese", "nachos"], ["burrito", "Burrito", "a burrito", "burrito"], ["falafel", "Falafels", "falafel balls", "falafel"], ["houmous", "Houmous", "hummus", "houmous"], ["guacamole", "Guacamole", "guacamole", "guacamole"], ["steak", "Steak grillé", "a grilled beef steak", "steak grillé"], ["steak_hache", "Steak haché", "a ground beef patty", "steak haché cuit"], ["tartare_boeuf", "Tartare de bœuf", "beef tartare", "tartare de boeuf"], ["carpaccio", "Carpaccio de bœuf", "beef carpaccio", "carpaccio"], ["poulet_roti", "Poulet rôti", "roast chicken", "poulet rôti"], ["blanc_poulet", "Blanc de poulet", "grilled chicken breast", "poulet filet sauté"], ["escalope", "Escalope panée", "breaded escalope schnitzel", "escalope panée"], ["cote_porc", "Côte de porc", "a grilled pork chop", "porc côte grillée"], ["saucisse", "Saucisses grillées", "grilled sausages", "saucisse"], ["merguez", "Merguez", "grilled merguez sausages", "merguez"], ["boulettes", "Boulettes de viande", "meatballs", "boulette"], ["saumon", "Pavé de saumon", "a grilled salmon fillet", "saumon cuit"], ["poisson_blanc", "Poisson blanc", "a cooked white fish fillet", "cabillaud cuit"], ["tartare_saumon", "Tartare de saumon / thon", "salmon or tuna tartare", "tartare de saumon"], ["crevettes", "Crevettes", "cooked shrimps", "crevette"], ["moules", "Moules", "a pot of steamed mussels", "moule"], ["huitres", "Huîtres", "oysters on a plate", "huître"], ["escargots", "Escargots", "escargots with garlic butter", "escargot"], ["foie_gras", "Foie gras", "foie gras", "foie gras"], ["calamars", "Calamars frits", "fried calamari rings", "calamars frits"], ["lasagnes", "Lasagnes", "lasagna", "lasagnes"], ["bolognaise", "Spaghetti bolognaise", "spaghetti bolognese", "pâtes bolognaise"], ["carbonara", "Pâtes carbonara", "spaghetti carbonara", "pâtes carbonara"], ["pates", "Pâtes nature", "plain cooked pasta", "pâtes cuites"], ["raviolis", "Raviolis", "ravioli pasta", "ravioli viande"], ["gnocchis", "Gnocchis", "gnocchi", "gnocchi"], ["risotto", "Risotto", "risotto", "risotto"], ["paella", "Paëlla", "paella", "paella"], ["couscous", "Couscous", "couscous with vegetables and meat", "couscous"], ["tajine", "Tajine", "a moroccan tajine", "tajine"], ["chili", "Chili con carne", "chili con carne", "chili con carne"], ["hachis", "Hachis parmentier", "shepherd's pie, hachis parmentier", "hachis parmentier"], ["gratin_dauphinois", "Gratin dauphinois", "potato gratin dauphinois", "gratin dauphinois"], ["puree", "Purée", "mashed potatoes", "purée de pomme de terre"], ["pdt_sautees", "Pommes de terre sautées", "pan-fried potatoes", "pomme de terre sautée"], ["pdt_vapeur", "Pommes de terre vapeur", "boiled potatoes", "pomme de terre cuite à l'eau"], ["riz", "Riz blanc", "a bowl of plain white rice", "riz blanc cuit"], ["quinoa", "Quinoa", "cooked quinoa", "quinoa cuit"], ["lentilles", "Lentilles", "cooked lentils", "lentille cuite"], ["haricots_verts", "Haricots verts", "green beans", "haricot vert cuit"], ["brocoli", "Brocolis", "broccoli", "brocoli cuit"], ["carottes", "Carottes cuites", "cooked carrots", "carotte cuite"], ["ratatouille", "Ratatouille", "ratatouille", "ratatouille"], ["legumes_poeles", "Poêlée de légumes", "sauteed mixed vegetables", "poêlée de légumes assaisonnés"], ["salade_verte", "Salade verte", "a green salad", "salade verte"], ["salade_composee", "Salade composée", "a mixed salad bowl", "salade composée"], ["salade_cesar", "Salade César", "caesar salad", "salade césar"], ["salade_grecque", "Salade grecque", "greek salad", "salade grecque"], ["tomate_mozza", "Tomate mozzarella", "caprese salad with tomato and mozzarella", "mozzarella"], ["taboule", "Taboulé", "tabbouleh couscous salad", "taboulé"], ["carottes_rapees", "Carottes râpées", "grated carrot salad", "carotte râpée"], ["soupe_legumes", "Soupe de légumes", "a bowl of vegetable soup", "soupe de légumes"], ["soupe_oignon", "Soupe à l'oignon", "french onion soup", "soupe à l'oignon"], ["omelette", "Omelette", "an omelette", "omelette"], ["oeufs_plat", "Œufs au plat", "fried eggs sunny side up", "oeuf au plat"], ["oeufs_brouilles", "Œufs brouillés", "scrambled eggs", "oeufs brouillés"], ["oeufs_durs", "Œufs durs", "hard boiled eggs", "oeuf dur"], ["quiche", "Quiche", "a slice of quiche", "quiche"], ["crepe", "Crêpe", "a french crepe", "crêpe"], ["galette", "Galette complète", "a buckwheat galette with ham, egg and cheese", "galette complète"], ["raclette", "Raclette", "raclette melted cheese with potatoes and charcuterie", "raclette"], ["plateau_fromages", "Plateau de fromages", "a cheese plate", "camembert"], ["choucroute", "Choucroute", "choucroute garnie, sauerkraut with sausages", "choucroute"], ["boeuf_bourguignon", "Bœuf bourguignon", "beef bourguignon stew", "boeuf bourguignon"], ["blanquette", "Blanquette de veau", "blanquette de veau, creamy veal stew", "blanquette"], ["cassoulet", "Cassoulet", "cassoulet with beans and sausages", "cassoulet"], ["jambon", "Jambon", "sliced ham", "jambon cuit"], ["saumon_fume", "Saumon fumé", "smoked salmon slices", "saumon fumé"], ["thon", "Thon en boîte", "canned tuna", "thon au naturel"], ["tofu", "Tofu", "tofu", "tofu"], ["croissant", "Croissant", "a croissant", "croissant au beurre"], ["pain_chocolat", "Pain au chocolat", "a pain au chocolat pastry", "pain au chocolat"], ["pain_raisins", "Pain aux raisins", "a pain aux raisins swirl pastry", "pain aux raisins"], ["baguette", "Baguette", "a french baguette bread", "baguette"], ["pain_tranche", "Tranches de pain", "slices of bread", "pain de campagne"], ["brioche", "Brioche", "brioche bread", "brioche"], ["chouquettes", "Chouquettes", "chouquettes, small sugar puff pastries", "chouquette"], ["eclair", "Éclair", "a chocolate eclair", "éclair"], ["macarons", "Macarons", "macarons", "macaron"], ["tarte_pommes", "Tarte aux pommes", "an apple tart", "tarte aux pommes"], ["tarte_fraises", "Tarte aux fraises", "a strawberry tart", "tarte aux fraises"], ["flan", "Flan pâtissier", "a slice of french custard flan", "flan pâtissier"], ["cookie", "Cookie", "a chocolate chip cookie", "cookie"], ["muffin", "Muffin", "a muffin", "muffin"], ["donut", "Donut", "a donut", "donut"], ["beignet", "Beignet", "a sugar-dusted beignet", "beignet sucré"], ["gaufre", "Gaufre", "a waffle", "gaufre"], ["pancakes", "Pancakes", "a stack of pancakes", "pancake"], ["pain_perdu", "Pain perdu", "french toast", "pain perdu"], ["churros", "Churros", "churros", "churros"], ["cereales", "Bol de céréales", "a bowl of breakfast cereal with milk", "céréales petit déjeuner"], ["porridge", "Porridge", "oatmeal porridge", "flocon d'avoine"], ["muesli", "Muesli / granola", "granola with yogurt", "muesli"], ["mousse_chocolat", "Mousse au chocolat", "chocolate mousse", "mousse au chocolat"], ["creme_brulee", "Crème brûlée", "creme brulee", "crème brûlée"], ["tiramisu", "Tiramisu", "tiramisu", "tiramisu"], ["panna_cotta", "Panna cotta", "panna cotta", "panna cotta"], ["cheesecake", "Cheesecake", "cheesecake", "cheesecake"], ["gateau_chocolat", "Gâteau au chocolat", "a slice of chocolate cake", "gâteau au chocolat"], ["ile_flottante", "Île flottante", "ile flottante, floating island dessert", "île flottante"], ["glace", "Glace", "scoops of ice cream", "crème glacée"], ["yaourt", "Yaourt", "a yogurt", "yaourt nature"], ["fromage_blanc", "Fromage blanc", "a bowl of fromage blanc", "fromage blanc"], ["compote", "Compote", "apple sauce compote", "compote"], ["salade_fruits", "Salade de fruits", "fruit salad", "salade de fruits"], ["riz_au_lait", "Riz au lait", "rice pudding", "riz au lait"], ["pomme", "Pomme", "an apple", "pomme crue"], ["banane", "Banane", "a banana", "banane"], ["orange", "Orange", "an orange", "orange"], ["clementine", "Clémentines", "clementines", "clémentine"], ["fraises", "Fraises", "strawberries", "fraise"], ["raisin", "Raisin", "grapes", "raisin"], ["kiwi", "Kiwi", "kiwi fruit", "kiwi"], ["ananas", "Ananas", "pineapple", "ananas"], ["mangue", "Mangue", "mango", "mangue"], ["pasteque", "Pastèque", "watermelon slices", "pastèque"], ["melon", "Melon", "cantaloupe melon", "melon"], ["poire", "Poire", "a pear", "poire"], ["peche", "Pêche", "a peach", "pêche crue"], ["cerises", "Cerises", "cherries", "cerise"], ["fruits_rouges", "Fruits rouges", "raspberries and blueberries", "fruits rouges"], ["avocat", "Avocat", "avocado", "avocat"], ["tomates", "Tomates", "tomatoes", "tomate"], ["concombre", "Concombre", "sliced cucumber", "concombre"], ["poivron", "Poivron", "bell pepper", "poivron"], ["champignons", "Champignons", "mushrooms", "champignon de paris cuit"], ["epinards", "Épinards", "spinach", "épinard"], ["courgette", "Courgettes", "zucchini", "courgette cuite"], ["aubergine", "Aubergine", "eggplant", "aubergine"], ["mais", "Maïs", "sweet corn", "maïs"], ["petits_pois", "Petits pois", "green peas", "petits pois"], ["asperges", "Asperges", "asparagus", "asperge"], ["chips", "Chips", "potato chips", "chips pommes de terre"], ["cacahuetes", "Cacahuètes", "peanuts", "cacahuète grillée salée"], ["olives", "Olives", "olives", "olive"], ["saucisson", "Saucisson", "sliced saucisson dry sausage", "saucisson sec"], ["charcuterie", "Planche de charcuterie", "a charcuterie board", "jambon cru"], ["biscuits_aperitif", "Biscuits apéritif", "cocktail crackers", "biscuit apéritif"], ["fruits_secs", "Fruits secs", "mixed nuts", "mélange de fruits à coque"], ["chocolat", "Chocolat", "a chocolate bar", "chocolat noir"], ["bonbons", "Bonbons", "gummy candies", "bonbon"], ["biscuits", "Biscuits", "biscuits", "biscuit sec"], ["popcorn", "Pop-corn", "popcorn", "pop-corn"], ["biere", "Bière", "a glass of beer", "bière"], ["vin_rouge", "Vin rouge", "a glass of red wine", "vin rouge"], ["vin_blanc", "Vin blanc", "a glass of white wine", "vin blanc"], ["champagne", "Champagne", "a flute of champagne", "vin blanc mousseux"], ["cocktail", "Cocktail", "a cocktail drink", "cocktail"], ["soda", "Soda", "a glass of cola soda", "cola"], ["jus_orange", "Jus d'orange", "a glass of orange juice", "jus d'orange"], ["cafe", "Café", "a cup of coffee", "café prêt à boire"], ["cappuccino", "Cappuccino", "a cappuccino", "cappuccino"], ["the", "Thé", "a cup of tea", "thé"], ["smoothie", "Smoothie", "a smoothie", "smoothie"], ["lait", "Verre de lait", "a glass of milk", "lait demi-écrémé"]]
+[
+[
+"nigiri",
+"Sushi (nigiri)",
+"salmon nigiri sushi",
+"nigiri"
+],
+[
+"maki",
+"Makis",
+"maki sushi rolls",
+"maki"
+],
+[
+"california",
+"California rolls",
+"california rolls sushi",
+"california roll"
+],
+[
+"sushi_mix",
+"Assortiment de sushis",
+"a sushi platter with assorted sushi and maki",
+"sushi"
+],
+[
+"sashimi",
+"Sashimi",
+"salmon sashimi slices",
+"sashimi"
+],
+[
+"nem",
+"Nems",
+"fried vietnamese spring rolls (nem)",
+"nem"
+],
+[
+"rouleau_printemps",
+"Rouleaux de printemps",
+"fresh vietnamese rice paper spring rolls",
+"rouleau de printemps"
+],
+[
+"ravioli_vapeur",
+"Raviolis vapeur",
+"steamed shrimp dumplings dim sum",
+"ravioli vapeur"
+],
+[
+"gyoza",
+"Gyozas",
+"pan-fried gyoza dumplings",
+"gyoza"
+],
+[
+"siu_mai",
+"Bouchées vapeur (siu mai)",
+"siu mai steamed pork dumplings",
+"siu mai"
+],
+[
+"samoussa",
+"Samoussas",
+"fried samosas",
+"samoussa"
+],
+[
+"beignet_crevette",
+"Beignets de crevette",
+"fried shrimp tempura",
+"beignet de crevette"
+],
+[
+"yakitori",
+"Brochettes yakitori",
+"yakitori chicken skewers with sauce",
+"yakitori"
+],
+[
+"riz_cantonais",
+"Riz cantonais",
+"cantonese fried rice with egg and peas",
+"riz cantonais"
+],
+[
+"nouilles_sautees",
+"Nouilles sautées",
+"stir-fried noodles",
+"nouilles sautées"
+],
+[
+"pad_thai",
+"Pad thaï",
+"pad thai noodles",
+"pad thai"
+],
+[
+"ramen",
+"Ramen",
+"a bowl of japanese ramen noodle soup",
+"ramen"
+],
+[
+"pho",
+"Phở",
+"a bowl of vietnamese pho beef noodle soup",
+"soupe pho"
+],
+[
+"bo_bun",
+"Bò bún",
+"vietnamese bo bun noodle salad bowl",
+"bo bun"
+],
+[
+"soupe_miso",
+"Soupe miso",
+"a bowl of miso soup with tofu",
+"soupe miso"
+],
+[
+"poulet_curry",
+"Poulet au curry",
+"chicken curry",
+"poulet curry"
+],
+[
+"poulet_aigre_doux",
+"Poulet aigre-doux",
+"sweet and sour chicken",
+"poulet aigre doux"
+],
+[
+"canard_laque",
+"Canard laqué",
+"peking duck",
+"canard laqué"
+],
+[
+"poke",
+"Poke bowl",
+"a poke bowl with raw fish, rice and vegetables",
+"poke bowl"
+],
+[
+"perle_coco",
+"Perles de coco",
+"chinese coconut balls dessert",
+"perle de coco"
+],
+[
+"burger",
+"Hamburger",
+"a hamburger",
+"hamburger"
+],
+[
+"cheeseburger",
+"Cheeseburger",
+"a cheeseburger with melted cheese",
+"cheeseburger"
+],
+[
+"frites",
+"Frites",
+"french fries",
+"frites"
+],
+[
+"nuggets",
+"Nuggets de poulet",
+"chicken nuggets",
+"nuggets poulet"
+],
+[
+"ailes_poulet",
+"Ailes de poulet",
+"fried chicken wings",
+"ailes de poulet"
+],
+[
+"poulet_frit",
+"Poulet frit (tenders)",
+"fried chicken tenders",
+"poulet pané"
+],
+[
+"wrap",
+"Wrap",
+"a tortilla wrap",
+"wrap"
+],
+[
+"tacos_fr",
+"Tacos (french tacos)",
+"a french tacos, a grilled folded tortilla filled with meat, fries and cheese sauce",
+"tacos"
+],
+[
+"kebab",
+"Kebab",
+"a doner kebab sandwich",
+"sandwich kebab"
+],
+[
+"hot_dog",
+"Hot-dog",
+"a hot dog",
+"hot-dog"
+],
+[
+"pizza",
+"Pizza",
+"pizza",
+"pizza"
+],
+[
+"panini",
+"Panini",
+"a grilled panini sandwich",
+"panini"
+],
+[
+"croque",
+"Croque-monsieur / madame",
+"a croque monsieur or croque madame",
+"croque"
+],
+[
+"sandwich_baguette",
+"Sandwich baguette",
+"a french baguette sandwich",
+"sandwich baguette"
+],
+[
+"club_sandwich",
+"Club sandwich",
+"a club sandwich",
+"club sandwich"
+],
+[
+"poisson_pane",
+"Poisson pané",
+"breaded fried fish fillet",
+"poisson pané"
+],
+[
+"onion_rings",
+"Rondelles d'oignon frites",
+"onion rings",
+"onion rings"
+],
+[
+"milkshake",
+"Milk-shake",
+"a milkshake",
+"milk-shake"
+],
+[
+"nachos",
+"Nachos",
+"nachos with cheese",
+"nachos"
+],
+[
+"burrito",
+"Burrito",
+"a burrito",
+"burrito"
+],
+[
+"falafel",
+"Falafels",
+"falafel balls",
+"falafel"
+],
+[
+"houmous",
+"Houmous",
+"hummus",
+"houmous"
+],
+[
+"guacamole",
+"Guacamole",
+"guacamole",
+"guacamole"
+],
+[
+"steak",
+"Steak grillé",
+"a grilled beef steak",
+"steak grillé"
+],
+[
+"steak_hache",
+"Steak haché",
+"a ground beef patty",
+"steak haché cuit"
+],
+[
+"tartare_boeuf",
+"Tartare de bœuf",
+"beef tartare",
+"tartare de boeuf"
+],
+[
+"carpaccio",
+"Carpaccio de bœuf",
+"beef carpaccio",
+"carpaccio"
+],
+[
+"poulet_roti",
+"Poulet rôti",
+"roast chicken",
+"poulet rôti"
+],
+[
+"blanc_poulet",
+"Blanc de poulet",
+"grilled chicken breast",
+"poulet filet sauté"
+],
+[
+"escalope",
+"Escalope panée",
+"breaded escalope schnitzel",
+"escalope panée"
+],
+[
+"cote_porc",
+"Côte de porc",
+"a grilled pork chop",
+"porc côte grillée"
+],
+[
+"saucisse",
+"Saucisses grillées",
+"a grilled pork sausage with browned skin",
+"saucisse"
+],
+[
+"merguez",
+"Merguez",
+"grilled merguez sausages",
+"merguez"
+],
+[
+"boulettes",
+"Boulettes de viande",
+"meatballs",
+"boulette"
+],
+[
+"saumon",
+"Pavé de saumon",
+"a grilled salmon fillet",
+"saumon cuit"
+],
+[
+"poisson_blanc",
+"Poisson blanc",
+"a cooked white fish fillet",
+"cabillaud cuit"
+],
+[
+"tartare_saumon",
+"Tartare de saumon / thon",
+"salmon or tuna tartare",
+"tartare de saumon"
+],
+[
+"crevettes",
+"Crevettes",
+"cooked shrimps",
+"crevette"
+],
+[
+"moules",
+"Moules",
+"a pot of steamed mussels",
+"moule"
+],
+[
+"huitres",
+"Huîtres",
+"oysters on a plate",
+"huître"
+],
+[
+"escargots",
+"Escargots",
+"escargots with garlic butter",
+"escargot"
+],
+[
+"foie_gras",
+"Foie gras",
+"foie gras",
+"foie gras"
+],
+[
+"calamars",
+"Calamars frits",
+"fried calamari rings",
+"calamars frits"
+],
+[
+"lasagnes",
+"Lasagnes",
+"lasagna",
+"lasagnes"
+],
+[
+"bolognaise",
+"Spaghetti bolognaise",
+"spaghetti bolognese",
+"pâtes bolognaise"
+],
+[
+"carbonara",
+"Pâtes carbonara",
+"spaghetti carbonara",
+"pâtes carbonara"
+],
+[
+"pates",
+"Pâtes nature",
+"plain cooked pasta",
+"pâtes cuites"
+],
+[
+"raviolis",
+"Raviolis",
+"ravioli pasta",
+"ravioli viande"
+],
+[
+"gnocchis",
+"Gnocchis",
+"gnocchi",
+"gnocchi"
+],
+[
+"risotto",
+"Risotto",
+"risotto",
+"risotto"
+],
+[
+"paella",
+"Paëlla",
+"paella",
+"paella"
+],
+[
+"couscous",
+"Couscous",
+"couscous with vegetables and meat",
+"couscous"
+],
+[
+"tajine",
+"Tajine",
+"a moroccan tajine",
+"tajine"
+],
+[
+"chili",
+"Chili con carne",
+"chili con carne",
+"chili con carne"
+],
+[
+"hachis",
+"Hachis parmentier",
+"shepherd's pie, hachis parmentier",
+"hachis parmentier"
+],
+[
+"gratin_dauphinois",
+"Gratin dauphinois",
+"potato gratin dauphinois",
+"gratin dauphinois"
+],
+[
+"puree",
+"Purée",
+"mashed potatoes",
+"purée de pomme de terre"
+],
+[
+"pdt_sautees",
+"Pommes de terre sautées",
+"pan-fried potatoes",
+"pomme de terre sautée"
+],
+[
+"pdt_vapeur",
+"Pommes de terre vapeur",
+"boiled potatoes",
+"pomme de terre cuite à l'eau"
+],
+[
+"riz",
+"Riz blanc",
+"a bowl of plain white rice",
+"riz blanc cuit"
+],
+[
+"quinoa",
+"Quinoa",
+"cooked quinoa",
+"quinoa cuit"
+],
+[
+"lentilles",
+"Lentilles",
+"cooked lentils",
+"lentille cuite"
+],
+[
+"haricots_verts",
+"Haricots verts",
+"green beans",
+"haricot vert cuit"
+],
+[
+"brocoli",
+"Brocolis",
+"broccoli",
+"brocoli cuit"
+],
+[
+"carottes",
+"Carottes cuites",
+"cooked carrots",
+"carotte cuite"
+],
+[
+"ratatouille",
+"Ratatouille",
+"ratatouille",
+"ratatouille"
+],
+[
+"legumes_poeles",
+"Poêlée de légumes",
+"sauteed mixed vegetables",
+"poêlée de légumes assaisonnés"
+],
+[
+"salade_verte",
+"Salade verte",
+"a green salad",
+"salade verte"
+],
+[
+"salade_composee",
+"Salade composée",
+"a mixed salad bowl",
+"salade composée"
+],
+[
+"salade_cesar",
+"Salade César",
+"caesar salad",
+"salade césar"
+],
+[
+"salade_grecque",
+"Salade grecque",
+"greek salad",
+"salade grecque"
+],
+[
+"tomate_mozza",
+"Tomate mozzarella",
+"caprese salad with tomato and mozzarella",
+"mozzarella"
+],
+[
+"taboule",
+"Taboulé",
+"tabbouleh couscous salad",
+"taboulé"
+],
+[
+"carottes_rapees",
+"Carottes râpées",
+"grated carrot salad",
+"carotte râpée"
+],
+[
+"soupe_legumes",
+"Soupe de légumes",
+"a bowl of vegetable soup",
+"soupe de légumes"
+],
+[
+"soupe_oignon",
+"Soupe à l'oignon",
+"french onion soup",
+"soupe à l'oignon"
+],
+[
+"omelette",
+"Omelette",
+"an omelette",
+"omelette"
+],
+[
+"oeufs_plat",
+"Œufs au plat",
+"fried eggs sunny side up",
+"oeuf au plat"
+],
+[
+"oeufs_brouilles",
+"Œufs brouillés",
+"scrambled eggs",
+"oeufs brouillés"
+],
+[
+"oeufs_durs",
+"Œufs durs",
+"hard boiled eggs",
+"oeuf dur"
+],
+[
+"quiche",
+"Quiche",
+"a slice of quiche",
+"quiche"
+],
+[
+"crepe",
+"Crêpe",
+"a french crepe",
+"crêpe"
+],
+[
+"galette",
+"Galette complète",
+"a buckwheat galette with ham, egg and cheese",
+"galette complète"
+],
+[
+"raclette",
+"Raclette",
+"raclette melted cheese with potatoes and charcuterie",
+"raclette"
+],
+[
+"plateau_fromages",
+"Plateau de fromages",
+"a cheese plate",
+"camembert"
+],
+[
+"choucroute",
+"Choucroute",
+"choucroute garnie, sauerkraut with sausages",
+"choucroute"
+],
+[
+"boeuf_bourguignon",
+"Bœuf bourguignon",
+"beef bourguignon stew",
+"boeuf bourguignon"
+],
+[
+"blanquette",
+"Blanquette de veau",
+"blanquette de veau, creamy veal stew",
+"blanquette"
+],
+[
+"cassoulet",
+"Cassoulet",
+"cassoulet with beans and sausages",
+"cassoulet"
+],
+[
+"jambon",
+"Jambon",
+"sliced ham",
+"jambon cuit"
+],
+[
+"saumon_fume",
+"Saumon fumé",
+"smoked salmon slices",
+"saumon fumé"
+],
+[
+"thon",
+"Thon en boîte",
+"canned tuna",
+"thon au naturel"
+],
+[
+"tofu",
+"Tofu",
+"tofu",
+"tofu"
+],
+[
+"croissant",
+"Croissant",
+"a croissant",
+"croissant au beurre"
+],
+[
+"pain_chocolat",
+"Pain au chocolat",
+"a pain au chocolat pastry",
+"pain au chocolat"
+],
+[
+"pain_raisins",
+"Pain aux raisins",
+"a pain aux raisins swirl pastry",
+"pain aux raisins"
+],
+[
+"baguette",
+"Baguette",
+"a french baguette bread",
+"baguette"
+],
+[
+"pain_tranche",
+"Tranches de pain",
+"slices of bread",
+"pain de campagne"
+],
+[
+"brioche",
+"Brioche",
+"brioche bread",
+"brioche"
+],
+[
+"chouquettes",
+"Chouquettes",
+"chouquettes, small sugar puff pastries",
+"chouquette"
+],
+[
+"eclair",
+"Éclair",
+"a chocolate eclair",
+"éclair"
+],
+[
+"macarons",
+"Macarons",
+"macarons",
+"macaron"
+],
+[
+"tarte_pommes",
+"Tarte aux pommes",
+"an apple tart",
+"tarte aux pommes"
+],
+[
+"tarte_fraises",
+"Tarte aux fraises",
+"a strawberry tart",
+"tarte aux fraises"
+],
+[
+"flan",
+"Flan pâtissier",
+"a slice of french custard flan",
+"flan pâtissier"
+],
+[
+"cookie",
+"Cookie",
+"a chocolate chip cookie",
+"cookie"
+],
+[
+"muffin",
+"Muffin",
+"a muffin",
+"muffin"
+],
+[
+"donut",
+"Donut",
+"a donut",
+"donut"
+],
+[
+"beignet",
+"Beignet",
+"a sugar-dusted beignet",
+"beignet sucré"
+],
+[
+"gaufre",
+"Gaufre",
+"a waffle",
+"gaufre"
+],
+[
+"pancakes",
+"Pancakes",
+"a stack of pancakes",
+"pancake"
+],
+[
+"pain_perdu",
+"Pain perdu",
+"french toast",
+"pain perdu"
+],
+[
+"churros",
+"Churros",
+"churros",
+"churros"
+],
+[
+"cereales",
+"Bol de céréales",
+"a bowl of breakfast cereal with milk",
+"céréales petit déjeuner"
+],
+[
+"porridge",
+"Porridge",
+"oatmeal porridge",
+"flocon d'avoine"
+],
+[
+"muesli",
+"Muesli / granola",
+"granola with yogurt",
+"muesli"
+],
+[
+"mousse_chocolat",
+"Mousse au chocolat",
+"chocolate mousse",
+"mousse au chocolat"
+],
+[
+"creme_brulee",
+"Crème brûlée",
+"creme brulee",
+"crème brûlée"
+],
+[
+"tiramisu",
+"Tiramisu",
+"tiramisu",
+"tiramisu"
+],
+[
+"panna_cotta",
+"Panna cotta",
+"panna cotta",
+"panna cotta"
+],
+[
+"cheesecake",
+"Cheesecake",
+"cheesecake",
+"cheesecake"
+],
+[
+"gateau_chocolat",
+"Gâteau au chocolat",
+"a slice of chocolate cake",
+"gâteau au chocolat"
+],
+[
+"ile_flottante",
+"Île flottante",
+"ile flottante, floating island dessert",
+"île flottante"
+],
+[
+"glace",
+"Glace",
+"scoops of ice cream",
+"crème glacée"
+],
+[
+"yaourt",
+"Yaourt",
+"a yogurt",
+"yaourt nature"
+],
+[
+"fromage_blanc",
+"Fromage blanc",
+"a bowl of fromage blanc",
+"fromage blanc"
+],
+[
+"compote",
+"Compote",
+"apple sauce compote",
+"compote"
+],
+[
+"salade_fruits",
+"Salade de fruits",
+"fruit salad",
+"salade de fruits"
+],
+[
+"riz_au_lait",
+"Riz au lait",
+"rice pudding",
+"riz au lait"
+],
+[
+"pomme",
+"Pomme",
+"an apple",
+"pomme crue"
+],
+[
+"banane",
+"Banane",
+"a banana",
+"banane"
+],
+[
+"orange",
+"Orange",
+"an orange",
+"orange"
+],
+[
+"clementine",
+"Clémentines",
+"clementines",
+"clémentine"
+],
+[
+"fraises",
+"Fraises",
+"strawberries",
+"fraise"
+],
+[
+"raisin",
+"Raisin",
+"grapes",
+"raisin"
+],
+[
+"kiwi",
+"Kiwi",
+"kiwi fruit",
+"kiwi"
+],
+[
+"ananas",
+"Ananas",
+"pineapple",
+"ananas"
+],
+[
+"mangue",
+"Mangue",
+"mango",
+"mangue"
+],
+[
+"pasteque",
+"Pastèque",
+"watermelon slices",
+"pastèque"
+],
+[
+"melon",
+"Melon",
+"cantaloupe melon",
+"melon"
+],
+[
+"poire",
+"Poire",
+"a pear",
+"poire"
+],
+[
+"peche",
+"Pêche",
+"a peach",
+"pêche crue"
+],
+[
+"cerises",
+"Cerises",
+"cherries",
+"cerise"
+],
+[
+"fruits_rouges",
+"Fruits rouges",
+"raspberries and blueberries",
+"fruits rouges"
+],
+[
+"avocat",
+"Avocat",
+"avocado",
+"avocat"
+],
+[
+"tomates",
+"Tomates",
+"tomatoes",
+"tomate"
+],
+[
+"concombre",
+"Concombre",
+"sliced cucumber",
+"concombre"
+],
+[
+"poivron",
+"Poivron",
+"bell pepper",
+"poivron"
+],
+[
+"champignons",
+"Champignons",
+"sauteed sliced mushrooms",
+"champignon de paris cuit"
+],
+[
+"epinards",
+"Épinards",
+"spinach",
+"épinard"
+],
+[
+"courgette",
+"Courgettes",
+"zucchini",
+"courgette cuite"
+],
+[
+"aubergine",
+"Aubergine",
+"eggplant",
+"aubergine"
+],
+[
+"mais",
+"Maïs",
+"sweet corn",
+"maïs"
+],
+[
+"petits_pois",
+"Petits pois",
+"green peas",
+"petits pois"
+],
+[
+"asperges",
+"Asperges",
+"asparagus",
+"asperge"
+],
+[
+"chips",
+"Chips",
+"potato chips",
+"chips pommes de terre"
+],
+[
+"cacahuetes",
+"Cacahuètes",
+"peanuts",
+"cacahuète grillée salée"
+],
+[
+"olives",
+"Olives",
+"olives",
+"olive"
+],
+[
+"saucisson",
+"Saucisson",
+"sliced saucisson dry sausage",
+"saucisson sec"
+],
+[
+"charcuterie",
+"Planche de charcuterie",
+"a charcuterie board",
+"jambon cru"
+],
+[
+"biscuits_aperitif",
+"Biscuits apéritif",
+"cocktail crackers",
+"biscuit apéritif"
+],
+[
+"fruits_secs",
+"Fruits secs",
+"mixed nuts",
+"mélange de fruits à coque"
+],
+[
+"chocolat",
+"Chocolat",
+"a chocolate bar",
+"chocolat noir"
+],
+[
+"bonbons",
+"Bonbons",
+"gummy candies",
+"bonbon"
+],
+[
+"biscuits",
+"Biscuits",
+"biscuits",
+"biscuit sec"
+],
+[
+"popcorn",
+"Pop-corn",
+"popcorn",
+"pop-corn"
+],
+[
+"biere",
+"Bière",
+"a glass of beer",
+"bière"
+],
+[
+"vin_rouge",
+"Vin rouge",
+"a glass of red wine",
+"vin rouge"
+],
+[
+"vin_blanc",
+"Vin blanc",
+"a glass of white wine",
+"vin blanc"
+],
+[
+"champagne",
+"Champagne",
+"a flute of champagne",
+"vin blanc mousseux"
+],
+[
+"cocktail",
+"Cocktail",
+"a cocktail drink",
+"cocktail"
+],
+[
+"soda",
+"Soda",
+"a glass of cola soda",
+"cola"
+],
+[
+"jus_orange",
+"Jus d'orange",
+"a glass of orange juice",
+"jus d'orange"
+],
+[
+"cafe",
+"Café",
+"a cup of coffee",
+"café prêt à boire"
+],
+[
+"cappuccino",
+"Cappuccino",
+"a cappuccino",
+"cappuccino"
+],
+[
+"the",
+"Thé",
+"a cup of tea",
+"thé"
+],
+[
+"smoothie",
+"Smoothie",
+"a smoothie",
+"smoothie"
+],
+[
+"lait",
+"Verre de lait",
+"a glass of milk",
+"lait demi-écrémé"
+],
+[
+"beignet_africain",
+"Beignets africains",
+"african puff puff | fried doughnut balls | round fried doughnuts without a hole",
+"beignet africain"
+],
+[
+"patate_douce",
+"Patate douce rôtie",
+"roasted sweet potato cubes",
+"patate douce rôtie"
+],
+[
+"feuillete_saucisse",
+"Feuilletés saucisse",
+"mini sausage rolls in puff pastry, pigs in a blanket",
+"feuilleté saucisse"
+],
+[
+"salade_chou",
+"Salade de chou (coleslaw)",
+"coleslaw, shredded cabbage and carrot salad",
+"coleslaw"
+],
+[
+"chou_curry",
+"Chou sauté au curry",
+"yellow curried sauteed shredded cabbage and carrots",
+"chou sauté"
+],
+[
+"alloco",
+"Alloco (banane plantain frite)",
+"fried ripe plantain slices",
+"alloco"
+],
+[
+"attieke",
+"Attiéké",
+"attieke, fermented cassava couscous",
+"attiéké"
+],
+[
+"foutou",
+"Foutou / fufu",
+"fufu dough ball",
+"fufu"
+],
+[
+"riz_jollof",
+"Riz jollof / riz gras",
+"jollof rice, orange tomato rice",
+"riz jollof"
+],
+[
+"poulet_braise",
+"Cuisse de poulet rôtie / braisée",
+"a roasted chicken thigh with golden skin",
+"poulet cuisse rôti"
+],
+[
+"accras",
+"Accras",
+"accras, small fried cod fritters",
+"accras"
+],
+[
+"mafe",
+"Mafé",
+"mafe, west african peanut sauce stew with meat",
+"mafé"
+],
+[
+"yassa",
+"Poulet yassa",
+"chicken yassa with caramelized onions",
+"yassa"
+],
+[
+"quatre_quarts",
+"Quatre-quarts",
+"a slice of plain yellow pound cake",
+"quatre-quarts"
+],
+[
+"gateau_yaourt",
+"Gâteau au yaourt",
+"a slice of light yellow yogurt cake",
+"gâteau au yaourt"
+],
+[
+"genoise",
+"Génoise / gâteau nature",
+"a slice of plain sponge cake",
+"génoise gâteau nature"
+],
+[
+"gateau_marbre",
+"Gâteau marbré",
+"a slice of chocolate and vanilla marble cake",
+"gâteau marbré"
+],
+[
+"cake_fruits",
+"Cake aux fruits",
+"a slice of fruit cake with candied fruits",
+"cake aux fruits"
+],
+[
+"gateau_meringue",
+"Gâteau / tarte meringué",
+"a slice of cake or tart topped with toasted meringue",
+"citron meringué"
+],
+[
+"fraisier",
+"Fraisier / gâteau à la crème",
+"a slice of layered cream cake with strawberries",
+"fraisier"
+],
+[
+"foret_noire",
+"Forêt-noire",
+"a slice of black forest cake",
+"forêt noire"
+],
+[
+"makrout",
+"Makrout",
+"a fried pastry square soaked in honey | date-filled semolina pastry",
+"makrout"
+],
+[
+"basboussa",
+"Basboussa",
+"basbousa, syrup-soaked semolina cake squares",
+"basboussa"
+],
+[
+"baklava",
+"Baklava",
+"baklava pastries",
+"baklava"
+],
+[
+"corne_gazelle",
+"Cornes de gazelle",
+"kaab el ghazal, crescent-shaped almond pastries",
+"corne de gazelle"
+],
+[
+"patisserie_orientale",
+"Pâtisseries orientales",
+"assorted north african pastries",
+"pâtisserie orientale"
+],
+[
+"sandwich_pain_mie",
+"Sandwichs pain de mie",
+"crustless triangle sandwiches",
+"sandwich pain de mie"
+],
+[
+"saucisse_cocktail",
+"Saucisses cocktail",
+"small cocktail sausages",
+"saucisse cocktail"
+]
+]

@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { decodeTable, rank, merge, ZONES } from "../js/photo-repas.js";
+import { decodeTable, rank, tapBox, TAP } from "../js/photo-repas.js";
 
 const J = JSON.parse(readFileSync(new URL("../data/plats-photo.json", import.meta.url), "utf8"));
 const T = decodeTable(J);
@@ -22,8 +22,14 @@ test("classement : le vecteur d'un plat le place en premier, scores décroissant
   assert.equal(r[0].id, "maki"); assert.equal(r.length, 5);
   for (let k = 1; k < r.length; k++) assert.ok(r[k - 1].score >= r[k].score);
 });
-test("zones d'une assiette : chaque plat gardé une fois, avec son meilleur score", () => {
-  const m = merge([[{ id: "a", score: 0.1 }, { id: "b", score: 0.3 }], [{ id: "a", score: 0.5 }]]);
-  assert.deepEqual(m.map(x => [x.id, x.score]), [["a", 0.5], ["b", 0.3]]);
-  assert.ok(ZONES.every(([x0, y0, x1, y1]) => x0 >= 0 && y0 >= 0 && x1 <= 1 && y1 <= 1 && x1 > x0 && y1 > y0));
+test("toucher un aliment : carré centré sur le doigt, qui reste dans la photo", () => {
+  const [x0, y0, x1, y1] = tapBox(1000, 800, 0.5, 0.5);
+  assert.equal(x1 - x0 + 1, Math.round(800 * TAP)); assert.equal(y1 - y0 + 1, x1 - x0 + 1);
+  assert.ok(Math.abs((x0 + x1) / 2 - 500) <= 1 && Math.abs((y0 + y1) / 2 - 400) <= 1, "centré");
+  const c = tapBox(1000, 800, 0, 1); assert.equal(c[0], 0); assert.equal(c[3], 799, "dans un coin : recadré dans la photo");
+  const e = tapBox(1000, 800, 1, 0); assert.equal(e[2], 999); assert.equal(e[1], 0);
+});
+test("aliments du repas de fête reconnaissables (beignets, pâtisseries orientales, gâteaux)", () => {
+  const ids = new Set(T.plats.map(p => p.id));
+  for (const id of ["beignet_africain", "patate_douce", "feuillete_saucisse", "chou_curry", "makrout", "basboussa", "quatre_quarts", "gateau_meringue", "fraisier"]) assert.ok(ids.has(id), id);
 });

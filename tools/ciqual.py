@@ -77,7 +77,10 @@ def main():
              ("Nigiri (sushi saumon, thon…)", "Sushi ou Maki aux produits de la mer"), ("Temaki", "Sushi ou Maki aux produits de la mer"),
              ("Har gow (ravioli vapeur à la crevette)", "Ravioli chinois à la vapeur à la crevette, cuit"),
              ("Siu mai (bouchée vapeur)", "Spécialité chinoise type bouchée à la vapeur, préemballée, cuite"),
-             ("Calamars frits", "Calmar ou Calamar ou encornet, à la romaine (beignet)")]
+             ("Calamars frits", "Calmar ou Calamar ou encornet, à la romaine (beignet)"),
+             # Repas de fête, cuisine africaine et antillaise
+             ("Beignet africain (puff-puff, bofrot, mikaté)", "Beignet rond moelleux, sans fourrage, saupoudré de sucre"),
+             ("Génoise / gâteau nature maison", "Gâteau moelleux nature type génoise")]
     by = {nrm(f[0]): f for f in out}
     for a_, src in ALIAS:
         f = by.get(nrm(src)) or next((x for k_, x in by.items() if k_.startswith(nrm(src))), None)

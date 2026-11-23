@@ -304,7 +304,7 @@ let afs = { meal: "Déjeuner", tab: "search", date: null, time: "" };
 const afsTime = () => document.getElementById("afs-time")?.value || afs.time;
 export async function addFoodSheet(meal) {
   afs.meal = meal; afs.date = D(); afs.tab = afs.tab || "search";
-  afs.photo = null; prBlob = null;
+  prForget();
   afs.time = N.dayLog(afs.date).find(e => e.meal === meal)?.time || (afs.date === today() ? hhmm() : N.MEAL_TIMES[meal] || "12:00");
   const w = sheet(`<div class="row between" style="gap:10px"><h2 class="h2">${esc(meal)}</h2><button class="btn btn-red btn-sm" data-a="afs-done" style="width:auto">Terminé</button></div>
     <label class="row xs muted mt8" style="gap:6px">Heure du repas <input id="afs-time" class="inp" type="time" style="width:116px" value="${afs.time}"></label>
@@ -325,7 +325,7 @@ function drawSum() {
 }
 actions["afs-del"] = (b, d) => { N.removeEntry(+d.id, afs.date); drawSum(); };
 changes["afs-g"] = (el) => { const g = num(el.value); if (!(g > 0)) return; N.rescaleEntry(+el.dataset.id, afs.date, g); drawSum(); };
-actions["afs-done"] = () => { afs.photo = null; prBlob = null; closeSheet(); };
+actions["afs-done"] = () => { prForget(); closeSheet(); };
 // ---------- Modifier / remplacer un aliment déjà enregistré ----------
 let EF = null; // { id, date, back, g }
 const efEntry = () => N.dayLog(EF.date).find(x => x.id === EF.id);
@@ -377,7 +377,7 @@ actions["ef-swap"] = () => {
       N.searchBrands(q).then(off => { if (inp.value.trim() !== q || !off.length) return; list = [...list, ...off]; window.__ef = list; out.innerHTML = `<div class="list">${list.map(li).join("")}</div>`; }); };
     inp.addEventListener("input", () => { clearTimeout(deb); deb = setTimeout(run, 140); });
     N.loadCiqual().then(() => { ready = true; if (inp.value.trim()) run(); });
-    drawPhoto(); quick(); inp.focus();
+    quick(); inp.focus();
   });
 };
 actions["ef-cancel"] = () => editFoodSheet();
@@ -405,11 +405,16 @@ function drawAfs(w = document.getElementById("sheet")) {
     const inp = box.querySelector("#fq"), out = box.querySelector("#fr"); let ready = false, deb;
     if (afs.query) { inp.value = afs.query; afs.query = null; }
     const run = () => { const q = inp.value.trim(); if (!q) { out.innerHTML = quickFoods(foodLi); return; } if (!ready) { out.innerHTML = `<p class="empty small">Chargement des aliments…</p>`; return; } const r = N.searchFoods(q); window.__fr = r;
-      const draw = (off) => { out.innerHTML = (r.length ? `<div class="list">${r.map((f, i) => foodLi(f, "search", i)).join("")}</div>` : off?.length ? "" : `<p class="empty small">Rien dans la table Ciqual pour « ${esc(q)} ».</p>`) + `<div class="lbl mt16">🏷️ Marques, fast-food et restaurants</div>` + (off == null ? `<p class="xs muted mt4">Recherche dans Open Food Facts…</p>` : off.length ? `<div class="list mt4">${off.map((f, i) => foodLi(f, "search", r.length + i)).join("")}</div>` : `<p class="xs muted mt4">Aucun produit de marque ni plat de fast-food (ou pas de connexion).</p>`); };
-      draw(null); N.searchBrands(q).then(off => { if (inp.value.trim() !== q) return; window.__fr = [...r, ...off]; draw(off); }); };
+      const cq = (off) => r.length ? `<div class="list">${r.map((f, i) => foodLi(f, "search", i)).join("")}</div>` : off?.length ? "" : `<p class="empty small">Rien dans la table Ciqual pour « ${esc(q)} ».</p>`;
+      const brands = (off) => `<div class="lbl mt16">🏷️ Marques, fast-food et restaurants</div>` + (off == null ? `<p class="xs muted mt4">Recherche dans Open Food Facts…</p>` : off.length ? `<div class="list mt4">${off.map((f, i) => foodLi(f, "search", r.length + i)).join("")}</div>` : `<p class="xs muted mt4">Aucun produit de marque ni plat de fast-food (ou pas de connexion).</p>`);
+      out.innerHTML = `<div data-part="cq">${cq(null)}</div><div data-part="off">${brands(null)}</div>`;
+      // Les marques arrivent après : on ne redessine que leur partie, pour ne pas fermer une quantité déjà ouverte au-dessus
+      N.searchBrands(q).then(off => { if (inp.value.trim() !== q || !out.querySelector('[data-part="off"]')) return; window.__fr = [...r, ...off]; out.querySelector('[data-part="off"]').innerHTML = brands(off); if (!r.length) out.querySelector('[data-part="cq"]').innerHTML = cq(off); }); };
     inp.addEventListener("input", () => { clearTimeout(deb); deb = setTimeout(run, 140); });
     inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } });
     N.loadCiqual().then(() => { ready = true; if (inp.value.trim()) run(); });
+    drawPhoto();
+    if (premium() && localStorage.getItem("tb-pr-ok")) PR.loadEngine().catch(() => {}); // moteur déjà téléchargé : préparé en arrière-plan
   } else if (afs.tab === "fav") {
     const l = S().favFoods; box.innerHTML = l.length ? `<div class="list">${l.map((f, i) => foodLi(f, "fav", i)).join("")}</div>` : `<p class="empty small">Touche ☆ à côté d'un aliment pour le retrouver ici.</p>`;
   } else if (afs.tab === "recent") {
@@ -540,41 +545,56 @@ actions["scan-manual"] = () => sheet(`<h2 class="h2">🔎 Code-barres</h2><p cla
 actions.scan = () => scanBarcode(afs.meal, afs.date, true);
 
 // ---------- Photo du repas : reconnaissance sur le téléphone, photo jamais envoyée ni enregistrée ----------
-let prBlob = null; // la photo en cours, en mémoire seulement, oubliée dès qu'on n'en a plus besoin
+// La photo s'affiche ; l'app propose des plats pour toute la photo, puis on touche chaque aliment pour l'identifier.
+// La photo reste en mémoire le temps de l'écran : oubliée à « ✕ », à la fermeture ou à la photo suivante.
+function prForget() { const P = afs.photo; if (P?.url) URL.revokeObjectURL(P.url); afs.photo = null; }
 function photoButtons() {
   if (!premium()) return `<button class="btn btn-line btn-sm mt8" data-a="pr-lock" style="width:100%">📷 Photo du repas <span class="lock">🔒</span></button>`;
   return `<div class="row mt8" style="gap:8px"><label class="btn btn-line btn-sm grow" style="cursor:pointer">📷 Photo du repas<input type="file" accept="image/*" capture="environment" data-c="pr-photo" hidden></label><label class="btn btn-line btn-sm" style="width:auto;cursor:pointer" aria-label="Choisir une photo dans la galerie">🖼️ Galerie<input type="file" accept="image/*" data-c="pr-photo" hidden></label></div>`;
 }
+const prChips = (list, k) => `<div class="chips wrap mt4">${list.map((x, i) => `<button class="chip" data-a="pr-pick" data-k="${k}" data-i="${i}">${esc(x.fr)}</button>`).join("")}</div>`;
 function drawPhoto() {
   const box = document.getElementById("prbox"); if (!box) return; const P = afs.photo;
   if (!P) { box.innerHTML = ""; return; }
-  if (P.busy) { box.innerHTML = `<div class="card mt12" style="padding:12px 14px"><b class="small">📷 ${esc(P.busy)}</b>${P.pct != null ? `<div class="bar mt8" style="height:6px;background:var(--line);border-radius:3px;overflow:hidden"><div style="height:100%;width:${Math.round(P.pct * 100)}%;background:var(--red)"></div></div>` : ""}<p class="xs muted mt4">La photo reste sur ton téléphone : elle n'est ni envoyée ni enregistrée.</p></div>`; return; }
-  box.innerHTML = `<div class="card mt12" style="padding:12px 14px"><div class="row between"><b class="small">📷 Sur ta photo${P.zones ? " (zone par zone)" : ""}</b><button class="icon-btn" data-a="pr-clear" aria-label="Fermer">${I.close}</button></div>
-    <div class="chips wrap mt8">${P.list.map((x, i) => `<button class="chip${i === 0 ? " on" : ""}" data-a="pr-pick" data-i="${i}">${esc(x.fr)}</button>`).join("")}</div>
-    <p class="xs muted mt8">Touche chaque plat de ton assiette, puis choisis la quantité. Les suggestions viennent de l'image : vérifie toujours.</p>
-    ${!P.zones && prBlob ? `<button class="btn btn-line btn-xs mt8" data-a="pr-zones" style="width:100%">Plusieurs aliments ? Analyser zone par zone</button>` : ""}</div>`;
+  const bar = P.pct != null ? `<div class="mt8" style="height:6px;background:var(--line);border-radius:3px;overflow:hidden"><div style="height:100%;width:${Math.round(P.pct * 100)}%;background:var(--red)"></div></div>` : "";
+  box.innerHTML = `<div class="card mt12" style="padding:12px 14px"><div class="row between"><b class="small">📷 Ta photo</b><button class="icon-btn" data-a="pr-clear" aria-label="Fermer la photo">${I.close}</button></div>
+    <div style="position:relative;width:fit-content;max-width:100%;margin:8px auto 0"><img src="${P.url}" alt="Ta photo de repas" data-a="pr-tap" style="display:block;max-width:100%;max-height:46vh;border-radius:10px;cursor:crosshair;touch-action:manipulation">
+      ${P.tap ? `<span class="pr-dot" aria-hidden="true" style="position:absolute;left:${(P.tap.fx * 100).toFixed(1)}%;top:${(P.tap.fy * 100).toFixed(1)}%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:3px solid #fff;background:var(--red);box-shadow:0 0 0 1px rgba(0,0,0,.35);pointer-events:none"></span>` : ""}</div>
+    ${P.busy ? `<p class="small mt8"><b>${esc(P.busy)}</b></p>${bar}` : ""}
+    ${P.list ? `<p class="small mt8">👆 <b>Touche un aliment sur la photo</b> pour l'identifier, puis choisis-le et sa quantité. Recommence pour chaque aliment.</p>` : ""}
+    ${P.tap?.list ? `<p class="xs muted mt8">À l'endroit touché :</p>${prChips(P.tap.list, "tap")}` : ""}
+    ${P.list ? `<p class="xs muted mt8">${P.tap ? "Sur toute la photo :" : "Sur toute la photo (idéal pour un seul plat) :"}</p>${prChips(P.list.slice(0, P.tap ? 4 : 6), "all")}` : ""}
+    <p class="xs muted mt8">Suggestions à vérifier. La photo reste sur ton téléphone : elle n'est ni envoyée ni enregistrée.</p></div>`;
 }
-async function runPhoto(zones) {
-  const blob = prBlob; if (!blob) return;
+const prProgress = (p) => { if (afs.photo?.busy && afs.photo.pct != null) { afs.photo.pct = p; drawPhoto(); } };
+async function runPhoto(file) {
+  prForget();
   const first = !localStorage.getItem("tb-pr-ok");
-  afs.photo = { busy: first ? `Téléchargement du moteur (≈ ${PR.MODEL_MO} Mo, une seule fois)…` : zones ? "Analyse zone par zone…" : "Analyse de la photo…", pct: first ? 0 : null }; drawPhoto();
-  try {
-    const list = await PR.analyse(blob, { zones, onProgress: (p) => { if (afs.photo?.busy) { afs.photo.pct = p; drawPhoto(); } } });
-    localStorage.setItem("tb-pr-ok", "1");
-    afs.photo = { list, zones }; if (zones) prBlob = null;
-  } catch { afs.photo = null; prBlob = null; toast("Analyse impossible (connexion ?). La première fois, il faut du réseau pour télécharger le moteur."); }
+  const P = afs.photo = { url: URL.createObjectURL(file), busy: first ? `Téléchargement du moteur (≈ ${PR.MODEL_MO} Mo, une seule fois)…` : PR.engineReady() ? "Analyse de la photo…" : "Préparation du moteur…", pct: first ? 0 : null };
   drawPhoto();
+  try {
+    P.img = await PR.decode(file, prProgress); localStorage.setItem("tb-pr-ok", "1");
+    if (afs.photo !== P) return; P.busy = "Analyse de la photo…"; P.pct = null; drawPhoto();
+    P.list = await PR.analyse(P.img);
+  } catch { if (afs.photo === P) prForget(); drawPhoto(); return toast("Analyse impossible (connexion ?). La première fois, il faut du réseau pour télécharger le moteur."); }
+  if (afs.photo !== P) return; P.busy = null; drawPhoto();
 }
 changes["pr-photo"] = (el) => {
   const f = el.files?.[0]; el.value = ""; if (!f) return;
   if (!localStorage.getItem("tb-pr-ok") && !confirm(`Première photo : l'app télécharge son moteur de reconnaissance (≈ ${PR.MODEL_MO} Mo, une seule fois, Wi-Fi conseillé). L'analyse se fait ensuite sur ton téléphone, sans rien envoyer. Continuer ?`)) return;
-  prBlob = f; runPhoto(false);
+  runPhoto(f);
 };
-actions["pr-zones"] = () => runPhoto(true);
-actions["pr-clear"] = () => { afs.photo = null; prBlob = null; drawPhoto(); };
+actions["pr-tap"] = async (el, d, e) => {
+  const P = afs.photo; if (!P?.img || !e) return; const r = el.getBoundingClientRect(); if (!r.width || !r.height) return;
+  const fx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), fy = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+  const tap = { fx, fy }; P.tap = tap; P.busy = "Analyse de cet endroit…"; drawPhoto();
+  try { tap.list = await PR.analyseAt(P.img, fx, fy); } catch { tap.list = null; toast("Analyse impossible, réessaie."); }
+  if (afs.photo === P && P.tap === tap) { P.busy = null; drawPhoto(); }
+};
+actions["pr-clear"] = () => { prForget(); drawPhoto(); };
 actions["pr-lock"] = () => go("offers");
 actions["pr-pick"] = (b, d) => {
-  const x = afs.photo?.list?.[+d.i], q = document.getElementById("fq"); if (!x || !q) return;
+  const P = afs.photo, list = d.k === "tap" ? P?.tap?.list : P?.list, x = list?.[+d.i], q = document.getElementById("fq"); if (!x || !q) return;
   document.querySelectorAll("#prbox .chip").forEach(c => c.classList.toggle("on", c === b));
   q.value = x.q; q.dispatchEvent(new Event("input"));
 };
