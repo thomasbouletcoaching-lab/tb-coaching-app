@@ -44,7 +44,7 @@ export function coachFoodCard() {
 routes["member-food"] = async () => {
   if (!isCoach()) return go("home");
   const memberId = R.param;
-  $app.innerHTML = header("Plan alimentaire", "", { back: "__hist" }) + `<main class="page"><p class="empty">Chargement…</p></main>`;
+  $app.innerHTML = header("Plan alimentaire", "", { back: "member/" + R.param }) + `<main class="page"><p class="empty">Chargement…</p></main>`;
   try {
     const c = await cloud();
     const m = (window.__members || []).find(x => x.id === memberId);
@@ -59,7 +59,7 @@ routes["member-food"] = async () => {
     const days = Array.from({ length: 7 }, (_, i) => ({ ...emptyDay(i), ...(saved?.days?.[i] || {}), n: DAY_LABELS[i] }));
     FD = { memberId, memberName: m?.name || m?.email || "", maintenance: T.maintenance, weight, pk, fk, days, ref: { kcal: T.kcal, prot: T.prot, fat: T.fat, carbs: T.carbs, model: T.model?.name } };
     render();
-  } catch (e) { $app.innerHTML = header("Plan alimentaire", "", { back: "__hist" }) + `<main class="page"><p class="empty">Impossible : ${esc(e.message)}</p></main>`; }
+  } catch (e) { $app.innerHTML = header("Plan alimentaire", "", { back: "member/" + R.param }) + `<main class="page"><p class="empty">Impossible : ${esc(e.message)}</p></main>`; }
 };
 
 // Lit le formulaire tel qu'il est, pour ne pas perdre une saisie quand on recalcule
@@ -87,7 +87,7 @@ function render() {
       <div class="row mt8" style="gap:8px"><button type="button" class="ghost sm" data-a="cf-meal" data-d="${i}">+ Repas</button>${(d.meals || []).length ? `<button type="button" class="ghost sm" data-a="cf-mcopy" data-d="${i}">Copier les repas sur les autres jours</button>` : ""}</div>
       <label class="field mt4"><span>Consignes du jour (facultatif)</span><textarea name="note${i}" rows="2" maxlength="600" placeholder="Ex. Petit-déj : 80 g flocons + 200 g skyr. Déjeuner : 150 g riz, 180 g poulet…">${esc(d.note)}</textarea></label></div>`;
   }).join("");
-  $app.innerHTML = header("Plan alimentaire", esc(FD.memberName), { back: "__hist" }) + `<main class="page"><form data-f="food-save" data-c="fp">
+  $app.innerHTML = header("Plan alimentaire", esc(FD.memberName), { back: "member/" + R.param }) + `<main class="page"><form data-f="food-save" data-c="fp">
     <div class="card soft"><div class="lbl">Base du profil</div><p class="small mt4" style="margin:4px 0 0">Maintenance estimée : <b>${fr(FD.maintenance)} kcal</b> · ${esc(FD.ref.model || "")}<br><span class="xs muted">Repère du moteur : ${fr(FD.ref.kcal)} kcal · P ${fr(FD.ref.prot)} g · G ${fr(FD.ref.carbs)} g · L ${fr(FD.ref.fat)} g</span></p>
       <div class="grid2 mt8"><label class="field"><span>Protéines (g/kg)</span><input name="pk" inputmode="decimal" value="${fr(FD.pk, 2)}"></label><label class="field"><span>Lipides (g/kg)</span><input name="fk" inputmode="decimal" value="${fr(FD.fk, 2)}"></label></div>
       <p class="xs muted mt4" style="margin:0">Les glucides sont le reste des kcal. Poids de référence : ${fr(FD.weight, 1)} kg.</p></div>
