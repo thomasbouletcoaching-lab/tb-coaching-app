@@ -823,3 +823,7 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 .modesw{display:inline-flex;height:38px;padding:3px;border-radius:19px;background:var(--btn2);border:1px solid var(--line);gap:2px}
 .modesw a{display:inline-flex;align-items:center;padding:0 12px;border-radius:16px;font-size:13px;font-weight:700;color:var(--soft);text-decoration:none;transition:background .2s,color .2s}
 .modesw a.on{background:linear-gradient(135deg,var(--red2),var(--red));color:#fff;box-shadow:0 2px 8px rgba(47,111,237,.35)}
+
+/* Saisie du coach à la place d'un client */
+.proxybar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,var(--red2),var(--red));color:#fff;font-size:14px}
+.proxybar button{background:#fff;color:#111;border:0;border-radius:14px;padding:6px 14px;font-weight:700}

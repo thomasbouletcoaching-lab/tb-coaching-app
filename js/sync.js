@@ -43,6 +43,7 @@ export async function refreshMe() {
   } catch (e) { console.warn(e.message); }
 }
 export function pushStats() {
+  if (proxyActive()) return;
   const d = S().daily || {}, last = Object.keys(d).sort().at(-1);
   cloud().then(c => c?.touch({ workouts: S().workouts.length, lastWorkout: S().workouts.at(-1)?.end || null, weight: (last && d[last].weight) || S().profile?.weight, program: S().plan?.programId, week: S().plan?.week })).catch(() => { });
 }
@@ -155,4 +156,23 @@ async function pushNutri(c) {
   await c.ensureSession(); const uid = c.userId(); if (!uid) return;
   const rows = []; for (let i = 0; i < 14; i++) { const r = nutriRow(uid, addDays(today(), -i), false); if (r) rows.push(r); }
   if (rows.length) await c.pushNutri(rows);
+}
+
+// Séances et repas saisis par le coach à ma place : appliqués ici une fois, puis marqués comme reçus
+export async function pullSaisies() {
+  const c = await cloud(); if (!c?.mesSaisies || !S().profile || S().me?.isCoach) return;
+  try { if (!(await c.currentSession())) return; } catch { return; }
+  let rows; try { rows = await c.mesSaisies(); } catch { return; }
+  if (!rows.length) return;
+  update(st => {
+    for (const r of rows) {
+      const p = r.payload || {};
+      st.workouts = (st.workouts || []).filter(w => !(p.wDel || []).includes(String(w.id)) && !(p.workouts || []).some(x => String(x.id) === String(w.id)));
+      st.workouts.push(...(p.workouts || [])); st.workouts.sort((a, b) => String(a.start).localeCompare(String(b.start)));
+      for (const [d, l] of Object.entries(p.foodDel || {})) st.food[d] = (st.food[d] || []).filter(e => !l.includes(String(e.id)));
+      for (const [d, l] of Object.entries(p.food || {})) st.food[d] = [...(st.food[d] || []).filter(e => !l.some(x => String(x.id) === String(e.id))), ...l];
+      for (const [n, l] of Object.entries(p.lifts || {})) { const h = st.lifts[n] = st.lifts[n] || []; for (const x of l) if (!h.some(y => y.d === x.d && y.e1rm === x.e1rm)) h.push(x); h.sort((a, b) => String(a.d).localeCompare(String(b.d))); }
+    }
+  });
+  await c.saisiesAppliquees(rows.map(r => r.id)).catch(() => { });
 }

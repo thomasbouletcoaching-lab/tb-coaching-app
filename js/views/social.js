@@ -149,7 +149,7 @@ async function assurerProfil() {
   update(st => { st.social = { ...(st.social || {}), profil: p, code: p.code, auto: true }; }); return true;
 }
 export async function autoPublier(w) {
-  if (!w) return; try { if (!(await assurerProfil())) return; } catch { return; }
+  if (!w || proxyActive()) return; try { if (!(await assurerProfil())) return; } catch { return; }
   await publier(w, "communaute").catch(() => { });
   const b = R.route === "done" && document.querySelector('[data-a="soc-pub-w"]'), vis = SO.VISIBILITES.find(v => v[0] === so.profil.visibilite)?.[1];
   if (b && (S().socialPubs || {})[cleSeance(w)]) b.textContent = `✅ Publiée · ${vis} · changer`;

@@ -376,14 +376,14 @@ routes.member = async () => {
   if (!window.__members) { try { window.__members = await c.members(); } catch { } }
   const m = (window.__members || []).find(x => x.id === R.param); if (!m) return go("admin");
   const o = m.onboarding || {}, ap = o.application, st = m.stats || {};
-  if (mbr.id !== m.id) Object.assign(mbr, { id: m.id, tab: "suivi", day: null, data: null, settings: null });
+  if (mbr.id !== m.id) Object.assign(mbr, { id: m.id, tab: "suivi", day: null, vw: 0, data: null, settings: null });
   if (!mbr.data) { $app.innerHTML = header(esc(m.name || "Membre"), "", { back: "__hist" }) + `<main class="page"><p class="empty">Chargement de ses données…</p></main>`; await Promise.all([E.loadPrograms(), N.loadModels()]); try { mbr.data = (await c.memberData(m.id)) || { data: null }; mbr.settings = await c.coachSettingsGet(m.id).catch(() => ({})); mbr.reviews = await c.reviewsOf(m.id).catch(() => ({})); await XO.loadExercices().catch(() => { }); } catch (e) { mbr.data = { data: null, err: e.message }; } }
   const tabs = [["suivi", "🏠 Vue d'ensemble"], ["jour", "☀️ Journée"], ["seances", "🏋️ Séances"], ["stats", "📊 Stats"], ["agenda", "🗓️ Agenda"], ["corps", "⚖️ Corps"], ["profil", "👤 Profil"]];
   const D = mbr.data.data;
   const cur = D?.current?.exercises?.length ? D.current : null, curDone = cur ? cur.exercises.reduce((a, e) => a + e.sets.filter(x => x.done).length, 0) : 0, curTot = cur ? cur.exercises.reduce((a, e) => a + e.sets.filter(x => x.type !== "W").length, 0) : 0;
   const liveBan = cur ? `<button class="card" data-a="go" data-r="live" data-p="${esc(m.id)}" style="width:100%;text-align:left;margin-bottom:10px;box-shadow:0 0 0 2px var(--red) inset"><div class="row between"><span><b>🔴 Séance en direct</b><br><span class="small">${esc(cur.title || "Séance")} · ${curDone} séries faites${curTot ? ` / ${curTot}` : ""}</span></span><span class="btn btn-red btn-sm">Ouvrir ▶</span></div></button>` : "";
   const act = (attrs, em, l) => `<${attrs.startsWith("href") ? "a" : "button"} class="mb-act" ${attrs}><span>${em}</span><small>${l}</small></${attrs.startsWith("href") ? "a" : "button"}>`;
-  const top = `${liveBan}<div class="mb-acts">${act(`href="#/chat/${m.id}"`, "💬", `Messages${m.unread ? ` · ${m.unread}` : ""}`)}${act(`data-a="go" data-r="member-prog" data-p="${esc(m.id)}"`, "📋", "Programme")}${act(`data-a="go" data-r="member-food" data-p="${esc(m.id)}"`, "🍽️", "Diète")}${act(`data-a="live-start" data-id="${esc(m.id)}"`, "▶️", "Direct")}${m.email ? act(`href="mailto:${esc(m.email)}"`, "✉️", "E-mail") : ""}</div>
+  const top = `${liveBan}<div class="mb-acts">${act(`href="#/chat/${m.id}"`, "💬", `Messages${m.unread ? ` · ${m.unread}` : ""}`)}${act(`data-a="go" data-r="member-prog" data-p="${esc(m.id)}"`, "📋", "Programme")}${act(`data-a="go" data-r="member-food" data-p="${esc(m.id)}"`, "🍽️", "Diète")}${act(`data-a="live-start" data-id="${esc(m.id)}"`, "▶️", "Direct")}${act(`data-a="saisie-seance" data-id="${esc(m.id)}"`, "✍️", "Noter séance")}${act(`data-a="saisie-repas" data-id="${esc(m.id)}"`, "🍴", "Noter repas")}${m.email ? act(`href="mailto:${esc(m.email)}"`, "✉️", "E-mail") : ""}</div>
     <div class="mt12">${chips(tabs, mbr.tab, "mb-tab")}</div>
     ${D ? `<p class="xs muted mt4">Données mises à jour ${ago(mbr.data.updated_at)}</p>` : ""}`;
   if (mbr.tab !== "profil") {
@@ -465,15 +465,32 @@ function memberAgenda(D) {
     ${S().season?.blocks?.length ? `<div class="card mt12"><div class="lbl">🗓️ Saison</div>${E.seasonBlocks().map(b => `<div class="xs mt4">${b.cur ? "👉 " : ""}<b>${esc(E.FOCUS[b.focus]?.[0] || "")}</b> · ${b.weeks} sem. · ${esc((b.p?.name || "").split("·")[0])} · ${fmtDate(b.from, { day: "numeric", month: "short" })} → ${fmtDate(b.to, { day: "numeric", month: "short" })}</div>`).join("")}</div>` : ""}
     ${(S().goals || []).length ? `<div class="card mt12"><div class="lbl">🎯 Objectifs</div>${S().goals.map(g => { const s2 = E.goalStatus(g); return `<div class="xs mt4"><b>${esc(g.name)}</b> : ${fr(g.kg, 1)} kg × ${g.reps} avant le ${fmtDate(g.date, { day: "numeric", month: "short", year: "numeric" })} · aujourd'hui ${fr(s2.cur, 1)} / ${fr(s2.tgt, 1)} (1RM est.)</div>`; }).join("")}</div>` : ""}`;
 }
+actions["mb-vw"] = (b, d) => { mbr.vw = Math.min(0, (mbr.vw || 0) + +d.v); rerender(true); };
 actions["mb-wk"] = (b, d) => { mbr.wk = (mbr.wk || 0) + +d.v; rerender(); };
+// Mensurations : tronc en tuiles, membres en tableau gauche / droite, écart avec la mesure précédente
+const MS_TRONC = [["neck", "Cou"], ["shoulders", "Épaules"], ["chest", "Poitrine"], ["waistHigh", "Taille haute"], ["waistNav", "Taille nombril"], ["waistLow", "Taille basse"], ["hips", "Hanches"], ["fat", "Masse grasse", "%"]];
+const MS_MEMBRES = [["arm", "Bras"], ["forearm", "Avant-bras"], ["thigh", "Cuisse"], ["calf", "Mollet"]];
+function mensurations(ms) {
+  const cur = ms[0], val = (m, k) => m?.[k] != null ? +m[k] : null;
+  const prev = (k) => ms.slice(1).find(m => m[k] != null);
+  const delta = (k, bonBaisse) => { const v = val(cur, k), p = prev(k); if (v == null || !p) return ""; const d = Math.round((v - p[k]) * 10) / 10; if (!d) return `<span class="xs muted">=</span>`; const bon = bonBaisse ? d < 0 : d > 0; return `<span class="xs" style="color:var(--${bon ? "good" : "muted"});font-weight:700">${d > 0 ? "▲" : "▼"} ${fr(Math.abs(d), 1)}</span>`; };
+  const tuile = ([k, l, u]) => val(cur, k) == null ? "" : `<div class="card soft" style="padding:10px 12px"><div class="xs muted">${l}</div><div class="row" style="gap:6px;align-items:baseline"><b class="num" style="font-size:20px">${fr(val(cur, k), 1)}</b><span class="xs muted">${u || "cm"}</span></div>${delta(k, ["waistHigh", "waistNav", "waistLow", "fat"].includes(k))}</div>`;
+  const tronc = MS_TRONC.map(tuile).join("");
+  const membres = MS_MEMBRES.filter(([k]) => ["l_r", "l_c", "r_r", "r_c"].some(s => val(cur, `${k}_${s}`) != null));
+  const cell = (k) => val(cur, k) == null ? `<span class="muted">–</span>` : `<b>${fr(val(cur, k), 1)}</b><br>${delta(k, false)}`;
+  const tab = membres.length ? `<div class="card mt8" style="padding:10px 8px"><div style="display:grid;grid-template-columns:1.2fr repeat(4,1fr);gap:6px 4px;text-align:center;align-items:center">
+    <span></span><span class="xs muted">G relâché</span><span class="xs muted">G contracté</span><span class="xs muted">D relâché</span><span class="xs muted">D contracté</span>
+    ${membres.map(([k, l]) => `<b class="small" style="text-align:left;padding-left:6px">${l}</b>${["l_r", "l_c", "r_r", "r_c"].map(s => `<div class="small">${cell(`${k}_${s}`)}</div>`).join("")}`).join("")}</div></div>` : "";
+  const histo = ms.length > 1 ? `<details class="card mt8 plis"><summary><b class="small">Historique</b> <span class="xs muted">${ms.length - 1} mesure${ms.length > 2 ? "s" : ""} avant</span></summary>${ms.slice(1).map(m => { const ks = [...MS_TRONC.map(x => x[0]), ...MS_MEMBRES.flatMap(([k]) => ["l_r", "l_c", "r_r", "r_c"].map(s => `${k}_${s}`))].filter(k => m[k] != null); const nom = (k) => (MS_TRONC.find(x => x[0] === k) || [])[1] || (MS_MEMBRES.find(([a]) => k.startsWith(a + "_")) || [])[1] + " " + { l_r: "G rel.", l_c: "G contr.", r_r: "D rel.", r_c: "D contr." }[k.slice(k.indexOf("_") + 1)]; return `<div class="mt8"><b class="small">${fmtDate(m.d, { day: "numeric", month: "long", year: "numeric" })}</b><div class="xs muted mt4">${ks.map(k => `${nom(k)} ${fr(m[k], 1)}`).join(" · ")}</div></div>`; }).join("")}</details>` : "";
+  return `${tronc ? `<div class="grid2 mt8" style="gap:8px">${tronc}</div>` : ""}${tab}${histo}`;
+}
 function memberBody(D) {
   const ws = Object.entries(S().daily).filter(([, v]) => v.weight).sort().slice(-30);
-  const ms = (S().measures || []).filter(m => Object.keys(m).some(k => k !== "d" && k !== "weight")).slice(-6).reverse();
-  const L = { neck: "Cou", shoulders: "Épaules", chest: "Poitrine", waistNav: "Taille nombril", waistLow: "Taille basse", waistHigh: "Taille haute", hips: "Hanches", fat: "MG %" };
+  const ms = (S().measures || []).filter(m => Object.keys(m).some(k => k !== "d" && k !== "weight")).sort((a, b) => String(b.d).localeCompare(String(a.d))).slice(0, 12);
   return `<h2 class="sec">⚖️ Poids <small>${ws.length} pesées</small></h2>
     <div class="card">${ws.length ? `<div class="num" style="font-size:26px">${fr(ws.at(-1)[1].weight, 1)} kg</div><p class="xs muted" style="margin:4px 0 0">${ws.slice(-10).map(([k, v]) => `${k.slice(8)}/${k.slice(5, 7)} : ${fr(v.weight, 1)}`).join(" · ")}</p>` : `<p class="small muted" style="margin:0">Pas de pesée.</p>`}</div>
-    <h2 class="sec">📏 Mensurations</h2>
-    ${ms.length ? ms.map(m => `<div class="card mt8"><b class="small">${fmtDate(m.d, { day: "numeric", month: "long", year: "numeric" })}</b><p class="xs mt4" style="margin:0">${Object.entries(m).filter(([k]) => k !== "d" && k !== "weight").map(([k, v]) => `${L[k] || k.replace(/_l_/, " G ").replace(/_r_/, " D ").replace(/r$/, "rel.").replace(/ c$/, " contr.").replace("forearm", "Avant-bras").replace(/^arm/, "Bras").replace("thigh", "Cuisse").replace("calf", "Mollet")} ${fr(v, 1)}`).join(" · ")}</p></div>`).join("") : `<p class="small muted">Pas de mensurations.</p>`}
+    <h2 class="sec">📏 Mensurations${ms.length ? ` <small>${fmtDate(ms[0].d, { day: "numeric", month: "long", year: "numeric" })}</small>` : ""}</h2>
+    ${ms.length ? mensurations(ms) : `<p class="small muted">Pas de mensurations.</p>`}
     <p class="xs muted mt12">Les photos restent sur le téléphone du membre : demande-lui de te les envoyer s'il le souhaite.</p>`;
 }
 
@@ -545,20 +562,23 @@ function vueEnsemble(m, D) {
     ${ob ? `<p class="small mt8" style="margin-bottom:0"><b>Objectif de la période :</b> ${esc(ob.titre)} <span class="xs muted">(→ ${fmtDate(ob.au, { day: "numeric", month: "short" })})</span></p>` : ""}</div>`;
   const profil = `<h2 class="sec">👤 Profil</h2><div class="card mb-grid">${champ("Âge", pr.age ? pr.age + " ans" : null)}${champ("Taille", pr.height ? pr.height + " cm" : null)}${champ("Poids", poids ? fr(poids, 1) + " kg" : null)}${champ("Niveau", NIVEAUX_L[pr.level] || pr.level)}${champ("Séances / sem.", pr.days)}${champ("Lieu", LIEUX_L[pr.place] || pr.place)}${champ("Discipline", pr.discipline)}${champ("Alimentation", pr.diet && pr.diet !== "all" && pr.diet !== "omni" ? pr.diet : null)}</div>`;
   const prog = `<h2 class="sec">📋 Programme</h2>${ns ? `<button class="card grad" style="width:100%;text-align:left;padding:12px 14px" data-a="go" data-r="member-prog" data-p="${esc(m.id)}"><div class="xs" style="opacity:.85">Semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)}</div><b style="display:block;font-size:17px">${esc(ns.p.name)}</b><div class="xs mt4" style="opacity:.9">Prochaine séance : ${esc(ns.title)} · ✏️ modifier</div></button>` : `<div class="card"><p class="small muted" style="margin:0">Pas de programme en cours. <button class="link" data-a="go" data-r="member-prog" data-p="${esc(m.id)}">En créer un</button></p></div>`}`;
-  // Nutrition : anneaux du jour et moyenne des 7 derniers jours notés
-  const t = N.targets(), jt = N.dayTotals(t0), jours = Array.from({ length: 7 }, (_, i) => addDays(t0, -i)), notes = jours.filter(k => N.dayLog(k).length);
+  // Nutrition et séances : semaine courante, ou une semaine passée en balayant l'écran (vw = 0, -1, -2…)
+  const vw = mbr.vw || 0, lun0 = addDays(t0, -E.dowOf(t0)), lun = addDays(lun0, 7 * vw), sem = Array.from({ length: 7 }, (_, i) => addDays(lun, i));
+  const semTxt = vw === 0 ? "Cette semaine" : `Semaine du ${fmtDate(lun, { day: "numeric", month: "short" })} au ${fmtDate(sem[6], { day: "numeric", month: "short" })}`;
+  const nav = `<div class="row between xs muted" style="margin:0 0 6px"><span>← glisse pour la semaine précédente</span>${vw < 0 ? `<span>→ ${vw === -1 ? "semaine en cours" : "plus récent"}</span>` : ""}</div>`;
+  const t = N.targets(), jt = N.dayTotals(t0), jours = vw === 0 ? Array.from({ length: 7 }, (_, i) => addDays(t0, -i)) : sem, notes = jours.filter(k => N.dayLog(k).length);
   const moy = (k) => notes.length ? notes.reduce((a, d) => a + (N.dayTotals(d)[k] || 0), 0) / notes.length : 0;
   const anneau = (v, cible, l, col) => { const f = cible ? v / cible : 0; return `<div><div class="mini"><svg viewBox="0 0 66 66">${ring(Math.min(1, f), 66, 7, col)}</svg><b>${cible ? Math.round(f * 100) + "%" : "–"}</b></div><div class="l">${l}<br><span class="xs">${fr(v)}${cible ? " / " + fr(cible) : ""}</span></div></div>`; };
   const ligne = (x) => `<div class="minis" style="grid-template-columns:repeat(4,1fr);margin-top:8px">${anneau(x.kcal, t?.kcal, "kcal", "#2F6FED")}${anneau(x.p, t?.prot, "Prot. g", "#B3263A")}${anneau(x.c, t?.carbs, "Gluc. g", "#E0A93B")}${anneau(x.f, t?.fat, "Lip. g", "#1E8F4E")}</div>`;
-  const nutri = `<h2 class="sec">🍽️ Nutrition</h2><div class="card"><div class="row between"><b class="small">Aujourd'hui</b><span class="xs muted">${N.dayLog(t0).length} aliment${N.dayLog(t0).length > 1 ? "s" : ""} notés</span></div>${ligne({ kcal: jt.kcal || 0, p: jt.p || 0, c: jt.c || 0, f: jt.f || 0 })}
-    <div class="row between mt12"><b class="small">Moyenne 7 jours</b><span class="xs muted">${notes.length}/7 jours notés</span></div>${ligne({ kcal: moy("kcal"), p: moy("p"), c: moy("c"), f: moy("f") })}</div>`;
-  // Séances : la semaine en cours et les dernières faites
-  const lun = addDays(t0, -E.dowOf(t0)), sem = Array.from({ length: 7 }, (_, i) => addDays(lun, i)), ag = E.agenda(sem[0], sem[6]);
+  const barres = `<div class="wk7s mt12">${sem.map((k, i) => { const kc = N.dayTotals(k).kcal || 0, f = t?.kcal ? Math.min(1, kc / t.kcal) : 0; return `<div class="${k === t0 ? "on" : ""}"><span>${E.DAY_SHORT[i]}</span><i style="display:block;height:34px;width:14px;margin:4px auto;border-radius:7px;background:var(--line);position:relative;overflow:hidden"><i style="position:absolute;left:0;right:0;bottom:0;height:${Math.round(f * 100)}%;background:#2F6FED;border-radius:7px"></i></i><b class="xs">${kc ? fr(kc) : "·"}</b></div>`; }).join("")}</div>`;
+  const nutri = `<h2 class="sec">🍽️ Nutrition <small>${esc(semTxt)}</small></h2><div class="card" data-swipe="mb-vw">${nav}${vw === 0 ? `<div class="row between"><b class="small">Aujourd'hui</b><span class="xs muted">${N.dayLog(t0).length} aliment${N.dayLog(t0).length > 1 ? "s" : ""} notés</span></div>${ligne({ kcal: jt.kcal || 0, p: jt.p || 0, c: jt.c || 0, f: jt.f || 0 })}` : ""}
+    <div class="row between ${vw === 0 ? "mt12" : ""}"><b class="small">Moyenne ${vw === 0 ? "7 jours" : "de la semaine"}</b><span class="xs muted">${notes.length}/7 jours notés</span></div>${ligne({ kcal: moy("kcal"), p: moy("p"), c: moy("c"), f: moy("f") })}${barres}</div>`;
+  const ag = E.agenda(sem[0], sem[6]);
   const fait = sem.filter(k => ag[k]?.st === "done").length, prevu = sem.filter(k => ag[k] && !["rest", "away"].includes(ag[k].st)).length;
   const ico = { done: "✅", missed: "❌", planned: "🏋️", rest: "😌", away: "↪️" };
-  const der = (D.workouts || []).slice(-3).reverse();
-  const seances = `<h2 class="sec">🏋️ Séances <small>${fait}/${prevu} cette semaine</small></h2><div class="card"><div class="wk7s">${sem.map((k, i) => `<div class="${k === t0 ? "on" : ""}"><span>${E.DAY_SHORT[i]}</span><b>${ag[k] ? ico[ag[k].st] || "·" : "·"}</b></div>`).join("")}</div>
-    ${der.length ? der.map(w => `<button class="li" style="width:100%;text-align:left" data-a="mb-tab" data-v="seances"><span class="grow small"><b>${esc(w.title)}</b><br><span class="xs muted">${fmtDate(today(new Date(w.end)), { weekday: "short", day: "numeric", month: "short" })} · ${w.setsDone ?? (w.exercises || []).reduce((a, e) => a + (e.sets || []).filter(x => x.done && x.type !== "W").length, 0)} séries${w.volume ? ` · ${fr(w.volume / 1000, 1)} t` : ""}${w.records?.length ? " · 🏆" : ""}</span></span>${I.chev}</button>`).join("") : `<p class="small muted mt8" style="margin-bottom:0">Aucune séance enregistrée.</p>`}</div>`;
+  const der = vw === 0 ? (D.workouts || []).slice(-3).reverse() : (D.workouts || []).filter(w => { const k = today(new Date(w.end)); return k >= sem[0] && k <= sem[6]; }).reverse();
+  const seances = `<h2 class="sec">🏋️ Séances <small>${fait}/${prevu} ${vw === 0 ? "cette semaine" : "cette semaine-là"}</small></h2><div class="card" data-swipe="mb-vw">${nav}<div class="wk7s">${sem.map((k, i) => `<div class="${k === t0 ? "on" : ""}"><span>${E.DAY_SHORT[i]}</span><b>${ag[k] ? ico[ag[k].st] || "·" : "·"}</b></div>`).join("")}</div>
+    ${der.length ? der.map(w => `<button class="li" style="width:100%;text-align:left" data-a="mb-tab" data-v="seances"><span class="grow small"><b>${esc(w.title)}</b><br><span class="xs muted">${fmtDate(today(new Date(w.end)), { weekday: "short", day: "numeric", month: "short" })} · ${w.setsDone ?? (w.exercises || []).reduce((a, e) => a + (e.sets || []).filter(x => x.done && x.type !== "W").length, 0)} séries${w.volume ? ` · ${fr(w.volume / 1000, 1)} t` : ""}${w.records?.length ? " · 🏆" : ""}</span></span>${I.chev}</button>`).join("") : `<p class="small muted mt8" style="margin-bottom:0">Aucune séance enregistrée${vw === 0 ? "" : " cette semaine-là"}.</p>`}</div>`;
   return hero + profil + prog + nutri + seances;
 }
 function fileCards(m, D) {
@@ -746,3 +766,16 @@ actions["mb-obj"] = () => { const o = mbr.settings?.objectif || {}; sheet(`<h2 c
   <button class="btn btn-red mt12">Enregistrer</button>${o.titre ? `<button type="button" class="btn btn-ghost mt8" data-a="mb-obj-del">Retirer l'objectif</button>` : ""}</form>`); };
 forms["mb-obj"] = async (v) => { if (v.au < v.du) return toast("La fin est avant le début"); if (await saveSettings({ objectif: { titre: v.titre.trim(), du: v.du, au: v.au, detail: (v.detail || "").trim() } })) { closeSheet(); toast("Objectif fixé"); rerender(); } };
 actions["mb-obj-del"] = async () => { if (await saveSettings({ objectif: null })) { closeSheet(); rerender(); } };
+
+// ---------- Saisie à la place du client (séance oubliée, repas non noté) ----------
+import { saisieStart, saisieStop } from "../saisie.js";
+const mbrName = () => (window.__members || []).find(x => x.id === mbr.id)?.name || "le client";
+actions["saisie-seance"] = (b, d) => sheet(`<h2 class="h2">✍️ Noter une séance pour ${esc(mbrName().split(" ")[0])}</h2><p class="small muted mt4">Même écran que le sien : tu valides les séries, les charges, puis tu règles l'heure et la durée. Rien n'est lancé en direct.</p>
+  <form data-f="saisie-seance" data-id="${esc(d.id)}" class="mt12"><label class="field"><span>Jour de la séance</span><input type="date" name="d" value="${today()}" max="${today()}" required></label><button class="btn btn-red mt12">Continuer</button></form>`);
+forms["saisie-seance"] = async (v, f) => {
+  const ok = await saisieStart(f.dataset.id, mbrName(), mbr.data?.data || {}); if (!ok) return;
+  closeSheet(); await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]).catch(() => { });
+  actions["missed-done"](null, { v: v.d });
+};
+actions["saisie-repas"] = async (b, d) => { await saisieStart(d.id, mbrName(), mbr.data?.data || {}); go("food"); };
+actions["saisie-fin"] = async () => { const id = mbr.id; await saisieStop(); toast("Enregistré chez le client"); mbr.data = null; go("member", id); };

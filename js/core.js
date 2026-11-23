@@ -1,5 +1,5 @@
 // Noyau d'interface : état partagé, routeur, en-tête, barre d'onglets, feuilles, graphiques, formules.
-import { S, update, today, APP_MODE } from "./store.js";
+import { S, update, today, APP_MODE, proxyInfo } from "./store.js";
 import { CONFIG, offer, MSGS_PER_WEEK, FREE_PROGRAMS, FREE_WEEKS, ALL_FREE, TRIAL_DAYS, TRIAL_ANCIEN } from "./config.js";
 import { joursEssai } from "./social.js";
 
@@ -144,7 +144,8 @@ const TAB_TITLES = ["Accueil", "Entraînement", "Nutrition", "Communauté", "Coa
 export function header(title, sub = "", { back = null, actions = "", offers = true } = {}) {
   const demo = false ? `<div class="demo-bar"><span class="grow">Démo · <b>${esc(offer(S().demoTier).name)}</b></span><button data-a="demo-choose">Choisir</button><button data-a="demo-exit">Quitter</button></div>` : "";
   const lead = back ? `<button class="icon-btn" ${back === "__hist" ? `data-a="hist-back"` : `data-a="go" data-r="${back}"`} aria-label="Retour">${I.back}</button>` : "";
-  return demo + `<header class="top"><div class="row1">${lead}<h1>${!back && TAB_TITLES.includes(title) ? "" : title}</h1>
+  const px = proxyInfo ? `<div class="proxybar"><span class="grow">✍️ Tu saisis pour <b>${esc(proxyInfo.name || "le client")}</b></span><button data-a="saisie-fin">Terminer</button></div>` : "";
+  return px + demo + `<header class="top"><div class="row1">${lead}<h1>${!back && TAB_TITLES.includes(title) ? "" : title}</h1>
     ${actions}<button class="pill ic" data-a="notifs" aria-label="Notifications">${I.bell}${badges.notifs ? `<span class="badge">${badges.notifs}</span>` : ""}</button>
     ${isCoach() || (S().me?.isCoach && !S().demoTier) ? `<span class="modesw" role="group" aria-label="Changer de mode"><a href="./coach.html" class="${APP_MODE === "coach" ? "on" : ""}" ${APP_MODE === "coach" ? 'aria-current="true"' : 'aria-label="Passer en mode coach"'}>Coach</a><a href="./" class="${APP_MODE === "coach" ? "" : "on"}" ${APP_MODE === "coach" ? 'aria-label="Passer en mode athlète"' : 'aria-current="true"'}>Athlète</a></span>` : !offers ? "" : `<button class="pill" data-a="go" data-r="offers">🚀 ${rank() >= 2 ? "Coaching" : "Offres"}</button>`}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</header>`;
 }

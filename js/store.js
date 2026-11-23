@@ -57,16 +57,23 @@ export const S = () => state;
 const hooks = new Set();
 export const onSave = (fn) => hooks.add(fn);
 let borrowed = null;
+let proxyHook = null;
+export const proxyActive = () => !!proxyHook;
 export function save() {
-  if (borrowed) return; // on lit les données d'un membre : rien n'est écrit sur ce téléphone
+  if (borrowed) { proxyHook?.(); return; } // on lit les données d'un membre : rien n'est écrit sur ce téléphone (sauf saisie du coach pour un client, envoyée au serveur)
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.warn("Stockage plein", e); }
   hooks.forEach(f => { try { f(); } catch { } });
 }
 // Exécute fn avec l'état d'un autre membre (espace coach), puis revient à l'état du téléphone
 export function withState(other, fn) {
-  const mine = state; borrowed = true; state = Object.assign(blank(), other || {});
-  try { return fn(); } finally { state = mine; borrowed = null; }
+  const mine = state, prevB = borrowed; borrowed = true; state = Object.assign(blank(), other || {});
+  try { return fn(); } finally { state = mine; borrowed = prevB; }
 }
+// Saisie du coach à la place d'un client : on travaille sur ses données (menus identiques à ceux du client), rien n'est écrit sur ce téléphone
+let proxyBack = null;
+export let proxyInfo = null;
+export function proxyStart(data, me, hook, info) { if (proxyBack) return false; proxyInfo = info || null; proxyBack = { state, borrowed }; state = Object.assign(blank(), data || {}, { me }); borrowed = true; proxyHook = hook; return true; }
+export function proxyStop() { if (!proxyBack) return; state = proxyBack.state; borrowed = proxyBack.borrowed; proxyBack = null; proxyHook = null; proxyInfo = null; }
 export function update(fn) { fn(state); save(); }
 export function resetAll() { state = blank(); save(); }
 export function exportJSON() { return JSON.stringify({ app: "calxsthenos", v: 1, at: new Date().toISOString(), data: state }, null, 1); }
