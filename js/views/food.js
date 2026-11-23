@@ -13,6 +13,7 @@ import { pushStats } from "../sync.js";
 import * as ML from "./meals.js";
 import * as SP from "./supps.js";
 import * as PO from "../portions.js";
+import * as PR from "../photo-repas.js";
 import * as NS from "../nutri-semaine.js";
 import { insulinCard } from "./recup.js";
 import "./activite.js";
@@ -303,6 +304,7 @@ let afs = { meal: "Déjeuner", tab: "search", date: null, time: "" };
 const afsTime = () => document.getElementById("afs-time")?.value || afs.time;
 export async function addFoodSheet(meal) {
   afs.meal = meal; afs.date = D(); afs.tab = afs.tab || "search";
+  afs.photo = null; prBlob = null;
   afs.time = N.dayLog(afs.date).find(e => e.meal === meal)?.time || (afs.date === today() ? hhmm() : N.MEAL_TIMES[meal] || "12:00");
   const w = sheet(`<div class="row between" style="gap:10px"><h2 class="h2">${esc(meal)}</h2><button class="btn btn-red btn-sm" data-a="afs-done" style="width:auto">Terminé</button></div>
     <label class="row xs muted mt8" style="gap:6px">Heure du repas <input id="afs-time" class="inp" type="time" style="width:116px" value="${afs.time}"></label>
@@ -323,7 +325,7 @@ function drawSum() {
 }
 actions["afs-del"] = (b, d) => { N.removeEntry(+d.id, afs.date); drawSum(); };
 changes["afs-g"] = (el) => { const g = num(el.value); if (!(g > 0)) return; N.rescaleEntry(+el.dataset.id, afs.date, g); drawSum(); };
-actions["afs-done"] = () => closeSheet();
+actions["afs-done"] = () => { afs.photo = null; prBlob = null; closeSheet(); };
 // ---------- Modifier / remplacer un aliment déjà enregistré ----------
 let EF = null; // { id, date, back, g }
 const efEntry = () => N.dayLog(EF.date).find(x => x.id === EF.id);
@@ -374,7 +376,8 @@ actions["ef-swap"] = () => {
       list = N.searchFoods(q); window.__ef = list; out.innerHTML = list.length ? `<div class="list">${list.map(li).join("")}</div>` : `<p class="empty small">Rien pour « ${esc(q)} ».</p>`;
       N.searchBrands(q).then(off => { if (inp.value.trim() !== q || !off.length) return; list = [...list, ...off]; window.__ef = list; out.innerHTML = `<div class="list">${list.map(li).join("")}</div>`; }); };
     inp.addEventListener("input", () => { clearTimeout(deb); deb = setTimeout(run, 140); });
-    N.loadCiqual().then(() => { ready = true; if (inp.value.trim()) run(); }); quick(); inp.focus();
+    N.loadCiqual().then(() => { ready = true; if (inp.value.trim()) run(); });
+    drawPhoto(); quick(); inp.focus();
   });
 };
 actions["ef-cancel"] = () => editFoodSheet();
@@ -398,7 +401,7 @@ function drawAfs(w = document.getElementById("sheet")) {
   const foodLi = (f, src, i) => { const us = N.usualFor(f.n); return `<div class="li" data-li="${src}-${i}"><button class="grow" style="text-align:left" data-a="pick-food" data-src="${src}" data-i="${i}"><span class="small">${esc(f.n)}</span><br><span class="xs muted">${perLine(f)}</span></button>${us ? `<button class="btn btn-line btn-xs" style="width:auto;flex:none;white-space:nowrap" data-a="quick-food" data-src="${src}" data-i="${i}" aria-label="Ajouter comme d'habitude">+ ${esc(us.u ? PO.fmtQty(us.u.n, us.u) : fr(us.g) + " g")}</button>` : ""}<button class="icon-btn" data-a="fav-food" data-src="${src}" data-i="${i}" aria-label="Favori" style="color:${N.isFavFood(f.n) ? "var(--gold)" : "var(--soft)"}">${N.isFavFood(f.n) ? "★" : "☆"}</button></div>`; };
   if (afs.tab === "search") {
     box.innerHTML = `<div class="search">${I.search}<input id="fq" placeholder="riz, poulet, skyr…" autocomplete="off" enterkeyhint="search"></div>
-      <button class="btn btn-line btn-sm mt8" data-a="scan" style="width:100%">${I.scan.replace("<svg", '<svg width="20"')} Scanner un code-barres</button><div id="fr" class="mt12">${quickFoods(foodLi)}</div>`;
+      ${photoButtons()}<button class="btn btn-line btn-sm mt8" data-a="scan" style="width:100%">${I.scan.replace("<svg", '<svg width="20"')} Scanner un code-barres</button><div id="prbox"></div><div id="fr" class="mt12">${quickFoods(foodLi)}</div>`;
     const inp = box.querySelector("#fq"), out = box.querySelector("#fr"); let ready = false, deb;
     if (afs.query) { inp.value = afs.query; afs.query = null; }
     const run = () => { const q = inp.value.trim(); if (!q) { out.innerHTML = quickFoods(foodLi); return; } if (!ready) { out.innerHTML = `<p class="empty small">Chargement des aliments…</p>`; return; } const r = N.searchFoods(q); window.__fr = r;
@@ -535,6 +538,46 @@ function loadZxing() {
 }
 actions["scan-manual"] = () => sheet(`<h2 class="h2">🔎 Code-barres</h2><p class="small muted">Tape les chiffres sous le code-barres (13 en général).</p><form data-f="bc-code" class="row mt12" style="gap:8px"><input name="c" class="inp grow" inputmode="numeric" pattern="[0-9]*" placeholder="3017620422003" required><button class="btn btn-red btn-sm" style="width:auto">Chercher</button></form>`);
 actions.scan = () => scanBarcode(afs.meal, afs.date, true);
+
+// ---------- Photo du repas : reconnaissance sur le téléphone, photo jamais envoyée ni enregistrée ----------
+let prBlob = null; // la photo en cours, en mémoire seulement, oubliée dès qu'on n'en a plus besoin
+function photoButtons() {
+  if (!premium()) return `<button class="btn btn-line btn-sm mt8" data-a="pr-lock" style="width:100%">📷 Photo du repas <span class="lock">🔒</span></button>`;
+  return `<div class="row mt8" style="gap:8px"><label class="btn btn-line btn-sm grow" style="cursor:pointer">📷 Photo du repas<input type="file" accept="image/*" capture="environment" data-c="pr-photo" hidden></label><label class="btn btn-line btn-sm" style="width:auto;cursor:pointer" aria-label="Choisir une photo dans la galerie">🖼️ Galerie<input type="file" accept="image/*" data-c="pr-photo" hidden></label></div>`;
+}
+function drawPhoto() {
+  const box = document.getElementById("prbox"); if (!box) return; const P = afs.photo;
+  if (!P) { box.innerHTML = ""; return; }
+  if (P.busy) { box.innerHTML = `<div class="card mt12" style="padding:12px 14px"><b class="small">📷 ${esc(P.busy)}</b>${P.pct != null ? `<div class="bar mt8" style="height:6px;background:var(--line);border-radius:3px;overflow:hidden"><div style="height:100%;width:${Math.round(P.pct * 100)}%;background:var(--red)"></div></div>` : ""}<p class="xs muted mt4">La photo reste sur ton téléphone : elle n'est ni envoyée ni enregistrée.</p></div>`; return; }
+  box.innerHTML = `<div class="card mt12" style="padding:12px 14px"><div class="row between"><b class="small">📷 Sur ta photo${P.zones ? " (zone par zone)" : ""}</b><button class="icon-btn" data-a="pr-clear" aria-label="Fermer">${I.close}</button></div>
+    <div class="chips wrap mt8">${P.list.map((x, i) => `<button class="chip${i === 0 ? " on" : ""}" data-a="pr-pick" data-i="${i}">${esc(x.fr)}</button>`).join("")}</div>
+    <p class="xs muted mt8">Touche chaque plat de ton assiette, puis choisis la quantité. Les suggestions viennent de l'image : vérifie toujours.</p>
+    ${!P.zones && prBlob ? `<button class="btn btn-line btn-xs mt8" data-a="pr-zones" style="width:100%">Plusieurs aliments ? Analyser zone par zone</button>` : ""}</div>`;
+}
+async function runPhoto(zones) {
+  const blob = prBlob; if (!blob) return;
+  const first = !localStorage.getItem("tb-pr-ok");
+  afs.photo = { busy: first ? `Téléchargement du moteur (≈ ${PR.MODEL_MO} Mo, une seule fois)…` : zones ? "Analyse zone par zone…" : "Analyse de la photo…", pct: first ? 0 : null }; drawPhoto();
+  try {
+    const list = await PR.analyse(blob, { zones, onProgress: (p) => { if (afs.photo?.busy) { afs.photo.pct = p; drawPhoto(); } } });
+    localStorage.setItem("tb-pr-ok", "1");
+    afs.photo = { list, zones }; if (zones) prBlob = null;
+  } catch { afs.photo = null; prBlob = null; toast("Analyse impossible (connexion ?). La première fois, il faut du réseau pour télécharger le moteur."); }
+  drawPhoto();
+}
+changes["pr-photo"] = (el) => {
+  const f = el.files?.[0]; el.value = ""; if (!f) return;
+  if (!localStorage.getItem("tb-pr-ok") && !confirm(`Première photo : l'app télécharge son moteur de reconnaissance (≈ ${PR.MODEL_MO} Mo, une seule fois, Wi-Fi conseillé). L'analyse se fait ensuite sur ton téléphone, sans rien envoyer. Continuer ?`)) return;
+  prBlob = f; runPhoto(false);
+};
+actions["pr-zones"] = () => runPhoto(true);
+actions["pr-clear"] = () => { afs.photo = null; prBlob = null; drawPhoto(); };
+actions["pr-lock"] = () => go("offers");
+actions["pr-pick"] = (b, d) => {
+  const x = afs.photo?.list?.[+d.i], q = document.getElementById("fq"); if (!x || !q) return;
+  document.querySelectorAll("#prbox .chip").forEach(c => c.classList.toggle("on", c === b));
+  q.value = x.q; q.dispatchEvent(new Event("input"));
+};
 
 // ---------- Plan alimentaire écrit ----------
 actions["eat-plan"] = (b, d) => { const x = N.dayPlan(N.targets())[+d.i]; N.addEntry({ meal: N.MEALS.includes(x.meal) ? x.meal : "Déjeuner", label: x.n, g: null, kcal: x.m.kcal, p: x.m.p, c: x.m.c, f: x.m.f, time: x.time }); buzz(); toast(`${x.meal} noté dans le journal`); };
