@@ -272,11 +272,21 @@ export function installEvents() {
   document.addEventListener("change", async (e) => { const el = e.target.closest("[data-c]"); if (el && changes[el.dataset.c]) await changes[el.dataset.c](el, e); });
   // Balayage horizontal : un élément [data-swipe="action"] reçoit v = 1 (vers la gauche, suivant) ou -1 (vers la droite, précédent)
   let sw = null;
+  // Pendant le glissement, tous les blocs du même groupe suivent le doigt ; au relâchement ils sortent, puis le contenu suivant entre du côté opposé
+  const groupe = (el) => [...document.querySelectorAll(`[data-swipe="${el.dataset.swipe}"]`)];
+  const deplacer = (els, x, anim) => els.forEach(e => { e.style.transition = anim ? "transform .2s ease, opacity .2s ease" : "none"; e.style.transform = x ? `translateX(${x}px)` : ""; e.style.opacity = x ? String(Math.max(.35, 1 - Math.abs(x) / 420)) : ""; });
   document.addEventListener("touchstart", (e) => { const el = e.target.closest("[data-swipe]"); const t = e.touches[0];
-    sw = el && e.touches.length === 1 && !e.target.closest("input,textarea,select,.hscroll,.chips,.modes,.seg,[data-noswipe]") ? { el, x: t.clientX, y: t.clientY, at: Date.now() } : null; }, { passive: true });
-  document.addEventListener("touchend", (e) => { if (!sw) return; const t = e.changedTouches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y, el = sw.el, at = sw.at; sw = null;
-    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6 || Date.now() - at > 800) return;
-    const a = actions[el.dataset.swipe]; if (a) { buzz(8); a(el, { v: dx < 0 ? "1" : "-1" }); } }, { passive: true });
+    sw = el && e.touches.length === 1 && !e.target.closest("input,textarea,select,.hscroll,.chips,.modes,.seg,[data-noswipe]") ? { el, els: groupe(el), x: t.clientX, y: t.clientY, at: Date.now(), drag: false } : null; }, { passive: true });
+  document.addEventListener("touchmove", (e) => { if (!sw) return; const t = e.touches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y;
+    if (!sw.drag && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.4) sw.drag = true;
+    if (sw.drag) deplacer(sw.els, dx, false); }, { passive: true });
+  document.addEventListener("touchcancel", () => { if (sw?.drag) deplacer(sw.els, 0, true); sw = null; }, { passive: true });
+  document.addEventListener("touchend", (e) => { if (!sw) return; const t = e.changedTouches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y, el = sw.el, els = sw.els, at = sw.at; sw = null;
+    const ok = Math.abs(dx) >= 70 && Math.abs(dy) <= Math.abs(dx) * 0.6 && Date.now() - at < 1500;
+    if (!ok) { deplacer(els, 0, true); return; }
+    const a = actions[el.dataset.swipe]; if (!a) { deplacer(els, 0, true); return; }
+    const sens = dx < 0 ? -1 : 1; buzz(8); deplacer(els, sens * window.innerWidth * 0.9, true);
+    setTimeout(() => { a(el, { v: dx < 0 ? "1" : "-1" }); requestAnimationFrame(() => requestAnimationFrame(() => { const nv = groupe(el); nv.forEach(e => { e.classList.remove("sw-in-l", "sw-in-r"); void e.offsetWidth; e.classList.add(sens < 0 ? "sw-in-r" : "sw-in-l"); }); })); }, 190); }, { passive: true });
   document.addEventListener("input", (e) => { const el = e.target.closest("[data-i]"); if (el && changes["i:" + el.dataset.i]) changes["i:" + el.dataset.i](el, e); });
 }
 actions.go = (b, d) => { closeSheet(); go(d.r, d.p ?? null); };

@@ -829,3 +829,11 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 .proxybar button{background:#fff;color:#111;border:0;border-radius:14px;padding:6px 14px;font-weight:700}
 
 .top:has(.modesw) h1{font-size:clamp(15px,4.3vw,19px);overflow-wrap:break-word}
+
+/* Blocs balayables : ils suivent le doigt, puis le nouveau contenu glisse depuis le côté */
+[data-swipe]{touch-action:pan-y;will-change:transform}
+@keyframes swInR{from{transform:translateX(70%);opacity:0}to{transform:none;opacity:1}}
+@keyframes swInL{from{transform:translateX(-70%);opacity:0}to{transform:none;opacity:1}}
+.sw-in-r{animation:swInR .24s ease-out}
+.sw-in-l{animation:swInL .24s ease-out}
+@media (prefers-reduced-motion:reduce){.sw-in-r,.sw-in-l{animation:none}}
