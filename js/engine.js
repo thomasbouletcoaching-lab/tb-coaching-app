@@ -180,8 +180,21 @@ export const isAssisted = (name) => /assist/i.test(name || "");
 export const isLest = (name) => /lest/i.test(name || "") && !isAssisted(name);
 export function poidsCorps() { const d = Object.entries(S().daily || {}).filter(([, v]) => v.weight).sort().at(-1); return +(d?.[1].weight) || +S().profile?.weight || 0; }
 export const bwAddOf = (name) => isLest(name) ? poidsCorps() : 0;
+// Record saisi dans « Mes records » pour un lesté (tractions, dips, muscle-up lesté), sinon null
+const LEST_REC = [[/tractions lestées/i, "pullup"], [/dips lestés/i, "dip"], [/muscle-up lesté/i, "muscleup"]];
+export function recordLest(name) {
+  if (!isLest(name)) return null;
+  const key = LEST_REC.find(([re]) => re.test(name))?.[1];
+  return key ? (S().profile?.records?.[key] || null) : null;
+}
+// 1RM de lest de référence : le record saisi s'il existe (il prime sur l'historique), sinon l'estimation
+export function refE1rm(name) {
+  const r = recordLest(name);
+  if (r) return r.e1rm ?? e1rm(r.k, r.r, r.rpe ?? 10);
+  return currentE1rm(name);
+}
 // 1RM de référence pour les % : pour un lesté, lest + poids de corps
-export function baseE1rm(name) { const e = currentE1rm(name); return e ? e + bwAddOf(name) : e; }
+export function baseE1rm(name) { const e = refE1rm(name); return e ? e + bwAddOf(name) : e; }
 export function stepOf(name) { if (/lest/i.test(name)) return 1.25; if (/kettlebell/i.test(name)) return 4; if (/haltère/i.test(name)) return 2; return 2.5; }
 export const roundTo = (kg, step) => Math.max(0, Math.round(kg / step) * step);
 export const fmtKg = (kg) => (Math.round((kg || 0) * 100) / 100).toString().replace(".", ",");

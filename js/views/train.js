@@ -699,7 +699,7 @@ actions["add-set"] = (b, d) => {
 };
 actions["ex-prog"] = (b, d) => progSheet(+d.x);
 function progSheet(xi) {
-  const ex = S().current.exercises[xi], e1 = Math.round(E.currentE1rm(ex.name) * 10) / 10, st = ex.step || 2.5, pending = ex.sets.filter(s => !s.done && s.type !== "W");
+  const ex = S().current.exercises[xi], e1 = Math.round(E.refE1rm(ex.name) * 10) / 10, st = ex.step || 2.5, pending = ex.sets.filter(s => !s.done && s.type !== "W");
   const last = ex.sug?.last;
   sheet(`<h2 class="h2">📈 ${esc(ex.name)}</h2>${last ? `<p class="small muted mt4">Dernière fois : ${esc(last)}</p>` : ""}${ex.sug && premium() ? `<div class="sug">💡 ${esc(ex.sug.txt)}</div>` : ""}
     <div class="lbl mt12">Aujourd'hui · ${pending.length} série${pending.length > 1 ? "s" : ""} à faire</div>
@@ -714,7 +714,10 @@ actions["pg-kg"] = (b, d) => { const ex = S().current.exercises[+d.x]; ex.sets.f
 actions["pg-rep"] = (b, d) => { const ex = S().current.exercises[+d.x]; ex.sets.forEach(s => { if (!s.done && s.type !== "W") { s.reps = Math.max(1, (s.reps || s.lo) + +d.v); s.lo = Math.max(1, s.lo + +d.v); s.hi = Math.max(s.lo, s.hi + +d.v); } }); save(); rerender(); progSheet(+d.x); };
 actions["pg-set"] = (b, d) => { actions["add-set"](b, { x: d.x }); progSheet(+d.x); };
 actions["pg-e1"] = (b, d) => {
-  const ex = S().current.exercises[+d.x], add = ex.bwAdd || 0, lest = E.nudgeE1rm(ex.name, +d.v); if (!lest) return;
+  const ex = S().current.exercises[+d.x], add = ex.bwAdd || 0;
+  // Lesté : le 1RM vient du record « Mes records » (à modifier là-bas), l'ajustement ne vaut que pour cette séance
+  const lest = E.recordLest(ex.name) ? Math.max(1, Math.round((E.refE1rm(ex.name) + +d.v) * 10) / 10) : E.nudgeE1rm(ex.name, +d.v);
+  if (!lest) return;
   // nudgeE1rm renvoie le 1RM du lest seul : pour un lesté, la base des % est lest + poids de corps
   const v = lest + add, old = ex.e1 || v; ex.e1 = v;
   ex.sets.forEach(s => { if (!s.done && s.kg) { s.kg = E.roundTo(Math.max(0, (s.kg + add) * v / old - add), ex.step || 2.5); if (s.pct) s.pct = Math.round((s.kg + add) / v * 100); } });
