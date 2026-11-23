@@ -10,14 +10,16 @@ import { canalMembreHtml, compteRenduHtml } from "./video-canal.js";
 import { cloud, isCoach } from "../core.js";
 
 const MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
-const MODELE = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+// Modèle « full » (plus précis que « lite »), gratuit (Apache 2.0), exécuté sur le téléphone : aucun coût par analyse (C76)
+const MODELE = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
+const MODELE_LITE = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
 const OUTILS = [["main", "👆", "Défiler"], ["crayon", "✏️", "Crayon"], ["gomme", "🧽", "Gomme"], ["ligne", "📏", "Ligne"], ["angle", "📐", "Angle"], ["bulle", "💬", "Bulle"], ["barre", "📍", "Barre"], ["echelle", "📏", "Échelle"], ["zoom", "🔍", "Zoom"]];
 const COUL = { exc: "#FF5A5F", con: "#3DDC84", repos: "#FFD400" };
-let A = null, blobUrl = null, cur = null, outil = "main", sel = -1, squel = false, pose = null, poseErr = null, lmCache = new Map(), raf = 0, trace = null, cmp = [0, 1], zoom = { z: 1, x: 50, y: 50 };
+let A = null, blobUrl = null, cur = null, outil = "main", sel = -1, squel = false, pose = null, poseVid = null, tsOff = 0, tsLast = 0, poseErr = null, lmCache = new Map(), raf = 0, trace = null, cmp = [0, 1], zoom = { z: 1, x: 50, y: 50 };
 
 // ---------- Annuler / rétablir : chaque modification garde une copie de l'analyse (50 au plus) ----------
 let hist = [], redo = [];
-const etatCopie = () => JSON.stringify({ path: A.path, keys: A.keys, scale: A.scale, trim: A.trim, crit: A.crit, sens: A.sens, auto: A.auto, pathAuto: A.pathAuto });
+const etatCopie = () => JSON.stringify({ path: A.path, keys: A.keys, scale: A.scale, trim: A.trim, crit: A.crit, sens: A.sens, auto: A.auto, pathAuto: A.pathAuto, pathQ: A.pathQ, critAuto: A.critAuto });
 function memo() { if (!A) return; hist.push(etatCopie()); if (hist.length > 50) hist.shift(); redo = []; majUndo(); }
 function restaurer(json) { Object.assign(A, JSON.parse(json)); sel = Math.min(sel, A.keys.length - 1); majKeys(); majStats(); majAuto(); dessiner(); majUndo(); }
 const majUndo = () => { const u = document.getElementById("vundo"), r = document.getElementById("vredo"); if (u) u.disabled = !hist.length; if (r) r.disabled = !redo.length; };
@@ -72,6 +74,8 @@ routes.video = () => {
     <div class="row mt8" style="gap:6px"><button class="btn btn-line btn-sm grow" id="vundo" data-a="vd-undo" ${hist.length ? "" : "disabled"}>↶ Annuler</button><button class="btn btn-line btn-sm grow" id="vredo" data-a="vd-redo" ${redo.length ? "" : "disabled"}>↷ Rétablir</button><button class="btn btn-red btn-sm grow" data-a="vd-auto">🤖 Analyse auto</button></div>
     <div class="vtools mt8">${OUTILS.map(([k, ic, l]) => `<button class="vtool ${outil === k ? "on" : ""}" data-a="vd-tool" data-v="${k}"><span>${ic}</span>${l}</button>`).join("")}<button class="vtool ${squel ? "on" : ""}" data-a="vd-squel"><span>🦴</span>Squelette</button></div>
     <div id="vhelp" class="xs muted mt4">${aide()}</div>
+    <div id="vqual">${qualiteHtml()}</div>
+    <details class="card mt8"${A.path.length || A.auto ? "" : " open"}><summary class="small"><b>🎥 Comment filmer${m ? " · " + esc(m.n) : ""}</b></summary><p class="small mt8" style="margin-bottom:0">${esc(V.protocole(A.mvt))}</p><p class="xs muted mt4" style="margin-bottom:0">Téléphone posé (pas tenu à la main), bonne lumière, 60 images/s si possible. Mauvais angle = mesures fausses : l'app te le signale par l'indice de fiabilité.</p></details>
     <div id="vauto">${autoHtml()}</div>
     <div id="vstats">${statsHtml()}</div>
     <h2 class="sec">⏸️ Arrêts sur image <small>${A.keys.length}</small></h2>
@@ -85,12 +89,14 @@ routes.video = () => {
   </main>`;
   monter();
 };
+function qualiteHtml() { const q = A?.qualite || []; return q.length ? `<div class="card soft mt8">${q.map(x => `<p class="xs" style="margin:2px 0">⚠️ ${esc(x)}</p>`).join("")}</div>` : ""; }
 function aide() {
   return { main: "👆 Défiler : la vidéo ne bloque pas le défilement de la page. Choisis un outil pour dessiner.", crayon: "✏️ Dessine à main levée sur l'arrêt sur image en cours. Fais glisser un dessin pour le déplacer.", gomme: "🧽 Passe sur un dessin pour l'effacer.", ligne: "📏 Trace une ligne (ex. le buste) : son inclinaison par rapport à la verticale s'affiche. Fais glisser un bout pour l'ajuster, ou le milieu pour la déplacer.", angle: "📐 Touche pour poser un angle, fais glisser ses 3 points sur les articulations, ou un côté pour le déplacer en entier.", bulle: "💬 Touche l'image pour écrire un commentaire dans une bulle.", barre: A?.path?.length ? "📍 Le tracé dévie ? Va à l'image où il se trompe, zoome si besoin et touche le bout de la barre : la trajectoire repart d'ici. ↶ Annuler revient en arrière." : "📍 Mets en pause au début du mouvement, zoome (🔍) et touche le bout de la barre (le centre du disque, vu de profil) : toute la trajectoire est tracée image par image.", zoom: "🔍 Touche l'endroit à agrandir : ×2, puis ×3, puis retour. Les outils restent précis en zoom.", echelle: "📐 Trace une ligne sur le diamètre d'un disque (45 cm pour un disque de compétition) pour avoir les vitesses en m/s." }[outil];
 }
 function monter() {
   const v = document.getElementById("vv"), c = document.getElementById("vc"), ctx = c.getContext("2d"); cur = { v, c, ctx }; v.playbackRate = 0.25;
-  v.addEventListener("loadedmetadata", () => { c.width = v.videoWidth || 640; c.height = v.videoHeight || 360; if (!A.trim) A.trim = { a: 0, b: v.duration || 0 }; majTrim(); v.currentTime = tA(); if (squel) chargerPose().then(dessiner); });
+  v.addEventListener("loadedmetadata", () => { c.width = v.videoWidth || 640; c.height = v.videoHeight || 360; if (!A.trim) A.trim = { a: 0, b: v.duration || 0 };
+    A.qualite = V.qualiteVideo({ w: v.videoWidth, h: v.videoHeight, duree: v.duration }); const q = document.getElementById("vqual"); if (q) q.innerHTML = qualiteHtml(); majTrim(); v.currentTime = tA(); if (squel) chargerPose().then(dessiner); });
   v.addEventListener("seeked", () => { majTemps(); dessiner(); }); v.addEventListener("pause", () => { majPlay(); dessiner(); }); v.addEventListener("play", () => { majPlay(); boucle(); });
   v.addEventListener("timeupdate", () => { if (v.currentTime >= tB() - 0.01 && !v.paused) { v.pause(); v.currentTime = tB(); } majTemps(); });
   // pointeur : seulement quand un outil est choisi (sinon le doigt fait défiler la page)
@@ -145,7 +151,7 @@ function gommer(k, p) { if (!k) return; const n = k.items.length; k.items = k.it
 function calibrer(d) {
   const px = Math.hypot((d.b.x - d.a.x) * W(), (d.b.y - d.a.y) * H()); if (px < 10) return;
   const r = prompt("Longueur réelle de ce trait (cm) — un disque de compétition fait 45 cm", "45"); const cm = parseFloat(String(r || "").replace(",", "."));
-  if (!(cm > 1 && cm < 300)) return; A.scale = { a: d.a, b: d.b, m: cm / 100 }; toast("Échelle enregistrée : vitesses en m/s"); majStats();
+  if (!(cm > 1 && cm < 300)) return; A.scale = { a: d.a, b: d.b, m: cm / 100 }; // remplace l'échelle automatique toast("Échelle enregistrée : vitesses en m/s"); majStats();
 }
 // m par unité normalisée verticale (et horizontale) de l'image
 const echelle = () => { if (!A.scale || !cur) return null; const px = Math.hypot((A.scale.b.x - A.scale.a.x) * W(), (A.scale.b.y - A.scale.a.y) * H()); return px ? A.scale.m / px : null; };
@@ -166,7 +172,8 @@ async function lancerTrace(p) {
   const corr = A.path.length > 5 && t0 > A.path[0].t + 0.05, sensList = corr ? [1] : [1, -1];
   const T = 25, x0 = p.x * g0.w, y0 = p.y * g0.h, tplO = V.motif(g0, Math.round(x0), Math.round(y0), T), pas = 1 / 30;
   trace = { stop: false }; const pr = document.getElementById("vprog"); if (pr) { pr.hidden = false; pr.innerHTML = `<span>Tracé de la trajectoire…</span> <button class="link" data-a="vd-stoptrace" style="color:#fff">Arrêter</button>`; }
-  const pts = [{ t: t0, x: p.x, y: p.y }], perdu = [];
+  const pts = [{ t: t0, x: p.x, y: p.y }], perdu = [], scores = [];
+  if (!corr && !A.scale) echelleAuto(p);
   for (const sens of sensList) { let x = x0, y = y0, vx = 0, vy = 0, t = t0, tpl = tplO;
     while (!trace.stop) { t += sens * pas; if (t > tB() + 0.001 || t < tA() - 0.001) break; await allerA(t); const g = image(); if (!g) break;
       // le motif de départ fait foi (pas de dérive) ; le motif récent ne sert qu'à retrouver la barre, puis on recale sur celui de départ
@@ -174,16 +181,28 @@ async function lancerTrace(p) {
       if (r.score < 0.6) { let r2 = V.suivreNCC(g, tpl, px, py, 16); if (r2.score < 0.6) { const r3 = V.suivreNCC(g, tplO, px, py, 26); if (r3.score > r2.score) r2 = r3; }
         if (r2.score > r.score) { const re = V.suivreNCC(g, tplO, r2.x, r2.y, 3); r = re.score > 0.5 ? re : r2; } }
       if (r.score < 0.42) { perdu.push(cur.v.currentTime); break; }
-      vx = 0.6 * (r.x - x) + 0.4 * vx; vy = 0.6 * (r.y - y) + 0.4 * vy; x = r.x; y = r.y;
+      scores.push(r.score); vx = 0.6 * (r.x - x) + 0.4 * vx; vy = 0.6 * (r.y - y) + 0.4 * vy; x = r.x; y = r.y;
       if (r.score > 0.75) tpl = V.motif(g, Math.round(x), Math.round(y), T);
       pts.push({ t: cur.v.currentTime, x: x / g.w, y: y / g.h });
       if (pr && pts.length % 6 === 0) pr.firstChild.textContent = `Tracé de la trajectoire… ${Math.round(Math.abs(t - t0) / Math.max(0.1, sens > 0 ? tB() - t0 : t0 - tA()) * 100)} % ${sens > 0 ? "(vers la fin)" : "(vers le début)"} `; } }
   const neuf = pts.sort((a, b) => a.t - b.t).filter((q, i, l) => !i || q.t - l[i - 1].t > 0.005);
-  A.path = V.nettoyerTrajectoire(corr ? [...A.path.filter(q => q.t < t0 - 0.005), ...neuf] : neuf); A.pathAuto = false; trace = null; if (pr) pr.hidden = true;
+  A.path = V.nettoyerTrajectoire(corr ? [...A.path.filter(q => q.t < t0 - 0.005), ...neuf] : neuf); A.pathAuto = false;
+  if (scores.length) { const moy = scores.reduce((a, b) => a + b, 0) / scores.length; A.pathQ = corr && A.pathQ ? { moy: Math.min(A.pathQ.moy, moy), perdu: perdu.length > 0 } : { moy, perdu: perdu.length > 0 }; } trace = null; if (pr) pr.hidden = true;
   await allerA(t0); outil = "main"; rerender();
   toast(perdu.length ? `Barre perdue à ${fmtT(perdu[0])} : va à cette image et touche-la à nouveau (outil Barre) pour continuer` : `Trajectoire tracée : ${A.path.length} images`);
   if (A.autoApres && !perdu.length) { A.autoApres = false; return actions["vd-auto"](); }
   A.autoApres = false;
+}
+// Échelle automatique (C76) : le point touché est le centre du disque ; on retrouve son bord et on prend son diamètre
+// (disque de compétition : 45 cm). Autre disque : corriger avec l'outil Échelle (trait sur le diamètre, longueur réelle).
+function echelleAuto(p) {
+  const v = cur?.v; if (!v?.videoWidth) return; const w = Math.min(960, v.videoWidth), h = Math.round(w * v.videoHeight / v.videoWidth);
+  const o = document.createElement("canvas"); o.width = w; o.height = h; const x = o.getContext("2d", { willReadFrequently: true });
+  let g; try { x.drawImage(v, 0, 0, w, h); g = V.gris(x.getImageData(0, 0, w, h).data, w, h); } catch { return; }
+  const c = V.trouverDisque(g, p.x * w, p.y * h, { rMin: Math.max(6, Math.round(Math.min(w, h) * 0.02)) }); if (!c || c.score < 0.45) return;
+  const cm = 45;
+  A.scale = { a: { x: c.x / w, y: (c.y - c.r) / h }, b: { x: c.x / w, y: (c.y + c.r) / h }, m: cm / 100, disque: { x: c.x / w, y: c.y / h, r: c.r / w }, auto: true };
+  toast(`📏 Échelle automatique : disque de ${cm} cm repéré (cercle pointillé). Faux ? Corrige avec l'outil Échelle.`);
 }
 actions["vd-stoptrace"] = () => { if (trace) trace.stop = true; };
 actions["vd-clearpath"] = () => { if (!A.path.length) return; memo(); A.path = []; A.pathAuto = false; majStats(); dessiner(); toast("Trajectoire effacée (↶ pour revenir)"); };
@@ -216,10 +235,15 @@ const majAuto = () => { const el = document.getElementById("vauto"); if (el) el.
 function autoHtml() {
   const a = A?.auto; if (!a) return "";
   return `<div class="card mt8" style="box-shadow:0 0 0 1.5px var(--red) inset"><div class="row between"><b class="small">🤖 Compte rendu automatique</b><span class="xs muted">${a.n} rép.</span></div>
+    ${a.fiab ? fiabHtml(a.fiab) : ""}
     ${a.lignes.map(l => `<p class="small" style="margin:4px 0 0">${esc(l)}</p>`).join("")}
+    ${a.juge?.length ? `<div class="row mt8" style="gap:6px;flex-wrap:wrap">${a.juge.map(j => `<span class="tag" title="${esc(j.raisons.join(", "))}" style="${j.valide ? "" : j.valide === false ? "background:rgba(255,90,95,.18)" : "opacity:.6"}">${j.valide ? "⚪" : j.valide === false ? "🔴" : "❔"} Rép. ${j.n}</span>`).join("")}</div>${a.juge.filter(j => j.valide === false).map(j => `<p class="xs" style="margin:2px 0 0">• Rép. ${j.n} refusée : ${esc(j.raisons.join(", "))}</p>`).join("")}` : ""}
     ${a.bas?.length ? `<div style="overflow-x:auto"><table class="qtab mt8"><tr><th>Rép.</th><th>Genou</th><th>Hanche</th><th>Buste</th>${a.profondeur ? "<th>Profondeur</th>" : ""}</tr>${a.bas.map((b, i) => b ? `<tr><td>${i + 1}</td><td>${b.genou ?? "–"}°</td><td>${b.hanche ?? "–"}°</td><td>${b.buste ?? "–"}°</td>${a.profondeur ? `<td>${b.sousParallele ? "✅ sous le parallèle" : "❌ au-dessus"}</td>` : ""}</tr>` : "").join("")}</table></div>` : ""}
     <p class="xs muted mt8" style="margin-bottom:0">Indicatif : calculé sur l'image, à valider à l'œil. Les arrêts sur image « auto » se corrigent comme les autres (↶ pour annuler).</p></div>`;
 }
+const FIAB = { "élevée": ["🟢", "var(--ok, #3DDC84)"], moyenne: ["🟠", "var(--warn, #E9AE00)"], faible: ["🔴", "var(--red)"] };
+function fiabHtml(f) { const [e, c] = FIAB[f.niveau] || FIAB.moyenne;
+  return `<p class="small" style="margin:6px 0 0"><b style="color:${c}">${e} Fiabilité ${f.niveau}</b></p>${f.raisons.length ? `<p class="xs muted" style="margin:2px 0 0">${esc(f.raisons.join(" · "))}</p>` : ""}`; }
 actions["vd-auto-ok"] = () => { closeSheet(); toast("Touche le bout de la barre"); };
 actions["vd-auto-corps"] = () => { closeSheet(); A.autoApres = false; A.sansBarre = true; outil = "main"; actions["vd-auto"](); A.sansBarre = false; };
 actions["vd-auto"] = async () => {
@@ -232,11 +256,13 @@ actions["vd-auto"] = async () => {
   }
   await chargerPose(); if (!pose) return toast("Analyse auto indisponible : il faut du réseau la première fois (squelette).");
   memo(); trace = { stop: false }; const pr = document.getElementById("vprog"); if (pr) { pr.hidden = false; pr.innerHTML = `<span>🤖 Analyse automatique…</span> <button class="link" data-a="vd-stoptrace" style="color:#fff">Arrêter</button>`; }
-  const lmT = [], pas = 1 / 15;
-  for (let t = tA(); t <= tB() + 0.001 && !trace.stop; t += pas) { await allerA(t); let lm = null; try { lm = pose.detect(v).landmarks?.[0] || null; } catch { } lmCache.set(Math.round(v.currentTime * 30), lm); if (lm) lmT.push({ t: v.currentTime, lm });
+  let lmT = []; const pas = 1 / 24; tsOff = tsLast + 1000 - Math.round(tA() * 1000); // horodatage réel, toujours croissant d'une analyse à l'autre
+  for (let t = tA(); t <= tB() + 0.001 && !trace.stop; t += pas) { await allerA(t); let lm = null; try { lm = detecterVideo(v); } catch { } if (lm) lmT.push({ t: v.currentTime, lm });
     if (pr && lmT.length % 4 === 0) pr.firstChild.textContent = `🤖 Analyse automatique… ${Math.round((t - tA()) / Math.max(0.1, tB() - tA()) * 100)} %`; }
   const arrete = trace.stop; trace = null; if (pr) pr.hidden = true;
   if (lmT.length < 8) { await allerA(tA()); return toast(arrete ? "Analyse arrêtée" : "Personne mal visible : filme de profil, tout le corps dans l'image"); }
+  lmT = V.lisserSquelette(lmT); lmT.forEach(q => lmCache.set(Math.round(q.t * 30), q.lm)); // points lissés (sans tremblement), réutilisés par le squelette affiché
+  const visMoy = (() => { const ids = (lm) => V.cote(lm) ? [12, 14, 24, 26, 28] : [11, 13, 23, 25, 27]; const v2 = lmT.map(q => ids(q.lm).reduce((a, i) => a + (q.lm[i]?.visibility ?? 0), 0) / 5); return v2.reduce((a, b) => a + b, 0) / v2.length; })();
   if (!A.path.length || A.pathAuto) { A.path = V.nettoyerTrajectoire(V.trajectoireAuto(lmT, A.mvt)); A.pathAuto = true; }
   const s = analyse(), bas = s ? V.anglesBas(s.R, lmT, W(), H()) : [], prof = ["squat", "frontsquat"].includes(A.mvt);
   // arrêts sur image au point bas de chaque répétition, avec les angles posés sur les articulations
@@ -246,9 +272,12 @@ actions["vd-auto"] = async () => {
     A.keys.push({ id: Date.now() + i, t: b.t, auto: true, items, note: `Rép. ${i + 1} au point bas : genou ${b.genou ?? "–"}°, hanche ${b.hanche ?? "–"}°, buste ${b.buste ?? "–"}° / verticale${prof && b.sousParallele != null ? (b.sousParallele ? ", sous le parallèle" : ", au-dessus du parallèle") : ""}.` }); });
   A.keys.sort((a, b) => a.t - b.t); sel = A.keys.findIndex(k => k.auto);
   // critères mesurables pré-remplis (marqués « auto », à valider)
-  const crit = V.mouvement(A.mvt).crit, idx = (re) => crit.findIndex(c => re.test(c)); A.critAuto = {};
-  const okB = bas.filter(Boolean); if (prof && okB.length) { const i = idx(/^Profondeur/); if (i >= 0) { A.crit[i] = okB.every(b => b.sousParallele) ? "ok" : okB.some(b => b.sousParallele) ? "moyen" : "ko"; A.critAuto[i] = true; } }
-  if (s?.ec) { const i = idx(/milieu du pied|collée|près du corps/); const e = s.m ? s.ec.max : s.ec.max * 0.6; if (i >= 0) { A.crit[i] = e <= 0.05 ? "ok" : e <= 0.1 ? "moyen" : "ko"; A.critAuto[i] = true; } }
+  const crit = V.mouvement(A.mvt).crit, idx = (re) => crit.findIndex(c => re.test(c));
+  Object.keys(A.critAuto || {}).forEach(i => delete A.crit[i]); A.critAuto = {};
+  const fiab = V.fiabilite({ suivi: A.pathAuto ? null : A.pathQ, vis: visMoy, haut: cur.v.videoHeight, echelle: !!echelle(), reps: s?.R.length || 0, auto: A.pathAuto });
+  const juge = s ? V.jugeRep(A.mvt, s.R, lmT, W(), H()) : null;
+  const okB = bas.filter(Boolean); if (fiab.niveau !== "faible" && prof && okB.length) { const i = idx(/^Profondeur/); if (i >= 0) { A.crit[i] = okB.every(b => b.sousParallele) ? "ok" : okB.some(b => b.sousParallele) ? "moyen" : "ko"; A.critAuto[i] = true; } }
+  if (fiab.niveau !== "faible" && s?.ec) { const i = idx(/milieu du pied|collée|près du corps/); const e = s.m ? s.ec.max : s.ec.max * 0.6; if (i >= 0) { A.crit[i] = e <= 0.05 ? "ok" : e <= 0.1 ? "moyen" : "ko"; A.critAuto[i] = true; } }
   const lignes = [];
   if (s?.R.length) { lignes.push(`${s.R.length} répétition${s.R.length > 1 ? "s" : ""} comptée${s.R.length > 1 ? "s" : ""}. ${s.det.constance.resume}`);
     const ex = s.det.reps.filter(r => r.exc != null).map(r => r.exc), co = s.det.reps.map(r => r.con), my = (l) => l.length ? (l.reduce((a, b) => a + b, 0) / l.length).toFixed(2).replace(".", ",") : "–";
@@ -257,7 +286,11 @@ actions["vd-auto"] = async () => {
   else lignes.push("Aucune répétition nette : vérifie la découpe, le sens du mouvement, ou trace la barre avec l'outil Barre.");
   if (okB.length) { const m = (k) => Math.round(okB.reduce((a, b) => a + (b[k] || 0), 0) / okB.length); lignes.push(`Au point bas (moyenne) : genou ${m("genou")}°, hanche ${m("hanche")}°, buste ${m("buste")}° par rapport à la verticale.`);
     const bu = okB.map(b => b.buste).filter(x => x != null); if (bu.length > 1 && Math.max(...bu) - Math.min(...bu) >= 8) lignes.push(`⚠️ L'inclinaison du buste varie de ${Math.max(...bu) - Math.min(...bu)}° d'une répétition à l'autre.`); }
-  A.auto = { at: new Date().toISOString(), n: s?.R.length || 0, lignes, bas, profondeur: prof };
+  if (juge) { const ok = juge.filter(j => j.valide).length, nj = juge.filter(j => j.valide != null).length;
+    lignes.unshift(`⚖️ Juge streetlifting : ${ok} répétition${ok > 1 ? "s" : ""} valide${ok > 1 ? "s" : ""} sur ${juge.length}${nj < juge.length ? ` (${juge.length - nj} non jugée${juge.length - nj > 1 ? "s" : ""})` : ""}.`);
+    if (fiab.niveau !== "faible") { const i = idx(/Menton|Épaule descend/); if (i >= 0 && nj) { A.crit[i] = ok === nj ? "ok" : ok ? "moyen" : "ko"; A.critAuto[i] = true; } } }
+  if (fiab.niveau === "faible") lignes.unshift("⚠️ Fiabilité faible : les mesures sont indicatives et aucun critère n'a été coché automatiquement. Refilme en suivant « Comment filmer ».");
+  A.auto = { at: new Date().toISOString(), n: s?.R.length || 0, lignes, bas, profondeur: prof, fiab, juge };
   await allerA(sel >= 0 ? A.keys[sel].t : tA()); rerender(); toast("Analyse automatique terminée : vérifie et corrige si besoin");
 };
 function courbe(s) {
@@ -297,9 +330,17 @@ actions["vd-chmvt"] = () => choisirMouvement();
 async function chargerPose() {
   if (pose || poseErr) return pose;
   try { const { PoseLandmarker, FilesetResolver } = await import(/* @vite-ignore */ `${MP}/vision_bundle.mjs`); const fs = await FilesetResolver.forVisionTasks(`${MP}/wasm`);
-    pose = await PoseLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: MODELE, delegate: "GPU" }, runningMode: "IMAGE", numPoses: 1 }); }
+    const creer = async (modele, mode) => { try { return await PoseLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: modele, delegate: "GPU" }, runningMode: mode, numPoses: 1, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 }); }
+      catch { return PoseLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: modele, delegate: "CPU" }, runningMode: mode, numPoses: 1 }); } };
+    // image fixe (squelette à l'arrêt sur image) + vidéo (analyse auto : le suivi d'une image à l'autre stabilise les points)
+    try { pose = await creer(MODELE, "IMAGE"); poseVid = await creer(MODELE, "VIDEO"); } catch { pose = await creer(MODELE_LITE, "IMAGE"); poseVid = await creer(MODELE_LITE, "VIDEO").catch(() => null); } }
   catch (e) { poseErr = e; toast("Squelette indisponible : connexion nécessaire la première fois."); }
   return pose;
+}
+// Squelette de l'image affichée, en mode vidéo (horodatage toujours croissant, exigé par MediaPipe)
+function detecterVideo(v) {
+  if (!poseVid) return pose.detect(v).landmarks?.[0] || null;
+  const ts = Math.max(tsLast + 1, tsOff + Math.round(v.currentTime * 1000)); tsLast = ts; return poseVid.detectForVideo(v, ts).landmarks?.[0] || null;
 }
 export function dessinerSur(ctx, Wd, Hd, t, { pause = true, echelleTmp = null, lm = null } = {}) {
   const lw = Math.max(2, Wd / 240), P = (p) => [p.x * Wd, p.y * Hd];
@@ -317,6 +358,7 @@ export function dessinerSur(ctx, Wd, Hd, t, { pause = true, echelleTmp = null, l
     if (it.k === "angle") { ctx.strokeStyle = "#FF8A3D"; ctx.beginPath(); ctx.moveTo(...P(it.a)); ctx.lineTo(...P(it.b)); ctx.lineTo(...P(it.c)); ctx.stroke(); [it.a, it.b, it.c].forEach(p => poignee(ctx, P(p), lw, "#FF8A3D")); const v = V.valeurOutil(it, Wd, Hd); if (v != null) etiquette(ctx, it.b.x * Wd + 12, it.b.y * Hd + 4, `${v}°`, Wd, "#FF8A3D"); }
     if (it.k === "bulle") bulle(ctx, P(it.p), it.txt, Wd);
   }
+  if (A.scale?.disque && pause) { const d = A.scale.disque; ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = lw; ctx.setLineDash([lw * 2, lw * 2]); ctx.beginPath(); ctx.arc(d.x * Wd, d.y * Hd, d.r * Wd, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
   if (echelleTmp) { ctx.strokeStyle = "#fff"; ctx.setLineDash([lw * 3, lw * 2]); ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(...P(echelleTmp.a)); ctx.lineTo(...P(echelleTmp.b)); ctx.stroke(); ctx.setLineDash([]); }
   return k;
 }

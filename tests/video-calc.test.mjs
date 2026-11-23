@@ -82,3 +82,48 @@ test("C73 : phases fiables — sortie du rack et oscillations écartées, point 
   assert.equal(f.length, 2); assert.ok(Math.abs(f[1].disp - 0.49) < 1e-6, "montée fusionnée malgré le blocage");
   assert.ok(V.AVEC_BARRE.includes("squat") && !V.AVEC_BARRE.includes("traction"));
 });
+
+test("C76 : disque trouvé autour du point touché (bord extérieur, pas les anneaux intérieurs)", () => {
+  const w = 220, h = 180, d = new Uint8Array(w * h).fill(40);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const r = Math.hypot(x - 100, y - 90); if (r <= 40) d[y * w + x] = r <= 10 ? 120 : r <= 22 ? 200 : 170; }
+  const c = V.trouverDisque({ w, h, d }, 104, 86);
+  assert.ok(c, "disque trouvé"); assert.ok(Math.abs(c.r - 40) < 2, "rayon " + c.r); assert.ok(Math.hypot(c.x - 100, c.y - 90) < 2, `centre ${c.x},${c.y}`); assert.ok(c.score > 0.5, "score " + c.score);
+  assert.equal(V.trouverDisque({ w, h, d: new Uint8Array(w * h).fill(90) }, 104, 86), null, "image uniforme : rien");
+});
+test("C76 : lissage du squelette — le tremblement baisse, le mouvement reste", () => {
+  const lmT = Array.from({ length: 60 }, (_, i) => ({ t: i / 30, lm: [{ x: 0.5 + (i % 2 ? 0.01 : -0.01), y: 0.2 + i * 0.005, visibility: 1 }] }));
+  const L = V.lisserSquelette(lmT), ec = (a) => a.slice(10).reduce((s, q) => s + Math.abs(q.lm[0].x - 0.5), 0) / (a.length - 10);
+  assert.ok(ec(L) < ec(lmT) * 0.6, "tremblement réduit"); assert.ok(Math.abs(L.at(-1).lm[0].y - lmT.at(-1).lm[0].y) < 0.02, "pas de retard notable");
+});
+test("C76 : indice de fiabilité", () => {
+  assert.equal(V.fiabilite({ suivi: { moy: 0.9, perdu: false }, vis: 0.9, haut: 720, echelle: true, reps: 5 }).niveau, "élevée");
+  assert.equal(V.fiabilite({ suivi: { moy: 0.78 }, vis: 0.9, haut: 720, echelle: true, reps: 5 }).niveau, "moyenne");
+  const f = V.fiabilite({ suivi: { moy: 0.9, perdu: true }, vis: 0.5, haut: 720, echelle: false, reps: 3 });
+  assert.equal(f.niveau, "faible"); assert.ok(f.raisons.some(r => /perdue/.test(r)));
+  assert.equal(V.fiabilite({ auto: true, vis: 0.9, haut: 720, echelle: true, reps: 0 }).niveau, "faible");
+});
+test("C76 : juge streetlifting (traction, dips)", () => {
+  // squelette de profil (côté gauche visible) : épaule 11, coude 13, poignet 15, bouche 9/10, mains 15/16
+  const mk = (bras, bouche, epaule = 0.5, coudeY = 0.45) => { const p = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, visibility: 1 }));
+    [12, 14, 16, 24, 26, 28].forEach(i => p[i].visibility = 0.1);
+    p[11] = { x: 0.5, y: epaule, visibility: 1 }; p[13] = bras === "tendu" ? { x: 0.5, y: epaule - 0.15, visibility: 1 } : { x: 0.6, y: coudeY, visibility: 1 };
+    p[15] = { x: 0.5, y: bras === "tendu" ? epaule - 0.3 : epaule - 0.15, visibility: 1 }; p[16] = { ...p[15] }; p[9] = { x: 0.5, y: bouche, visibility: 1 }; p[10] = { ...p[9] }; return p; };
+  const R = [{ exc: null, con: { t0: 0, t1: 1 } }];
+  const bonne = [{ t: 0, lm: mk("tendu", 0.45) }, { t: 0.5, lm: mk("plie", 0.4) }, { t: 1, lm: mk("plie", 0.3, 0.42, 0.40) }];
+  bonne[2].lm[9].y = bonne[2].lm[10].y = 0.2; bonne[2].lm[15].y = bonne[2].lm[16].y = 0.25;
+  assert.equal(V.jugeRep("traction", R, bonne)[0].valide, true);
+  const courte = bonne.map(q => ({ ...q, lm: q.lm.map(p => ({ ...p })) })); courte[2].lm[9].y = courte[2].lm[10].y = 0.3;
+  const j = V.jugeRep("traction", R, courte)[0]; assert.equal(j.valide, false); assert.ok(j.raisons.some(r => /menton/.test(r)));
+  assert.equal(V.jugeRep("squat", R, bonne), null);
+  // dips (de profil) : en haut bras tendus vers le bas (coude sous l'épaule), en bas l'épaule passe au niveau du coude
+  const dp = (epaule, coudeY, poignetY, coudeX) => { const p = mk("tendu", 0.2); p[11] = { x: 0.5, y: epaule, visibility: 1 }; p[13] = { x: coudeX, y: coudeY, visibility: 1 }; p[15] = { x: 0.5, y: poignetY, visibility: 1 }; p[16] = { ...p[15] }; return p; };
+  const haut = dp(0.3, 0.45, 0.6, 0.5), basOk = dp(0.5, 0.49, 0.6, 0.62), basKo = dp(0.42, 0.5, 0.6, 0.6);
+  assert.equal(V.jugeRep("dips", R, [{ t: 0, lm: haut }, { t: 0.5, lm: basOk }, { t: 1, lm: haut }])[0].valide, true);
+  const ko = V.jugeRep("dips", R, [{ t: 0, lm: haut }, { t: 0.5, lm: basKo }, { t: 1, lm: haut }])[0];
+  assert.equal(ko.valide, false); assert.ok(ko.raisons.some(r => /épaule/.test(r)));
+});
+test("C76 : protocole de prise de vue et contrôle qualité", () => {
+  assert.match(V.protocole("squat"), /profil/); assert.match(V.protocole("inconnu"), /profil/);
+  assert.equal(V.qualiteVideo({ w: 1280, h: 720, duree: 20 }).length, 0);
+  assert.equal(V.qualiteVideo({ w: 640, h: 360, duree: 120 }).length, 2);
+});
