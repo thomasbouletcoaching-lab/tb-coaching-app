@@ -3,7 +3,7 @@ import * as E from "./engine.js";
 import * as N from "./nutrition.js";
 import { R, render, installEvents, actions, toast } from "./core.js";
 import { S, update, today } from "./store.js";
-import { refreshMe, pullCoachSlots, pullCoachPlan, pullCoachSettings, pullSaisies } from "./sync.js";
+import { refreshMe, pullCoachSlots, pullCoachPlan, pullCoachSettings, pullSaisies, retrouverSuivi } from "./sync.js";
 import { refreshLibrary } from "./library.js";
 import "./views/onboarding.js";
 import "./views/home.js";
@@ -68,7 +68,7 @@ window.addEventListener("hashchange", render);
   setInterval(refreshMe, 60000);
   pullCoachSlots(); setInterval(pullCoachSlots, 5 * 60000);
   pullCoachPlan(); setInterval(pullCoachPlan, 5 * 60000);
-  pullCoachSettings(); setInterval(pullCoachSettings, 15 * 60000); pullSaisies(); setInterval(pullSaisies, 5 * 60000);
+  pullCoachSettings(); setInterval(pullCoachSettings, 15 * 60000); retrouverSuivi(); pullSaisies(); setInterval(pullSaisies, 5 * 60000);
   refreshLibrary(); setInterval(refreshLibrary, 15 * 60000);
   // Plan alimentaire du coach (toutes les 5 min) et séance en direct (toutes les 15 s, bandeau de l'accueil)
   const pullFood = async () => { try { const c = await cloudMod(); if (c && S().profile && !S().me?.isCoach) { await pullCoachFood(c); if (R.route === "home") render(); } } catch { } };

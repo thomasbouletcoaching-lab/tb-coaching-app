@@ -2,7 +2,7 @@
 // Sans compte ou sans la migration 2026-11-18_cxs_social.sql, la story et l'envoi à un ami marchent quand même ;
 // la communauté et les amis affichent ce qu'il manque.
 import { $app, esc, header, tabbar, adminTabbar, go, rerender, routes, actions, forms, toast, buzz, sheet, closeSheet, cloud, ago, fmtDate, isCoach, fr, R, modeBar } from "../core.js";
-import { S, update, today } from "../store.js";
+import { S, update, today, proxyActive } from "../store.js";
 import { CONFIG, TRIAL_DAYS } from "../config.js";
 import * as SO from "../social.js";
 import * as E from "../engine.js";

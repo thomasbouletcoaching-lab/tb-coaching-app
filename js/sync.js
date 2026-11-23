@@ -1,7 +1,7 @@
 // Synchronisation avec le serveur : profil, formule, compteurs (messages, notifications).
 import { planApresEnvoi } from "./envoi-programme.js";
 import { PARTAGE_MAX } from "./crise.js";
-import { S, update, today, onSave } from "./store.js";
+import { S, update, today, onSave, proxyActive } from "./store.js";
 import * as E from "./engine.js";
 import * as N from "./nutrition.js";
 import { cloud, badges, isCoach, addDays, toast } from "./core.js";
@@ -175,4 +175,20 @@ export async function pullSaisies() {
     }
   });
   await c.saisiesAppliquees(rows.map(r => r.id)).catch(() => { });
+}
+
+// Appareil sans suivi (nouveau téléphone, ou app coach qui n'a jamais eu le sien) alors que le compte en a un côté serveur : on le retrouve,
+// au lieu de repartir de zéro et d'écraser la copie du serveur avec un suivi vide.
+const REPRISE = ["profile", "plan", "workouts", "food", "daily", "measures", "customPrograms", "moves", "exoNotes", "skips", "swaps", "season", "goals", "lifts", "checkins", "anamnese", "trialStart"];
+let repriseFaite = false;
+export async function retrouverSuivi() {
+  if (repriseFaite || proxyActive()) return; const st0 = S();
+  if (st0.workouts?.length || Object.keys(st0.food || {}).length || st0.current) return;
+  repriseFaite = true;
+  try {
+    const c = await cloud(); if (!c || !(await c.currentSession?.())) return;
+    const d = await c.fetchMigrated(); if (!d?.workouts?.length) return;
+    update(st => { for (const k of REPRISE) if (d[k] != null) st[k] = d[k]; st.synced = true; });
+    const { toast } = await import("./core.js"); toast("Ton suivi a été retrouvé (" + d.workouts.length + " séances)"); location.reload();
+  } catch { }
 }
