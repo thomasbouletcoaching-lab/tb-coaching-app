@@ -263,6 +263,7 @@ actions["adm-new"] = () => {
   sheet(`<h2 class="h2">+ Nouveau client</h2><p class="small muted mt4">Ton client crée son compte lui-même depuis le lien. Dès qu'il a fini son profil, il apparaît ici : active ensuite sa formule de coaching dans « Abonnés ».</p>
     <div class="card soft mt12"><p class="small" style="margin:0">${esc(txt)}</p></div>
     <div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="adm-share" data-t="${esc(txt)}">Partager l'invitation</button><button class="btn btn-line grow" data-a="adm-copy" data-t="${esc(txt)}">Copier</button></div>
+    <div class="card mt16" style="box-shadow:0 0 0 2px var(--red) inset"><b class="small">⚡ Crée son espace maintenant</b><p class="xs muted mt4">Programme, diète, course, consignes : tu prépares tout avant qu'il se connecte. Ensuite tu lui envoies un lien qui l'ouvre directement.</p><button class="btn btn-red btn-sm mt8" data-a="pre-new">Créer l'espace d'un client</button></div>
     <div class="card mt16"><b class="small">🔑 Ou prépare son espace avant son inscription</b><p class="xs muted mt4">Formule, programme, bilans : tout est prêt. Il reçoit un code ; à son inscription (avec ce code ou le même e-mail), il retrouve tout.</p><button class="btn btn-line btn-sm mt8" data-a="inv-new">Préparer un athlète</button></div>`);
 };
 actions["adm-share"] = async (b, d) => { try { await navigator.share({ text: d.t }); } catch { navigator.clipboard?.writeText(d.t); toast("Invitation copiée"); } };
@@ -811,4 +812,23 @@ actions["fac-print"] = (b, d) => {
   const f = FDRAFT && FDRAFT.id === +d.id ? FDRAFT : (B().invoices || []).find(x => x.id === +d.id); if (!f) return;
   const w = window.open("", "_blank"); if (!w) return toast("Autorise les fenêtres pour imprimer");
   w.document.write(FA.htmlFacture(f, B().settings)); w.document.close();
+};
+
+// ---------- Espace créé d'avance (le client ne s'est pas encore connecté) ----------
+actions["pre-new"] = () => sheet(`<h2 class="h2">⚡ Créer l'espace d'un client</h2><p class="small muted mt4">Son compte est créé tout de suite. Tu prépares ensuite programme, diète, course et consignes depuis sa fiche.</p>
+  <form data-f="pre-new" class="mt12"><div class="grid2"><label class="field"><span>Prénom et nom</span><input name="name" maxlength="60" required></label><label class="field"><span>E-mail</span><input name="email" type="email" maxlength="120" required></label></div>
+  <div class="grid2 mt8"><label class="field"><span>Formule</span><select name="tier"><option value="">À choisir plus tard</option>${assignable().filter(o => o.rank >= 1).map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}</select></label><label class="field"><span>Jusqu'au (facultatif)</span><input type="date" name="until" min="${today()}"></label></div>
+  <button class="btn btn-red mt12">Créer et ouvrir sa fiche</button></form>`);
+forms["pre-new"] = async (v) => {
+  try { const c = await cloud(); const r = await c.precreer({ action: "create", name: v.name, email: v.email, tier: v.tier || null, tier_until: v.until || null }); A.at = 0; window.__members = null; closeSheet(); toast("Espace créé"); go("member", r.id); }
+  catch (e) { toast(e.message); }
+};
+actions["pre-lien"] = async (b, d) => {
+  try {
+    const c = await cloud(), r = await c.precreer({ action: "link", id: d.id }), m = (window.__members || []).find(x => x.id === d.id) || {};
+    const url = location.origin + location.pathname.replace(/coach\.html$/, "") + "?connexion=" + encodeURIComponent(r.token);
+    const txt = `${String(m.name || "").split(" ")[0] || "Salut"}, ton espace TB my Coach est prêt avec ton programme. Ouvre ce lien sur ton téléphone : tu es connecté directement. Ensuite ajoute l'app à ton écran d'accueil.\n${url}`;
+    sheet(`<h2 class="h2">🔗 Lien de connexion</h2><div class="card mt12"><p class="small" style="margin:0;white-space:pre-wrap;word-break:break-all">${esc(txt)}</p></div><p class="xs muted mt8">Le lien ne marche qu'une fois et expire au bout d'une heure : génère-le au moment de l'envoyer.</p>
+      <div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="adm-share" data-t="${esc(txt)}">Partager</button><button class="btn btn-line grow" data-a="adm-copy" data-t="${esc(txt)}">Copier</button></div>`);
+  } catch (e) { toast(e.message); }
 };

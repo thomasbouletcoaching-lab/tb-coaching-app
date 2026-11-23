@@ -514,3 +514,15 @@ export async function transfertRecuperer(email) {
   return { id, depot: data?.data || null, at: data?.created_at || null };
 }
 export async function fusionComptes(src) { const { data, error } = await sb.rpc("cxs_fusion_comptes", { src }); if (error) throw error; return data; }
+
+// Espace créé d'avance par le coach : création du compte puis lien de connexion à usage unique (fonction coach-precreer)
+export async function precreer(body) {
+  const { data, error } = await sb.functions.invoke("coach-precreer", { body });
+  if (error) { let m = error.message; try { m = (await error.context.json()).error || m; } catch { } throw new Error(m); }
+  if (data?.error) throw new Error(data.error); return data;
+}
+export async function signInToken(tokenHash) {
+  const { data, error } = await sb.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
+  if (error) throw error;
+  uid = data.user.id; await ensureProfile(data.user); return data;
+}

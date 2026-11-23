@@ -1,7 +1,7 @@
 // Point d'entrée TB my Coach : charge les vues, installe les événements, démarre.
 import * as E from "./engine.js";
 import * as N from "./nutrition.js";
-import { R, render, installEvents, actions } from "./core.js";
+import { R, render, installEvents, actions, toast } from "./core.js";
 import { S, update, today } from "./store.js";
 import { refreshMe, pullCoachSlots, pullCoachPlan, pullCoachSettings } from "./sync.js";
 import { refreshLibrary } from "./library.js";
@@ -60,6 +60,8 @@ window.addEventListener("hashchange", render);
   // Notifications : ouvrir l'écran visé quand on touche une notification ; mettre à jour les pastilles à la réception
   try { navigator.serviceWorker?.addEventListener("message", (e) => { const d = e.data || {}; if (d.type === "open" && d.url) { const u = new URL(d.url); if (u.pathname === location.pathname) { if (u.searchParams.get("notifs")) actions.notifs?.(); else if (u.hash) location.hash = u.hash; } else location.href = d.url; } else if (d.type === "push") refreshMe(); }); } catch { }
   try { const u = new URL(location.href); if (u.searchParams.get("notifs")) { u.searchParams.delete("notifs"); history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams : "") + u.hash); setTimeout(() => actions.notifs?.(), 800); } } catch { }
+  // Lien de connexion envoyé par le coach : ouvre directement l'espace préparé pour ce client
+  try { const u = new URL(location.href), tk = u.searchParams.get("connexion"); if (tk) { u.searchParams.delete("connexion"); history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams : "") + u.hash); const c = await cloudMod(); await c.signInToken(tk); toast("Bienvenue ! Ton espace est prêt."); } } catch (e) { setTimeout(() => toast("Lien expiré ou déjà utilisé : demande-en un nouveau à Thomas"), 800); }
   try { captureInvitation(); } catch (e) { console.warn("Lien d'invitation illisible :", e.message); }
   render();
   refreshMe().then(() => { if (["home", "coach", "account", "offers"].includes(R.route) && !document.querySelector(".sheet-wrap, .composer, input:focus, textarea:focus")) render(); });
