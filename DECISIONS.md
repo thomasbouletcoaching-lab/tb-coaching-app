@@ -348,3 +348,15 @@ Travail autonome du 8 novembre 2026, branche `feat/adherence-resultats`. Chaque 
 - **Rappels push** (`cxs_rappels`, toutes les 15 min) : séance du jour (1 h avant, sinon 8 h), bilan du dimanche (10 h, relance 18 h 30), journée vide (20 h). Réglables dans Profil. Les anciens rappels push-daily / push-weekly sont retirés.
 - **Analyse vidéo auto** : sur un mouvement à barre, on touche la barre une fois et l'app suit la barre ; répétitions comptées sur les phases fiables (≥ 45 % de la plus grande amplitude, blocages fusionnés).
 - **Fiche athlète (coach)** : vue d'ensemble (prénom + objectif, profil, programme, anneaux nutrition jour et 7 jours, séances), réglages et historique repliés.
+
+## C74 · 23/11/2026 · Analyse vidéo V1 « fiable », zéro surcoût logiciel
+
+Cahier des charges « Analyse vidéo TB my Coach » du 23/11/2026 (doc Claude), version 1.
+
+- **Zéro surcoût** : tout est calculé sur le téléphone avec des briques gratuites (MediaPipe, licence Apache 2.0). Aucune API payante, aucun serveur d'analyse, aucune Edge Function ajoutée.
+- **Squelette plus précis et stable** : modèle MediaPipe « full » (au lieu de « lite », repli automatique sur « lite » si le téléphone ne le charge pas), mode vidéo pour l'analyse auto (suivi d'une image à l'autre), 24 images/s au lieu de 15, lissage « 1 € » des points (fini le tremblement), points lissés réutilisés par le squelette affiché.
+- **Échelle automatique** : en touchant le centre du disque, l'app retrouve son bord (ajustement d'un cercle) et pose l'échelle d'un disque de 45 cm, dessinée en pointillés. Rien n'est posé si le disque n'est pas net ; autre disque : outil Échelle.
+- **Indice de fiabilité** (élevée / moyenne / faible, avec les raisons) : qualité du suivi de la barre, barre perdue, visibilité du corps, définition, répétitions détectées. En « faible », aucun critère n'est coché automatiquement et l'app conseille de refilmer.
+- **Juge streetlifting** (traction, dips) : chaque répétition validée ⚪ ou refusée 🔴 avec la raison (bras pas tendus, menton pas au-dessus de la barre, épaule pas au niveau du coude, bras pas verrouillés), critère correspondant pré-rempli.
+- **Comment filmer** : protocole par mouvement (angle, hauteur, distance, ce qui doit être visible), ouvert tant que rien n'est analysé ; **contrôle qualité** à l'ouverture (définition basse, vidéo trop longue ou trop courte).
+- Non fait dans cette version : conservation des vidéos d'analyse en ligne ramenée à 30 jours (reste à un an : aucun coût aujourd'hui, à décider), retour vidéo avec la voix du coach et comparaison côte à côte (V2).
