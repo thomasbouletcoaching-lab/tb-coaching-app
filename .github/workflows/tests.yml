@@ -92,8 +92,8 @@ jobs:
           node tests/hybride-e2e.js
           node tests/armoire-e2e.js
           node tests/social-e2e.js
-          node tests/retours-client-e2e.js
           node tests/photo-repas-e2e.js
+          node tests/retours-client-e2e.js
           node tests/refonte-coach-e2e.js
           node tests/refonte-etape2-e2e.js
           node tests/etape3-e2e.js
