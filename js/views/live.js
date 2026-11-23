@@ -50,7 +50,7 @@ routes.live = async () => {
   const id = isCoach() ? R.param : await ownId();
   if (!id) return go("home");
   if (!LIVE || LIVE.id !== id) { stopPoll(); LIVE = { id, state: null, updated_at: null, timer: null }; }
-  $app.innerHTML = header("Séance en direct", "", { back: isCoach() ? "admin" : "home" }) + `<main class="page"><p class="empty">Chargement…</p></main>`;
+  $app.innerHTML = header("Séance en direct", "", { back: "__hist" }) + `<main class="page"><p class="empty">Chargement…</p></main>`;
   try { const r = await fetchState(id); LIVE.state = r?.state && Object.keys(r.state).length ? r.state : null; LIVE.updated_at = r?.updated_at || null; }
   catch (e) { $app.innerHTML = header("Séance en direct", "", { back: "home" }) + `<main class="page"><p class="empty">Impossible de charger la séance : ${esc(e.message)}</p></main>`; return; }
   // Coach : séance en cours chez le client mais jamais partagée → on la lit dans ses données synchronisées, sans rien lui demander
@@ -88,7 +88,7 @@ async function ownId() { const c = await cloud(); await c.ensureSession(); retur
 function drawLive() {
   const st = LIVE.state, id = LIVE.id;
   if (!st || st.ended) {
-    $app.innerHTML = header("Séance en direct", "", { back: isCoach() ? "admin" : "home" }) + `<main class="page"><div class="card center mt16"><p style="margin:0">${st?.ended ? "Cette séance est terminée." : "Aucune séance en cours."}</p>${isCoach() ? `<button class="btn btn-red mt12" data-a="live-start" data-id="${esc(id)}">▶ Lancer une séance</button>` : `<button class="btn btn-red mt12" data-a="live-self">▶ Lancer ma séance du jour</button>`}</div></main>`;
+    $app.innerHTML = header("Séance en direct", "", { back: "__hist" }) + `<main class="page"><div class="card center mt16"><p style="margin:0">${st?.ended ? "Cette séance est terminée." : "Aucune séance en cours."}</p>${isCoach() ? `<button class="btn btn-red mt12" data-a="live-start" data-id="${esc(id)}">▶ Lancer une séance</button>` : `<button class="btn btn-red mt12" data-a="live-self">▶ Lancer ma séance du jour</button>`}</div></main>`;
     return;
   }
   const C = isCoach();
@@ -133,7 +133,7 @@ function drawLive() {
     </div>`;
   }).join("");
   const log = (st.log || []).slice(-12).reverse().map(l => `<div class="li"><span class="grow small"><b>${esc(who(l.by))}</b> · ${esc(l.text)}</span><span class="xs muted">${hm(l.at)}</span></div>`).join("");
-  $app.innerHTML = header(esc(st.title), `Lancée par ${st.by === "member" ? "le client" : "Thomas"} à ${hm(st.startedAt)}`, { back: isCoach() ? "admin" : "home" }) + `<main class="page">
+  $app.innerHTML = header(esc(st.title), `Lancée par ${st.by === "member" ? "le client" : "Thomas"} à ${hm(st.startedAt)}`, { back: "__hist" }) + `<main class="page">
     <div class="card soft mt8"><span class="tag r">● En cours</span> <span class="xs muted">Vous la voyez tous les deux et vous pouvez tout ajouter. Mise à jour toutes les 6 secondes.</span></div>
     ${exs}
     <h2 class="sec">Ajouter un exercice</h2>

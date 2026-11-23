@@ -98,7 +98,7 @@ function render() {
         ${weekInputs(i, j, e)}</div>`).join("")}
       <button type="button" class="btn btn-line btn-sm mt8" data-a="prog-addE" data-v="${i}">+ Exercice</button></div>`).join("");
   const names = exerciseNames();
-  $app.innerHTML = header("Programme", esc(D.memberName || ""), { back: "admin" })
+  $app.innerHTML = header("Programme", esc(D.memberName || ""), { back: "__hist" })
     + `<main class="page"><div class="card soft"><div class="lbl">Partir de</div>
         <div class="row mt8" style="gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-line btn-sm" data-a="prog-current">↺ Son programme actuel</button><button type="button" class="btn btn-line btn-sm" data-a="prog-bank">📚 Banque et bibliothèque</button><button type="button" class="btn btn-line btn-sm" data-a="prog-blank">＋ Base vierge</button></div>
         <p class="xs muted mt8" style="margin:6px 0 0">Ce que tu choisis remplace le brouillon ci-dessous. Rien n'est envoyé avant « Envoyer ».</p></div>
@@ -114,7 +114,7 @@ function render() {
 routes["member-prog"] = async () => {
   if (!isCoach()) return go("home");
   const memberId = R.param, pending = PENDING && PENDING.memberId === memberId ? PENDING : null; PENDING = null;
-  $app.innerHTML = header("Programme", "", { back: "admin" }) + `<main class="page"><p class="empty">Chargement…</p></main>`;
+  $app.innerHTML = header("Programme", "", { back: "__hist" }) + `<main class="page"><p class="empty">Chargement…</p></main>`;
   try {
     const c = await cloud(); const m = (window.__members || []).find(x => x.id === memberId);
     let src = pending ? pending.program : null, enCours = false;
@@ -127,7 +127,7 @@ routes["member-prog"] = async () => {
     // Même éditeur complet que celui du client : semaines, techniques, surcharge, superset
     const { openBuilderForMember } = await import("./train.js");
     openBuilderForMember(memberId, m?.name || m?.email || "client", src, { enCours });
-  } catch (e) { $app.innerHTML = header("Programme", "", { back: "admin" }) + `<main class="page"><p class="empty">Chargement impossible : ${esc(e.message)}</p></main>`; }
+  } catch (e) { $app.innerHTML = header("Programme", "", { back: "__hist" }) + `<main class="page"><p class="empty">Chargement impossible : ${esc(e.message)}</p></main>`; }
 };
 
 // Ouvre la liste de la banque et de la bibliothèque : un tap charge le programme dans le brouillon

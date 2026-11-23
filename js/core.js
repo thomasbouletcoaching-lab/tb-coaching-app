@@ -249,7 +249,7 @@ function centerChips() { document.querySelectorAll(".chips:not(.wrap)").forEach(
 
 // ---------- Actions (délégation d'événements) ----------
 export const actions = {}, forms = {}, changes = {};
-actions["hist-back"] = () => { if (history.length > 1) history.back(); else go("home"); };
+actions["hist-back"] = () => { if (history.length > 1) history.back(); else go(isCoach() ? "admin" : "home"); };
 export function installEvents() {
   document.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-a]"); if (!b) return;
