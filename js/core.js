@@ -223,6 +223,7 @@ export const onLeave = (fn) => stops.add(fn);
 export function render() {
   const h = location.hash.replace(/^#\/?/, "").split("/");
   R.route = h[0] || "home"; R.param = h[1] ? decodeURIComponent(h[1]) : null; R.param2 = h[2] ? decodeURIComponent(h[2]) : null;
+  noteTrail(R.route);
   // L'app coach s'ouvre sur l'espace coach, seulement pour un compte coach (sinon : accueil client, sans boucle)
   if (APP_MODE === "coach" && R.route === "home") R.route = isCoach() ? "admin-today" : "account"; // app coach : connexion directe, sans onboarding
   if (!S().profile && !["onboarding", "x", "privacy", "account", "partage"].includes(R.route)) R.route = "onboarding";
@@ -250,7 +251,15 @@ function centerChips() { document.querySelectorAll(".chips:not(.wrap)").forEach(
 
 // ---------- Actions (délégation d'événements) ----------
 export const actions = {}, forms = {}, changes = {};
-actions["hist-back"] = () => { if (history.length > 1) history.back(); else go(isCoach() ? "admin" : "home"); };
+// Pile des écrans visités : la flèche retour du coach revient à l'écran précédent, sauf s'il s'agissait d'un écran « athlète » (il retombe alors sur Athlètes)
+const trail = [];
+export const noteTrail = (r) => { if (trail.at(-1) !== r) trail.push(r); if (trail.length > 30) trail.shift(); };
+const COACH_R = /^(admin|member|live|chat|msg|coach)/;
+actions["hist-back"] = () => {
+  const prev = trail.length > 1 ? trail.at(-2) : null;
+  if (APP_MODE === "coach" && isCoach() && (!prev || !COACH_R.test(prev))) return go("admin");
+  if (history.length > 1) { trail.pop(); history.back(); } else go(isCoach() ? "admin" : "home");
+};
 export function installEvents() {
   document.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-a]"); if (!b) return;
