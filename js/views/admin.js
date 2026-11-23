@@ -25,7 +25,7 @@ async function load(force = false) {
   try {
     await (c.currentSession().then(u => u || c.ensureSession()));
     const [ms, sums, th, st, nut] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled", "dismiss", "events", "tags", "seances"]).catch(() => ({})), c.nutriRecent(7).catch(() => [])]);
-    A.members = ms.filter(m => m.name || m.email); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.snapAt = Object.fromEntries(sums.map(x => [x.user_id, x.updated_at])); A.threads = th; A.nutri = {}; (nut || []).forEach(r => { (A.nutri[r.user_id] = A.nutri[r.user_id] || []).push(r); });
+    A.members = ms.filter(m => m.name || m.email || th[m.id]); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.snapAt = Object.fromEntries(sums.map(x => [x.user_id, x.updated_at])); A.threads = th; A.nutri = {}; (nut || []).forEach(r => { (A.nutri[r.user_id] = A.nutri[r.user_id] || []).push(r); });
     A.store = { todo: st.todo?.items || [], biz: st.biz || BIZ0(), notes: st.notes || {}, handled: st.handled || {}, dismiss: st.dismiss || {}, events: st.events?.items || [], tags: st.tags || {}, seances: st.seances?.items || [] };
     A.store.biz.payments = A.store.biz.payments || []; A.store.biz.cycles = A.store.biz.cycles || []; A.store.biz.settings = A.store.biz.settings || {};
     A.invites = await c.invites().catch(() => []);
@@ -43,7 +43,7 @@ const lastAct = (m) => A.sums[m.id]?.lastActive || m.stats?.lastWorkout?.slice(0
 const dotOf = (n) => n == null ? "n" : n <= 1 ? "g" : n <= 3 ? "o" : "r";
 const isClient = (m) => offer(m.tier).rank >= 3;
 const eur = (x) => `${(Math.round((x || 0) * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
-const first = (m) => (m.name || m.email || "?").trim();
+const first = (m) => (m.name || m.email || "Membre sans nom").trim();
 // Régularité et alertes de décrochage, calculées depuis l'instantané envoyé par l'app du membre
 const adhOf = (m) => A.sums[m.id]?.adh || null;
 const ciExpected = (m) => isClient(m) || (A.sums[m.id]?.defi && A.sums[m.id].defi.day <= 30 && !A.sums[m.id].defi.closed);
