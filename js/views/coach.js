@@ -430,7 +430,7 @@ function workoutCard(w, open = false) {
   const mins = Math.round((new Date(w.end || Date.now()) - new Date(w.start)) / 6e4);
   return `<details class="card mt8" ${open ? "open" : ""}><summary style="list-style:none;cursor:pointer"><div class="row between"><b>${esc(w.title)}</b><span class="xs muted">${fmtDate(today(new Date(w.end || w.start)), { weekday: "short", day: "numeric", month: "short" })}</span></div>
     <div class="xs muted mt4">${w.end ? "" : "EN COURS · "}${mins} min${w.target ? ` / ${w.target} visées` : ""} · ${w.setsDone ?? w.exercises.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0)} séries${w.volume ? ` · ${fr(w.volume / 1000, 1)} t` : ""}${w.week ? ` · semaine ${w.week}` : ""}${w.records?.length ? ` · 🏆 ${w.records.length} record${w.records.length > 1 ? "s" : ""}` : ""}</div></summary>
-    ${w.end ? "" : `<button class="btn btn-red btn-sm mt8" style="width:100%" data-a="go" data-r="live" data-p="${esc(mbr.id)}">🔴 Ouvrir en direct</button>`}<div class="mt8">${w.exercises.map(e => `<div class="small" style="padding:6px 0;border-top:1px solid var(--line)"><b>${esc(e.name)}</b>${e.name !== e.orig ? ` <span class="xs muted">(remplace ${esc(e.orig)})</span>` : ""}<br><span class="xs">${esc(setsLine(e)) || "<span class='muted'>pas fait</span>"}</span>${w.end ? recapLine(w, e) : ""}${e.sets.some(s => s.note) ? `<br><span class="xs muted">📝 ${esc(e.sets.filter(s => s.note).map(s => s.note).join(" · "))}</span>` : ""}${e.myNote ? `<br><span class="xs muted">📝 ${esc(e.myNote)}</span>` : ""}</div>`).join("")}</div>${w.end && mbr.id && mbr.reviews ? reviewBar(w) : ""}</details>`;
+    ${w.end ? `<button class="btn btn-line btn-sm mt8" style="width:100%" data-a="saisie-edit" data-id="${w.id}">✏️ Modifier cette séance (séries, charges, heure, durée)</button>` : `<button class="btn btn-red btn-sm mt8" style="width:100%" data-a="go" data-r="live" data-p="${esc(mbr.id)}">🔴 Ouvrir en direct</button>`}<div class="mt8">${w.exercises.map(e => `<div class="small" style="padding:6px 0;border-top:1px solid var(--line)"><b>${esc(e.name)}</b>${e.name !== e.orig ? ` <span class="xs muted">(remplace ${esc(e.orig)})</span>` : ""}<br><span class="xs">${esc(setsLine(e)) || "<span class='muted'>pas fait</span>"}</span>${w.end ? recapLine(w, e) : ""}${e.sets.some(s => s.note) ? `<br><span class="xs muted">📝 ${esc(e.sets.filter(s => s.note).map(s => s.note).join(" · "))}</span>` : ""}${e.myNote ? `<br><span class="xs muted">📝 ${esc(e.myNote)}</span>` : ""}</div>`).join("")}</div>${w.end && mbr.id && mbr.reviews ? reviewBar(w) : ""}</details>`;
 }
 function memberDay(D) {
   const d = mbr.day || today(), ag = E.agenda(d, d)[d], t = N.targets(), log = N.dayLog(d), tot = N.dayTotals(d), R0 = S().daily[d] || {};
@@ -769,6 +769,7 @@ actions["mb-obj-del"] = async () => { if (await saveSettings({ objectif: null })
 
 // ---------- Saisie à la place du client (séance oubliée, repas non noté) ----------
 import { saisieStart, saisieStop } from "../saisie.js";
+import { proxyActive } from "../store.js";
 const mbrName = () => (window.__members || []).find(x => x.id === mbr.id)?.name || "le client";
 actions["saisie-seance"] = (b, d) => sheet(`<h2 class="h2">✍️ Noter une séance pour ${esc(mbrName().split(" ")[0])}</h2><p class="small muted mt4">Même écran que le sien : tu valides les séries, les charges, puis tu règles l'heure et la durée. Rien n'est lancé en direct.</p>
   <form data-f="saisie-seance" data-id="${esc(d.id)}" class="mt12"><label class="field"><span>Jour de la séance</span><input type="date" name="d" value="${today()}" max="${today()}" required></label><button class="btn btn-red mt12">Continuer</button></form>`);
@@ -779,3 +780,14 @@ forms["saisie-seance"] = async (v, f) => {
 };
 actions["saisie-repas"] = async (b, d) => { await saisieStart(d.id, mbrName(), mbr.data?.data || {}); go("food"); };
 actions["saisie-fin"] = async () => { const id = mbr.id; await saisieStop(); toast("Enregistré chez le client"); mbr.data = null; go("member", id); };
+
+// Corriger une séance déjà terminée du client (oublis de reps, charges…) : même éditeur que le sien ; l'enregistrement la met à jour chez lui
+let editBranche = false;
+actions["saisie-edit"] = async (b, d) => {
+  await saisieStart(mbr.id, mbrName(), mbr.data?.data || {});
+  if (!editBranche) {
+    editBranche = true;
+    for (const k of ["we-save", "w-del"]) { const o = actions[k]; actions[k] = async (...a) => { await o(...a); if (proxyActive()) { await saisieStop(); mbr.data = null; toast("Séance mise à jour chez le client"); go("member", mbr.id); } }; }
+  }
+  actions["w-edit"](null, { id: d.id });
+};
