@@ -1591,7 +1591,7 @@ actions["live-adj"] = (b, d) => { update(st => { const e = st.current.exercises[
 
 // Techniques d'intensification d'une série, dans leur propre petit menu
 function tqMenu(xi, si) { const s = S().current.exercises[xi].sets[si];
-  sheet(`<h2 class="h2">⚡ Techniques · série ${si + 1}</h2><p class="small muted">Dégressive, rest-pause, cluster, isométrie, partielles…</p><div class="chips wrap mt8">${E.TECHS.map(([e, t]) => `<button class="chip ${s.tech.includes(t) ? "on" : ""}" data-a="set-tech" data-x="${xi}" data-s="${si}" data-v="${esc(t)}" data-tq="1">${e} ${esc(t)}</button>`).join("")}</div><button class="btn btn-red mt16" data-a="set-close">OK</button>`); }
+  sheet(`<h2 class="h2">⚡ Techniques · série ${si + 1}</h2><p class="small muted">Dégressive, rest-pause, cluster, isométrie, partielles…</p><div class="chips wrap mt8">${E.TECHS.filter(([, t]) => !["Échauffement", "Montée en gamme"].includes(t)).map(([e, t]) => `<button class="chip ${s.tech.includes(t) ? "on" : ""}" data-a="set-tech" data-x="${xi}" data-s="${si}" data-v="${esc(t)}" data-tq="1">${e} ${esc(t)}</button>`).join("")}</div><button class="btn btn-red mt16" data-a="set-close">OK</button>`); }
 actions["set-tq"] = (b, d) => tqMenu(+d.x, +d.s);
 actions["ex-fold"] = (b, d) => { update(st => { const e = st.current.exercises[+d.x]; e.closed = !e.closed; }); rerender(); };
 // Dernière série de travail validée : l'exercice se replie tout seul

@@ -907,3 +907,7 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 .tqbtn{grid-column:5;border:0;background:none;color:var(--soft);font-size:10.5px;font-weight:700;padding:2px 0;white-space:nowrap}
 .exfold{float:right;border:0;background:none;color:var(--soft);font-size:12px;font-weight:700;padding:2px 0 6px 8px}
 .exmini{display:flex;align-items:center;gap:12px;cursor:pointer;padding:14px 16px}
+
+/* Note de série + bouton Techniques : la note prend 2 colonnes, le bouton les 2 dernières */
+.set .snote{grid-column:2/4}
+.set .tqbtn{grid-column:4/-1;justify-self:end;font-size:12px;padding:4px 2px}
