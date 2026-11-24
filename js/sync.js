@@ -202,7 +202,17 @@ export async function retrouverSuivi() {
     // Le serveur impose sa version (compte réparé ou fusionné) : ce téléphone la reprend, même s'il avait déjà un suivi
     const force = d.forceReprise && d.forceReprise > (st0.repriseAt || 0);
     if (!force && (st0.workouts?.length || Object.keys(st0.food || {}).length || st0.current || !d.workouts?.length)) return;
-    update(st => { for (const k of REPRISE) if (d[k] != null) st[k] = d[k]; if (force) { st.current = null; st.repriseAt = d.forceReprise; } st.synced = true; });
+    update(st => {
+      // Ce que ce téléphone avait en plus (jours de repas, séances absentes du serveur) est gardé : la reprise ajoute, elle n'efface pas
+      const avant = { food: st.food || {}, daily: st.daily || {}, workouts: st.workouts || [] };
+      for (const k of REPRISE) if (d[k] != null) st[k] = d[k];
+      if (force) {
+        st.food = { ...avant.food, ...(st.food || {}) }; st.daily = { ...avant.daily, ...(st.daily || {}) };
+        const ids = new Set((st.workouts || []).map(w => String(w.id)));
+        st.workouts = [...(st.workouts || []), ...avant.workouts.filter(w => !ids.has(String(w.id)))].sort((a, b) => String(a.start).localeCompare(String(b.start)));
+        st.current = null; st.repriseAt = d.forceReprise;
+      }
+      st.synced = true; });
     const { toast } = await import("./core.js"); toast("Ton suivi a été retrouvé (" + d.workouts.length + " séances)"); location.reload();
   } catch { }
 }
