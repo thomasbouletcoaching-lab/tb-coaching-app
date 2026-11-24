@@ -1,3 +1,4 @@
+import * as SU from "../surcharge.js";
 import * as FX from "../faisceaux.js";
 // Entraînement : programme et cycle, banque, programme perso, carnet de séance, stats, records, simulateur, fiches.
 import { scheduleRest, unlockAudio, beep } from "../push.js";
@@ -551,6 +552,7 @@ function exerciseBlock(ex, xi) {
       ${ex.note ? `<div class="xs mt8">📝 ${esc(ex.note)}</div>` : ""}${cueOf(ex) ? `<div class="cue mt8">🗣️ <b>Thomas :</b> ${esc(cueOf(ex))}</div>` : ""}</div></div>
     <div class="acts"><button data-a="go" data-r="fiche" data-p="${esc(ex.name)}">📖 Fiche</button><button data-a="ex-swap" data-x="${xi}">🔄 Remplacer</button><button data-a="ex-prog" data-x="${xi}">📈 Progression</button><button data-a="ex-rest" data-x="${xi}">⏱️ Repos</button><button data-a="ex-ss" data-x="${xi}">🔗 ${ex.ss ? "SS " + esc(ex.ss) : "Superset"}</button><button data-a="ex-video" data-x="${xi}">📹 Vidéo${(ex.videos || []).length ? " ✓" : ""}</button>${isCoach() && S().current?.mirror ? `<button data-a="ex-cue" data-x="${xi}">🗣️ Consigne</button>` : ""}<button data-a="ex-more" data-x="${xi}">${I.dots.replace("<svg", '<svg width="18"')}</button></div>
     ${sugBox}
+    ${ex.live ? `<div class="sug" style="box-shadow:0 0 0 1.5px var(--red) inset">🎚️ ${esc(ex.live.txt)}<div class="row mt8" style="gap:8px"><button class="btn btn-red btn-xs" data-a="live-adj" data-x="${xi}" data-v="1">Appliquer</button><button class="btn btn-line btn-xs" data-a="live-adj" data-x="${xi}" data-v="0">Garder</button></div></div>` : ""}
     ${L ? `<details class="prevbox"><summary>↺ La dernière fois · ${fmtDate(today(new Date(L.date)), { weekday: "short", day: "numeric", month: "short" })}${L.week ? ` · semaine ${L.week}` : ""}</summary><div class="xs mt4">${L.ex.sets.filter(s => s.done).map((s, i) => `<div>${s.type === "W" ? "Échauf." : "Série " + (L.ex.sets.filter(x => x.done && x.type !== "W").indexOf(s) + 1)} : ${esc(prevTxt(s))}</div>`).join("")}${L.ex.myNote ? `<div class="mt4">📝 ${esc(L.ex.myNote)}</div>` : ""}</div></details>` : ""}
     ${(() => { const past = notesPassees(ex.name); return past.length ? `<details class="prevbox"><summary>📝 Mes notes des séances précédentes (${past.length})</summary><div class="xs mt4">${past.map(p => `<div class="mt4"><b>${fmtDate(p.d, { weekday: "short", day: "numeric", month: "short" })}</b> · ${p.l.map(esc).join(" · ")}</div>`).join("")}</div></details>` : ""; })()}
     ${stall ? `<div class="sug" style="box-shadow:0 0 0 1.5px var(--warn) inset">📹 <b>Tu bloques sur cet exercice depuis ${stall.weeks} semaines.</b> Filme une série de profil et envoie-la à Thomas : il corrige ta technique et ajuste ta progression. <button class="link xs" data-a="stall-video" data-n="${esc(ex.name)}">Envoyer une vidéo</button></div>` : ""}
@@ -714,6 +716,7 @@ function progSheet(xi) {
   const ex = S().current.exercises[xi], e1 = Math.round(E.currentE1rm(ex.name) * 10) / 10, st = ex.step || 2.5, pending = ex.sets.filter(s => !s.done && s.type !== "W");
   const last = ex.sug?.last;
   sheet(`<h2 class="h2">📈 ${esc(ex.name)}</h2>${last ? `<p class="small muted mt4">Dernière fois : ${esc(last)}</p>` : ""}${ex.sug && premium() ? `<div class="sug">💡 ${esc(ex.sug.txt)}</div>` : ""}
+    ${methodeBox(ex, xi)}
     <div class="lbl mt12">Aujourd'hui · ${pending.length} série${pending.length > 1 ? "s" : ""} à faire</div>
     ${ex.bw ? `<p class="small muted">Exercice au poids du corps : joue sur les répétitions ou ajoute du lest dans le carnet.</p>` : `<div class="row mt8" style="gap:6px">${[-2, -1, 1, 2].map(k => `<button class="btn btn-line btn-sm grow" data-a="pg-kg" data-x="${xi}" data-v="${k * st}">${k > 0 ? "+" : "−"}${E.fmtKg(Math.abs(k * st))} kg</button>`).join("")}</div>`}
     <div class="row mt8" style="gap:6px"><button class="btn btn-line btn-sm grow" data-a="pg-rep" data-x="${xi}" data-v="-1">−1 rep</button><button class="btn btn-line btn-sm grow" data-a="pg-rep" data-x="${xi}" data-v="1">+1 rep</button><button class="btn btn-line btn-sm grow" data-a="pg-set" data-x="${xi}">+1 série</button></div>
@@ -1201,6 +1204,7 @@ function exEditor(keep = true) {
     <p class="xs muted mt4">Reps : « 8 » ou « 8-10 ». Charge vide : calculée sur ton RPE. Top set et back-off : choisis le type de chaque série.</p>
     <h3 class="sec">Surcharge progressive</h3>
     <div class="chips wrap mt4">${PROG_PRESETS.map(([l], i) => `<button class="chip sm" data-a="bx-pp" data-i="${i}">${l}</button>`).join("")}</div>
+    <button class="btn btn-line btn-sm mt8" data-a="bx-mod" style="width:100%">📚 Modèles de progression (force, hypertrophie, densité…)</button>
     ${pr.load === "double" ? `<div class="card soft mt8" style="padding:12px"><b class="small">🔁 Double progression</b><p class="xs muted" style="margin:4px 0 8px">Les reps montent d'une à chaque étape jusqu'au haut de la fourchette, puis la charge monte et on repart du bas. Ex. 3×8 → 3×9 → 3×10 → charge +2,5 kg et 3×8.</p>
       <div class="grid3"><label class="field"><span>Reps jusqu'à</span><input data-c="bx-p" data-k="to" inputmode="numeric" value="${pr.to || ""}" placeholder="${(x.sets.find(z => z.t !== "W")?.lo || 8) + 2}"></label>
       <label class="field"><span>Puis charge +${x.sets.some(z => z.pct) ? " %" : " kg"}</span><input data-c="bx-p" data-k="step" inputmode="decimal" value="${fmtN(pr.step)}"></label>
@@ -1533,3 +1537,50 @@ forms["ex-cue"] = async (v, f) => {
   catch (e) { return toast("Enregistrement impossible : " + e.message); }
   update(st => { st.current.exercises[xi].cue = t; }); closeSheet(); toast("Consigne enregistrée"); rerender();
 };
+
+// ---------- Surcharge progressive : modèles (créateur) et méthode par exercice (séance) ----------
+actions["bx-mod"] = () => {
+  const grp = [...new Set(SU.MODELES.map(m => m.g))];
+  sheet(`<h2 class="h2">📚 Modèles de progression</h2><p class="small muted">Les modèles en % partent du 1RM estimé de la personne : ils s'adaptent à son niveau de départ. Tu peux tout ajuster ensuite.</p>
+    ${grp.map(g => `<div class="lbl mt12">${esc(g)}</div>${SU.MODELES.filter(m => m.g === g).map(m => `<div class="card mt8"><b class="small">${esc(m.n)}</b><p class="xs muted" style="margin:4px 0 8px">${esc(m.d)}</p><div class="row" style="gap:8px"><button class="btn btn-red btn-xs" data-a="bx-mod-ok" data-id="${m.id}">Cet exercice</button><button class="btn btn-line btn-xs" data-a="bx-mod-ok" data-id="${m.id}" data-all="1">Toute la séance</button></div></div>`).join("")}`).join("")}
+    <button class="btn btn-line mt12" data-a="bx-back">Retour</button>`);
+};
+actions["bx-mod-ok"] = (b, d) => {
+  const m = SU.modele(d.id); if (!m) return;
+  const rows = d.all ? draft.s[ed.si][2] : [edRow()];
+  rows.forEach(r => { r[5] = E.migrateRow(r[5] || { sets: 3 }); m.f(r[5]); });
+  toast(`« ${m.n} » appliqué${d.all ? " à toute la séance" : ""}`); ed.w = null; exEditor(false);
+};
+function methodeBox(ex, xi) {
+  const meth = S().surcharge?.[ex.name] || "";
+  const L = E.lastExercise(ex.name), cible = { lo: ex.sets.find(z => z.type !== "W")?.lo || 8, hi: ex.sets.find(z => z.type !== "W")?.hi || 10, rpe: ex.sets.find(z => z.type !== "W")?.trpe || 8 };
+  const dec = meth && L ? SU.decider(meth, L.ex.sets.filter(z => z.done && z.type !== "W"), cible, { step: ex.step || 2.5, rest: ex.rest }) : null;
+  return `<div class="lbl mt12">Ma façon de progresser sur cet exercice</div>
+    <div class="chips wrap mt4">${SU.METHODES.map(([k, l]) => `<button class="chip sm ${meth === k ? "on" : ""}" data-a="sc-meth" data-x="${xi}" data-v="${k}">${l}</button>`).join("")}</div>
+    ${dec ? `<div class="sug mt8">📊 <b>La dernière fois</b> : ${esc(dec.lu)}<br>👉 <b>Aujourd'hui</b> : ${esc(dec.txt)}${dec.kg || dec.reps || dec.sets || dec.tempo || dec.rest || dec.tech ? `<br><button class="btn btn-red btn-xs mt8" data-a="sc-apply" data-x="${xi}">Appliquer aux séries restantes</button>` : ""}</div>` : meth ? `<p class="xs muted mt4">La suggestion apparaîtra après une première séance avec cette méthode.</p>` : ""}`;
+}
+actions["sc-meth"] = (b, d) => { const ex = S().current.exercises[+d.x]; update(st => { st.surcharge = { ...(st.surcharge || {}), [ex.name]: d.v }; }); progSheet(+d.x); };
+actions["sc-apply"] = (b, d) => {
+  const xi = +d.x, ex = S().current.exercises[xi], meth = S().surcharge?.[ex.name], L = E.lastExercise(ex.name); if (!meth || !L) return;
+  const cible = { lo: ex.sets.find(z => z.type !== "W")?.lo || 8, hi: ex.sets.find(z => z.type !== "W")?.hi || 10, rpe: ex.sets.find(z => z.type !== "W")?.trpe || 8 };
+  const dec = SU.decider(meth, L.ex.sets.filter(z => z.done && z.type !== "W"), cible, { step: ex.step || 2.5, rest: ex.rest }); if (!dec) return;
+  const base = dec.best?.kg;
+  update(st => { const e = st.current.exercises[xi], todo = e.sets.filter(z => !z.done && z.type !== "W");
+    if (dec.kg != null && base) todo.forEach(z => { z.kg = E.roundTo(base + dec.kg, e.step || 2.5); });
+    if (dec.reps) todo.forEach(z => { z.lo = Math.max(1, z.lo + dec.reps); z.hi = Math.max(z.lo, (z.hi || z.lo) + dec.reps); z.reps = z.lo; });
+    if (dec.rpe) todo.forEach(z => { z.trpe = Math.min(10, (z.trpe || 8) + dec.rpe); });
+    if (dec.sets) { const l = todo.at(-1) || e.sets.at(-1); e.sets.push({ ...l, done: false, rpe: null, note: "" }); }
+    if (dec.tempo) e.tempo = dec.tempo;
+    if (dec.rest) e.rest = Math.max(45, (e.rest || 120) + dec.rest);
+    if (dec.tech) { const l = todo.at(-1); if (l) l.tech = [...new Set([...(l.tech || []), dec.tech])]; } });
+  closeSheet(); toast("Appliqué"); rerender();
+};
+// Pendant la séance : après une série de travail notée avec son RPE, on propose d'ajuster les suivantes
+function ajusteApres(d) {
+  const ex = S().current?.exercises[+d.x], s = ex?.sets[+d.s]; if (!s?.done || s.type === "W") return;
+  const a = SU.ajusterEnDirect(s, ex.step || 2.5);
+  if (a && ex.sets.some(z => !z.done && z.type !== "W")) { ex.live = a; save(); rerender(); }
+}
+const baseTick = actions.tick; actions.tick = (b, d) => { baseTick(b, d); ajusteApres(d); };
+const baseRpeOk = actions["rpe-ok"]; actions["rpe-ok"] = (b, d) => { baseRpeOk(b, d); ajusteApres(d); };
+actions["live-adj"] = (b, d) => { update(st => { const e = st.current.exercises[+d.x]; if (d.v === "1") e.sets.forEach(z => { if (!z.done && z.type !== "W" && z.kg) z.kg = E.roundTo(z.kg * (1 + e.live.pct / 100), e.step || 2.5); }); delete e.live; }); rerender(); };

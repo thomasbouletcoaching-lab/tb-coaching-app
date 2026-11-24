@@ -57,7 +57,7 @@ export function snapshot() {
   if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   const st = S(), t = today();
   const lifts = Object.fromEntries(Object.entries(st.lifts || {}).map(([k, h]) => [k, h.slice(-25)]));
-  const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, exoNotes: st.exoNotes || {}, repriseAt: st.repriseAt || 0, skips: st.skips, swaps: st.swaps, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin },
+  const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, exoNotes: st.exoNotes || {}, surcharge: st.surcharge || {}, repriseAt: st.repriseAt || 0, skips: st.skips, swaps: st.swaps, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin },
     // Suivi : bilans, anamnèse, témoignage, photos envoyées volontairement, essai
     checkins: (st.checkins || []).slice(-26), hybride: hybridePourServeur(st.hybride), anamnese: st.anamnese || null, programme: pourCoach(st.programme, !!st.anamnese?.consent), testimonial: st.testimonial || null, sharedPhotos: st.sharedPhotos || [], trialStart: st.trialStart || null, defi: st.defi || null,
     // Journal « Je craque » : uniquement avec l'accord explicite du membre ; sinon null, ce qui efface aussi une copie envoyée avant un retrait d'accord
@@ -190,7 +190,7 @@ export async function pullSaisies() {
 
 // Appareil sans suivi (nouveau téléphone, ou app coach qui n'a jamais eu le sien) alors que le compte en a un côté serveur : on le retrouve,
 // au lieu de repartir de zéro et d'écraser la copie du serveur avec un suivi vide.
-const REPRISE = ["settings", "profile", "plan", "workouts", "food", "daily", "measures", "customPrograms", "moves", "exoNotes", "skips", "swaps", "season", "goals", "lifts", "checkins", "anamnese", "trialStart"];
+const REPRISE = ["settings", "profile", "plan", "workouts", "food", "daily", "measures", "customPrograms", "moves", "exoNotes", "surcharge", "skips", "swaps", "season", "goals", "lifts", "checkins", "anamnese", "trialStart"];
 let repriseFaite = false;
 export async function retrouverSuivi() {
   if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte

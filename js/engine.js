@@ -127,6 +127,10 @@ export function weekPlan(x, w, p = null) {
     if (pr.load === "double") sets.forEach(s => { if (!work(s)) return; const { reps, bumps } = doubleStep(s.lo, Math.max(s.lo, pr.to || s.hi || s.lo + 2), n); s.lo = s.hi = reps;
       if (s.pct) s.pct = Math.round((s.pct + (pr.step || 2.5) * bumps) * 10) / 10; else if (s.kg) s.kg = Math.round((s.kg + (pr.step || 2.5) * bumps) * 100) / 100; });
     if (pr.load === "rpe") sets.forEach(s => { if (s.rpe && work(s)) s.rpe = Math.min(10, Math.round((s.rpe + pr.step * n) * 2) / 2); });
+    // Vague : décalage de % par semaine qui se répète (ex. 0, +3, +6 puis on repart plus haut)
+    if (pr.wave?.length) { const len = pr.wave.length, off = pr.wave[steps % len] + Math.floor(steps / len) * (pr.waveStep || 0); sets.forEach(s => { if (s.pct && work(s)) s.pct = Math.round((s.pct + off) * 10) / 10; }); }
+    if (pr.rpeUp) sets.forEach(s => { if (s.rpe && work(s)) s.rpe = Math.min(pr.rpeMax || 9.5, Math.round((s.rpe + pr.rpeUp * n) * 2) / 2); });
+    if (pr.techFrom && steps + 1 >= pr.techFrom.w) { const l = sets.filter(work).at(-1); if (l) l.tech = [...new Set([...(l.tech || []), pr.techFrom.t])]; }
     if (pr.reps?.every) { const k = Math.floor(steps / pr.reps.every); sets.forEach(s => { if (!work(s)) return; s.lo = Math.max(pr.reps.min || 1, s.lo + pr.reps.delta * k); s.hi = Math.max(s.lo, (s.hi || s.lo) + pr.reps.delta * k); }); }
     // séries ajoutées : seulement pendant l'accumulation quand le programme a des phases
     let acc = 0; for (let k = 1; k < w; k++) if (!isDeload(p, k) && (!p?.phases?.length || p.phases[k - 1] === "Accumulation")) acc++;
@@ -136,7 +140,10 @@ export function weekPlan(x, w, p = null) {
     if ((deload || test) && !top) { const keep = Math.max(1, Math.ceil(sets.filter(work).length * .6)); let c = 0; sets = sets.filter(s => !work(s) || c++ < keep).map(s => !work(s) ? s : { ...s, pct: s.pct ? Math.round(s.pct * .88) : s.pct, kg: s.kg ? Math.round(s.kg * .88 * 4) / 4 : s.kg, rpe: s.rpe ? Math.max(5, s.rpe - 2) : s.rpe, tech: [] }); }
   }
   const tech = x.techW?.[w]; if (tech?.length) sets.forEach(s => { if (s.t !== "W") s.tech = [...new Set([...(s.tech || []), ...tech])]; });
-  return { sets, tempo: x.tempoW?.[w] || null, deload, test, custom: !!x.weeks?.[w] };
+  let tempo = x.tempoW?.[w] || null, rest = null;
+  if (!tempo && pr.tempos?.length && !x.weeks?.[w]) { let st = 0; for (let k = 1; k < w; k++) if (!isDeload(p, k)) st++; tempo = pr.tempos[Math.min(pr.tempos.length - 1, Math.floor(st / Math.max(1, pr.every || 1)))]; }
+  if (pr.restDelta && x.rest) { let st = 0; for (let k = 1; k < w; k++) if (!isDeload(p, k)) st++; rest = Math.max(pr.restMin || 45, x.rest - pr.restDelta * Math.floor(st / Math.max(1, pr.every || 1))); }
+  return { sets, tempo, rest, deload, test, custom: !!x.weeks?.[w] };
 }
 export function setsTxt(sets) {
   const g = []; (sets || []).filter(s => s.t !== "W").forEach(s => { const k = `${s.t}|${s.lo}|${s.hi}|${s.pct}|${s.kg}|${s.rpe}`; const l = g.at(-1); if (l && l.k === k) l.n++; else g.push({ k, n: 1, s }); });
@@ -372,7 +379,7 @@ export function buildSession(at = null) {
     }
     const sug = bw ? null : isAssisted(name) ? assistSuggestion(name, groups.at(-1).rpe || 8, groups.at(-1).hi, step) : suggestion(name, groups.at(-1).rpe || 8, groups.at(-1).lo, groups.at(-1).hi, step);
     if (isAssisted(name) && sug?.kg != null && prev) sets.forEach(x => { if (x.type !== "W" && x.kg === prev.kg) x.kg = sug.kg; });
-    return { orig, name, kind, note: row[2] || "", ss: row[3] || null, tempo: plan?.tempo || row[4] || null, scheme, unit, bw, step, rest: S().restFor?.[name] || (row[5]?.rest) || REST[kind] || 90, sets, e1: e, bwAdd: addKg, sug, myNote: "", off: !!plan && !plan.sets.length };
+    return { orig, name, kind, note: row[2] || "", ss: row[3] || null, tempo: plan?.tempo || row[4] || null, scheme, unit, bw, step, rest: S().restFor?.[name] || plan?.rest || (row[5]?.rest) || REST[kind] || 90, sets, e1: e, bwAdd: addKg, sug, myNote: "", off: !!plan && !plan.sets.length };
   }).filter(e => !e.off);
   return { id: Date.now(), programId: p.id, week, idx: ns.idx % p.s.length, cycle: ns.cycle, title: ns.title, phase: ns.phase, start: new Date().toISOString(), comeback, exercises };
 }
