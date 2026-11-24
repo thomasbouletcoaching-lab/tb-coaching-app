@@ -86,7 +86,11 @@ function fond(c, W, H) {
   const r2 = c.createRadialGradient(W * .1, H * .9, 20, W * .1, H * .9, 700); r2.addColorStop(0, "rgba(46,95,201,.45)"); r2.addColorStop(1, "rgba(46,95,201,0)"); c.fillStyle = r2; c.fillRect(0, 0, W, H);
 }
 function marque(c, x, y) { c.font = F(800, 54); c.fillStyle = "#fff"; c.fillText("TB my ", x, y); const w = c.measureText("TB my ").width; c.fillStyle = "#8FB4FF"; c.fillText("Coach", x + w, y); }
-function pied(c, W, H, code, lien = "") {
+function pied(c, W, H, code, lien = "", compact = false) {
+  if (compact) { const y = H - 250; c.fillStyle = "rgba(255,255,255,.12)"; rr(c, 80, y, W - 160, 180, 32); c.fill();
+    c.fillStyle = "#fff"; c.font = F(800, 40); c.fillText("Rejoins-moi sur TB my Coach", 120, y + 60, W - 240);
+    c.fillStyle = "#C9DAFF"; c.font = F(600, 28); c.fillText(`${joursOfferts()} jours offerts${code ? ` · code ${code}` : ""} · ${CONFIG.coachName}`, 120, y + 108, W - 240);
+    if (lien) { c.fillStyle = "#fff"; c.font = F(700, 26); c.fillText("👉 " + lien.replace(/^https?:\/\//, ""), 120, y + 150, W - 240); } return; }
   const y = H - 470; c.fillStyle = "rgba(255,255,255,.12)"; rr(c, 80, y, W - 160, 250, 40); c.fill();
   c.fillStyle = "#fff"; c.font = F(800, 50); c.fillText("Rejoins-moi sur TB my Coach", 130, y + 85, W - 260);
   c.fillStyle = "#C9DAFF"; c.font = F(600, 34); c.fillText(`${joursOfferts()} jours offerts, sans carte bancaire${code ? ` · code d'invitation ${code}` : ""}`, 130, y + 140, W - 260);
@@ -96,20 +100,25 @@ function pied(c, W, H, code, lien = "") {
 // Détail complet de la séance (exercices, séries, notes) qui tient dans la place disponible : la taille du texte s'adapte
 function detailSeance(c, d, X, y, LW, bas) {
   const ex = (d.detail || []).filter(e => e.s?.length); if (!ex.length) return y;
-  const serie = (e, z) => { const [kg, r, rpe] = z; return `${kg ? fr(kg, 1) + "×" : ""}${r ?? "–"}${e.u === "sec" ? " s" : e.u === "m" ? " m" : ""}${rpe ? " @" + String(rpe).replace(".", ",") : ""}`; };
-  const place = bas - y - 50;
-  let fs = 40, rows;
-  for (; fs >= 22; fs -= 2) { const h = ex.reduce((a, e) => a + fs * 1.2 + fs * 1.1 * Math.ceil(e.s.length / 6) + (e.note ? fs * 1.05 : 0) + fs * .45, 0); rows = ex.length; if (h <= place) break; }
-  if (fs < 22) { fs = 22; let h = 0; rows = 0; for (const e of ex) { const x = fs * 1.2 + fs * 1.1 * Math.ceil(e.s.length / 6) + (e.note ? fs * 1.05 : 0) + fs * .45; if (h + x > place - 40) break; h += x; rows++; } }
-  c.fillStyle = "rgba(255,255,255,.55)"; c.font = F(700, 28); c.fillText("MA SÉANCE", X, y + 20); y += 50;
-  ex.slice(0, rows).forEach(e => {
-    c.fillStyle = "#fff"; c.font = F(800, fs); c.fillText(e.n, X, y + fs, LW); y += fs * 1.2;
-    c.fillStyle = "#C9DAFF"; c.font = F(600, Math.round(fs * .88));
-    for (let i = 0; i < e.s.length; i += 6) { c.fillText(e.s.slice(i, i + 6).map(z => serie(e, z)).join("  ·  "), X, y + fs, LW); y += fs * 1.1; }
-    if (e.note) { c.fillStyle = "rgba(255,255,255,.7)"; c.font = `italic ${F(500, Math.round(fs * .8))}`; c.fillText("« " + e.note + " »", X, y + fs * .9, LW); y += fs * 1.05; }
-    y += fs * .45;
+  const serie = (e, z) => { const [kg, r, rpe] = z; return `${kg ? fr(kg, 1) + "×" : ""}${r ?? "–"}${e.u === "sec" ? "s" : e.u === "m" ? "m" : ""}${rpe ? "@" + String(rpe).replace(".", ",") : ""}`; };
+  const txt = (e) => e.s.map(z => serie(e, z)).join(" · ");
+  // Hauteur d'un exercice à la taille fs : nom et séries sur une ligne si ça tient, sinon séries en dessous (coupées en lignes)
+  const plan = (fs) => ex.map(e => { c.font = F(800, fs); const wn = c.measureText(e.n).width; c.font = F(600, Math.round(fs * .9)); const t = txt(e), wt = c.measureText(t).width;
+    const une = wn + wt + 30 <= LW; const nl = une ? 0 : Math.ceil(wt / LW); const note = e.note && fs >= 24; return { e, t, une, nl, note, h: fs * 1.25 + nl * fs * 1.1 + (note ? fs * 1.05 : 0) + fs * .3 }; });
+  const dispo = bas - y - 46; let fs = 34, p = plan(fs);
+  while (fs > 20 && p.reduce((a, x) => a + x.h, 0) > dispo) { fs -= 1; p = plan(fs); }
+  let rows = p.length; if (p.reduce((a, x) => a + x.h, 0) > dispo) { let h = 0; rows = 0; for (const x of p) { if (h + x.h > dispo - 40) break; h += x.h; rows++; } }
+  c.fillStyle = "rgba(255,255,255,.55)"; c.font = F(700, 26); c.fillText("MA SÉANCE", X, y + 22); y += 46;
+  c.fillStyle = "rgba(255,255,255,.08)"; rr(c, X - 24, y - 10, LW + 48, p.slice(0, rows).reduce((a, x) => a + x.h, 0) + 20, 28); c.fill();
+  p.slice(0, rows).forEach(({ e, t, une, nl, note }) => {
+    c.fillStyle = "#fff"; c.font = F(800, fs); c.fillText(e.n, X, y + fs, une ? LW - c.measureText(t).width - 30 : LW);
+    c.font = F(600, Math.round(fs * .9)); c.fillStyle = "#C9DAFF";
+    if (une) { c.textAlign = "right"; c.fillText(t, X + LW, y + fs); c.textAlign = "left"; y += fs * 1.25; }
+    else { y += fs * 1.25; const mots = t.split(" · "); let l = ""; const out = []; mots.forEach(m => { const z = l ? l + " · " + m : m; if (c.measureText(z).width > LW && l) { out.push(l); l = m; } else l = z; }); if (l) out.push(l); out.forEach(o => { c.fillText(o, X, y + fs * .95); y += fs * 1.1; }); }
+    if (note) { c.fillStyle = "rgba(255,255,255,.7)"; c.font = `italic ${F(500, Math.round(fs * .8))}`; c.fillText("« " + e.note + " »", X, y + fs * .85, LW); y += fs * 1.05; }
+    y += fs * .3;
   });
-  if (ex.length > rows) { c.fillStyle = "rgba(255,255,255,.6)"; c.font = F(600, 28); c.fillText(`+ ${ex.length - rows} autre${ex.length - rows > 1 ? "s" : ""} exercice${ex.length - rows > 1 ? "s" : ""}`, X, y + 30); }
+  if (ex.length > rows) { c.fillStyle = "rgba(255,255,255,.6)"; c.font = F(600, 26); c.fillText(`+ ${ex.length - rows} autre${ex.length - rows > 1 ? "s" : ""} exercice${ex.length - rows > 1 ? "s" : ""}`, X, y + 28); }
   return y;
 }
 export async function imageStory(type, d, { code = monCode(), qui = profil()?.pseudo || prenom(), lien = "" } = {}) {
@@ -120,17 +129,20 @@ export async function imageStory(type, d, { code = monCode(), qui = profil()?.ps
     const X = 80, LW = W - 160; let y = 330;
     if (type === "seance") {
       c.fillStyle = "#8FB4FF"; c.font = F(700, 34); c.fillText(`SÉANCE TERMINÉE${d.d ? " · " + fmtDate(d.d, { day: "numeric", month: "long" }).toUpperCase() : ""}`, X, y);
-      c.fillStyle = "#fff"; c.font = F(800, 92); lignes(c, d.titre, LW, 2).forEach((l, i) => c.fillText(l, X, y + 110 + i * 100)); y += 110 + Math.min(2, lignes(c, d.titre, LW, 2).length) * 100;
-      if (qui) { c.fillStyle = "rgba(255,255,255,.75)"; c.font = F(600, 38); c.fillText(`par ${qui}`, X, y); y += 40; }
-      y += 50;
+      const det = !!d.detail?.length, ft = det ? 64 : 92, lh = det ? 72 : 100;
+      c.fillStyle = "#fff"; c.font = F(800, ft); const tl = lignes(c, d.titre, LW, 2); tl.forEach((l, i) => c.fillText(l, X, y + (det ? 80 : 110) + i * lh)); y += (det ? 80 : 110) + tl.length * lh;
+      if (qui) { c.fillStyle = "rgba(255,255,255,.75)"; c.font = F(600, det ? 30 : 38); c.fillText(`par ${qui}`, X, y - (det ? 10 : 0)); y += det ? 20 : 40; }
+      y += det ? 20 : 50;
       const tuiles = [[d.min ?? "–", "minutes"], [d.series || 0, "séries"], [d.tonnes ? fr(d.tonnes, 1) : "0", "tonnes"]], tw = (LW - 40) / 3;
-      tuiles.forEach(([v, l], i) => { const x = X + i * (tw + 20); c.fillStyle = "rgba(255,255,255,.1)"; rr(c, x, y, tw, 250, 36); c.fill(); c.fillStyle = "#fff"; c.font = F(800, 96); c.fillText(String(v), x + 34, y + 140, tw - 50); c.fillStyle = "#C9DAFF"; c.font = F(600, 36); c.fillText(l, x + 34, y + 205); });
-      y += 310;
+      const th = det ? 140 : 250; tuiles.forEach(([v, l], i) => { const x = X + i * (tw + 20); c.fillStyle = "rgba(255,255,255,.1)"; rr(c, x, y, tw, th, det ? 28 : 36); c.fill(); c.fillStyle = "#fff"; c.font = F(800, det ? 60 : 96); c.fillText(String(v), x + 30, y + (det ? 78 : 140), tw - 50); c.fillStyle = "#C9DAFF"; c.font = F(600, det ? 26 : 36); c.fillText(l, x + 30, y + (det ? 118 : 205)); });
+      y += th + (det ? 36 : 60);
+      if (det) { const g = d.medaille ? GRADES.find(x => x.name === d.medaille) : null, bits = [g ? `${g.icon} Grade ${g.name}` : "", d.records?.length ? `🏆 Record${d.records.length > 1 ? "s" : ""} : ${d.records.slice(0, 3).join(", ")}` : ""].filter(Boolean);
+        if (bits.length) { c.fillStyle = "#fff"; c.font = F(700, 32); lignes(c, bits.join("   "), LW, 2).forEach((l, i) => c.fillText(l, X, y + 30 + i * 42)); y += 30 + lignes(c, bits.join("   "), LW, 2).length * 42 + 20; }
+        detailSeance(c, d, X, y, LW, H - 280); pied(c, W, H, code, lien, true); return await new Promise(res => cv.toBlob(res, "image/png")); }
       const g = d.medaille ? GRADES.find(x => x.name === d.medaille) : null;
       if (g) { const t = `${g.icon}  Grade ${g.name}`; c.font = F(800, 46); const w = c.measureText(t).width + 80; const gr = c.createLinearGradient(X, y, X + w, y); gr.addColorStop(0, "#2E5FC9"); gr.addColorStop(1, "#4F82E0"); c.fillStyle = gr; rr(c, X, y, w, 96, 48); c.fill(); c.fillStyle = "#fff"; c.fillText(t, X + 40, y + 64); y += 140; }
       if (d.records?.length) { c.fillStyle = "#fff"; c.font = F(800, 46); c.fillText("🏆 Record battu", X, y + 40); c.font = F(600, 40); c.fillStyle = "#C9DAFF"; d.records.slice(0, 2).forEach((r, i) => c.fillText(r, X, y + 100 + i * 54, LW)); y += 100 + Math.min(2, d.records.length) * 54 + 30; }
-      if (d.detail?.length) detailSeance(c, d, X, y, LW, H - 480);
-      else if (d.top?.length && y < H - 640) { c.fillStyle = "rgba(255,255,255,.55)"; c.font = F(700, 30); c.fillText("AU PROGRAMME", X, y + 30); c.fillStyle = "#fff"; c.font = F(600, 40); d.top.forEach((t, i) => { if (y + 90 + i * 56 < H - 520) c.fillText("• " + t, X, y + 90 + i * 56, LW); }); }
+      if (d.top?.length && y < H - 640) { c.fillStyle = "rgba(255,255,255,.55)"; c.font = F(700, 30); c.fillText("AU PROGRAMME", X, y + 30); c.fillStyle = "#fff"; c.font = F(600, 40); d.top.forEach((t, i) => { if (y + 90 + i * 56 < H - 520) c.fillText("• " + t, X, y + 90 + i * 56, LW); }); }
     } else {
       c.fillStyle = "#8FB4FF"; c.font = F(700, 34); c.fillText(d.routine ? "MA SÉANCE" : "MON PROGRAMME D'ENTRAÎNEMENT", X, y);
       c.fillStyle = "#fff"; c.font = F(800, 80); const tl = lignes(c, d.n || "Mon programme", LW, 2); tl.forEach((l, i) => c.fillText(l, X, y + 100 + i * 90)); y += 100 + tl.length * 90;
