@@ -590,7 +590,7 @@ export function weekLayout(p) {
 // Heure, durée et lieu d'une séance : réglage du jour, sinon la semaine type
 export function slotOf(dateStr) {
   const d = schedule()?.days?.[dowOf(dateStr)] || {}, o = S().slots?.[dateStr] || {};
-  return { time: o.time ?? d.time ?? null, dur: o.dur ?? d.dur ?? S().profile?.sessionMin ?? null, place: o.place ?? d.place ?? null };
+  return { time: o.time ?? d.time ?? null, dur: o.dur ?? d.dur ?? S().profile?.sessionMin ?? null, place: o.place ?? d.place ?? null, coach: !!o.coach };
 }
 export function setSlot(dateStr, fields) { update(st => { st.slots = st.slots || {}; st.slots[dateStr] = { ...(st.slots[dateStr] || {}), ...fields }; }); }
 const iso = (d) => { const z = new Date(d.getTime() - d.getTimezoneOffset() * 6e4); return z.toISOString().slice(0, 10); };

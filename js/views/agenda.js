@@ -82,7 +82,7 @@ actions["ag-nav"] = (b, d) => {
 actions["ag-open-month"] = (b, d) => { AG.month = d.v; go("home", "month"); };
 routes.agenda = () => go("home", "month");
 
-const slotTxt = (a) => [a.time, a.dur ? a.dur + " min" : "", a.place].filter(Boolean).join(" · ");
+const slotTxt = (a) => [a.time, a.dur ? a.dur + " min" : "", a.place, a.coach ? "🤝 avec Thomas" : ""].filter(Boolean).join(" · ");
 const PLACES = ["Salle", "Maison", "Extérieur"];
 actions["ag-day"] = (b, d) => {
   const k = d.v, a = E.agenda(k, k)[k], t = today();

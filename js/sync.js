@@ -116,7 +116,7 @@ export async function pullCoachSlots() {
       if (st.coachSeen[r.orig_d] === r.updated_at) return;
       st.coachSeen[r.orig_d] = r.updated_at;
       st.moves[r.orig_d] = r.new_d;
-      if (r.new_time) st.slots[r.new_d] = { ...(st.slots[r.new_d] || {}), time: r.new_time };
+      if (r.new_time || r.avec_coach != null) st.slots[r.new_d] = { ...(st.slots[r.new_d] || {}), ...(r.new_time ? { time: r.new_time } : {}), coach: !!r.avec_coach, ...(r.duree ? { dur: r.duree } : {}) };
     });
   });
 }

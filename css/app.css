@@ -861,3 +861,43 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 .fxbar>b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--soft);opacity:.5}
 .corps2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .corps{width:100%;height:auto;max-height:340px}
+
+/* Messagerie coach façon WhatsApp */
+.msgsearch{display:flex;align-items:center;gap:8px;background:var(--input);border-radius:14px;padding:10px 14px}
+.msgsearch svg{width:18px;height:18px;opacity:.55}.msgsearch input{flex:1;border:0;background:transparent;font:inherit;color:var(--ink);outline:none}
+.mlist{border-radius:18px;overflow:hidden;background:var(--card)}
+.mrow{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.mrow:last-child{border-bottom:0}
+.mrow-acts{position:absolute;inset:0 auto 0 0;display:flex;width:150px}
+.mrow-acts button{flex:1;border:0;color:#fff;font-size:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.mrow-acts button span{font-size:12px;font-weight:700}
+.ma-unread{background:#25A55F}.ma-pin{background:#5B6B7C}
+.mrow-front{position:relative;display:flex;gap:12px;align-items:center;padding:12px 14px;background:var(--card);color:inherit;text-decoration:none;transition:transform .2s ease;touch-action:pan-y}
+.mav{width:48px;height:48px;border-radius:50%;flex:0 0 48px;display:grid;place-items:center;color:#fff;font-weight:800;font-size:19px}
+.mprev{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--soft)}.mprev.on{color:var(--ink);font-weight:700}
+.mnew{color:#25A55F;font-weight:700}
+.mcnt{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#25A55F;color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center}
+
+/* Agenda du coach : grille horaire façon Google Agenda */
+.calcard{padding:8px 6px;overflow:hidden}
+.cgrid{position:relative;display:grid;overflow:hidden}
+.chrs{position:relative}.chrs span{position:absolute;left:0;font-size:10.5px;color:var(--soft);transform:translateY(-6px)}
+.ccol{position:relative;border-left:1px solid var(--line)}
+.ccol.today{background:color-mix(in srgb,var(--red) 5%,transparent)}
+.ccol>i{position:absolute;left:0;right:0;border-top:1px solid var(--line);opacity:.6}
+.ccol>em{position:absolute;left:-4px;right:0;border-top:2px solid #E5484D;z-index:3}
+.ccol>em::before{content:"";position:absolute;left:-1px;top:-5px;width:8px;height:8px;border-radius:50%;background:#E5484D}
+.cblk{position:absolute;left:3px;right:3px;z-index:2;border:0;border-radius:8px;padding:3px 6px;color:#fff;text-align:left;overflow:hidden;display:flex;flex-direction:column;font:inherit;line-height:1.2;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.cblk b{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cblk span{font-size:11px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cblk.auto{background:var(--card);border:1.5px dashed}
+.chead{display:grid;gap:0;margin-bottom:4px}.chead button{border:0;background:none;display:flex;flex-direction:column;align-items:center;color:var(--ink);font:inherit;padding:2px 0}
+.chead small{font-size:11px;color:var(--soft)}.chead b{font-size:15px;width:28px;height:28px;line-height:28px;border-radius:50%}.chead button.on b{background:var(--red);color:#fff}
+.csans{display:grid;gap:2px;margin-bottom:6px;align-items:start}.csans>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cchip{border:1.5px dashed var(--soft);background:none;border-radius:8px;font-size:11px;padding:2px 4px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cchip.done{border-style:solid;border-color:#22A45D;color:#22A45D}
+.cmh,.cmg{display:grid;grid-template-columns:repeat(7,1fr)}.cmh span{font-size:11px;color:var(--soft);text-align:center;padding:2px 0}
+.cmg button{min-height:74px;border:0;border-top:1px solid var(--line);background:none;display:flex;flex-direction:column;align-items:stretch;gap:2px;padding:3px 2px;color:var(--ink);font:inherit;min-width:0}
+.cmg button b{font-size:12px;text-align:center}.cmg button.on b{background:var(--red);color:#fff;border-radius:50%;width:22px;height:22px;line-height:22px;margin:0 auto}
+.cmg button.hors{opacity:.4}.cmg i{font-style:normal;font-size:10px;color:#fff;border-radius:4px;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cmg small{font-size:10px;color:var(--soft);text-align:center}
+.seg2{display:grid;grid-template-columns:1fr 1fr;gap:6px}.seg2 label{position:relative}.seg2 input{position:absolute;opacity:0}
+.seg2 span{display:block;text-align:center;padding:10px;border-radius:12px;border:1.5px solid var(--line);font-weight:700}.seg2 input:checked+span{border-color:var(--red);background:color-mix(in srgb,var(--red) 10%,transparent)}

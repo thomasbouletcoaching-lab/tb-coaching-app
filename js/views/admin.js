@@ -24,8 +24,8 @@ async function load(force = false) {
   const c = await cloud(); if (!c) { A.err = "Pas de connexion au serveur."; return; }
   try {
     await (c.currentSession().then(u => u || c.ensureSession()));
-    const [ms, sums, th, st, nut] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled", "dismiss", "events", "tags", "seances"]).catch(() => ({})), c.nutriRecent(7).catch(() => [])]);
-    A.members = ms.filter(m => m.name || m.email || th[m.id]); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.snapAt = Object.fromEntries(sums.map(x => [x.user_id, x.updated_at])); A.threads = th; A.nutri = {}; (nut || []).forEach(r => { (A.nutri[r.user_id] = A.nutri[r.user_id] || []).push(r); });
+    const [ms, sums, th, st, nut] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled", "dismiss", "events", "tags", "seances", "pins", "cal"]).catch(() => ({})), c.nutriRecent(7).catch(() => [])]);
+    A.members = ms.filter(m => m.name || m.email || th[m.id]); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.snapAt = Object.fromEntries(sums.map(x => [x.user_id, x.updated_at])); A.threads = th; window.__threads = th; A.nutri = {}; (nut || []).forEach(r => { (A.nutri[r.user_id] = A.nutri[r.user_id] || []).push(r); });
     A.store = { todo: st.todo?.items || [], biz: st.biz || BIZ0(), notes: st.notes || {}, handled: st.handled || {}, dismiss: st.dismiss || {}, events: st.events?.items || [], tags: st.tags || {}, seances: st.seances?.items || [] };
     A.store.biz.payments = A.store.biz.payments || []; A.store.biz.cycles = A.store.biz.cycles || []; A.store.biz.settings = A.store.biz.settings || {};
     A.invites = await c.invites().catch(() => []);
@@ -300,7 +300,7 @@ routes["admin-today"] = async () => {
     return true;
   });
   let vids = []; try { vids = await videosEnAttente(); } catch { }
-  frame("admin-today", `${homeHead()}${kpiBlock()}${liveNowBlock()}${blocAdmin(vids)}${alertsBlock()}${dayAthletes()}${eventsBlock()}${decrochageBlock()}${agendaBlock()}${todoBlock()}${fabBtn()}`, "Accueil");
+  frame("admin-today", `${homeHead()}${kpiBlock()}${liveNowBlock()}${blocAdmin(vids)}${alertsBlock()}${calendrier()}${decrochageBlock()}${todoBlock()}${fabBtn()}`, "Accueil");
 };
 
 routes.admin = async () => {
@@ -313,17 +313,33 @@ routes.admin = async () => {
 // =====================================================================
 // MESSAGES
 // =====================================================================
-let msgQ = "";
+let msgQ = "", msgF = "tous";
+const pins = () => A.store.pins?.ids || [];
+const hueOf = (id) => [...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
 routes["admin-msg"] = async () => {
   if (!(await guard("admin-msg"))) return;
-  const ms = (A.members || []).map(m => ({ m, th: A.threads[m.id] })).sort((a, b) => (b.th?.last?.created_at || "").localeCompare(a.th?.last?.created_at || ""));
-  const unread = ms.reduce((a, x) => a + (x.th?.unread || 0), 0);
-  const q = msgQ.toLowerCase(), shown = ms.filter(x => !q || first(x.m).toLowerCase().includes(q));
-  frame("admin-msg", `<h1 class="h1 mt8">Messages</h1><p class="small muted">${unread} message${unread > 1 ? "s" : ""} non lu${unread > 1 ? "s" : ""} · ${ms.length} membres</p>
-    <input class="inp mt8" id="msg-q" placeholder="Rechercher un client" value="${esc(msgQ)}" style="text-align:left">
-    <div class="card mt12" style="padding:4px 12px">${shown.map(({ m, th }) => { const l = th?.last, mine = l && l.sender !== m.id; return `<div class="row" style="gap:4px;align-items:center"><a class="li grow" href="#/chat/${m.id}" style="gap:12px"><span class="av ${th?.unread ? "on" : ""}">${esc(first(m)[0].toUpperCase())}</span><span class="grow" style="min-width:0"><span class="row between"><b>${esc(first(m))}</b><span class="xs muted">${l ? (l.created_at.slice(0, 10) === today() ? new Date(l.created_at).toTimeString().slice(0, 5) : fmtDate(l.created_at.slice(0, 10), { day: "numeric", month: "short" })) : ""}</span></span><span class="row between" style="gap:8px"><span class="small ${th?.unread ? "" : "muted"}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${th?.unread ? "font-weight:700" : ""}">${l ? `${mine ? "Toi : " : ""}${esc(l.body)}` : "Pas encore de message"}</span>${th?.unread ? `<span class="cnt">${th.unread}</span>` : ""}</span></span></a><button class="icon-btn" data-a="${th?.unread ? "msg-read" : "msg-unread"}" data-id="${m.id}" aria-label="${th?.unread ? "Marquer lu" : "Marquer non lu"}" title="${th?.unread ? "Marquer lu" : "Marquer non lu"}">${th?.unread ? "✓" : "●"}</button></div>`; }).join("") || `<p class="empty small">Aucun membre.</p>`}</div>`);
+  const P = pins();
+  const ms = (A.members || []).map(m => ({ m, th: A.threads[m.id], pin: P.includes(m.id) })).sort((a, b) => (b.pin - a.pin) || (b.th?.last?.created_at || "").localeCompare(a.th?.last?.created_at || ""));
+  const unread = ms.reduce((a, x) => a + (x.th?.unread ? 1 : 0), 0);
+  const q = msgQ.toLowerCase(), shown = ms.filter(x => (!q || first(x.m).toLowerCase().includes(q)) && (msgF === "tous" || (msgF === "nonlus" ? x.th?.unread : x.pin)));
+  const heure = (l) => l ? (l.created_at.slice(0, 10) === today() ? new Date(l.created_at).toTimeString().slice(0, 5) : l.created_at.slice(0, 10) === addDays(today(), -1) ? "Hier" : fmtDate(l.created_at.slice(0, 10), { day: "numeric", month: "short" })) : "";
+  frame("admin-msg", `<div class="row between mt8" style="align-items:flex-end"><h1 class="h1" style="margin:0">Discussions</h1><span class="xs muted">${unread ? `${unread} non lue${unread > 1 ? "s" : ""}` : "Tout est lu"}</span></div>
+    <div class="msgsearch mt12">${I.search}<input id="msg-q" placeholder="Rechercher un client" value="${esc(msgQ)}"></div>
+    <div class="mt8">${chips([["tous", "Toutes"], ["nonlus", `Non lues${unread ? " " + unread : ""}`], ["pins", "Épinglées"]], msgF, "msg-f")}</div>
+    <div class="mlist mt8">${shown.map(({ m, th, pin }) => { const l = th?.last, mine = l && l.sender !== m.id, u = th?.unread || 0;
+      return `<div class="mrow" data-mrow="${m.id}"><div class="mrow-acts"><button class="ma-unread" data-a="${u ? "msg-read" : "msg-unread"}" data-id="${m.id}">${u ? "✓<span>Lu</span>" : "●<span>Non lu</span>"}</button><button class="ma-pin" data-a="msg-pin" data-id="${m.id}">📌<span>${pin ? "Détacher" : "Épingler"}</span></button></div>
+        <a class="mrow-front" href="#/chat/${m.id}"><span class="mav" style="background:hsl(${hueOf(m.id)} 55% 45%)">${esc(first(m)[0].toUpperCase())}</span><span class="grow" style="min-width:0"><span class="row between"><b class="${u ? "" : ""}">${esc(first(m))}</b><span class="xs ${u ? "mnew" : "muted"}">${heure(l)}</span></span>
+          <span class="row between" style="gap:8px"><span class="small mprev ${u ? "on" : ""}">${l ? `${mine ? "<span class='muted'>Toi : </span>" : ""}${esc(l.body)}` : "<span class='muted'>Pas encore de message</span>"}</span><span class="row" style="gap:4px">${pin ? `<span class="xs">📌</span>` : ""}${u ? `<span class="mcnt">${u}</span>` : ""}</span></span></span></a></div>`; }).join("") || `<p class="empty small">Aucune discussion.</p>`}</div>
+    <p class="xs muted center mt8">Fais glisser une discussion vers la droite : non lu, épingler.</p>`);
   const i = document.getElementById("msg-q"); i?.addEventListener("input", () => { msgQ = i.value; clearTimeout(i._t); i._t = setTimeout(() => routes["admin-msg"](), 250); });
 };
+actions["msg-f"] = (b, d) => { msgF = d.v; routes["admin-msg"](); };
+actions["msg-pin"] = async (b, d) => { const P = pins(); A.store.pins = { ids: P.includes(d.id) ? P.filter(x => x !== d.id) : [...P, d.id] }; await saveStore("pins"); routes["admin-msg"](); };
+// Glisser une discussion vers la droite (comme WhatsApp) : les actions apparaissent dessous
+let mg = null;
+document.addEventListener("touchstart", (e) => { const f = e.target.closest?.(".mrow-front"); document.querySelectorAll(".mrow.open").forEach(r => { if (!f || r !== f.parentElement) { r.classList.remove("open"); r.querySelector(".mrow-front").style.transform = ""; } }); if (!f) return; const t = e.touches[0]; mg = { f, x: t.clientX, y: t.clientY, base: f.parentElement.classList.contains("open") ? 150 : 0, on: false }; }, { passive: true });
+document.addEventListener("touchmove", (e) => { if (!mg) return; const t = e.touches[0], dx = t.clientX - mg.x, dy = t.clientY - mg.y; if (!mg.on && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3) mg.on = true; if (!mg.on) return; const x = Math.max(0, Math.min(170, mg.base + dx)); mg.f.style.transition = "none"; mg.f.style.transform = `translateX(${x}px)`; }, { passive: true });
+document.addEventListener("touchend", (e) => { if (!mg) return; const g = mg; mg = null; if (!g.on) return; const dx = e.changedTouches[0].clientX - g.x, open = g.base + dx > 70; g.f.style.transition = ""; g.f.style.transform = open ? "translateX(150px)" : ""; g.f.parentElement.classList.toggle("open", open); g.f.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); }, { once: true, capture: true }); }, { passive: true });
 
 // =====================================================================
 // BUSINESS
@@ -619,7 +635,7 @@ actions["ev-new"] = (b, d) => {
     <label class="field mt8"><span>Athlète (facultatif)</span><select name="member"><option value="">–</option>${(A.members || []).map(m => `<option value="${m.id}">${esc(first(m))}</option>`).join("")}</select></label>
     <button class="btn btn-red mt12">Ajouter</button></form>`);
 };
-forms["ev-new"] = async (v) => { A.store.events = [...(A.store.events || []).filter(e => e.d >= addDays(today(), -60)), { id: Date.now(), d: v.d, time: v.time, dur: +v.dur || null, type: v.type, title: v.title.trim(), member: v.member || null }]; UI.agDay = v.d === today() ? null : v.d; closeSheet(); toast("Rendez-vous ajouté"); rerender(); await saveStore("events"); };
+forms["ev-new"] = async (v) => { A.store.events = [...(A.store.events || []).filter(e => e.d >= addDays(today(), -60)), { id: Date.now(), d: v.d, time: v.time, dur: +v.dur || null, type: v.type, title: v.title.trim(), member: v.member || null }]; UI.agDay = UI.calDay = v.d === today() ? null : v.d; closeSheet(); toast("Rendez-vous ajouté"); rerender(); await saveStore("events"); };
 actions["ev-del"] = async (b, d) => { if (!confirm("Supprimer ce rendez-vous ?")) return; A.store.events = (A.store.events || []).filter(e => e.id !== +d.id); rerender(); await saveStore("events"); };
 // Bouton + : les gestes les plus fréquents, depuis n'importe quel écran du coach
 const fabBtn = () => `<button class="fab" data-a="adm-fab" aria-label="Ajouter">${I.plus}</button>`;
@@ -846,4 +862,80 @@ actions["pre-mdp"] = async (b, d) => {
     sheet(`<h2 class="h2">🔑 Mot de passe défini</h2><div class="card mt12"><p class="small" style="margin:0;white-space:pre-wrap;word-break:break-all">${esc(txt)}</p></div><p class="xs muted mt8">Ce mot de passe n'est affiché qu'une fois : envoie-le maintenant. L'ancien ne marche plus.</p>
       <div class="row mt12" style="gap:8px"><button class="btn btn-red grow" data-a="adm-share" data-t="${esc(txt)}">Partager</button><button class="btn btn-line grow" data-a="adm-copy" data-t="${esc(txt)}">Copier</button></div>`);
   } catch (e) { toast(e.message); }
+};
+
+// =====================================================================
+// AGENDA DU COACH : jour, semaine, mois, façon Google Agenda
+// Séances des clients (avec moi ou en autonomie) et mes rendez-vous dans une même grille.
+// =====================================================================
+const H0 = 6, H1 = 23, PX = 52; // heures affichées, pixels par heure
+const calKey = (m, d) => m + "|" + d;
+const calOv = (m, d) => A.store.cal?.[calKey(m, d)] || null;
+function calItems(d) {
+  const out = agendaRows(d).filter(r => !r.me).map(r => { const o = calOv(r.m.id, d) || {}; return { k: "s", m: r.m, d, a: r.a, ip: r.ip, time: o.time || r.a.time || null, dur: +(o.dur || r.a.dur || 60), avec: o.avec ?? !!r.a.coach, name: r.name, st: r.ip ? "ip" : r.a.st }; });
+  (A.store.events || []).filter(e => e.d === d).forEach(e => { const [, lab, col] = evType(e.type), m = (A.members || []).find(x => x.id === e.member); out.push({ k: "e", e, d, time: e.time, dur: +(e.dur || 60), col, name: e.title + (m ? " · " + first(m) : ""), lab }); });
+  return out.sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
+}
+const toMin = (t) => { const [h, m] = String(t).split(":").map(Number); return h * 60 + (m || 0); };
+const STC = { done: "#22A45D", ip: "#E0A93B", missed: "#C8323F", planned: "#2F6FED" };
+function bloc(it, compact) {
+  const top = (toMin(it.time) - H0 * 60) / 60 * PX, h = Math.max(compact ? 20 : 26, it.dur / 60 * PX - 2);
+  if (it.k === "e") return `<button class="cblk" style="top:${top}px;height:${h}px;background:${it.col}" data-a="cal-ev" data-id="${it.e.id}"><b>${esc(it.name)}</b>${compact ? "" : `<span>${it.time} · ${esc(it.lab)}</span>`}</button>`;
+  const c = STC[it.st] || STC.planned;
+  return `<button class="cblk ${it.avec ? "" : "auto"}" style="top:${top}px;height:${h}px;${it.avec ? `background:${c}` : `border-color:${c};color:${c}`}" data-a="cal-s" data-m="${it.m.id}" data-d="${it.d}"><b>${it.avec ? "🤝 " : ""}${esc(it.name)}</b>${compact ? "" : `<span>${it.time} · ${esc(it.a.title || "Séance")}${it.st === "done" ? " · ✅" : it.st === "missed" ? " · ❌" : it.st === "ip" ? " · en cours" : ""}</span>`}</button>`;
+}
+function grille(days) {
+  const now = new Date(), nowTop = (now.getHours() * 60 + now.getMinutes() - H0 * 60) / 60 * PX, t = today();
+  const hours = Array.from({ length: H1 - H0 }, (_, i) => H0 + i);
+  const sansH = days.map(d => calItems(d).filter(it => !it.time));
+  return `${sansH.some(l => l.length) ? `<div class="csans" style="grid-template-columns:40px repeat(${days.length},1fr)"><span class="xs muted">sans heure</span>${sansH.map((l, i) => `<div>${l.map(it => it.k === "s" ? `<button class="cchip ${it.st}" data-a="cal-s" data-m="${it.m.id}" data-d="${days[i]}">${esc(it.name)}</button>` : "").join("")}</div>`).join("")}</div>` : ""}
+    <div class="cgrid" style="grid-template-columns:40px repeat(${days.length},1fr);height:${(H1 - H0) * PX}px">
+      <div class="chrs">${hours.map(h => `<span style="top:${(h - H0) * PX}px">${h}:00</span>`).join("")}</div>
+      ${days.map(d => `<div class="ccol ${d === t ? "today" : ""}" data-a="cal-vide" data-d="${d}">${hours.map(h => `<i style="top:${(h - H0) * PX}px"></i>`).join("")}${calItems(d).filter(it => it.time).map(it => bloc(it, days.length > 1)).join("")}${d === t && nowTop > 0 ? `<em style="top:${nowTop}px"></em>` : ""}</div>`).join("")}
+    </div>`;
+}
+function calendrier() {
+  const t = today(), d = UI.calDay || t, mode = UI.calMode || "jour";
+  const lun = addDays(d, -E.dowOf(d));
+  let titre, corps;
+  if (mode === "jour") { titre = (d === t ? "Aujourd'hui · " : "") + fmtDate(d, { weekday: "long", day: "numeric", month: "long" }); corps = grille([d]); }
+  else if (mode === "semaine") { const days = Array.from({ length: 7 }, (_, i) => addDays(lun, i)); titre = `Semaine du ${fmtDate(lun, { day: "numeric", month: "short" })}`;
+    corps = `<div class="chead" style="grid-template-columns:40px repeat(7,1fr)"><span></span>${days.map((k, i) => `<button class="${k === t ? "on" : ""}" data-a="cal-jour" data-v="${k}"><small>${["L", "M", "M", "J", "V", "S", "D"][i]}</small><b>${Number(k.slice(8))}</b></button>`).join("")}</div>${grille(days)}`; }
+  else { const m1 = d.slice(0, 8) + "01", deb = addDays(m1, -E.dowOf(m1)), cases = Array.from({ length: 42 }, (_, i) => addDays(deb, i)); titre = new Date(d + "T12:00:00").toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    corps = `<div class="cmois"><div class="cmh">${["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map(x => `<span>${x}</span>`).join("")}</div><div class="cmg">${cases.map(k => { const l = calItems(k); return `<button class="${k.slice(0, 7) !== d.slice(0, 7) ? "hors" : ""} ${k === t ? "on" : ""}" data-a="cal-jour" data-v="${k}"><b>${Number(k.slice(8))}</b>${l.slice(0, 3).map(it => `<i style="background:${it.k === "e" ? it.col : it.avec ? STC.planned : "var(--soft)"}">${esc(it.name.split(" ")[0])}</i>`).join("")}${l.length > 3 ? `<small>+${l.length - 3}</small>` : ""}</button>`; }).join("")}</div></div>`; }
+  const rows = agendaRows(d), faites = rows.filter(r => r.a.st === "done").length;
+  return `<div class="row between mt16" style="align-items:center"><b class="h2" style="margin:0">📅 Agenda</b><button class="btn btn-red btn-xs" style="width:auto" data-a="ev-new" data-d="${d}">+ Rendez-vous</button></div>
+    <div class="mt8">${seg([["jour", "Jour"], ["semaine", "Semaine"], ["mois", "Mois"]], mode, "cal-mode")}</div>
+    <div class="row between mt8" style="align-items:center"><button class="icon-btn" data-a="cal-nav" data-v="-1" aria-label="Précédent">${I.back}</button><b class="small center" style="text-transform:capitalize">${titre}</b><button class="icon-btn" data-a="cal-nav" data-v="1" aria-label="Suivant" style="transform:scaleX(-1)">${I.back}</button></div>
+    ${mode === "jour" && rows.length ? `<p class="xs muted center" style="margin:4px 0 0">${rows.length} séance${rows.length > 1 ? "s" : ""} client · ${faites} faite${faites > 1 ? "s" : ""} · <span style="color:${STC.planned}">■</span> avec moi · <span class="muted">□</span> en autonomie</p>` : ""}
+    <div class="card mt8 calcard" data-swipe="cal-nav">${corps}</div>`;
+}
+actions["cal-mode"] = (b, d) => { UI.calMode = d.v; rerender(); };
+actions["cal-nav"] = (b, d) => { const m = UI.calMode || "jour", cur = UI.calDay || today(); let n;
+  if (m === "mois") { const x = new Date(cur + "T12:00:00"); x.setDate(1); x.setMonth(x.getMonth() + +d.v); n = today(x); } else n = addDays(cur, (m === "semaine" ? 7 : 1) * +d.v);
+  UI.calDay = n === today() ? null : n; rerender(); };
+actions["cal-jour"] = (b, d) => { UI.calDay = d.v === today() ? null : d.v; UI.calMode = "jour"; rerender(); };
+actions["cal-vide"] = (b, d, e) => { if (e.target.closest(".cblk,.cchip")) return; const col = b.getBoundingClientRect(), y = e.clientY - col.top, mins = Math.round((H0 * 60 + y / PX * 60) / 15) * 15; const h = String(Math.floor(mins / 60)).padStart(2, "0"), m = String(mins % 60).padStart(2, "0"); actions["ev-new"](null, { d: d.d }); setTimeout(() => { const i = document.querySelector('form[data-f="ev-new"] [name=time]'); if (i) i.value = `${h}:${m}`; }, 50); };
+actions["cal-ev"] = (b, d) => { const e = (A.store.events || []).find(x => x.id === +d.id); if (!e) return; const [, lab, col] = evType(e.type), m = (A.members || []).find(x => x.id === e.member);
+  sheet(`<h2 class="h2">${esc(e.title)}</h2><p class="small"><span style="color:${col}">■</span> ${esc(lab)} · ${fmtDate(e.d, { weekday: "long", day: "numeric", month: "long" })} · ${e.time}${e.dur ? ` · ${e.dur} min` : ""}${m ? `<br>Avec ${esc(first(m))}` : ""}</p>
+    <div class="row mt12" style="gap:8px">${m ? `<button class="btn btn-line grow" data-a="go" data-r="member" data-p="${m.id}">Fiche</button>` : ""}<button class="btn btn-line grow" style="color:var(--red)" data-a="ev-del" data-id="${e.id}">Supprimer</button></div>`); };
+// Séance d'un client : avec moi (heure partagée dans son agenda) ou en autonomie
+actions["cal-s"] = (b, d) => {
+  const m = A.members.find(x => x.id === d.m), it = calItems(d.d).find(x => x.k === "s" && x.m.id === d.m); if (!m || !it) return;
+  sheet(`<h2 class="h2">${esc(first(m))} · ${esc(it.a.title || "Séance")}</h2><p class="small muted">${fmtDate(d.d, { weekday: "long", day: "numeric", month: "long" })} · ${({ done: "✅ faite", missed: "❌ loupée", ip: "⏱️ en cours", planned: "prévue" })[it.st] || ""}</p>
+    <form data-f="cal-s" data-m="${esc(d.m)}" data-d="${esc(d.d)}" class="mt12">
+      <div class="seg2"><label><input type="radio" name="avec" value="1" ${it.avec ? "checked" : ""}><span>🤝 Avec moi</span></label><label><input type="radio" name="avec" value="0" ${it.avec ? "" : "checked"}><span>🏃 En autonomie</span></label></div>
+      <div class="grid2 mt8"><label class="field"><span>Jour</span><input type="date" name="to" value="${esc(d.d)}" required></label><label class="field"><span>Heure</span><input type="time" name="time" value="${esc(it.time || "")}"></label></div>
+      <label class="field mt8"><span>Durée</span><select name="dur">${[30, 45, 60, 75, 90, 120].map(x => `<option value="${x}" ${x === it.dur ? "selected" : ""}>${x} min</option>`).join("")}</select></label>
+      <p class="xs muted">L'heure et « avec Thomas » apparaissent dans son agenda à lui aussi.</p>
+      <button class="btn btn-red mt8">Enregistrer</button></form>
+    <div class="row mt8" style="gap:8px"><button class="btn btn-line grow" data-a="go" data-r="member" data-p="${m.id}">Fiche</button>${it.st === "ip" ? `<button class="btn btn-line grow" data-a="go" data-r="live" data-p="${m.id}">Direct</button>` : ""}</div>`);
+};
+forms["cal-s"] = async (v, f) => {
+  const mId = f.dataset.m, d0 = f.dataset.d, to = v.to || d0, avec = v.avec === "1";
+  A.store.cal = { ...(A.store.cal || {}) }; delete A.store.cal[calKey(mId, d0)];
+  A.store.cal[calKey(mId, to)] = { time: v.time || null, dur: +v.dur || 60, avec };
+  if (to !== d0) { const s = A.sums[mId]; const a = s?.agenda?.find(x => x.d === d0); if (a) a.d = to; }
+  closeSheet(); UI.calDay = to === today() ? null : to; rerender();
+  try { const c = await cloud(); await c.coachSlotSet(mId, d0, to, v.time || null, avec, +v.dur || 60); await saveStore("cal"); toast(avec ? "Séance avec toi, partagée dans son agenda" : "Séance en autonomie enregistrée"); } catch (e) { toast("Enregistrement impossible : " + e.message); }
 };

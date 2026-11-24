@@ -234,11 +234,13 @@ async function currentUserIdSb() { const { data } = await sb.auth.getSession(); 
 // Décalages de séances posés par le coach (table cxs_coach_slots). Le membre les lit, le coach les écrit.
 export async function coachSlots() {
   if (!uid) await ensureSession();
-  const { data, error } = await sb.from("cxs_coach_slots").select("orig_d,new_d,new_time,updated_at");
+  const { data, error } = await sb.from("cxs_coach_slots").select("orig_d,new_d,new_time,avec_coach,duree,updated_at");
   if (error) throw error; return data || [];
 }
-export async function coachSlotSet(memberId, origD, newD, newTime) {
-  const { error } = await sb.from("cxs_coach_slots").upsert({ user_id: memberId, orig_d: origD, new_d: newD, new_time: newTime || null, updated_at: new Date().toISOString() });
+export async function coachSlotSet(memberId, origD, newD, newTime, avec = null, duree = null) {
+  const row = { user_id: memberId, orig_d: origD, new_d: newD, new_time: newTime || null, updated_at: new Date().toISOString() };
+  if (avec != null) row.avec_coach = !!avec; if (duree) row.duree = +duree;
+  const { error } = await sb.from("cxs_coach_slots").upsert(row);
   if (error) throw error;
 }
 

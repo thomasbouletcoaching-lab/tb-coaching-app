@@ -330,8 +330,9 @@ actions["notif-open"] = async (b, d) => {
   b.classList.toggle("open");
   if (!n.read) { n.read = true; n.garde = true; drawNotifs(); document.querySelector(`[data-a="notif-open"][data-id="${n.id}"]`)?.classList.add("open"); try { (await cloud()).notifRead([n.id]); } catch { } }
 };
-actions["msg-unread"] = async (b, d) => { try { await (await cloud()).markUnread(d.id); toast("Remis en non lu"); go("admin-msg"); } catch (e) { toast(e.message); } };
-actions["msg-read"] = async (b, d) => { try { await (await cloud()).markRead(d.id); go("admin-msg"); } catch (e) { toast(e.message); } };
+const majFil = (id, u) => { const th = window.__threads?.[id]; if (th) th.unread = u; };
+actions["msg-unread"] = async (b, d) => { try { await (await cloud()).markUnread(d.id); majFil(d.id, 1); toast("Marquée non lue"); if (R.route === "admin-msg") render(); else go("admin-msg"); } catch (e) { toast(e.message); } };
+actions["msg-read"] = async (b, d) => { try { await (await cloud()).markRead(d.id); majFil(d.id, 0); if (R.route === "admin-msg") render(); else go("admin-msg"); } catch (e) { toast(e.message); } };
 actions["notif-all"] = async () => { const ids = NL.filter(n => !n.read).map(n => n.id); NL.forEach(n => n.read = true); NL = []; drawNotifs(); clearAppBadge(); try { (await cloud()).notifRead(ids); } catch { } };
 actions["push-on"] = async (b) => { try { b && (b.disabled = true); await enablePush(); toast("🔔 Notifications activées"); const c = await cloud(); await c.pushTest().catch(() => { }); closeSheet(); rerender(); } catch (e) { toast(e.message); if (b) b.disabled = false; } };
 actions["push-off"] = async () => { await disablePush(); toast("Notifications coupées sur ce téléphone"); rerender(); };
