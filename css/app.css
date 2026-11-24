@@ -825,8 +825,8 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 .modesw a.on{background:linear-gradient(135deg,var(--red2),var(--red));color:#fff;box-shadow:0 2px 8px rgba(47,111,237,.35)}
 
 /* Saisie du coach à la place d'un client */
-.proxybar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,var(--red2),var(--red));color:#fff;font-size:14px}
-.proxybar button{background:#fff;color:#111;border:0;border-radius:14px;padding:6px 14px;font-weight:700}
+.proxybar{position:fixed;left:12px;right:12px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:80;display:flex;align-items:center;gap:10px;padding:10px 12px 10px 16px;border-radius:20px;box-shadow:0 8px 24px rgba(0,0,0,.25);background:linear-gradient(135deg,var(--red2),var(--red));color:#fff;font-size:14px}
+.proxybar button{background:#fff;color:#111;border:0;border-radius:14px;padding:10px 16px;font-weight:700;font-size:15px}
 
 .top:has(.modesw) h1{font-size:clamp(15px,4.3vw,19px);overflow-wrap:break-word}
 

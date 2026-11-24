@@ -485,8 +485,18 @@ actions.finish = async () => {
   if (!MIRROR || !S().current?.mirror) return baseFinish();
   if (isCoach()) {
     if (!confirm("Terminer la séance en direct de ce client ?")) return;
-    try { const c = await cloud(); const r = await c.liveGet(MIRROR.id); await c.liveSet(MIRROR.id, { ...(r?.state || {}), ended: true, endedAt: nowIso(), session: strip(S().current) }); } catch (e) { return toast("Impossible : " + e.message); }
-    return leaveMirror("Séance terminée");
+    const id = MIRROR.id, fin = strip(S().current);
+    try { const c = await cloud(); const r = await c.liveGet(id); await c.liveSet(id, { ...(r?.state || {}), ended: true, endedAt: nowIso(), session: fin }); } catch (e) { return toast("Impossible : " + e.message); }
+    // Enregistrement direct dans le carnet du client (côté serveur), sans attendre qu'il ouvre son application
+    clearInterval(MIRROR?.timer); clearTimeout(pushT); MIRROR = null; E.setHist(null); update(st => { st.current = null; });
+    try {
+      const c = await cloud(), md = await c.memberData(id), { saisieStart, saisieStop } = await import("../saisie.js");
+      await saisieStart(id, "", md?.data || {});
+      try { if (!(S().workouts || []).some(w => String(w.id) === String(fin.id)) && fin.exercises?.some(e => e.sets.some(x => x.done))) { update(st => { st.current = fin; }); E.finishSession(S().current); } }
+      finally { await saisieStop(); }
+      toast("Séance terminée et enregistrée chez le client");
+    } catch (e) { toast("Séance terminée, enregistrement à vérifier : " + e.message); }
+    return go("member", id);
   }
   const id = MIRROR.id; baseFinish();
   if (!S().current) { clearInterval(MIRROR?.timer); MIRROR = null; E.setHist(null); try { const c = await cloud(); const r = await c.liveGet(id); await c.liveSet(id, { ...(r?.state || {}), ended: true, endedAt: nowIso() }); } catch { } LIVE_NOW = null; }

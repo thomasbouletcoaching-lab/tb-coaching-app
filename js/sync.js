@@ -168,6 +168,7 @@ export async function pullSaisies() {
     for (const r of rows) {
       const p = r.payload || {};
       st.workouts = (st.workouts || []).filter(w => !(p.wDel || []).includes(String(w.id)) && !(p.workouts || []).some(x => String(x.id) === String(w.id)));
+      if (st.current && (p.workouts || []).some(x => String(x.id) === String(st.current.id))) st.current = null; // séance terminée par le coach
       st.workouts.push(...(p.workouts || [])); st.workouts.sort((a, b) => String(a.start).localeCompare(String(b.start)));
       for (const [d, l] of Object.entries(p.foodDel || {})) st.food[d] = (st.food[d] || []).filter(e => !l.includes(String(e.id)));
       for (const [d, l] of Object.entries(p.food || {})) st.food[d] = [...(st.food[d] || []).filter(e => !l.some(x => String(x.id) === String(e.id))), ...l];

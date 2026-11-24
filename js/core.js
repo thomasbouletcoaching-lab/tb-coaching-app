@@ -143,8 +143,8 @@ export const badges = { msgs: 0, notifs: 0 };
 const TAB_TITLES = ["Accueil", "Entraînement", "Nutrition", "Communauté", "Coaching", "Profil"]; // déjà affichés dans la barre du bas
 export function header(title, sub = "", { back = null, actions = "", offers = true } = {}) {
   const demo = false ? `<div class="demo-bar"><span class="grow">Démo · <b>${esc(offer(S().demoTier).name)}</b></span><button data-a="demo-choose">Choisir</button><button data-a="demo-exit">Quitter</button></div>` : "";
-  const lead = back ? `<button class="icon-btn" ${back === "__hist" ? `data-a="hist-back"` : `data-a="go" data-r="${back}"`} aria-label="Retour">${I.back}</button>` : "";
-  const px = proxyInfo ? `<div class="proxybar"><span class="grow">✍️ Tu saisis pour <b>${esc(proxyInfo.name || "le client")}</b></span><button data-a="saisie-fin">Terminer</button></div>` : "";
+  const lead = back ? `<button class="icon-btn" ${back === "__hist" || (coachMode() && !COACH_R.test(back)) ? `data-a="hist-back"` : `data-a="go" data-r="${back}"`} aria-label="Retour">${I.back}</button>` : "";
+  const px = proxyInfo ? `<div class="proxybar" role="status"><span class="grow">✍️ Tu saisis pour <b>${esc(proxyInfo.name || "le client")}</b></span><button data-a="saisie-fin">Terminer</button></div>` : "";
   return px + demo + `<header class="top"><div class="row1">${lead}<h1>${!back && TAB_TITLES.includes(title) ? "" : title}</h1>
     ${actions}<button class="pill ic" data-a="notifs" aria-label="Notifications">${I.bell}${badges.notifs ? `<span class="badge">${badges.notifs}</span>` : ""}</button>
     ${isCoach() || (S().me?.isCoach && !S().demoTier) ? `<span class="modesw" role="group" aria-label="Changer de mode"><a href="./coach.html" class="${APP_MODE === "coach" ? "on" : ""}" ${APP_MODE === "coach" ? 'aria-current="true"' : 'aria-label="Passer en mode coach"'}>Coach</a><a href="./" class="${APP_MODE === "coach" ? "" : "on"}" ${APP_MODE === "coach" ? 'aria-label="Passer en mode athlète"' : 'aria-current="true"'}>Athlète</a></span>` : !offers ? "" : `<button class="pill" data-a="go" data-r="offers">🚀 ${rank() >= 2 ? "Coaching" : "Offres"}</button>`}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</header>`;
@@ -223,7 +223,9 @@ export const onLeave = (fn) => stops.add(fn);
 export function render() {
   const h = location.hash.replace(/^#\/?/, "").split("/");
   R.route = h[0] || "home"; R.param = h[1] ? decodeURIComponent(h[1]) : null; R.param2 = h[2] ? decodeURIComponent(h[2]) : null;
-  noteTrail(R.route);
+  noteTrail(h.filter(Boolean).join("/") || "home");
+  // Saisie pour un client : dès qu'on quitte ses écrans (séance, journal), on enregistre chez lui et on revient à son propre espace
+  if (proxyInfo && !PROXY_OK.includes(R.route)) { import("./saisie.js").then(m => m.saisieStop()).then(() => render()); return; }
   // L'app coach s'ouvre sur l'espace coach, seulement pour un compte coach (sinon : accueil client, sans boucle)
   if (APP_MODE === "coach" && R.route === "home") R.route = isCoach() ? "admin-today" : "account"; // app coach : connexion directe, sans onboarding
   if (!S().profile && !["onboarding", "x", "privacy", "account", "partage"].includes(R.route)) R.route = "onboarding";
@@ -253,12 +255,20 @@ function centerChips() { document.querySelectorAll(".chips:not(.wrap)").forEach(
 export const actions = {}, forms = {}, changes = {};
 // Pile des écrans visités : la flèche retour du coach revient à l'écran précédent, sauf s'il s'agissait d'un écran « athlète » (il retombe alors sur Athlètes)
 const trail = [];
-export const noteTrail = (r) => { if (trail.at(-1) !== r) trail.push(r); if (trail.length > 30) trail.shift(); };
+const PROXY_OK = ["workout", "done", "food", "carnet", "fiche", "train", "body", "meals", "recette", "aliment"];
+export const noteTrail = (r) => { if (trail.at(-1) !== r) trail.push(r); if (trail.length > 40) trail.shift(); };
 const COACH_R = /^(admin|member|live|chat|msg|coach)/;
+// Dans l'app coach, le retour remonte au dernier écran coach visité (fiche du client, liste…), jamais vers un écran « athlète »
+function coachBack() {
+  const cur = trail.at(-1);
+  for (let i = trail.length - 2; i >= 0; i--) { const t = trail[i]; if (t !== cur && COACH_R.test(t)) { trail.length = i; location.hash = "#/" + t; return; } }
+  trail.length = 0; go("admin");
+}
+export const coachMode = () => APP_MODE === "coach" && isCoach();
 actions["hist-back"] = () => {
-  const prev = trail.length > 1 ? trail.at(-2) : null;
-  if (APP_MODE === "coach" && isCoach() && (!prev || !COACH_R.test(prev))) return go("admin");
-  if (history.length > 1) { trail.pop(); history.back(); } else go(isCoach() ? "admin" : "home");
+  if (proxyInfo) return actions["saisie-fin"]?.();
+  if (coachMode()) return coachBack();
+  if (history.length > 1) { trail.pop(); history.back(); } else go("home");
 };
 export function installEvents() {
   document.addEventListener("click", async (e) => {
