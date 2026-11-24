@@ -18,3 +18,11 @@ test("redondance et pistes pour raccourcir", () => {
   const r = F.raccourcir([{ name: "Développé couché barre", sets: s(4), rest: 120 }, { name: "Rowing assis machine", sets: s(4), rest: 90 }]);
   assert.equal(r.ss.length, 1); assert.ok(r.ss[0].anta);
 });
+test("pièges de noms corrigés", () => {
+  assert.equal(F.headsOf("Curl barre debout").d[0], "bic_long");
+  assert.equal(F.headsOf("Curl haltères assis").d[0], "bic_long");
+  assert.equal(F.headsOf("Reverse fly haltères").d[0], "delt_post");
+  assert.equal(F.headsOf("Rowing haltère banc incliné").d[0], "dors_inf");
+  assert.equal(F.headsOf("Kickback poulie").d[0], "gd_fess");
+  assert.equal(F.headsOf("Leg curl allongé").d[0], "bf_court");
+});

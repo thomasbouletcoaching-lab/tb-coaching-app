@@ -15,7 +15,7 @@ export const MODELES = [
   // Force
   { id: "lin5", g: "Force", n: "Linéaire 5×5", d: "5×5 à 75 % du 1RM, +2,5 % par semaine. Simple et efficace en début de cycle de force.", f: (x) => { format(x, 5, 5, 5, { pct: 75, rpe: null }); x.prog = { ...P0, load: "pct", step: 2.5 }; } },
   { id: "lin3", g: "Force", n: "3×3 progressif", d: "3×3 à 82 %, +2 % par semaine pendant 4 à 5 semaines, puis on refait un test.", f: (x) => { format(x, 3, 3, 3, { pct: 82, rpe: null }); x.prog = { ...P0, load: "pct", step: 2 }; } },
-  { id: "vague3", g: "Force", n: "Vague 3 semaines", d: "Semaine 1 à 80 %, 2 à 84 %, 3 à 88 %, puis on repart 2,5 % plus haut. Les reps baissent avec la charge.", f: (x) => { format(x, 4, 5, 5, { pct: 80, rpe: null }); x.prog = { ...P0, load: "auto", wave: [0, 4, 8], waveStep: 2.5, reps: { delta: -1, every: 1, min: 2 } }; } },
+  { id: "vague3", g: "Force", n: "Vague 3 semaines", d: "4×5 : semaine 1 à 80 %, 2 à 84 %, 3 à 88 %, puis on repart 2,5 % plus haut.", f: (x) => { format(x, 4, 5, 5, { pct: 80, rpe: null }); x.prog = { ...P0, load: "auto", wave: [0, 4, 8], waveStep: 2.5 }; } },
   { id: "chargeRepsBas", g: "Force", n: "Charge ↑, reps ↓", d: "4×8 → 4×7 → 4×6… : chaque semaine +2,5 % et une rep de moins. Passage de l'hypertrophie à la force.", f: (x) => { format(x, 4, 8, 8, { pct: 70, rpe: null }); x.prog = { ...P0, load: "pct", step: 2.5, reps: { delta: -1, every: 1, min: 3 } }; } },
   { id: "rpeMonte", g: "Force", n: "Même format, RPE qui monte", d: "Le format ne bouge pas (ex. 3×5), la charge suit le RPE : 7 → 7,5 → 8 → 8,5 → 9. Idéal quand on ne connaît pas bien son 1RM.", f: (x) => { const n = x.sets.filter(work).length || 3, lo = x.sets.find(work)?.lo || 5; format(x, n, lo, lo, { rpe: 7 }); x.prog = { ...P0, load: "auto", rpeUp: 0.5, rpeMax: 9 }; } },
   // Hypertrophie
@@ -41,7 +41,8 @@ export const INTENSIF = ["Dropset", "Rest-pause", "Cluster", "Isométrie", "Part
 
 // Indicateurs de la dernière fois → décision pour aujourd'hui
 // last : séries faites { kg, reps, rpe, trpe, lo, hi, pain }, cible : { lo, hi, rpe }
-export function decider(meth, last, cible, { step = 2.5, rest = 120 } = {}) {
+export function decider(meth, last, cible, { step = 2.5, rest } = {}) {
+  rest = rest ?? 120;
   const w = (last || []).filter(s => s.kg != null || s.reps != null); if (!w.length) return null;
   const rpe = w.reduce((a, s) => a + (s.rpe ?? s.trpe ?? cible.rpe ?? 8), 0) / w.length, ecart = rpe - (cible.rpe || 8);
   const repsOk = w.every(s => (s.reps || 0) >= (cible.hi || cible.lo || 8)), repsBas = w.some(s => (s.reps || 0) < (cible.lo || 8)), douleur = w.some(s => s.pain);

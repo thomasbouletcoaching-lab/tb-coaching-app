@@ -32,7 +32,7 @@ function detail(items, { semaine = null } = {}) {
       ${tens.length > 1 && (!nE || !nC) ? `<p class="xs muted mt4" style="margin-bottom:0">${!nE ? "Aucun exercice en étirement : pense à en varier un (ex. version inclinée, poulie derrière)." : "Que des exercices en étirement : un exercice en contraction compléterait."}</p>` : ""}
       ${semaine?.[m.id] != null ? `<p class="xs muted mt4" style="margin-bottom:0">Cette semaine avant cette séance : ${fr(semaine[m.id])} séries · repère ${repere(m.id).mav[0]}–${repere(m.id).mav[1]}</p>` : ""}</div>`;
   }).join("");
-  return `${red.length ? `<div class="card soft mt8" style="box-shadow:0 0 0 1.5px var(--warn) inset"><b class="small">♻️ Redondances</b>${red.map(r => `<p class="xs mt4" style="margin:4px 0 0"><b>${esc(r.a)}</b> et <b>${esc(r.b)}</b> travaillent les mêmes faisceaux (${r.heads.map(h => F.HEAD[h].n.toLowerCase()).join(", ")}) avec la même tension : remplace l'un par une variante ${r.t === "E" ? "en contraction" : "en étirement"}.</p>`).join("")}</div>` : ""}
+  return `${red.length ? `<div class="card soft mt8" style="box-shadow:0 0 0 1.5px var(--warn) inset"><b class="small">♻️ Redondances</b>${red.map(r => `<p class="xs mt4" style="margin:4px 0 0"><b>${esc(r.a)}</b> et <b>${esc(r.b)}</b> travaillent les mêmes faisceaux (${r.heads.map(h => F.HEAD[h].n.toLowerCase()).join(", ")}) avec la même tension : remplace l'un par une variante ${r.t === "E" ? "en contraction" : r.t === "C" ? "en étirement" : "qui vise un autre faisceau ou un autre angle"}.</p>`).join("")}</div>` : ""}
     ${rows || `<p class="empty">Aucune série de travail pour l'instant.</p>`}
     <p class="xs muted mt12">Une série compte 1 pour les faisceaux principaux et 0,5 pour les secondaires. Repères de séance : au-delà d'environ 8 à 10 séries pour un muscle (6 à 8 pour un petit muscle), les séries suivantes rapportent peu et fatiguent : c'est le volume poubelle.</p>`;
 }
@@ -67,7 +67,7 @@ actions["fx-presse"] = () => {
 };
 actions["fx-ss"] = (b, d) => { update(st => { const a = st.current.exercises, used = a.map(e => e.ss).filter(Boolean), l = "ABCDEFGH".split("").find(x => !used.includes(x)) || "A"; a[+d.a1].ss = l; a[+d.b1].ss = l; const [x] = a.splice(+d.b1, 1); a.splice(+d.a1 + 1, 0, x); }); closeSheet(); toast("Superset créé"); rerender(); };
 actions["fx-wu"] = (b, d) => { update(st => { const e = st.current.exercises[+d.x]; let n = e.sets.filter(s => s.type === "W" && !s.done).length - 1; e.sets = e.sets.filter(s => !(s.type === "W" && !s.done && n-- > 0)); }); closeSheet(); toast("Échauffement allégé"); rerender(); };
-actions["fx-cut"] = (b, d) => { update(st => { const e = st.current.exercises.find(x => x.name === d.n); if (!e) return; for (let k = 0; k < +d.v; k++) { const i = e.sets.map(s => !s.done && s.type !== "W").lastIndexOf(true); if (i > 0) e.sets.splice(i, 1); } }); closeSheet(); toast("Séries retirées"); rerender(); };
+actions["fx-cut"] = (b, d) => { update(st => { const e = [...st.current.exercises].reverse().find(x => x.name === d.n); if (!e) return; for (let k = 0; k < +d.v; k++) { const i = e.sets.map(s => !s.done && s.type !== "W").lastIndexOf(true); if (i >= 0 && e.sets.filter(s => s.type !== "W").length > 1) e.sets.splice(i, 1); } }); closeSheet(); toast("Séries retirées"); rerender(); };
 
 // ---------- Dans le créateur de programme : analyse d'une séance ou de la semaine ----------
 export function analyseProgramme(p, si = null) {

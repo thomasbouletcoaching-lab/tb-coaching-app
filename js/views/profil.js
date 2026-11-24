@@ -53,7 +53,7 @@ routes.monprofil = async () => {
   await X.loadExercices();
   const profils = profilDetecte(), pl = P.plancher(profils), total = totalSeances();
   const si = P.siAlorsDe(S().profil?.siAlors), t = today();
-  $app.innerHTML = header("Mon profil", "Ce qui te ressemble", { back: "more", offers: false }) + `<main class="page" style="padding-bottom:40px">
+  $app.innerHTML = header("Mon profil", "Ce qui te ressemble", { back: "profile", offers: false }) + `<main class="page" style="padding-bottom:40px">
     <div class="card mt12"><div class="lbl">Ton profil</div>
       ${profils.length ? `<div class="chips wrap mt8" role="list">${profils.map(p => `<span class="tag r" role="listitem">${esc(p.nom)}</span>`).join("")}</div>
         ${profils.map(p => `<div class="li" style="padding:10px 0;gap:8px;border-bottom:1px solid var(--line)"><span class="grow small"><b>${esc(p.nom)}</b><br><span class="xs muted">${esc(p.phrase)}</span></span></div>`).join("")}`

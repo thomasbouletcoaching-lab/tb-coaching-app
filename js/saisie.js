@@ -34,7 +34,7 @@ export const saisieActive = () => proxyActive();
 export async function saisieStart(id, name, data) {
   if (proxyActive()) return true;
   const me = S().me;
-  proxyStart(data, me, () => { clearTimeout(tmr); tmr = setTimeout(flush, 900); }, { id, name });
+  if (!proxyStart(data, me, () => { clearTimeout(tmr); tmr = setTimeout(flush, 900); }, { id, name })) return false;
   M = { id, name, base: baseOf() };
   return true;
 }
