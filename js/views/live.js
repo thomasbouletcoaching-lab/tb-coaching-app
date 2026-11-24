@@ -1,3 +1,4 @@
+import { proxyActive } from "../store.js";
 // Séance en direct partagée : le coach lance la séance d'un membre ; les deux la voient, la mettent à jour, et peuvent ajouter.
 // Le coach peut réorganiser, changer, supprimer exercices et séries, mettre types, techniques, RPE et superset.
 // Mise à jour toutes les 6 secondes quand l'écran est ouvert (pas de temps réel continu). Chaque geste est écrit tout de suite.
@@ -332,7 +333,7 @@ actions["live-self"] = async () => {
 };
 
 // Membre : bandeau sur l'accueil quand une séance tourne
-export async function pullLive() {
+export async function pullLive() { if (proxyActive()) return;
   if (isCoach()) return;
   try {
     const c = await cloud(); await c.ensureSession(); const r = await c.liveGet(c.userId());

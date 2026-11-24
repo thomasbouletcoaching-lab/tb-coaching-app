@@ -160,6 +160,8 @@ export async function pushData(data, summary) {
   const { data: cur, error: e0 } = await sb.from("cxs_member_data").select("data").eq("user_id", uid).maybeSingle();
   if (e0) throw e0;
   const prev = cur?.data || {};
+  // Version imposée par le serveur (compte réparé) que ce téléphone n'a pas encore reprise : on n'écrase rien
+  if (prev.forceReprise && (data.repriseAt || 0) < prev.forceReprise) return;
   // Un appareil sans aucun suivi n'efface jamais celui du serveur (séances, programme, journal, pesées) : il le retrouvera au démarrage
   const videLocal = !(data.workouts || []).length && !Object.keys(data.food || {}).length;
   const merged = videLocal && (prev.workouts || []).length ? { ...prev, ...Object.fromEntries(Object.entries(data).filter(([k]) => !["workouts", "plan", "daily", "customPrograms", "lifts", "profile", "current", "goals", "season", "moves", "exoNotes", "skips", "swaps"].includes(k))) } : { ...prev, ...data };

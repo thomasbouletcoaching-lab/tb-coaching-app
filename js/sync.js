@@ -18,6 +18,7 @@ export const hybridePourServeur = (h) => !h ? null : {
 };
 
 export async function syncProfile() {
+  if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   const c = await cloud(); if (!c || !S().profile) return;
   try {
     await c.ensureSession();
@@ -28,6 +29,7 @@ export async function syncProfile() {
   } catch (e) { console.warn("Synchronisation impossible :", e.message); }
 }
 export async function refreshMe() {
+  if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   const c = await cloud(); if (!c || !S().profile) return;
   try {
     if (!(await c.currentSession())) await c.ensureSession();
@@ -43,6 +45,7 @@ export async function refreshMe() {
   } catch (e) { console.warn(e.message); }
 }
 export function pushStats() {
+  if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   if (proxyActive()) return;
   const d = S().daily || {}, last = Object.keys(d).sort().at(-1);
   cloud().then(c => c?.touch({ workouts: S().workouts.length, lastWorkout: S().workouts.at(-1)?.end || null, weight: (last && d[last].weight) || S().profile?.weight, program: S().plan?.programId, week: S().plan?.week })).catch(() => { });
@@ -51,9 +54,10 @@ export function pushStats() {
 // Envoi des données au coach : après chaque changement (regroupé), au plus toutes les 20 secondes
 const keep = (obj, days) => { const cut = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10); return Object.fromEntries(Object.entries(obj || {}).filter(([k]) => k >= cut)); };
 export function snapshot() {
+  if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   const st = S(), t = today();
   const lifts = Object.fromEntries(Object.entries(st.lifts || {}).map(([k, h]) => [k, h.slice(-25)]));
-  const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, exoNotes: st.exoNotes || {}, skips: st.skips, swaps: st.swaps, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin },
+  const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, exoNotes: st.exoNotes || {}, repriseAt: st.repriseAt || 0, skips: st.skips, swaps: st.swaps, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin },
     // Suivi : bilans, anamnèse, témoignage, photos envoyées volontairement, essai
     checkins: (st.checkins || []).slice(-26), hybride: hybridePourServeur(st.hybride), anamnese: st.anamnese || null, programme: pourCoach(st.programme, !!st.anamnese?.consent), testimonial: st.testimonial || null, sharedPhotos: st.sharedPhotos || [], trialStart: st.trialStart || null, defi: st.defi || null,
     // Journal « Je craque » : uniquement avec l'accord explicite du membre ; sinon null, ce qui efface aussi une copie envoyée avant un retrait d'accord
@@ -90,10 +94,11 @@ export function snapshot() {
 }
 let tmr = null, last = 0;
 export function pushData(now = false) {
+  if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   if (!S().profile || !S().synced) return;
   clearTimeout(tmr);
   const wait = now ? 0 : Math.max(1500, (S().current ? 4000 : 20000) - (Date.now() - last));
-  tmr = setTimeout(async () => { const c = await cloud(); if (!c) return; try { const { data, summary } = snapshot(); await c.pushData(data, summary); last = Date.now(); await pushNutri(c).catch(() => { }); } catch (e) { console.warn("Envoi au coach impossible :", e.message); } }, wait);
+  tmr = setTimeout(async () => { if (proxyActive()) return; const c = await cloud(); if (!c) return; try { const { data, summary } = snapshot(); await c.pushData(data, summary); last = Date.now(); await pushNutri(c).catch(() => { }); } catch (e) { console.warn("Envoi au coach impossible :", e.message); } }, wait);
 }
 onSave(() => pushData());
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") pushData(true); });
@@ -101,6 +106,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 // Applique les décalages posés par le coach : séance déplacée (moves) et nouvelle heure (slots).
 // Chaque décalage n'est appliqué qu'une fois par version (updated_at), pour ne pas écraser un changement fait ensuite par le membre.
 export async function pullCoachSlots() {
+  if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   const c = await cloud(); if (!c || !S().profile) return;
   let rows; try { rows = await c.coachSlots(); } catch (e) { return; }
   if (!rows.length) return;
@@ -117,6 +123,7 @@ export async function pullCoachSlots() {
 
 // Réglages posés par le coach (bilans : jour, fréquence, questions ; échéances) : simplement copiés sur le téléphone
 export async function pullCoachSettings() {
+  if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   const c = await cloud(); if (!c || !S().profile || !c.myCoachSettings) return;
   try { if (!(await c.currentSession())) return; } catch { return; }
   await claimInvite(c);
@@ -139,6 +146,7 @@ export async function claimInvite(c, code = S().coachCode) {
 }
 
 export async function pullCoachPlan() {
+  if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   const c = await cloud(); if (!c || !S().profile) return;
   let row; try { row = await c.coachPlan(); } catch (e) { return; }
   if (!row || !Array.isArray(row.program?.s) || !row.program.s.length) return;
@@ -153,6 +161,7 @@ export async function pullCoachPlan() {
 
 // Totaux nutritionnels des 14 derniers jours, écrits dans nutri_daily (le coach les lit pour les alertes)
 async function pushNutri(c) {
+  if (proxyActive()) return;
   await c.ensureSession(); const uid = c.userId(); if (!uid) return;
   const rows = []; for (let i = 0; i < 14; i++) { const r = nutriRow(uid, addDays(today(), -i), false); if (r) rows.push(r); }
   if (rows.length) await c.pushNutri(rows);
@@ -160,6 +169,7 @@ async function pushNutri(c) {
 
 // Séances et repas saisis par le coach à ma place : appliqués ici une fois, puis marqués comme reçus
 export async function pullSaisies() {
+  if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   const c = await cloud(); if (!c?.mesSaisies || !S().profile || S().me?.isCoach) return;
   try { if (!(await c.currentSession())) return; } catch { return; }
   let rows; try { rows = await c.mesSaisies(); } catch { return; }
@@ -180,16 +190,19 @@ export async function pullSaisies() {
 
 // Appareil sans suivi (nouveau téléphone, ou app coach qui n'a jamais eu le sien) alors que le compte en a un côté serveur : on le retrouve,
 // au lieu de repartir de zéro et d'écraser la copie du serveur avec un suivi vide.
-const REPRISE = ["profile", "plan", "workouts", "food", "daily", "measures", "customPrograms", "moves", "exoNotes", "skips", "swaps", "season", "goals", "lifts", "checkins", "anamnese", "trialStart"];
+const REPRISE = ["settings", "profile", "plan", "workouts", "food", "daily", "measures", "customPrograms", "moves", "exoNotes", "skips", "swaps", "season", "goals", "lifts", "checkins", "anamnese", "trialStart"];
 let repriseFaite = false;
 export async function retrouverSuivi() {
+  if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   if (repriseFaite || proxyActive()) return; const st0 = S();
-  if (st0.workouts?.length || Object.keys(st0.food || {}).length || st0.current) return;
   repriseFaite = true;
   try {
     const c = await cloud(); if (!c || !(await c.currentSession?.())) return;
-    const d = await c.fetchMigrated(); if (!d?.workouts?.length) return;
-    update(st => { for (const k of REPRISE) if (d[k] != null) st[k] = d[k]; st.synced = true; });
+    const d = await c.fetchMigrated(); if (!d) return;
+    // Le serveur impose sa version (compte réparé ou fusionné) : ce téléphone la reprend, même s'il avait déjà un suivi
+    const force = d.forceReprise && d.forceReprise > (st0.repriseAt || 0);
+    if (!force && (st0.workouts?.length || Object.keys(st0.food || {}).length || st0.current || !d.workouts?.length)) return;
+    update(st => { for (const k of REPRISE) if (d[k] != null) st[k] = d[k]; if (force) { st.current = null; st.repriseAt = d.forceReprise; } st.synced = true; });
     const { toast } = await import("./core.js"); toast("Ton suivi a été retrouvé (" + d.workouts.length + " séances)"); location.reload();
   } catch { }
 }

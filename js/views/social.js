@@ -34,7 +34,7 @@ async function charger(force = false) {
 // Ce que l'accueil affiche sans attendre le réseau
 const resumeDe = (m) => ({ recusDepuis: m.recus_depuis || 0, demandes: m.demandes || 0, amis: m.amis || 0, donnes: m.donnes || 0, parJour: m.par_jour || {}, at: new Date().toISOString() });
 // Appelé régulièrement par app.js (toutes les 5 min), et au retour au premier plan
-export async function pullSocial() { try { if (!S().profile || isCoach()) return; await lierInvitation(); await charger(true); } catch { } }
+export async function pullSocial() { if (proxyActive()) return; try { if (!S().profile || isCoach()) return; await lierInvitation(); await charger(true); } catch { } }
 
 // ---------- Invitation reçue (lien ?r=CODE…) ----------
 // Lue au démarrage, avant tout écran : le code est gardé même si la personne n'a pas encore de profil.

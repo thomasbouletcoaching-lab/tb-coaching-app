@@ -1,3 +1,4 @@
+import { proxyActive } from "./store.js";
 // Bibliothèque partagée par le coach : aliments, recettes, exercices, vidéos, programmes.
 // Chargée depuis le serveur, gardée sur le téléphone pour marcher hors ligne.
 import * as E from "./engine.js";
@@ -21,7 +22,7 @@ export function applyLibrary() {
   E.extra.exercises = Object.fromEntries(by("exercise").map(r => [r.name, { fam: "", setup: "", cues: [], ...r.data }]));
   E.extra.videos = Object.fromEntries(by("video").map(r => [r.name, r.data.url]));
 }
-export async function refreshLibrary() {
+export async function refreshLibrary() { if (proxyActive()) return;
   const c = await cloud(); if (!c) return;
   try { await c.currentSession() || await c.ensureSession(); rows = await c.libraryAll(); localStorage.setItem(KEY, JSON.stringify(rows)); applyLibrary(); } catch (e) { console.warn("Bibliothèque indisponible :", e.message); }
 }
