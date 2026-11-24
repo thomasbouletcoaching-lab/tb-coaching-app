@@ -845,3 +845,12 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 .wkring{grid-template-columns:28px minmax(0,1fr) 28px}
 .wkring .wkdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
 .wkring .wd.fut svg{opacity:.7}
+
+/* Carnet : échauffement à part, note de série en ligne */
+.wubox{border:1.5px dashed var(--line);border-radius:14px;padding:10px 10px 4px;background:color-mix(in srgb,var(--warn,#e0a93b) 6%,transparent)}
+.wubox .set{border-bottom-color:transparent}
+.snote{grid-column:2/-1;border:0;border-bottom:1px dashed var(--line);background:transparent;color:var(--ink);font:inherit;font-size:13px;padding:4px 2px;min-width:0}
+.snote:focus{outline:none;border-bottom-color:var(--red)}
+.tick.sm{width:28px;height:28px;border-radius:9px;border:1.5px solid var(--line);background:none;display:grid;place-items:center;padding:0}
+.tick.sm.on{background:var(--good,#1e8f4e);border-color:transparent;color:#fff}
+.tick.sm svg{width:16px;height:16px}
