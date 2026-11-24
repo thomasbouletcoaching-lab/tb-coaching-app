@@ -154,7 +154,12 @@ function weekBody(t) {
   const W = N.weekType(), V = N.variants();
   const opt = (sel) => [["main", "Plan principal"], ...V.map(v => [v.id, v.name])].map(([id, n]) => `<option value="${id}" ${sel === id ? "selected" : ""}>${esc(n)}</option>`).join("");
   const mon = N.mondayOf(today()), days = Array.from({ length: 7 }, (_, i) => addDays(mon, i));
-  const rows = days.map((k, i) => { const dt = N.dayTarget(k), kind = N.dayKind(k), ch = N.cheatOn(k).length; return `<div class="li"><span class="em">${ch ? "🍕" : kind === "train" ? "🏋️" : "😌"}</span><span class="grow small"><b>${E.DAY_NAMES[i]}</b> ${k === today() ? "<span class=\"tag r\">Aujourd'hui</span>" : ""}<br><span class="xs muted">${ch ? "Cheat meal" : kind === "train" ? "Entraînement" : "Repos"}${dt.notes.length ? " · " + esc(dt.notes.join(" · ")) : ""}</span></span><b class="num">${fr(dt.kcal)}</b></div>`; }).join("");
+  // Chaque jour de la semaine s'ouvre comme une séance : ses repas prévus, et un bouton pour le modifier
+  const rows = days.map((k, i) => { const dt = N.dayTarget(k), kind = N.dayKind(k), ch = N.cheatOn(k).length, ml = N.planFor(k) || [], W2 = N.weekType(), vid = W2.mode === "days" ? W2.days?.[i] : null;
+    const kc = (m) => (m.items || []).reduce((a, x) => a + (x.kcal || 0), 0);
+    return `<details class="card mt8 plis" ${k === today() ? "open" : ""}><summary><span class="em">${ch ? "🍕" : kind === "train" ? "🏋️" : "😌"}</span> <b>${E.DAY_NAMES[i]}</b>${k === today() ? ` <span class="tag r">Aujourd'hui</span>` : ""}<span class="xs muted"> · ${fr(dt.kcal)} kcal · ${ml.length} repas</span></summary>
+      ${ml.length ? ml.map(m => `<div class="mt8"><div class="row between"><b class="small">${esc(m.name || "Repas")}</b><span class="xs muted">${fr(kc(m))} kcal</span></div><div class="xs muted">${(m.items || []).map(x => `${esc(x.label || x.n || "")}${x.g ? " " + fr(x.g) + " g" : ""}`).join(" · ") || "—"}</div></div>`).join("") : `<p class="small muted mt8">Pas encore de repas prévus ce jour-là.</p>`}
+      <div class="row mt8" style="gap:8px">${vid && vid !== "main" ? `<button class="btn btn-line btn-xs" data-a="var-edit" data-id="${esc(vid)}">✏️ Modifier ce jour</button>` : `<button class="btn btn-line btn-xs" data-a="wt-day-new" data-i="${i}">✏️ Un plan à part pour ce jour</button>`}<button class="btn btn-line btn-xs" data-a="food-goto" data-v="${k}">📝 Journal du jour</button></div></details>`; }).join("");
   const total = days.reduce((a, k) => a + N.dayTarget(k).kcal, 0);
   const cs = N.cheats().filter(c => c.d >= addDays(today(), -7));
   return `<div class="card mt12"><div class="lbl">🗓️ Ma semaine type</div>
@@ -174,8 +179,8 @@ function weekBody(t) {
       <button class="btn btn-red btn-sm" data-a="cheat-new" style="width:100%">+ Programmer un cheat meal</button>
       ${cs.length ? `<div class="list mt12">${cs.map(c => cheatLi(c)).join("")}</div>` : `<p class="xs muted mt8">Aucun plaisir programmé pour l'instant.</p>`}</div>
 
-    <h2 class="sec">📊 Cette semaine <small>${fr(total)} kcal · moyenne ${fr(total / 7)}</small></h2>
-    <div class="list">${rows}</div>
+    <h2 class="sec">📊 Ma semaine, jour par jour <small>${fr(total)} kcal · moyenne ${fr(total / 7)}</small></h2>
+    ${rows}
     <p class="xs muted mt8">La compensation d'un cheat meal est répartie sur le mois, et se limite à 15 % de tes calories par jour : au-delà, mieux vaut un repas plaisir plus petit qu'une semaine de restriction.</p>`;
 }
 const setWT = (fn) => update(st => { st.weekType = { ...N.weekType(), ...(st.weekType || {}) }; fn(st.weekType); });
@@ -195,7 +200,7 @@ const baseMeals = () => S().myPlan?.meals?.length ? S().myPlan.meals : N.dayPlan
 // Un plan par jour : crée une variante nommée comme le jour (copie du plan principal) et l'affecte à ce jour
 actions["wt-day-new"] = (b, d) => {
   const i = +d.i, id = "v" + Date.now() + i;
-  update(st => { st.planVariants = [...(st.planVariants || []), { id, name: E.DAY_NAMES[i], meals: JSON.parse(JSON.stringify(baseMeals())) }]; const w = st.weekType = { ...N.weekType(), ...(st.weekType || {}) }; w.days = [...(w.days || Array(7).fill("main"))]; w.days[i] = id; st.editVar = id; });
+  update(st => { st.planVariants = [...(st.planVariants || []), { id, name: E.DAY_NAMES[i], meals: JSON.parse(JSON.stringify(baseMeals())) }]; const w = st.weekType = { ...N.weekType(), ...(st.weekType || {}) }; w.mode = "days"; w.days = [...(w.days || Array(7).fill("main"))]; w.days[i] = id; st.editVar = id; });
   tab = "plan"; toast(`Plan du ${E.DAY_NAMES[i].toLowerCase()} créé : modifie-le aliment par aliment`); rerender(); window.scrollTo(0, 0);
 };
 actions["wt-days-all"] = () => {
@@ -1088,7 +1093,7 @@ function microPeek(d) {
   return `<div class="row between mt12" style="align-items:baseline"><b class="h3" style="margin:0">Micronutriments</b><button class="link small" data-a="food-tab" data-v="conseils">Tout voir</button></div>
     <div class="mpeek mt8">${keys.map(k => { const v = m[k] || 0, pc = Math.round(v / R[k].v * 100); return `<button class="card mp" data-a="food-tab" data-v="conseils"><svg viewBox="0 0 44 44">${ring(pc / 100, 44, 4.5, col[k])}<text x="22" y="26" text-anchor="middle" font-size="${k === "fib" ? 15 : 12}" font-weight="700" fill="${col[k]}">${ic[k]}</text></svg><span><span class="xs muted">${R[k].n}</span><br><b>${fr(v, v < 10 ? 1 : 0)} ${R[k].u}</b><br><span class="xs muted">${pc} % AJR</span></span></button>`; }).join("")}</div>`;
 }
-actions["food-goto"] = (b, d) => { day = d.v === today() ? null : d.v; rerender(); };
+actions["food-goto"] = (b, d) => { day = d.v === today() ? null : d.v; if (tab === "semaine") { tab = "journal"; window.scrollTo(0, 0); } rerender(); };
 actions["food-week"] = (b, d) => { let n = addDays(D(), 7 * +d.v); if (n > MAXF()) n = MAXF(); day = n === today() ? null : n; rerender(); };
 actions.flame = () => {
   const sr = streaks();

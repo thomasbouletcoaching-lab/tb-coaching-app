@@ -73,10 +73,13 @@ function readForm() {
   }));
 }
 function render() {
+  if (FD.open == null) FD.open = 0;
   const rows = FD.days.map((d, i) => {
     const m = dayMacros(FD.maintenance, FD.weight, FD.pk, FD.fk, d);
-    return `<div class="card mt8" style="padding:10px ${d.on ? "" : "; opacity:.6"}">
-      <div class="row between"><label class="row" style="gap:8px"><input type="checkbox" name="on${i}" ${d.on ? "checked" : ""} style="width:18px;height:18px;accent-color:var(--red)"><b>${esc(d.n)}</b></label>
+    // Chaque jour se replie comme une séance de la semaine : on ouvre le jour à écrire
+    return `<details class="card mt8 plis" data-day="${i}" ${FD.open === i ? "open" : ""} style="padding:10px;${d.on ? "" : "opacity:.65"}">
+      <summary><b>${esc(d.n)}</b> <span class="xs muted">· ${d.on ? `${fr(m.kcal)} kcal · ${(d.meals || []).length} repas` : "pas de consigne"}</span></summary>
+      <div class="row between mt8"><label class="row" style="gap:8px"><input type="checkbox" name="on${i}" ${d.on ? "checked" : ""} style="width:18px;height:18px;accent-color:var(--red)"><span class="small">Envoyer ce jour</span></label>
         <button type="button" class="ghost sm" data-a="fp-copy" data-v="${i}">Copier sur tous les jours</button></div>
       <div class="grid2 mt4"><label class="field"><span>Écart vs maintenance (%)</span><input name="adj${i}" inputmode="decimal" value="${fr(d.adj, 1)}" placeholder="−15 ou +10"></label>
       <label class="field"><span>Kcal (vide = calcul)</span><input name="kcal${i}" inputmode="numeric" value="${d.kcal != null ? Math.round(d.kcal) : ""}" placeholder="${m.kcal}"></label></div>
@@ -85,7 +88,7 @@ function render() {
         ${(ml.items || []).map((it, ii) => `<div class="row" style="gap:6px;align-items:center"><span class="grow xs">${esc(it.label)} · ${fr(it.g)} g · ${fr(it.kcal)} kcal</span><button type="button" class="icon-btn sm" data-a="cf-del" data-d="${i}" data-m="${mi}" data-i="${ii}" aria-label="Retirer">✕</button></div>`).join("")}
         <div class="row" style="gap:12px"><button type="button" class="link xs" data-a="cf-add" data-d="${i}" data-m="${mi}">+ Aliment</button><button type="button" class="link xs" data-a="cf-mdel" data-d="${i}" data-m="${mi}" style="color:var(--red)">Supprimer le repas</button></div></div>`).join("")}
       <div class="row mt8" style="gap:8px"><button type="button" class="ghost sm" data-a="cf-meal" data-d="${i}">+ Repas</button>${(d.meals || []).length ? `<button type="button" class="ghost sm" data-a="cf-mcopy" data-d="${i}">Copier les repas sur les autres jours</button>` : ""}</div>
-      <label class="field mt4"><span>Consignes du jour (facultatif)</span><textarea name="note${i}" rows="2" maxlength="600" placeholder="Ex. Petit-déj : 80 g flocons + 200 g skyr. Déjeuner : 150 g riz, 180 g poulet…">${esc(d.note)}</textarea></label></div>`;
+      <label class="field mt4"><span>Consignes du jour (facultatif)</span><textarea name="note${i}" rows="2" maxlength="600" placeholder="Ex. Petit-déj : 80 g flocons + 200 g skyr. Déjeuner : 150 g riz, 180 g poulet…">${esc(d.note)}</textarea></label></details>`;
   }).join("");
   $app.innerHTML = header("Plan alimentaire", esc(FD.memberName), { back: "member/" + R.param }) + `<main class="page"><form data-f="food-save" data-c="fp">
     <div class="card soft"><div class="lbl">Base du profil</div><p class="small mt4" style="margin:4px 0 0">Maintenance estimée : <b>${fr(FD.maintenance)} kcal</b> · ${esc(FD.ref.model || "")}<br><span class="xs muted">Repère du moteur : ${fr(FD.ref.kcal)} kcal · P ${fr(FD.ref.prot)} g · G ${fr(FD.ref.carbs)} g · L ${fr(FD.ref.fat)} g</span></p>
@@ -97,6 +100,7 @@ function render() {
     <button class="btn btn-red mt12" style="width:100%">Envoyer le plan au client</button></form></main>`;
 }
 changes.fp = () => { readForm(); render(); };
+document.addEventListener("toggle", (e) => { const d = e.target; if (FD && d?.dataset?.day != null && d.open) FD.open = +d.dataset.day; }, true);
 actions["fp-copy"] = (b, d) => {
   readForm(); const src = FD.days[+d.v];
   FD.days = FD.days.map((x, i) => i === +d.v ? x : { ...x, on: true, adj: src.adj, kcal: src.kcal, note: src.note });
