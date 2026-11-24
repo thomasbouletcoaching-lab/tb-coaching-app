@@ -6,7 +6,7 @@ import { S, update, today, proxyActive } from "../store.js";
 import { CONFIG, TRIAL_DAYS } from "../config.js";
 import * as SO from "../social.js";
 import * as E from "../engine.js";
-import { gradeOf, GRADES } from "../fx.js";
+import { gradeOf, GRADES, weightLike } from "../fx.js";
 import * as EN from "../energy.js";
 
 // ---------- État ----------
@@ -136,8 +136,18 @@ export async function imageStory(type, d, { code = monCode(), qui = profil()?.ps
       const tuiles = [[d.min ?? "–", "minutes"], [d.series || 0, "séries"], [d.tonnes ? fr(d.tonnes, 1) : "0", "tonnes"]], tw = (LW - 40) / 3;
       const th = det ? 140 : 250; tuiles.forEach(([v, l], i) => { const x = X + i * (tw + 20); c.fillStyle = "rgba(255,255,255,.1)"; rr(c, x, y, tw, th, det ? 28 : 36); c.fill(); c.fillStyle = "#fff"; c.font = F(800, det ? 60 : 96); c.fillText(String(v), x + 30, y + (det ? 78 : 140), tw - 50); c.fillStyle = "#C9DAFF"; c.font = F(600, det ? 26 : 36); c.fillText(l, x + 30, y + (det ? 118 : 205)); });
       y += th + (det ? 36 : 60);
-      if (det) { const g = d.medaille ? GRADES.find(x => x.name === d.medaille) : null, bits = [g ? `${g.icon} Grade ${g.name}` : "", d.records?.length ? `🏆 Record${d.records.length > 1 ? "s" : ""} : ${d.records.slice(0, 3).join(", ")}` : ""].filter(Boolean);
-        if (bits.length) { c.fillStyle = "#fff"; c.font = F(700, 32); lignes(c, bits.join("   "), LW, 2).forEach((l, i) => c.fillText(l, X, y + 30 + i * 42)); y += 30 + lignes(c, bits.join("   "), LW, 2).length * 42 + 20; }
+      if (det) {
+        // Médaille de la séance (comme en fin de séance) : disque du grade, nom, équivalent du tonnage, records
+        const g = d.medaille ? GRADES.find(x => x.name === d.medaille) : null, kg = (d.tonnes || 0) * 1000;
+        if (g) { const R = 62, cx = X + R, cy = y + R; const gr = c.createLinearGradient(cx - R, cy - R, cx + R, cy + R); gr.addColorStop(0, "rgba(255,255,255,.9)"); gr.addColorStop(1, g.color || "#4F82E0"); c.fillStyle = gr; c.beginPath(); c.arc(cx, cy, R, 0, 7); c.fill();
+          c.font = F(400, 64); c.textAlign = "center"; c.fillText(g.icon, cx, cy + 22); c.textAlign = "left";
+          const tx = X + R * 2 + 30, tw2 = LW - R * 2 - 30;
+          c.fillStyle = "rgba(255,255,255,.65)"; c.font = F(700, 24); c.fillText("GRADE DE LA SÉANCE", tx, y + 30);
+          c.fillStyle = g.color || "#fff"; c.font = F(800, 56); c.fillText(g.name, tx, y + 88, tw2);
+          if (kg >= 100) { const lk = weightLike(kg); c.fillStyle = "#fff"; c.font = F(600, 27); c.fillText(`${fr(d.tonnes, 1)} t : l'équivalent ${lk.txt.replace(/^une? /, m => m.startsWith("une") ? "d'une " : "d'un ").replace(/^(\d)/, "de $1")} ${lk.icon}`, tx, y + 126, tw2); }
+          y += R * 2 + 26; }
+        const nRec = d.nRecords || d.records?.length || 0;
+        if (nRec) { c.fillStyle = "#fff"; c.font = F(700, 30); c.fillText(`🏆 ${nRec} record${nRec > 1 ? "s" : ""}${d.records?.length ? " · " + d.records.slice(0, 3).join(", ") : ""}`, X, y + 30, LW); y += 54; }
         detailSeance(c, d, X, y, LW, H - 280); pied(c, W, H, code, lien, true); return await new Promise(res => cv.toBlob(res, "image/png")); }
       const g = d.medaille ? GRADES.find(x => x.name === d.medaille) : null;
       if (g) { const t = `${g.icon}  Grade ${g.name}`; c.font = F(800, 46); const w = c.measureText(t).width + 80; const gr = c.createLinearGradient(X, y, X + w, y); gr.addColorStop(0, "#2E5FC9"); gr.addColorStop(1, "#4F82E0"); c.fillStyle = gr; rr(c, X, y, w, 96, 48); c.fill(); c.fillStyle = "#fff"; c.fillText(t, X + 40, y + 64); y += 140; }
@@ -237,7 +247,7 @@ const derniere = () => S().workouts.at(-1);
 const seanceDe = (d) => (d?.k && S().workouts.find(w => cleSeance(w) === d.k)) || (d?.k ? null : derniere());
 actions["soc-story-w"] = async (b, d) => { const w = seanceDe(d); if (!w) return; closeSheet(); toast("Image en préparation…"); const code = await assurerCode(), r = recapDe(w);
   const notes = Object.fromEntries((w.exercises || []).map(e => [e.name, e.myNote || (e.sets || []).find(z => z.note)?.note || ""]));
-  const rr2 = { ...r, detail: (r.detail || []).map(e => ({ ...e, note: (notes[e.n] || "").slice(0, 70) })) };
+  const rr2 = { ...r, nRecords: (w.records || []).length + (w.exercises || []).reduce((a, e) => a + (e.recsHit || []).length, 0), detail: (r.detail || []).map(e => ({ ...e, note: (notes[e.n] || "").slice(0, 70) })) };
   const lien = await lienDe({ code, seance: r }), blob = await imageStory("seance", rr2, { code, lien }); if (!blob) return;
   await partagerImage(blob, "ma-seance-tb-my-coach.png", SO.texteSeance(r, lien)); buzz(15); };
 actions["soc-ami-w"] = async (b, d) => { const w = seanceDe(d); if (!w) return; closeSheet(); const code = await assurerCode(), r = recapDe(w);
