@@ -1,3 +1,4 @@
+import { regularite } from "./regularite.js";
 import { S, update, today } from "../store.js";
 import { alerteLigne } from "./douleur.js";
 import { verifierBadges } from "./trophees.js";
@@ -161,7 +162,7 @@ routes.home = async () => {
   const fs = EN.fastState();
   let body;
   if (R.param && ["today", "week", "month", "year"].includes(R.param)) { homeTab = R.param; R.param = null; }
-  if (homeTab === "week") body = agendaWeekView() + `<h2 class="sec">📊 Ta semaine en chiffres</h2>` + weekSummary();
+  if (homeTab === "week") { const rg = regularite({ vw: rgVw, act: "rg-vw" }); body = agendaWeekView() + rg.seances + rg.nutri + `<h2 class="sec">📊 Ta semaine en chiffres</h2>` + weekSummary(); }
   else if (homeTab === "month") body = agendaMonthView();
   else if (homeTab === "year") body = agendaYearView(seasonTimeline());
   else body = `${weekStrip(d)}
@@ -178,7 +179,7 @@ routes.home = async () => {
     <button class="card tap" data-a="go" data-r="food">${caloriesCard(d, true)}</button>
     ${recoveryMini(d)}
     ${fs ? `<button class="card tap mt12" data-a="go" data-r="food" data-p="jeune"><div class="row"><span style="font-size:30px">${fs.stage[1]}</span><div class="grow"><div class="lbl">⏳ Jeûne en cours</div><b class="h3">${Math.floor(fs.hours)} h ${String(Math.floor(fs.hours % 1 * 60)).padStart(2, "0")}</b><div class="xs muted">${esc(fs.stage[2])}</div></div>${I.chev}</div></button>` : ""}
-    ${d === today() ? `<h2 class="sec">🎮 Régularité</h2>` + triadeCard() + verifierBadges() : ""}
+    ${d === today() ? `<h2 class="sec">🎮 Régularité</h2>` + triadeCard() + regularite({ vw: rgVw, act: "rg-vw" }).seances + verifierBadges() : ""}
     ${d === today() ? liveBanner(true) + coachFoodCard() : ""}
     ${routineCard(d)}
     ${d === today() && rank() < 1 ? offersCard() : ""}
@@ -245,3 +246,7 @@ function pushCard() {
   return `<div class="card mt12 row" style="gap:12px;align-items:center"><span style="font-size:26px">🔔</span><span class="grow"><b class="small">Active les notifications</b><br><span class="xs muted">Fin de repos qui sonne même écran verrouillé, messages de Thomas, rappels.</span></span><div class="stack" style="gap:4px"><button class="btn btn-red btn-xs" data-a="push-on">Activer</button><button class="link xs" data-a="push-later">Plus tard</button></div></div>`;
 }
 actions["push-later"] = () => { update(st => { st.pushAsked = true; }); rerender(); };
+
+// Régularité : semaine précédente / suivante au doigt
+let rgVw = 0;
+actions["rg-vw"] = (b, d) => { rgVw = Math.min(0, rgVw + +d.v); rerender(true); };
