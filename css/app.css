@@ -849,7 +849,7 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 /* Carnet : échauffement à part, note de série en ligne */
 .wubox{border:1.5px dashed var(--line);border-radius:14px;padding:10px 10px 4px;background:color-mix(in srgb,var(--warn,#e0a93b) 6%,transparent)}
 .wubox .set{border-bottom-color:transparent}
-.snote{grid-column:2/-1;border:0;border-bottom:1px dashed var(--line);background:transparent;color:var(--ink);font:inherit;font-size:13px;padding:4px 2px;min-width:0}
+.snote{grid-column:2/5;border:0;border-bottom:1px dashed var(--line);background:transparent;color:var(--ink);font:inherit;font-size:12px;line-height:1.35;padding:3px 2px;min-width:0;resize:none;overflow:hidden;min-height:22px}
 .snote:focus{outline:none;border-bottom-color:var(--red)}
 .tick.sm{width:28px;height:28px;border-radius:9px;border:1.5px solid var(--line);background:none;display:grid;place-items:center;padding:0}
 .tick.sm.on{background:var(--good,#1e8f4e);border-color:transparent;color:#fff}
@@ -901,3 +901,9 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 .cmg button.hors{opacity:.4}.cmg i{font-style:normal;font-size:10px;color:#fff;border-radius:4px;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cmg small{font-size:10px;color:var(--soft);text-align:center}
 .seg2{display:grid;grid-template-columns:1fr 1fr;gap:6px}.seg2 label{position:relative}.seg2 input{position:absolute;opacity:0}
 .seg2 span{display:block;text-align:center;padding:10px;border-radius:12px;border:1.5px solid var(--line);font-weight:700}.seg2 input:checked+span{border-color:var(--red);background:color-mix(in srgb,var(--red) 10%,transparent)}
+
+.set .n{height:auto;min-height:46px;padding:4px 0}
+.set .n .npv{color:var(--soft);font-size:9px;font-weight:600;line-height:1.15;margin-top:2px;text-align:center}
+.tqbtn{grid-column:5;border:0;background:none;color:var(--soft);font-size:10.5px;font-weight:700;padding:2px 0;white-space:nowrap}
+.exfold{float:right;border:0;background:none;color:var(--soft);font-size:12px;font-weight:700;padding:2px 0 6px 8px}
+.exmini{display:flex;align-items:center;gap:12px;cursor:pointer;padding:14px 16px}

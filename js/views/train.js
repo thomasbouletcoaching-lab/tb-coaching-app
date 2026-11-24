@@ -547,7 +547,11 @@ function exerciseBlock(ex, xi) {
   let wi = 0, wu = 0;
   const stall = E.stalls().find(x => x.name === ex.name);
   const sugBox = ex.sug ? (premium() ? `<div class="sug">💡 <b>Suggestion</b> · ${esc(ex.sug.txt)}<br><span class="xs muted">Dernière fois : ${esc(ex.sug.last)}</span></div>` : `<div class="sug">💡 Dernière fois : <b>${esc(ex.sug.last)}</b> <button class="lock" data-a="go" data-r="offers" style="margin-left:4px">🔒 Suggestion Premium</button></div>`) : "";
-  return `<article class="card ex"><div class="head"><div class="grow">
+  // Exercice terminé ou replié à la main : une ligne de résumé, on rouvre d'un geste
+  const fin = ex.sets.filter(z => z.type !== "W"), nFait = fin.filter(z => z.done).length;
+  if (ex.closed) { const best = fin.filter(z => z.done).reduce((a, z) => (z.kg || 0) * (z.reps || 0) > (a?.kg || 0) * (a?.reps || 0) ? z : a, null);
+    return `<article class="card ex exmini" data-a="ex-fold" data-x="${xi}"><span class="em">${nFait === fin.length && fin.length ? "✅" : "▸"}</span><span class="grow"><b>${esc(ex.name)}</b><br><span class="xs muted">${nFait}/${fin.length} séries${best ? ` · meilleure ${best.kg ? fr(best.kg, 1) + " kg × " : ""}${best.reps ?? "–"}${best.rpe ? " @" + String(best.rpe).replace(".", ",") : ""}` : ""}</span></span><span class="xs muted">Ouvrir ▾</span></article>`; }
+  return `<article class="card ex"><button class="exfold" data-a="ex-fold" data-x="${xi}" aria-label="Replier l'exercice">▴ Replier</button><div class="head"><div class="grow">
       <div>${ex.ss ? `<span class="tag r">Superset ${esc(ex.ss)}</span>` : ""}<span class="tag">${E.KIND_LABEL[ex.kind] || ex.kind}</span>${ex.tempo ? `<span class="tag">Tempo ${esc(ex.tempo)}</span>` : ""}<span class="tag">⏱️ ${Math.floor(ex.rest / 60)}:${String(ex.rest % 60).padStart(2, "0")}</span></div>
       <h3 class="mt8">${esc(ex.name)} <button class="link xs" data-a="ex-hist" data-x="${xi}" style="font-weight:600">📈 Historique</button></h3><div class="xs muted mt4">🎯 ${targetTxt(ex)}${ex.name !== ex.orig ? ` · remplace ${esc(ex.orig)}` : ""}${adv() && ex.e1 ? ` · e1RM ${fr(ex.e1)} kg` : ""}</div>
       ${!ex.bw && ex.sets.every(s => !s.kg) ? `<div class="xs mt8 red">Première fois : choisis une charge qui te laisse 2 à 3 répétitions en réserve. L'app calcule la suite.</div>` : ""}
@@ -562,13 +566,13 @@ function exerciseBlock(ex, xi) {
       const row = (s, si) => {
       const lab = s.type === "W" ? "É" : String(++n);
       const pv = s.type === "W" ? prevWu[wu++] : prevW[wi++];
-      const meta = [s.type !== "N" ? `<span class="tag ${s.type === "W" ? "" : "r"}" ${s.type === "E" ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${E.SET_TYPES[s.type]}${s.type === "E" && s.tq?.["À l'échec"] != null ? ` à ${s.tq["À l'échec"]}` : ""}</span>` : "", ...(s.tech || []).map(t => `<span class="tag" ${E.TECH_DETAIL[t] ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${esc(t)}${E.techSummary(t, s.td?.[t]) ? ` · ${esc(E.techSummary(t, s.td[t]))}` : ""}</span>`), `<span>${s.lo !== s.hi ? `${s.lo}-${s.hi}` : s.lo} ${unit.toLowerCase()} · RPE ${String(s.trpe).replace(".", ",")}${adv() && s.pct ? ` · ${s.pct} %` : ""}</span>`, s.pain ? `<span class="tag" style="background:var(--warn);color:#fff">Douleur</span>` : "", s.note ? `<span>📝 ${esc(s.note)}</span>` : "", pv ? `<span class="prev">↺ ${esc(prevTxt(pv))}</span>` : ""].filter(Boolean).join("");
-      return `<div class="swwrap"><div class="swbg"><span>🗑️ Supprimer</span></div><div class="set ${s.done ? "done" : ""} ${s.type === "W" ? "w" : ""}" data-sw data-x="${xi}" data-s="${si}"><button class="n" data-a="set-menu" data-x="${xi}" data-s="${si}" aria-label="Notes et options de la série">${lab}${s.note || s.pain || (s.tech || []).length ? "" : `<small class="nhint">✎</small>`}${s.type !== "N" ? `<small>${s.type === "W" ? "échauf." : E.SET_TYPES[s.type].split(" ")[0].toLowerCase()}</small>` : ""}</button>
+      const meta = [s.type !== "N" ? `<span class="tag ${s.type === "W" ? "" : "r"}" ${s.type === "E" ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${E.SET_TYPES[s.type]}${s.type === "E" && s.tq?.["À l'échec"] != null ? ` à ${s.tq["À l'échec"]}` : ""}</span>` : "", ...(s.tech || []).map(t => `<span class="tag" ${E.TECH_DETAIL[t] ? `data-a="tq-edit" data-x="${xi}" data-s="${si}" style="cursor:pointer"` : ""}>${(E.TECHS.find(x => x[1] === t) || ["⚡"])[0]} ${esc(t)}${E.techSummary(t, s.td?.[t]) ? ` · ${esc(E.techSummary(t, s.td[t]))}` : ""}</span>`), `<span>${s.lo !== s.hi ? `${s.lo}-${s.hi}` : s.lo} ${unit.toLowerCase()} · RPE ${String(s.trpe).replace(".", ",")}${adv() && s.pct ? ` · ${s.pct} %` : ""}</span>`, s.pain ? `<span class="tag" style="background:var(--warn);color:#fff">Douleur</span>` : ""].filter(Boolean).join("");
+      return `<div class="swwrap"><div class="swbg"><span>🗑️ Supprimer</span></div><div class="set ${s.done ? "done" : ""} ${s.type === "W" ? "w" : ""}" data-sw data-x="${xi}" data-s="${si}"><button class="n" data-a="set-menu" data-x="${xi}" data-s="${si}" aria-label="Notes et options de la série">${lab}${s.type !== "N" && s.type !== "W" ? `<small>${E.SET_TYPES[s.type].split(" ")[0].toLowerCase()}</small>` : ""}${pv ? `<small class="npv">préc.<br>${pv.kg != null && pv.kg !== "" ? fr(pv.kg, 1) + "×" : ""}${pv.reps ?? "–"}${pv.rpe ? "<br>@" + String(pv.rpe).replace(".", ",") : ""}</small>` : ""}</button>
         <input inputmode="decimal" data-i="set" data-k="kg" data-x="${xi}" data-s="${si}" value="${ex.bw ? kgTxt(s.kg || "") : kgTxt(s.kg)}" placeholder="${ex.bw ? "PDC" : E.isAssisted(ex.name) ? "aide" : "kg"}" aria-label="${E.isAssisted(ex.name) ? "Aide (poids en moins)" : "Charge"}">
         <input inputmode="numeric" data-i="set" data-k="reps" data-x="${xi}" data-s="${si}" value="${s.reps ?? ""}" placeholder="${s.lo}" aria-label="${unit}">
         <button class="rpe-btn ${s.rpe == null ? "ph" : ""}" data-a="rpe-pick" data-x="${xi}" data-s="${si}" aria-label="RPE de la série">${s.rpe != null ? String(s.rpe).replace(".", ",") : String(s.trpe).replace(".", ",")}</button>
         <button class="tick" data-a="tick" data-x="${xi}" data-s="${si}" aria-label="Valider la série">${I.check}</button>
-        <input class="snote" data-i="setnote" data-x="${xi}" data-s="${si}" value="${esc(s.note || "")}" placeholder="${pv?.note ? "La dernière fois : " + esc(pv.note) : "Note (sensation, réglage, douleur…)"}" aria-label="Note de la série">
+        <textarea class="snote" rows="${Math.min(6, Math.max(1, Math.ceil((s.note || "").length / 34)))}" data-i="setnote" data-x="${xi}" data-s="${si}" placeholder="${pv?.note ? "La dernière fois : " + esc(pv.note) : "Note…"}" aria-label="Note de la série">${esc(s.note || "")}</textarea><button class="tqbtn" data-a="set-tq" data-x="${xi}" data-s="${si}" aria-label="Techniques d'intensification">⚡ Techniques</button>
         <div class="setmeta">${meta}${ex.unit === "s" && s.type !== "W" ? ` <button class="chip sm" data-a="chrono" data-x="${xi}" data-s="${si}">⏱️ Chrono</button>` : ""}</div></div></div>`;
       };
       const wIdx = ex.sets.map((x, i) => i).filter(i => ex.sets[i].type === "W"), tIdx = ex.sets.map((x, i) => i).filter(i => ex.sets[i].type !== "W");
@@ -592,7 +596,7 @@ changes["i:set"] = (el) => {
   save();
 };
 changes["i:exnote"] = (el) => { const ex = S().current.exercises[+el.dataset.x]; ex.myNote = el.value; const st = S(); st.exoNotes = st.exoNotes || {}; if (el.value.trim()) st.exoNotes[ex.name] = el.value; else delete st.exoNotes[ex.name]; save(); };
-changes["i:setnote"] = (el) => { S().current.exercises[+el.dataset.x].sets[+el.dataset.s].note = el.value; save(); };
+changes["i:setnote"] = (el) => { S().current.exercises[+el.dataset.x].sets[+el.dataset.s].note = el.value; if (el.classList.contains("snote")) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } save(); };
 // Effort de la série : on choisit, on n'écrit pas
 export const RPE_INFO = { 6: ["Facile", "4 rép. ou plus en réserve"], 6.5: ["Facile à modéré", "3 à 4 rép. en réserve"], 7: ["Modéré", "3 rép. en réserve"], 7.5: ["Assez dur", "2 à 3 rép. en réserve"], 8: ["Dur", "2 rép. en réserve"], 8.5: ["Très dur", "1 à 2 rép. en réserve"], 9: ["Effort extrême", "1 rép. en réserve"], 9.5: ["Presque maximal", "peut-être 1 rép. de plus"], 10: ["Effort maximal", "aucune rép. en réserve"] };
 const RPE_STEPS = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
@@ -801,16 +805,14 @@ actions["ex-tech-set"] = (b, d) => { S().current.exercises[+d.x].sets.forEach(s 
 function setMenu(xi, si) {
   const ex = S().current.exercises[xi], s = ex.sets[si];
   sheet(`<h2 class="h2">Série ${si + 1} · ${esc(ex.name)}</h2>
-    <div class="lbl mt12">Type de série</div><div class="chips wrap mt8">${Object.entries(E.SET_TYPES).map(([k, l]) => `<button class="chip ${s.type === k ? "on" : ""}" data-a="set-type" data-x="${xi}" data-s="${si}" data-v="${k}">${l}</button>`).join("")}</div>
-    <div class="lbl mt16">Techniques</div><div class="chips wrap mt8">${E.TECHS.map(([e, t]) => `<button class="chip ${s.tech.includes(t) ? "on" : ""}" data-a="set-tech" data-x="${xi}" data-s="${si}" data-v="${esc(t)}">${e} ${esc(t)}</button>`).join("")}</div>
-    <label class="field mt16"><span>📝 Note sur cette série</span><textarea data-i="setnote" data-x="${xi}" data-s="${si}" rows="2" placeholder="Ex. dernière rep lente, prise large">${esc(s.note || "")}</textarea></label>
+    <div class="lbl mt12">Type de série</div><div class="chips wrap mt8">${Object.entries(E.SET_TYPES).filter(([k]) => s.type === "W" || ["N", "T", "B", "A"].includes(k)).map(([k, l]) => `<button class="chip ${s.type === k ? "on" : ""}" data-a="set-type" data-x="${xi}" data-s="${si}" data-v="${k}">${l}</button>`).join("")}</div>
     <div class="li mt8" style="padding:8px 0"><span class="grow">🩹 Douleur ou gêne</span><button class="switch ${s.pain ? "on" : ""}" data-a="set-pain" data-x="${xi}" data-s="${si}" aria-label="Douleur"></button></div>
     <div class="row mt12" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="set-dup" data-x="${xi}" data-s="${si}">Dupliquer</button><button class="btn btn-line btn-sm grow" data-a="set-del" data-x="${xi}" data-s="${si}" style="color:var(--red)">Supprimer</button></div>
     <button class="btn btn-red mt12" data-a="set-close">OK</button>`);
 }
 actions["set-menu"] = (b, d) => setMenu(+d.x, +d.s);
 actions["set-type"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.type = d.v; if (d.v === "W") s.trpe = 5; save(); if (d.v === "E") { rerender(); techQtySheet(+d.x, +d.s); } else setMenu(+d.x, +d.s); };
-actions["set-tech"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s], adding = !s.tech.includes(d.v); s.tech = adding ? [...s.tech, d.v] : s.tech.filter(t => t !== d.v); if (!adding && s.tq) delete s.tq[d.v]; save(); rerender(); if (adding && E.TECH_DETAIL[d.v]) techQtySheet(+d.x, +d.s); else setMenu(+d.x, +d.s); };
+actions["set-tech"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s], adding = !s.tech.includes(d.v); s.tech = adding ? [...s.tech, d.v] : s.tech.filter(t => t !== d.v); if (!adding && s.tq) delete s.tq[d.v]; save(); rerender(); if (adding && E.TECH_DETAIL[d.v]) techQtySheet(+d.x, +d.s); else if (d.tq) tqMenu(+d.x, +d.s); else setMenu(+d.x, +d.s); };
 actions["set-pain"] = (b, d) => { const s = S().current.exercises[+d.x].sets[+d.s]; s.pain = !s.pain; save(); setMenu(+d.x, +d.s); };
 actions["set-dup"] = (b, d) => { const a = S().current.exercises[+d.x].sets; a.splice(+d.s + 1, 0, { ...a[+d.s], tech: [...a[+d.s].tech], done: false, rpe: null }); save(); closeSheet(); rerender(); };
 // Glisser une série vers la gauche pour la supprimer (avec « Annuler » pendant 5 s)
@@ -1586,3 +1588,11 @@ function ajusteApres(d) {
 const baseTick = actions.tick; actions.tick = (b, d) => { baseTick(b, d); ajusteApres(d); };
 const baseRpeOk = actions["rpe-ok"]; actions["rpe-ok"] = (b, d) => { baseRpeOk(b, d); ajusteApres(d); };
 actions["live-adj"] = (b, d) => { update(st => { const e = st.current.exercises[+d.x]; if (d.v === "1") e.sets.forEach(z => { if (!z.done && z.type !== "W" && z.kg) z.kg = E.roundTo(z.kg * (1 + e.live.pct / 100), e.step || 2.5); }); delete e.live; }); rerender(); };
+
+// Techniques d'intensification d'une série, dans leur propre petit menu
+function tqMenu(xi, si) { const s = S().current.exercises[xi].sets[si];
+  sheet(`<h2 class="h2">⚡ Techniques · série ${si + 1}</h2><p class="small muted">Dégressive, rest-pause, cluster, isométrie, partielles…</p><div class="chips wrap mt8">${E.TECHS.map(([e, t]) => `<button class="chip ${s.tech.includes(t) ? "on" : ""}" data-a="set-tech" data-x="${xi}" data-s="${si}" data-v="${esc(t)}" data-tq="1">${e} ${esc(t)}</button>`).join("")}</div><button class="btn btn-red mt16" data-a="set-close">OK</button>`); }
+actions["set-tq"] = (b, d) => tqMenu(+d.x, +d.s);
+actions["ex-fold"] = (b, d) => { update(st => { const e = st.current.exercises[+d.x]; e.closed = !e.closed; }); rerender(); };
+// Dernière série de travail validée : l'exercice se replie tout seul
+const baseTick2 = actions.tick; actions.tick = (b, d) => { baseTick2(b, d); const e = S().current?.exercises[+d.x]; if (e && !e.closed && e.sets.filter(z => z.type !== "W").every(z => z.done) && !e.live) { e.closed = true; save(); setTimeout(rerender, 350); } };
