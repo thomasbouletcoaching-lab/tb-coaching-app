@@ -253,6 +253,9 @@ function centerChips() { document.querySelectorAll(".chips:not(.wrap)").forEach(
 
 // ---------- Actions (délégation d'événements) ----------
 export const actions = {}, forms = {}, changes = {};
+// Carrousel horizontal (semaine précédente, actuelle, suivante) : on le fait défiler au doigt ; arrivé sur une voisine, l'action change de semaine
+export const carrousel = (act, panes, cls = "") => { const p = panes.filter(x => x != null); return `<div class="car ${cls}" data-car="${act}" data-cur="1" data-n="${p.length}">${p.map(x => `<div class="car-p">${x}</div>`).join("")}</div>`; };
+function initCarrousels(root = document) { root.querySelectorAll?.("[data-car]:not([data-ok])").forEach(el => { el.dataset.ok = "1"; el.scrollLeft = el.clientWidth * 1; }); }
 // Pile des écrans visités : la flèche retour du coach revient à l'écran précédent, sauf s'il s'agissait d'un écran « athlète » (il retombe alors sur Athlètes)
 const trail = [];
 const PROXY_OK = ["workout", "done", "food", "carnet", "fiche", "train", "body", "meals", "recette", "aliment"];
@@ -271,6 +274,10 @@ actions["hist-back"] = () => {
   if (history.length > 1) { trail.pop(); history.back(); } else go("home");
 };
 export function installEvents() {
+  new MutationObserver(() => initCarrousels()).observe(document.body, { childList: true, subtree: true });
+  let carT = null;
+  document.addEventListener("scroll", (e) => { const el = e.target; if (!el?.dataset?.car) return; clearTimeout(carT);
+    carT = setTimeout(() => { const i = Math.round(el.scrollLeft / el.clientWidth); if (i === 1) return; const a = actions[el.dataset.car]; if (!a) return; buzz(6); a(el, { v: i < 1 ? "-1" : "1" }); }, 140); }, true);
   document.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-a]"); if (!b) return;
     const fn = actions[b.dataset.a]; if (fn) { e.preventDefault(); await fn(b, b.dataset, e); }

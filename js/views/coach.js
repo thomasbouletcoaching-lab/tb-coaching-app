@@ -22,7 +22,7 @@ import { ouvrirVideo } from "./video.js";
 import { absenceBanner, reseauBlock } from "./reseau.js";
 import { claimInvite } from "../sync.js";
 import { myAdherence, summaryBetween, checkins as myCheckins, defiDay, since as sinceStart } from "../progress.js";
-import { ring, coachLogo, trialLeft, $app, esc, num, fr, buzz, toast, ago, routes, R, actions, forms, changes, go, I, header, tabbar, adminTabbar, seg, chips, sheet, closeSheet, badges, fmtDate, addDays, rerender, tier, rank, premium, isCoach, msgQuotaText, cloud, cloudNow, render, onLeave, canMsg, locked } from "../core.js";
+import { carrousel, ring, coachLogo, trialLeft, $app, esc, num, fr, buzz, toast, ago, routes, R, actions, forms, changes, go, I, header, tabbar, adminTabbar, seg, chips, sheet, closeSheet, badges, fmtDate, addDays, rerender, tier, rank, premium, isCoach, msgQuotaText, cloud, cloudNow, render, onLeave, canMsg, locked } from "../core.js";
 import { refreshMe, syncProfile } from "../sync.js";
 import { fromCoach, libraryRows } from "../library.js";
 import { openProgramEditor } from "./coachprog.js";
@@ -563,23 +563,30 @@ function vueEnsemble(m, D) {
     ${ob ? `<p class="small mt8" style="margin-bottom:0"><b>Objectif de la période :</b> ${esc(ob.titre)} <span class="xs muted">(→ ${fmtDate(ob.au, { day: "numeric", month: "short" })})</span></p>` : ""}</div>`;
   const profil = `<h2 class="sec">👤 Profil</h2><div class="card mb-grid">${champ("Âge", pr.age ? pr.age + " ans" : null)}${champ("Taille", pr.height ? pr.height + " cm" : null)}${champ("Poids", poids ? fr(poids, 1) + " kg" : null)}${champ("Niveau", NIVEAUX_L[pr.level] || pr.level)}${champ("Séances / sem.", pr.days)}${champ("Lieu", LIEUX_L[pr.place] || pr.place)}${champ("Discipline", pr.discipline)}${champ("Alimentation", pr.diet && pr.diet !== "all" && pr.diet !== "omni" ? pr.diet : null)}</div>`;
   const prog = `<h2 class="sec">📋 Programme</h2>${ns ? `<button class="card grad" style="width:100%;text-align:left;padding:12px 14px" data-a="go" data-r="member-prog" data-p="${esc(m.id)}"><div class="xs" style="opacity:.85">Semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)}</div><b style="display:block;font-size:17px">${esc(ns.p.name)}</b><div class="xs mt4" style="opacity:.9">Prochaine séance : ${esc(ns.title)} · ✏️ modifier</div></button>` : `<div class="card"><p class="small muted" style="margin:0">Pas de programme en cours. <button class="link" data-a="go" data-r="member-prog" data-p="${esc(m.id)}">En créer un</button></p></div>`}`;
-  // Nutrition et séances : semaine courante, ou une semaine passée en balayant l'écran (vw = 0, -1, -2…)
-  const vw = mbr.vw || 0, lun0 = addDays(t0, -E.dowOf(t0)), lun = addDays(lun0, 7 * vw), sem = Array.from({ length: 7 }, (_, i) => addDays(lun, i));
-  const semTxt = vw === 0 ? "Cette semaine" : `Semaine du ${fmtDate(lun, { day: "numeric", month: "short" })} au ${fmtDate(sem[6], { day: "numeric", month: "short" })}`;
-  const nav = `<div class="row between xs muted" style="margin:0 0 6px"><span>← glisse pour la semaine précédente</span>${vw < 0 ? `<span>→ ${vw === -1 ? "semaine en cours" : "plus récent"}</span>` : ""}</div>`;
-  const t = N.targets(), jt = N.dayTotals(t0), jours = vw === 0 ? Array.from({ length: 7 }, (_, i) => addDays(t0, -i)) : sem, notes = jours.filter(k => N.dayLog(k).length);
-  const moy = (k) => notes.length ? notes.reduce((a, d) => a + (N.dayTotals(d)[k] || 0), 0) / notes.length : 0;
+  // Nutrition et séances : la semaine affichée (vw = 0, -1…) et ses voisines dans un carrousel qu'on fait défiler au doigt
+  const vw = mbr.vw || 0, lun0 = addDays(t0, -E.dowOf(t0)), t = N.targets();
   const anneau = (v, cible, l, col) => { const f = cible ? v / cible : 0; return `<div><div class="mini"><svg viewBox="0 0 66 66">${ring(Math.min(1, f), 66, 7, col)}</svg><b>${cible ? Math.round(f * 100) + "%" : "–"}</b></div><div class="l">${l}<br><span class="xs">${fr(v)}${cible ? " / " + fr(cible) : ""}</span></div></div>`; };
   const ligne = (x) => `<div class="minis" style="grid-template-columns:repeat(4,1fr);margin-top:8px">${anneau(x.kcal, t?.kcal, "kcal", "#2F6FED")}${anneau(x.p, t?.prot, "Prot. g", "#B3263A")}${anneau(x.c, t?.carbs, "Gluc. g", "#E0A93B")}${anneau(x.f, t?.fat, "Lip. g", "#1E8F4E")}</div>`;
-  const barres = `<div class="wk7s mt12">${sem.map((k, i) => { const kc = N.dayTotals(k).kcal || 0, f = t?.kcal ? Math.min(1, kc / t.kcal) : 0; return `<div class="${k === t0 ? "on" : ""}"><span>${E.DAY_SHORT[i]}</span><i style="display:block;height:34px;width:14px;margin:4px auto;border-radius:7px;background:var(--line);position:relative;overflow:hidden"><i style="position:absolute;left:0;right:0;bottom:0;height:${Math.round(f * 100)}%;background:#2F6FED;border-radius:7px"></i></i><b class="xs">${kc ? fr(kc) : "·"}</b></div>`; }).join("")}</div>`;
-  const nutri = `<h2 class="sec">🍽️ Nutrition <small>${esc(semTxt)}</small></h2><div class="card" data-swipe="mb-vw">${nav}${vw === 0 ? `<div class="row between"><b class="small">Aujourd'hui</b><span class="xs muted">${N.dayLog(t0).length} aliment${N.dayLog(t0).length > 1 ? "s" : ""} notés</span></div>${ligne({ kcal: jt.kcal || 0, p: jt.p || 0, c: jt.c || 0, f: jt.f || 0 })}` : ""}
-    <div class="row between ${vw === 0 ? "mt12" : ""}"><b class="small">Moyenne ${vw === 0 ? "7 jours" : "de la semaine"}</b><span class="xs muted">${notes.length}/7 jours notés</span></div>${ligne({ kcal: moy("kcal"), p: moy("p"), c: moy("c"), f: moy("f") })}${barres}</div>`;
-  const ag = E.agenda(sem[0], sem[6]);
-  const fait = sem.filter(k => ag[k]?.st === "done").length, prevu = sem.filter(k => ag[k] && !["rest", "away"].includes(ag[k].st)).length;
   const ico = { done: "✅", missed: "❌", planned: "🏋️", rest: "😌", away: "↪️" };
-  const der = vw === 0 ? (D.workouts || []).slice(-3).reverse() : (D.workouts || []).filter(w => { const k = today(new Date(w.end)); return k >= sem[0] && k <= sem[6]; }).reverse();
-  const seances = `<h2 class="sec">🏋️ Séances <small>${fait}/${prevu} ${vw === 0 ? "cette semaine" : "cette semaine-là"}</small></h2><div class="card" data-swipe="mb-vw">${nav}<div class="wk7s">${sem.map((k, i) => `<div class="${k === t0 ? "on" : ""}"><span>${E.DAY_SHORT[i]}</span><b>${ag[k] ? ico[ag[k].st] || "·" : "·"}</b></div>`).join("")}</div>
-    ${der.length ? der.map(w => `<button class="li" style="width:100%;text-align:left" data-a="mb-tab" data-v="seances"><span class="grow small"><b>${esc(w.title)}</b><br><span class="xs muted">${fmtDate(today(new Date(w.end)), { weekday: "short", day: "numeric", month: "short" })} · ${w.setsDone ?? (w.exercises || []).reduce((a, e) => a + (e.sets || []).filter(x => x.done && x.type !== "W").length, 0)} séries${w.volume ? ` · ${fr(w.volume / 1000, 1)} t` : ""}${w.records?.length ? " · 🏆" : ""}</span></span>${I.chev}</button>`).join("") : `<p class="small muted mt8" style="margin-bottom:0">Aucune séance enregistrée${vw === 0 ? "" : " cette semaine-là"}.</p>`}</div>`;
+  const semaine = (o) => {
+    const lun = addDays(lun0, 7 * o), sem = Array.from({ length: 7 }, (_, i) => addDays(lun, i));
+    const titre = o === 0 ? "Cette semaine" : o === -1 ? "Semaine dernière" : `Du ${fmtDate(lun, { day: "numeric", month: "short" })} au ${fmtDate(sem[6], { day: "numeric", month: "short" })}`;
+    const jt = N.dayTotals(t0), jours = o === 0 ? Array.from({ length: 7 }, (_, i) => addDays(t0, -i)) : sem, notes = jours.filter(k => N.dayLog(k).length);
+    const moy = (k) => notes.length ? notes.reduce((a, d) => a + (N.dayTotals(d)[k] || 0), 0) / notes.length : 0;
+    const barres = `<div class="wk7s mt12">${sem.map((k, i) => { const kc = N.dayTotals(k).kcal || 0, f = t?.kcal ? Math.min(1, kc / t.kcal) : 0; return `<div class="${k === t0 ? "on" : ""}"><span>${E.DAY_SHORT[i]}</span><i style="display:block;height:34px;width:14px;margin:4px auto;border-radius:7px;background:var(--line);position:relative;overflow:hidden"><i style="position:absolute;left:0;right:0;bottom:0;height:${Math.round(f * 100)}%;background:#2F6FED;border-radius:7px"></i></i><b class="xs">${kc ? fr(kc) : "·"}</b></div>`; }).join("")}</div>`;
+    const n = `<b class="small">${esc(titre)}</b>${o === 0 ? `<div class="row between mt8"><span class="small">Aujourd'hui</span><span class="xs muted">${N.dayLog(t0).length} aliment${N.dayLog(t0).length > 1 ? "s" : ""} notés</span></div>${ligne({ kcal: jt.kcal || 0, p: jt.p || 0, c: jt.c || 0, f: jt.f || 0 })}` : ""}
+      <div class="row between mt12"><span class="small">Moyenne ${o === 0 ? "7 jours" : "de la semaine"}</span><span class="xs muted">${notes.length}/7 jours notés</span></div>${ligne({ kcal: moy("kcal"), p: moy("p"), c: moy("c"), f: moy("f") })}${barres}`;
+    const ag = E.agenda(sem[0], sem[6]);
+    const fait = sem.filter(k => ag[k]?.st === "done").length, prevu = sem.filter(k => ag[k] && !["rest", "away"].includes(ag[k].st)).length;
+    const der = o === 0 ? (D.workouts || []).slice(-3).reverse() : (D.workouts || []).filter(w => { const k = today(new Date(w.end)); return k >= sem[0] && k <= sem[6]; }).reverse();
+    const se = `<div class="row between"><b class="small">${esc(titre)}</b><span class="xs muted">${fait}/${prevu} séances</span></div><div class="wk7s mt8">${sem.map((k, i) => `<div class="${k === t0 ? "on" : ""}"><span>${E.DAY_SHORT[i]}</span><b>${ag[k] ? ico[ag[k].st] || "·" : "·"}</b></div>`).join("")}</div>
+      ${der.length ? der.map(w => `<button class="li" style="width:100%;text-align:left" data-a="mb-tab" data-v="seances"><span class="grow small"><b>${esc(w.title)}</b><br><span class="xs muted">${fmtDate(today(new Date(w.end)), { weekday: "short", day: "numeric", month: "short" })} · ${w.setsDone ?? (w.exercises || []).reduce((a, e) => a + (e.sets || []).filter(x => x.done && x.type !== "W").length, 0)} séries${w.volume ? ` · ${fr(w.volume / 1000, 1)} t` : ""}${w.records?.length ? " · 🏆" : ""}</span></span>${I.chev}</button>`).join("") : `<p class="small muted mt8" style="margin-bottom:0">Aucune séance enregistrée.</p>`}`;
+    return { n, se };
+  };
+  const ws = [semaine(vw - 1), semaine(vw), vw < 0 ? semaine(vw + 1) : null];
+  const aide = `<p class="xs muted center" style="margin:6px 0 0">← fais glisser pour changer de semaine →</p>`;
+  const nutri = `<h2 class="sec">🍽️ Nutrition</h2><div class="card">${carrousel("mb-vw", ws.map(w => w && w.n))}${aide}</div>`;
+  const seances = `<h2 class="sec">🏋️ Séances</h2><div class="card">${carrousel("mb-vw", ws.map(w => w && w.se))}${aide}</div>`;
   return hero + profil + prog + nutri + seances;
 }
 function fileCards(m, D) {

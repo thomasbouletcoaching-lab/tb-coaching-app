@@ -5,7 +5,7 @@ import { nutriCard, nutriLevel } from "./nutri-detail.js";
 import * as N from "../nutrition.js";
 import * as RC from "../recipes.js";
 import * as EN from "../energy.js";
-import { $app, esc, num, fr, buzz, toast, routes, R, actions, forms, changes, go, I, header, tabbar, chips, seg, sheet, closeSheet, lockVeil, lineChart, barChart, hbars, ring, gradDef, premium, rank, fmtDate, addDays, hhmm, rerender, modeBar } from "../core.js";
+import { $app, esc, num, fr, buzz, toast, routes, R, actions, forms, changes, go, I, header, tabbar, chips, seg, sheet, closeSheet, lockVeil, lineChart, barChart, hbars, ring, gradDef, premium, rank, fmtDate, addDays, hhmm, rerender, modeBar, carrousel } from "../core.js";
 import * as E from "../engine.js";
 import { kbSection } from "./more.js";
 import { caloriesCard } from "./home.js";
@@ -24,6 +24,7 @@ let tab = "journal", day = null, mode = "journal";
 const TABS = [["journal", "🍽️ Journal"], ["favoris", "⭐ Mes aliments"], ["plan", "📋 Mon plan"], ["semaine", "🗓️ Semaine type"], ["conseils", "💡 Conseils"], ["jeune", "⏳ Jeûne"], ["recettes", "👩‍🍳 Recettes"], ["batch", "🥡 Batch cooking"], ["complements", "💊 Compléments"], ["budget", "🛒 Courses et budget"]];
 const MODES = [["journal", "Journal"], ["depense", "Dépense"], ["explorer", "Explorer"], ["savoir", "Savoir"]];
 const D = () => day || today();
+const MAXF = () => addDays(today(), 14); // on peut noter ses repas jusqu'à 2 semaines à l'avance
 const FREE_RECIPES = 10;
 const recipeOpen = (r) => premium() || r.mine || RC.RECIPES.indexOf(r) < FREE_RECIPES;
 const myRecipes = () => (S().myRecipes || []).map(r => { RC.registerIng(r.ingDef); return { ...r, mine: true, m: RC.macros(r.ing, r.portions) }; });
@@ -108,13 +109,13 @@ routes.food = async () => {
   else if (tab === "budget") body = ML.shopBody() + (premium() ? `<h2 class="sec">💶 Mes dépenses réelles</h2>` + budgetBody() : "");
   else if (tab === "complements") { await N.loadCiqual(); await N.loadMicro(); body = SP.suppsBody(); }
   else body = journalBody(t);
-  $app.innerHTML = header("Nutrition", t ? `${fr(t.kcal)} kcal · ${t.prot} g de protéines${t.kcal !== t.base ? " aujourd'hui" : ""}` : "") + `<main class="page" ${mode === "journal" ? `data-swipe="food-day"` : ""}>${modeBar(MODES, mode, "food-mode")}${mode === "journal" ? `<div class="mt8">${chips(TABS, tab, "food-tab")}</div>` : ""}${body}</main>${tabbar("food")}`;
+  $app.innerHTML = header("Nutrition", t ? `${fr(t.kcal)} kcal · ${t.prot} g de protéines${t.kcal !== t.base ? " aujourd'hui" : ""}` : "") + `<main class="page">${modeBar(MODES, mode, "food-mode")}${mode === "journal" ? `<div class="mt8">${chips(TABS, tab, "food-tab")}</div>` : ""}${body}</main>${tabbar("food")}`;
   if (mode === "journal" && tab === "recettes" || mode === "explorer") bindRecipeSearch();
   if (tab === "budget") { const i = document.getElementById("prq"); i?.addEventListener("input", () => { prQ = i.value; document.getElementById("prl").innerHTML = priceRows(N.norm(prQ)); }); }
 };
 actions["food-mode"] = (b, d) => { mode = d.v; R.param = null; history.replaceState(null, "", "#/food" + (d.v === "journal" ? "" : "/" + d.v)); rerender(false); window.scrollTo(0, 0); };
 actions["food-tab"] = (b, d) => { if (d.v === "learn") { mode = "savoir"; return rerender(false); } tab = d.v; mode = "journal"; R.param = d.v; history.replaceState(null, "", "#/food/" + d.v); rerender(false); window.scrollTo(0, 0); };
-actions["food-day"] = (b, d) => { const n = addDays(D(), +d.v); if (n > today()) return; day = n >= today() ? null : n; rerender(); };
+actions["food-day"] = (b, d) => { const n = addDays(D(), +d.v); if (n > MAXF()) return; day = n === today() ? null : n; rerender(); };
 
 // ---------- Explorer : programmes alimentaires et recettes ----------
 function exploreBody() {
@@ -1062,14 +1063,17 @@ function streaks() {
 }
 function weekStrip(d) {
   const mon = addDays(d, -((new Date(d + "T12:00:00").getDay() + 6) % 7)), days = Array.from({ length: 7 }, (_, i) => dayStat(addDays(mon, i)));
-  const sr = streaks(), canNext = addDays(mon, 7) <= today();
-  return `<div class="row between mt12" style="align-items:center"><b class="h2" style="text-transform:capitalize;margin:0">${d === today() ? "Aujourd'hui" : fmtDate(d, { weekday: "long", day: "numeric", month: "short" })}</b>
+  const sr = streaks(), canNext = addDays(mon, 7) <= MAXF();
+  // Une semaine de jours (anneaux) : la frise glisse en continu vers la semaine voisine, le reste de la page ne bouge pas
+  const semaine = (m) => `<div class="wkdays">${Array.from({ length: 7 }, (_, i) => dayStat(addDays(m, i))).map((x, i) => { const sel = x.k === d, trop = x.k > MAXF(), fut = x.k > today(); return `<button class="wd ${sel ? "sel" : ""} ${fut ? "fut" : ""}" ${trop ? "disabled" : `data-a="food-goto" data-v="${x.k}"`} aria-label="${fmtDate(x.k)}${x.st !== "vide" ? " · " + Math.round(x.kcal) + " kcal" : ""}"><small>${LETTERS[i]}</small>
+        <svg viewBox="0 0 36 36">${ring(x.st === "vide" ? 0 : x.st === "encours" ? x.pct : 1, 36, 4.5, RING_COL[x.st] || "transparent", "var(--line)")}</svg><span class="xs">${Number(x.k.slice(8))}</span></button>`; }).join("")}</div>`;
+  const titre = d === today() ? "Aujourd'hui" : d === addDays(today(), 1) ? "Demain" : fmtDate(d, { weekday: "long", day: "numeric", month: "short" });
+  return `<div class="row between mt12" style="align-items:center"><b class="h2" style="text-transform:capitalize;margin:0">${titre}${d > today() ? ` <small class="xs muted" style="text-transform:none">· repas prévus</small>` : ""}</b>
       <button class="flame ${sr.notes ? "on" : ""}" data-a="flame" aria-label="Série de ${sr.notes} jours notés">🔥 <b>${sr.notes}</b></button></div>
-    <div class="wkring mt8" data-swipe="food-week"><button class="icon-btn sm" data-a="food-week" data-v="-1" aria-label="Semaine précédente">${I.back}</button>
-      ${days.map((x, i) => { const sel = x.k === d, fut = x.k > today(); return `<button class="wd ${sel ? "sel" : ""}" ${fut ? "disabled" : `data-a="food-goto" data-v="${x.k}"`} aria-label="${fmtDate(x.k)}${x.st !== "vide" ? " · " + Math.round(x.kcal) + " kcal" : ""}"><small>${LETTERS[i]}</small>
-        <svg viewBox="0 0 36 36">${ring(x.st === "vide" ? 0 : x.st === "encours" ? x.pct : 1, 36, 4.5, RING_COL[x.st] || "transparent", fut ? "transparent" : "var(--line)")}</svg><span class="xs">${Number(x.k.slice(8))}</span></button>`; }).join("")}
+    <div class="wkring mt8"><button class="icon-btn sm" data-a="food-week" data-v="-1" aria-label="Semaine précédente">${I.back}</button>
+      ${carrousel("food-week", [semaine(addDays(mon, -7)), semaine(mon), canNext ? semaine(addDays(mon, 7)) : null])}
       <button class="icon-btn sm" data-a="food-week" data-v="1" aria-label="Semaine suivante" style="transform:scaleX(-1);${canNext ? "" : "visibility:hidden"}">${I.back}</button></div>
-    <p class="xs muted center" style="margin:4px 0 0">${days.filter(x => x.st === "ok").length}/${days.filter(x => x.k < today() || x.k === today() && x.st !== "encours" && x.st !== "vide").length || 0} jour${days.filter(x => x.st === "ok").length > 1 ? "s" : ""} dans l'objectif cette semaine</p>`;
+    <p class="xs muted center" style="margin:4px 0 0">${days.filter(x => x.st === "ok").length}/${days.filter(x => x.k < today() || x.k === today() && x.st !== "encours" && x.st !== "vide").length || 0} jour${days.filter(x => x.st === "ok").length > 1 ? "s" : ""} dans l'objectif cette semaine${d === today() ? ` · <a href="#" data-a="food-goto" data-v="${addDays(today(), 1)}">préparer demain</a>` : d > today() ? ` · <a href="#" data-a="food-goto" data-v="${today()}">revenir à aujourd'hui</a>` : ""}</p>`;
 }
 // En-tête du jour : calories restantes en gros, comme sur l'écran d'accueil d'un compteur
 function leftHead(d) {
@@ -1084,8 +1088,8 @@ function microPeek(d) {
   return `<div class="row between mt12" style="align-items:baseline"><b class="h3" style="margin:0">Micronutriments</b><button class="link small" data-a="food-tab" data-v="conseils">Tout voir</button></div>
     <div class="mpeek mt8">${keys.map(k => { const v = m[k] || 0, pc = Math.round(v / R[k].v * 100); return `<button class="card mp" data-a="food-tab" data-v="conseils"><svg viewBox="0 0 44 44">${ring(pc / 100, 44, 4.5, col[k])}<text x="22" y="26" text-anchor="middle" font-size="${k === "fib" ? 15 : 12}" font-weight="700" fill="${col[k]}">${ic[k]}</text></svg><span><span class="xs muted">${R[k].n}</span><br><b>${fr(v, v < 10 ? 1 : 0)} ${R[k].u}</b><br><span class="xs muted">${pc} % AJR</span></span></button>`; }).join("")}</div>`;
 }
-actions["food-goto"] = (b, d) => { day = d.v >= today() ? null : d.v; rerender(); };
-actions["food-week"] = (b, d) => { let n = addDays(D(), 7 * +d.v); if (n > today()) { if (D() >= today()) return; n = today(); } day = n >= today() ? null : n; rerender(); };
+actions["food-goto"] = (b, d) => { day = d.v === today() ? null : d.v; rerender(); };
+actions["food-week"] = (b, d) => { let n = addDays(D(), 7 * +d.v); if (n > MAXF()) n = MAXF(); day = n === today() ? null : n; rerender(); };
 actions.flame = () => {
   const sr = streaks();
   sheet(`<div class="center"><div style="font-size:64px;line-height:1">🔥</div><b class="num" style="font-size:44px">${sr.notes}</b><p class="small muted" style="margin:4px 0 0">jour${sr.notes > 1 ? "s" : ""} noté${sr.notes > 1 ? "s" : ""} d'affilée</p></div>

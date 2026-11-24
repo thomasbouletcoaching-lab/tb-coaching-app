@@ -837,3 +837,11 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 .sw-in-r{animation:swInR .24s ease-out}
 .sw-in-l{animation:swInL .24s ease-out}
 @media (prefers-reduced-motion:reduce){.sw-in-r,.sw-in-l{animation:none}}
+
+/* Carrousel de semaines : défilement continu au doigt, aimanté sur chaque semaine */
+.car{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;min-width:0}
+.car::-webkit-scrollbar{display:none}
+.car-p{flex:0 0 100%;min-width:0;scroll-snap-align:start;scroll-snap-stop:always}
+.wkring{grid-template-columns:28px minmax(0,1fr) 28px}
+.wkring .wkdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.wkring .wd.fut svg{opacity:.7}
