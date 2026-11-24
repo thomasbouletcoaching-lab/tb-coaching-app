@@ -503,7 +503,9 @@ routes.workout = async () => {
   const cur = S().current; if (!cur) return go("train");
   await Promise.all([E.loadPrograms(), E.loadFiches(), E.loadLib()]);
   sessionStorage.removeItem("cxs.min");
-  const doneSets = cur.exercises.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0), all = cur.exercises.reduce((a, e) => a + e.sets.length, 0);
+  // Les séries d'échauffement masquées (« pas d'échauffement » sur l'exercice) ne comptent pas
+  const vis = (e) => e.sets.filter(s => !(e.noWu && s.type === "W" && !s.done));
+  const doneSets = cur.exercises.reduce((a, e) => a + vis(e).filter(s => s.done).length, 0), all = cur.exercises.reduce((a, e) => a + vis(e).length, 0);
   $app.innerHTML = `<header class="top"><div class="row1"><button class="icon-btn" data-a="minimize" aria-label="Réduire">${I.back}</button><h1 style="font-size:20px">${esc(cur.title)}</h1>${cur.reopen || cur.backdate ? "" : `<button class="icon-btn" data-a="wk-pause" aria-label="${cur.pausedAt ? "Reprendre la séance" : "Mettre la séance en pause"}" title="${cur.pausedAt ? "Reprendre" : "Pause"}" style="font-size:18px">${cur.pausedAt ? "▶️" : "⏸️"}</button>`}<button class="icon-btn" data-a="abandon" aria-label="Abandonner la séance" title="Abandonner la séance" style="font-size:18px">🗑️</button><button class="btn btn-red btn-sm" data-a="finish" style="width:auto">${cur.reopen ? "Enregistrer" : "Terminer"}</button></div>
       <div class="sub">${cur.reopen || cur.backdate ? `<button class="link" data-a="dur-edit" style="color:inherit">⏱️ ${durOf(cur)} min ✏️</button>` : cur.target ? `<button class="link" data-a="dur-change" style="color:inherit">⏳ <span id="clock">0:00</span></button>` : `⏱️ <span id="clock">0:00</span>`} · ${doneSets}/${all} séries${cur.free || cur.reopen ? "" : ` · semaine ${cur.week} · ${esc(cur.phase)}`}</div>
       ${cur.target && !cur.reopen && !cur.backdate ? `<div class="tbar"><i id="tbar"></i></div><div class="xs" id="tpace" style="margin-top:4px"></div>` : ""}</header>
@@ -1510,7 +1512,7 @@ function notesPassees(name) {
   }
   return out;
 }
-actions["wu-toggle"] = (b, d) => { update(st => { const e = st.current.exercises[+d.x]; e.noWu = !e.noWu; }); rerender(); };
+actions["wu-toggle"] = (b, d) => { update(st => { const e = st.current.exercises[+d.x]; e.noWu = !e.noWu; if (e.noWu) e.sets = e.sets.filter(z => z.type !== "W" || z.done); }); rerender(); };
 actions["wu-mob"] = (b, d) => { const t = prompt("Exercice de mobilité ou d'activation", "Rotations d'épaules × 10"); if (!t?.trim()) return; update(st => { const e = st.current.exercises[+d.x]; e.mob = [...(e.mob || []), { t: t.trim().slice(0, 80) }]; }); rerender(); };
 actions["wu-mob-done"] = (b, d) => { update(st => { const m = st.current.exercises[+d.x].mob[+d.v]; m.done = !m.done; }); buzz(8); rerender(); };
 actions["wu-mob-del"] = (b, d) => { update(st => { st.current.exercises[+d.x].mob.splice(+d.v, 1); }); rerender(); };
