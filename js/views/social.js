@@ -86,13 +86,33 @@ function fond(c, W, H) {
   const r2 = c.createRadialGradient(W * .1, H * .9, 20, W * .1, H * .9, 700); r2.addColorStop(0, "rgba(46,95,201,.45)"); r2.addColorStop(1, "rgba(46,95,201,0)"); c.fillStyle = r2; c.fillRect(0, 0, W, H);
 }
 function marque(c, x, y) { c.font = F(800, 54); c.fillStyle = "#fff"; c.fillText("TB my ", x, y); const w = c.measureText("TB my ").width; c.fillStyle = "#8FB4FF"; c.fillText("Coach", x + w, y); }
-function pied(c, W, H, code) {
-  const y = H - 470; c.fillStyle = "rgba(255,255,255,.1)"; rr(c, 80, y, W - 160, 230, 40); c.fill();
-  c.fillStyle = "#fff"; c.font = F(800, 50); c.fillText("Viens t'entraîner avec moi", 130, y + 90);
-  c.fillStyle = "#C9DAFF"; c.font = F(600, 36); c.fillText(code ? `Code ${code} · ${joursOfferts()} jours offerts` : `TB my Coach · ${TRIAL_DAYS} jours offerts`, 130, y + 150);
-  c.fillStyle = "rgba(255,255,255,.7)"; c.font = F(500, 30); c.fillText(`${CONFIG.coachName} · ${CONFIG.coachTitle}`, 130, y + 200);
+function pied(c, W, H, code, lien = "") {
+  const y = H - 470; c.fillStyle = "rgba(255,255,255,.12)"; rr(c, 80, y, W - 160, 250, 40); c.fill();
+  c.fillStyle = "#fff"; c.font = F(800, 50); c.fillText("Rejoins-moi sur TB my Coach", 130, y + 85, W - 260);
+  c.fillStyle = "#C9DAFF"; c.font = F(600, 34); c.fillText(`${joursOfferts()} jours offerts, sans carte bancaire${code ? ` · code d'invitation ${code}` : ""}`, 130, y + 140, W - 260);
+  if (lien) { const u = lien.replace(/^https?:\/\//, ""); c.fillStyle = "#fff"; c.font = F(700, 30); c.fillText("👉 " + u, 130, y + 192, W - 260); }
+  c.fillStyle = "rgba(255,255,255,.65)"; c.font = F(500, 26); c.fillText(`${CONFIG.coachName} · ${CONFIG.coachTitle}`, 130, y + 232, W - 260);
 }
-export async function imageStory(type, d, { code = monCode(), qui = profil()?.pseudo || prenom() } = {}) {
+// Détail complet de la séance (exercices, séries, notes) qui tient dans la place disponible : la taille du texte s'adapte
+function detailSeance(c, d, X, y, LW, bas) {
+  const ex = (d.detail || []).filter(e => e.s?.length); if (!ex.length) return y;
+  const serie = (e, z) => { const [kg, r, rpe] = z; return `${kg ? fr(kg, 1) + "×" : ""}${r ?? "–"}${e.u === "sec" ? " s" : e.u === "m" ? " m" : ""}${rpe ? " @" + String(rpe).replace(".", ",") : ""}`; };
+  const place = bas - y - 50;
+  let fs = 40, rows;
+  for (; fs >= 22; fs -= 2) { const h = ex.reduce((a, e) => a + fs * 1.2 + fs * 1.1 * Math.ceil(e.s.length / 6) + (e.note ? fs * 1.05 : 0) + fs * .45, 0); rows = ex.length; if (h <= place) break; }
+  if (fs < 22) { fs = 22; let h = 0; rows = 0; for (const e of ex) { const x = fs * 1.2 + fs * 1.1 * Math.ceil(e.s.length / 6) + (e.note ? fs * 1.05 : 0) + fs * .45; if (h + x > place - 40) break; h += x; rows++; } }
+  c.fillStyle = "rgba(255,255,255,.55)"; c.font = F(700, 28); c.fillText("MA SÉANCE", X, y + 20); y += 50;
+  ex.slice(0, rows).forEach(e => {
+    c.fillStyle = "#fff"; c.font = F(800, fs); c.fillText(e.n, X, y + fs, LW); y += fs * 1.2;
+    c.fillStyle = "#C9DAFF"; c.font = F(600, Math.round(fs * .88));
+    for (let i = 0; i < e.s.length; i += 6) { c.fillText(e.s.slice(i, i + 6).map(z => serie(e, z)).join("  ·  "), X, y + fs, LW); y += fs * 1.1; }
+    if (e.note) { c.fillStyle = "rgba(255,255,255,.7)"; c.font = `italic ${F(500, Math.round(fs * .8))}`; c.fillText("« " + e.note + " »", X, y + fs * .9, LW); y += fs * 1.05; }
+    y += fs * .45;
+  });
+  if (ex.length > rows) { c.fillStyle = "rgba(255,255,255,.6)"; c.font = F(600, 28); c.fillText(`+ ${ex.length - rows} autre${ex.length - rows > 1 ? "s" : ""} exercice${ex.length - rows > 1 ? "s" : ""}`, X, y + 30); }
+  return y;
+}
+export async function imageStory(type, d, { code = monCode(), qui = profil()?.pseudo || prenom(), lien = "" } = {}) {
   try {
     const W = 1080, H = 1920, cv = document.createElement("canvas"); cv.width = W; cv.height = H; const c = cv.getContext("2d");
     try { await document.fonts?.ready; } catch { }
@@ -109,7 +129,8 @@ export async function imageStory(type, d, { code = monCode(), qui = profil()?.ps
       const g = d.medaille ? GRADES.find(x => x.name === d.medaille) : null;
       if (g) { const t = `${g.icon}  Grade ${g.name}`; c.font = F(800, 46); const w = c.measureText(t).width + 80; const gr = c.createLinearGradient(X, y, X + w, y); gr.addColorStop(0, "#2E5FC9"); gr.addColorStop(1, "#4F82E0"); c.fillStyle = gr; rr(c, X, y, w, 96, 48); c.fill(); c.fillStyle = "#fff"; c.fillText(t, X + 40, y + 64); y += 140; }
       if (d.records?.length) { c.fillStyle = "#fff"; c.font = F(800, 46); c.fillText("🏆 Record battu", X, y + 40); c.font = F(600, 40); c.fillStyle = "#C9DAFF"; d.records.slice(0, 2).forEach((r, i) => c.fillText(r, X, y + 100 + i * 54, LW)); y += 100 + Math.min(2, d.records.length) * 54 + 30; }
-      if (d.top?.length && y < H - 640) { c.fillStyle = "rgba(255,255,255,.55)"; c.font = F(700, 30); c.fillText("AU PROGRAMME", X, y + 30); c.fillStyle = "#fff"; c.font = F(600, 40); d.top.slice(0, Math.max(1, Math.floor((H - 640 - y - 60) / 56))).forEach((t, i) => c.fillText("• " + t, X, y + 90 + i * 56, LW)); }
+      if (d.detail?.length) detailSeance(c, d, X, y, LW, H - 480);
+      else if (d.top?.length && y < H - 640) { c.fillStyle = "rgba(255,255,255,.55)"; c.font = F(700, 30); c.fillText("AU PROGRAMME", X, y + 30); c.fillStyle = "#fff"; c.font = F(600, 40); d.top.forEach((t, i) => { if (y + 90 + i * 56 < H - 520) c.fillText("• " + t, X, y + 90 + i * 56, LW); }); }
     } else {
       c.fillStyle = "#8FB4FF"; c.font = F(700, 34); c.fillText(d.routine ? "MA SÉANCE" : "MON PROGRAMME D'ENTRAÎNEMENT", X, y);
       c.fillStyle = "#fff"; c.font = F(800, 80); const tl = lignes(c, d.n || "Mon programme", LW, 2); tl.forEach((l, i) => c.fillText(l, X, y + 100 + i * 90)); y += 100 + tl.length * 90;
@@ -121,7 +142,7 @@ export async function imageStory(type, d, { code = monCode(), qui = profil()?.ps
           c.fillStyle = "#fff"; c.font = F(700, 38); c.fillText(e[0], X + 30, yy + 51, LW - (e[2] ? 300 : 60));
           if (e[2]) { c.fillStyle = "#C9DAFF"; c.font = F(700, 36); c.textAlign = "right"; c.fillText(e[2], X + LW - 30, yy + 51, 250); c.textAlign = "left"; } });
         if (exs.length > n) { c.fillStyle = "rgba(255,255,255,.6)"; c.font = F(600, 32); c.fillText(`+ ${exs.length - n} autre${exs.length - n > 1 ? "s" : ""} exercice${exs.length - n > 1 ? "s" : ""}`, X, y + n * 92 + 30); }
-        pied(c, W, H, code); return await new Promise(res => cv.toBlob(res, "image/png"));
+        pied(c, W, H, code, lien); return await new Promise(res => cv.toBlob(res, "image/png"));
       }
       const ses = (d.s || []).slice(0, 5), place = H - 560 - y, h1 = Math.min(250, Math.floor(place / Math.max(1, ses.length)) - 20);
       ses.forEach(([nom, jour, exs]) => { c.fillStyle = "rgba(255,255,255,.09)"; rr(c, X, y, LW, h1, 30); c.fill();
@@ -131,7 +152,7 @@ export async function imageStory(type, d, { code = monCode(), qui = profil()?.ps
       if ((d.s || []).length > 5) { c.fillStyle = "rgba(255,255,255,.6)"; c.font = F(600, 32); c.fillText(`+ ${d.s.length - 5} autre${d.s.length > 6 ? "s" : ""} séance${d.s.length > 6 ? "s" : ""}`, X, y + 30); }
       if (!d.s?.length && d.id) { c.fillStyle = "rgba(255,255,255,.8)"; c.font = F(500, 40); lignes(c, "Un des programmes de Thomas Boulet, à suivre dans l'app.", LW, 2).forEach((l, i) => c.fillText(l, X, y + 40 + i * 52)); }
     }
-    pied(c, W, H, code);
+    pied(c, W, H, code, lien);
     return await new Promise(r => cv.toBlob(r, "image/png"));
   } catch (e) { console.warn(e); toast("Image impossible à créer sur ce téléphone"); return null; }
 }
@@ -203,7 +224,10 @@ const derniere = () => S().workouts.at(-1);
 // Séance à partager : celle de l'historique désignée par sa clé (data-k), sinon la dernière terminée
 const seanceDe = (d) => (d?.k && S().workouts.find(w => cleSeance(w) === d.k)) || (d?.k ? null : derniere());
 actions["soc-story-w"] = async (b, d) => { const w = seanceDe(d); if (!w) return; closeSheet(); toast("Image en préparation…"); const code = await assurerCode(), r = recapDe(w);
-  const blob = await imageStory("seance", r, { code }); if (!blob) return; await partagerImage(blob, "ma-seance-tb-my-coach.png", SO.texteSeance(r, await lienDe({ code, seance: r }))); buzz(15); };
+  const notes = Object.fromEntries((w.exercises || []).map(e => [e.name, e.myNote || (e.sets || []).find(z => z.note)?.note || ""]));
+  const rr2 = { ...r, detail: (r.detail || []).map(e => ({ ...e, note: (notes[e.n] || "").slice(0, 70) })) };
+  const lien = await lienDe({ code, seance: r }), blob = await imageStory("seance", rr2, { code, lien }); if (!blob) return;
+  await partagerImage(blob, "ma-seance-tb-my-coach.png", SO.texteSeance(r, lien)); buzz(15); };
 actions["soc-ami-w"] = async (b, d) => { const w = seanceDe(d); if (!w) return; closeSheet(); const code = await assurerCode(), r = recapDe(w);
   await partagerTexte(SO.texteSeance(r, await lienDe({ code, seance: r })), "Ma séance"); };
 actions["soc-pub-w"] = async (b, d) => {

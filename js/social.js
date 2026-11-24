@@ -244,7 +244,7 @@ export const texteInvitation = ({ prenom = "", code = null, lien = "", jours = 3
   `${prenom ? prenom + " t'invite" : "Je t'invite"} sur TB my Coach, l'app d'entraînement et de nutrition de Thomas Boulet. ${jours} jours offerts, sans carte bancaire${code ? ` (code ${code})` : ""} : ${lien}`;
 export function texteSeance(r, lien) {
   const bits = [r.min ? `${r.min} min` : null, r.series ? `${r.series} séries` : null, r.tonnes ? `${String(r.tonnes).replace(".", ",")} t` : null].filter(Boolean).join(" · ");
-  return `💪 ${r.titre}${bits ? ` : ${bits}` : ""}${r.records?.length ? `\n🏆 Record : ${r.records[0]}` : ""}\nViens t'entraîner avec moi 👉 ${lien}`;
+  return `💪 ${r.titre}${bits ? ` : ${bits}` : ""}${r.records?.length ? `\n🏆 Record : ${r.records[0]}` : ""}\nViens t'entraîner avec moi, clique pour rejoindre l'app 👉 ${lien}`;
 }
 export const texteRoutine = (n, lien) => `🏋️ Ma séance « ${n} », à faire gratuitement 👉 ${lien}`;
 export const texteProgramme = (n, lien) => `📋 Mon programme d'entraînement${n && !/^mon programme$/i.test(n) ? ` « ${n} »` : ""}, à suivre gratuitement 👉 ${lien}`;
