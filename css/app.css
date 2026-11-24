@@ -911,3 +911,6 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 /* Note de série + bouton Techniques : la note prend 2 colonnes, le bouton les 2 dernières */
 .set .snote{grid-column:2/4}
 .set .tqbtn{grid-column:4/-1;justify-self:end;font-size:12px;padding:4px 2px}
+
+.pastille{position:relative;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);font-size:20px;display:grid;place-items:center;padding:0}
+.pastille i{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-style:normal;font-size:11px;font-weight:800;line-height:18px}

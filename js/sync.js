@@ -82,6 +82,13 @@ export function snapshot() {
     const acts = [lw?.end?.slice(0, 10), ...Object.keys(st.food || {}).filter(k => (st.food[k] || []).length), ...Object.keys(st.daily || {}).filter(k => Object.keys(st.daily[k] || {}).length)].filter(Boolean).sort();
     summary.s7 = { workouts: w7.length, ex: w7.reduce((a, w) => a + w.exercises.filter(e => e.sets.some(s => s.done)).length, 0), nutri: days7.filter(k => (st.food?.[k] || []).length).length };
     summary.lastActive = acts.at(-1) || null;
+    // Pour les rappels intelligents du serveur : cibles du jour, repas prévus et notés, eau, sommeil, préférences
+    try { const T = N.targets(); const plan = N.dayPlan(T, t) || [];
+      summary.nut = { kT: Math.round(T?.kcal || 0), cT: Math.round(T?.carbs || 0), pT: Math.round(T?.prot || 0), c: Math.round(tot.c || 0), water: D.water || 0,
+        plan: plan.map(m => ({ meal: m.meal, time: m.time || null })), done: [...new Set(N.dayLog(t).map(e => e.meal).filter(Boolean))] };
+    } catch { }
+    summary.sommeil = st.settings?.sleep || null; summary.notifs = st.settings?.notifs || {};
+    summary.sessionTime = ag?.time || null;
     try { const a = myAdherence(t), lc = lastCheckin();
       summary.adh = { score: a.score, status: a.status, trend: a.trend, week: a.week, prev: a.prevWeek, age: a.age };
       summary.lastCheckin = lc?.d || null;

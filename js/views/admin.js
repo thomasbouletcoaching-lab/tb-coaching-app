@@ -300,7 +300,12 @@ routes["admin-today"] = async () => {
     return true;
   });
   let vids = []; try { vids = await videosEnAttente(); } catch { }
-  frame("admin-today", `${homeHead()}${kpiBlock()}${liveNowBlock()}${blocAdmin(vids)}${alertsBlock()}${calendrier()}${decrochageBlock()}${todoBlock()}${fabBtn()}`, "Accueil");
+  // L'agenda d'abord ; vidéos et alertes en petites pastilles rondes
+  const nAl = alertesDuJour().length;
+  const pastilles = `<div class="row mt8" style="gap:10px;align-items:center"><span class="grow small muted">${fmtDate(today(), { weekday: "long", day: "numeric", month: "long" })}</span>
+    <button class="pastille" data-a="go" data-r="coach-videos" aria-label="Vidéos à analyser">🎥${vids.length ? `<i>${vids.length}</i>` : ""}</button>
+    <button class="pastille" data-a="adm-alertes" aria-label="Notifs et alertes">🚨${nAl ? `<i>${nAl}</i>` : ""}</button></div>`;
+  frame("admin-today", `${pastilles}${calendrier()}${liveNowBlock()}${kpiBlock()}${decrochageBlock()}${todoBlock()}${fabBtn()}`, "Accueil");
 };
 
 routes.admin = async () => {
@@ -602,9 +607,10 @@ function kpiBlock() {
 }
 // Notifications et alertes : chacune se ferme d'un ×, et ne revient que si elle change (ou après 7 jours)
 const alertKey = (e, t) => (e + " " + t).slice(0, 160);
+function alertesDuJour() { const t = today(), dis = A.store.dismiss || {}; return todoToday().filter(([e, tx]) => { const k = alertKey(e, tx); return !dis[k] || dis[k] < addDays(t, -7); }); }
+actions["adm-alertes"] = () => sheet(`<h2 class="h2">🚨 Notifs et alertes</h2>${alertsBlock()}`);
 function alertsBlock() {
-  const t = today(), dis = A.store.dismiss || {};
-  const l = todoToday().filter(([e, tx]) => { const k = alertKey(e, tx); return !dis[k] || dis[k] < addDays(t, -7); });
+  const l = alertesDuJour();
   return `<div class="row between mt16"><b class="lbl" style="margin:0">Notifs & alertes</b><span class="xs muted">${l.length || "rien"} à traiter</span></div>
     ${l.length ? `<div class="card mt4" style="padding:4px 8px">${l.map(([e, tx, r]) => `<div class="li" style="gap:8px"><span class="em">${e}</span><button class="grow small" style="text-align:left" data-a="adm-go" data-r="${esc(r)}">${esc(tx)}</button><button class="icon-btn sm" data-a="adm-dismiss" data-k="${esc(alertKey(e, tx))}" aria-label="Fermer l'alerte">${I.close}</button></div>`).join("")}</div>`
     : `<div class="card mt4"><p class="small" style="margin:0">✅ Tout est traité pour aujourd'hui.</p></div>`}`;
@@ -880,9 +886,19 @@ const toMin = (t) => { const [h, m] = String(t).split(":").map(Number); return h
 const STC = { done: "#22A45D", ip: "#E0A93B", missed: "#C8323F", planned: "#2F6FED" };
 function bloc(it, compact) {
   const top = (toMin(it.time) - H0 * 60) / 60 * PX, h = Math.max(compact ? 20 : 26, it.dur / 60 * PX - 2);
-  if (it.k === "e") return `<button class="cblk" style="top:${top}px;height:${h}px;background:${it.col}" data-a="cal-ev" data-id="${it.e.id}"><b>${esc(it.name)}</b>${compact ? "" : `<span>${it.time} · ${esc(it.lab)}</span>`}</button>`;
+  const pos = it.nc > 1 ? `left:calc(${(it.cc / it.nc) * 100}% + 2px);right:auto;width:calc(${100 / it.nc}% - 4px);` : "";
+  if (it.k === "e") return `<button class="cblk" style="${pos}top:${top}px;height:${h}px;background:${it.col}" data-a="cal-ev" data-id="${it.e.id}"><b>${esc(it.name)}</b>${compact ? "" : `<span>${it.time} · ${esc(it.lab)}</span>`}</button>`;
   const c = STC[it.st] || STC.planned;
-  return `<button class="cblk ${it.avec ? "" : "auto"}" style="top:${top}px;height:${h}px;${it.avec ? `background:${c}` : `border-color:${c};color:${c}`}" data-a="cal-s" data-m="${it.m.id}" data-d="${it.d}"><b>${it.avec ? "🤝 " : ""}${esc(it.name)}</b>${compact ? "" : `<span>${it.time} · ${esc(it.a.title || "Séance")}${it.st === "done" ? " · ✅" : it.st === "missed" ? " · ❌" : it.st === "ip" ? " · en cours" : ""}</span>`}</button>`;
+  return `<button class="cblk ${it.avec ? "" : "auto"}" style="${pos}top:${top}px;height:${h}px;${it.avec ? `background:${c}` : `border-color:${c};color:${c}`}" data-a="cal-s" data-m="${it.m.id}" data-d="${it.d}"><b>${it.avec ? "🤝 " : ""}${esc(it.name)}</b>${compact ? "" : `<span>${it.time} · ${esc(it.a.title || "Séance")}${it.st === "done" ? " · ✅" : it.st === "missed" ? " · ❌" : it.st === "ip" ? " · en cours" : ""}</span>`}</button>`;
+}
+// Blocs qui se chevauchent : rangés côte à côte (comme Google Agenda)
+function colonnes(items) {
+  const l = items.map(it => ({ ...it, a: toMin(it.time), b: toMin(it.time) + it.dur })).sort((x, y) => x.a - y.a);
+  let grp = [], fin = -1; const out = [];
+  const ferme = () => { const cols = []; grp.forEach(it => { let c = cols.findIndex(e => e <= it.a); if (c < 0) { c = cols.length; cols.push(0); } cols[c] = it.b; it.cc = c; }); grp.forEach(it => { it.nc = cols.length; out.push(it); }); grp = []; };
+  l.forEach(it => { if (it.a >= fin && grp.length) ferme(); grp.push(it); fin = Math.max(fin, it.b); });
+  if (grp.length) ferme();
+  return out;
 }
 function grille(days) {
   const now = new Date(), nowTop = (now.getHours() * 60 + now.getMinutes() - H0 * 60) / 60 * PX, t = today();
@@ -891,7 +907,7 @@ function grille(days) {
   return `${sansH.some(l => l.length) ? `<div class="csans" style="grid-template-columns:40px repeat(${days.length},1fr)"><span class="xs muted">sans heure</span>${sansH.map((l, i) => `<div>${l.map(it => it.k === "s" ? `<button class="cchip ${it.st}" data-a="cal-s" data-m="${it.m.id}" data-d="${days[i]}">${esc(it.name)}</button>` : "").join("")}</div>`).join("")}</div>` : ""}
     <div class="cgrid" style="grid-template-columns:40px repeat(${days.length},1fr);height:${(H1 - H0) * PX}px">
       <div class="chrs">${hours.map(h => `<span style="top:${(h - H0) * PX}px">${h}:00</span>`).join("")}</div>
-      ${days.map(d => `<div class="ccol ${d === t ? "today" : ""}" data-a="cal-vide" data-d="${d}">${hours.map(h => `<i style="top:${(h - H0) * PX}px"></i>`).join("")}${calItems(d).filter(it => it.time).map(it => bloc(it, days.length > 1)).join("")}${d === t && nowTop > 0 ? `<em style="top:${nowTop}px"></em>` : ""}</div>`).join("")}
+      ${days.map(d => `<div class="ccol ${d === t ? "today" : ""}" data-a="cal-vide" data-d="${d}">${hours.map(h => `<i style="top:${(h - H0) * PX}px"></i>`).join("")}${colonnes(calItems(d).filter(it => it.time)).map(it => bloc(it, days.length > 1)).join("")}${d === t && nowTop > 0 ? `<em style="top:${nowTop}px"></em>` : ""}</div>`).join("")}
     </div>`;
 }
 function calendrier() {
