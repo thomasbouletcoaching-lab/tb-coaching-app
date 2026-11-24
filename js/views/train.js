@@ -1,3 +1,4 @@
+import * as FX from "../faisceaux.js";
 // Entraînement : programme et cycle, banque, programme perso, carnet de séance, stats, records, simulateur, fiches.
 import { scheduleRest, unlockAudio, beep } from "../push.js";
 import * as SC from "../science.js";
@@ -513,6 +514,7 @@ routes.workout = async () => {
     <div class="row between small muted"><span>${adv() ? "Mode avancé : % et RPE visibles" : "RPE visible · % masqués"}</span><button class="link" data-a="adv-toggle">${adv() ? "Simplifier" : "Afficher les %"}</button></div>
     ${cur.exercises.length > 1 ? `<button class="btn btn-line btn-sm mt8" data-a="ex-order" style="width:100%">↕️ Réorganiser les exercices</button>` : ""}
     ${S().settings?.setHintSeen ? "" : `<div class="card soft mt8 row" style="gap:10px;align-items:center"><span style="font-size:22px">👆</span><span class="xs grow">Touche le <b>numéro d'une série</b> (case en pointillés) pour ajouter une note, une sensation, une douleur, une technique ou changer son type.</span><button class="icon-btn sm" data-a="set-hint-ok" aria-label="J'ai compris">✕</button></div>`}
+    ${cur.exercises.length ? `<div class="row mt8" style="gap:8px"><button class="btn btn-line btn-sm grow" data-a="fx-live">💪 Volume par muscle</button><button class="btn btn-line btn-sm grow" data-a="fx-presse">⚡ Pressé ?</button></div>` : ""}
     ${cur.exercises.map((ex, xi) => exerciseBlock(ex, xi)).join("")}
     ${cur.exercises.length ? "" : `<p class="empty">Ajoute ton premier exercice.</p>`}
     <button class="btn btn-line mt16" data-a="add-ex">${I.plus.replace("<svg", '<svg width="20"')} Ajouter un exercice</button>
@@ -869,6 +871,7 @@ function drawPicker() {
     <div class="search mt12">${I.search}<input id="pq" placeholder="Nom ou muscle : squat, dorsaux, triceps…" autocomplete="off" value="${esc(pk.q)}"></div>
     <div class="mt8">${chips([["", "Tous les muscles"], ...E.MUSCLES.map(m => [m, m])], pk.mus, "pick-mus")}</div>
     <div class="mt4">${chips([["", "Tout le matériel"], ...E.EQUIP.map(m => [m, m])], pk.eq, "pick-eq")}</div>
+    <div class="mt4">${chips([["", "Tous les faisceaux"], ...FX.MUSCLES_FX.flatMap(m => m.f.map(([h, n]) => [h, n.replace(/ \(.*\)/, "")]))], pk.fx || "", "pick-fx")}</div>
     <div id="pl" class="mt12"></div>`, (w) => {
     const inp = w.querySelector("#pq");
     inp.addEventListener("input", () => { pk.q = inp.value; drawPickList(); });
@@ -878,12 +881,13 @@ function drawPicker() {
 }
 function drawPickList() {
   const box = document.getElementById("pl"); if (!box) return;
-  const r = filterExercises(pk.q, pk.mus, pk.eq, pk.pre);
-  box.innerHTML = `<p class="xs muted">${r.length} exercice${r.length > 1 ? "s" : ""}</p>` + (r.length ? `<div class="list">${r.slice(0, 150).map(n => `<div class="li" style="gap:6px"><button class="grow" style="text-align:left" data-a="pick-ex" data-n="${esc(n)}"><span class="small"><b>${esc(n)}</b></span><br><span class="xs muted">${esc(E.musclesOf(n).join(" · "))} · ${esc(E.equipOf(n))}</span></button><button class="icon-btn" data-a="pick-fiche" data-n="${esc(n)}" aria-label="Fiche technique">📖</button><button class="icon-btn" data-a="pick-ex" data-n="${esc(n)}" aria-label="Choisir">${I.plus.replace("<svg", '<svg width="18"')}</button></div>`).join("")}</div>` : `<p class="empty small">Aucun exercice.</p>`)
+  const r = filterExercises(pk.q, pk.mus, pk.eq, pk.pre).filter(n => !pk.fx || FX.headsOf(n, E.musclesOf).d.includes(pk.fx));
+  box.innerHTML = `<p class="xs muted">${r.length} exercice${r.length > 1 ? "s" : ""}</p>` + (r.length ? `<div class="list">${r.slice(0, 150).map(n => `<div class="li" style="gap:6px"><button class="grow" style="text-align:left" data-a="pick-ex" data-n="${esc(n)}"><span class="small"><b>${esc(n)}</b></span><br><span class="xs muted">${esc(E.musclesOf(n).join(" · "))} · ${esc(E.equipOf(n))} · ${({ E: "↔️ étirement", C: "🎯 contraction", M: "⚖️ mixte" })[FX.headsOf(n, E.musclesOf).t]}</span></button><button class="icon-btn" data-a="pick-fiche" data-n="${esc(n)}" aria-label="Fiche technique">📖</button><button class="icon-btn" data-a="pick-ex" data-n="${esc(n)}" aria-label="Choisir">${I.plus.replace("<svg", '<svg width="18"')}</button></div>`).join("")}</div>` : `<p class="empty small">Aucun exercice.</p>`)
     + `<button class="btn btn-line btn-sm mt12" data-a="pick-new" style="width:100%">＋ Créer mon exercice${pk.q ? ` « ${esc(pk.q)} »` : ""}</button>`;
 }
 actions["pick-mus"] = (b, d) => { pk.mus = d.v; drawPicker(); };
 actions["pick-eq"] = (b, d) => { pk.eq = d.v; drawPicker(); };
+actions["pick-fx"] = (b, d) => { pk.fx = d.v; drawPicker(); };
 actions["pick-ex"] = (b, d) => {
   if (pk.multi) { pk.cb?.(d.n); pk.added++; toast(`${d.n} ajouté`); b.closest(".li").style.opacity = ".5"; const t = document.querySelector('[data-a="pick-done"]'); if (t) t.textContent = `Terminé (${pk.added})`; return; }
   closeSheet(); pk.cb?.(d.n);
@@ -1021,6 +1025,7 @@ routes.done = () => {
 // CRÉER SON PROGRAMME : séances, exercices, séries écrites une par une, règles de surcharge, cycle entier
 // =====================================================================
 let draft = null;
+export const bdDraft = () => draft;
 // Accès au brouillon de l'éditeur pour l'écran « Volume de la semaine » (js/views/volume.js)
 export const builderDraft = () => draft;
 export function setBuilderDraft(p) { draft = p; }
@@ -1084,7 +1089,8 @@ routes.builder = async () => {
     <div class="field mt8"><span>Jours d'entraînement</span><div class="row" style="gap:4px">${E.DAY_SHORT.map((l, i) => `<button class="chip sm ${D.days[i] ? "on" : ""}" data-a="bd-day" data-v="${i}" style="padding:6px 10px">${l}</button>`).join("")}</div></div>
     ${D.phases ? `<div class="field mt8"><span>Phases (touche une semaine pour la renommer)</span><div class="phases-row hscroll">${D.phases.map((ph, i) => `<button class="ph ph-${phaseKey(ph)}" data-a="bd-ph" data-v="${i}"><b>S${i + 1}</b><span>${esc(ph === "Deload" ? "Allègement" : ph)}</span></button>`).join("")}</div></div>` : ""}</div>
     ${solo ? `<button class="link small" data-a="bd-solo-off">Voir tout le programme</button>` : ""}
-    ${D.s.map((se, si) => solo && si !== bdSolo.i ? "" : `<div class="card mt16" id="bd-s-${si}"><div class="row" style="gap:6px"><input class="inp grow" data-c="bd-s" data-s="${si}" value="${esc(se[0])}" aria-label="Nom de la séance" style="text-align:left;font-weight:800">${D.s.length > 1 ? `<button class="icon-btn" data-a="bd-smv" data-s="${si}" data-v="-1" aria-label="Monter la séance" ${si ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn" data-a="bd-sdel" data-s="${si}" aria-label="Supprimer la séance">${I.close}</button>` : ""}${isCoach() ? `<button class="icon-btn" data-a="bd-stpl" data-s="${si}" aria-label="Ranger la séance dans mes modèles">💾</button>` : ""}</div>
+    ${D.s.length && !solo ? `<button class="btn btn-line btn-sm mt12" data-a="fx-bd" data-s="" style="width:100%">💪 Volume de la semaine par muscle</button>` : ""}
+    ${D.s.map((se, si) => solo && si !== bdSolo.i ? "" : `<div class="card mt16" id="bd-s-${si}"><div class="row" style="gap:6px"><input class="inp grow" data-c="bd-s" data-s="${si}" value="${esc(se[0])}" aria-label="Nom de la séance" style="text-align:left;font-weight:800"><button class="icon-btn" data-a="fx-bd" data-s="${si}" aria-label="Volume par faisceau de la séance">💪</button>${D.s.length > 1 ? `<button class="icon-btn" data-a="bd-smv" data-s="${si}" data-v="-1" aria-label="Monter la séance" ${si ? "" : "disabled style=\"opacity:.3\""}>↑</button><button class="icon-btn" data-a="bd-sdel" data-s="${si}" aria-label="Supprimer la séance">${I.close}</button>` : ""}${isCoach() ? `<button class="icon-btn" data-a="bd-stpl" data-s="${si}" aria-label="Ranger la séance dans mes modèles">💾</button>` : ""}</div>
       ${se[2].map((r, ri) => { const x = r[5], pr = x.prog || {}; const rules = [pr.load === "double" ? `double progression jusqu'à ${pr.to || "?"} reps puis +${String(pr.step).replace(".", ",")}${x.sets.some(z => z.pct) ? " %" : " kg"}` : pr.load !== "auto" ? `${pr.load === "rpe" ? "RPE" : "charge"} +${String(pr.step).replace(".", ",")}${pr.load === "pct" ? " %" : pr.load === "kg" ? " kg" : ""}${pr.every > 1 ? ` / ${pr.every} sem.` : " / sem."}` : "progression auto", pr.addSet?.every ? `+1 série / ${pr.addSet.every} sem.` : "", pr.reps?.every ? `${pr.reps.delta > 0 ? "+" : ""}${pr.reps.delta} rep / ${pr.reps.every} sem.` : "", Object.keys(x.weeks || {}).length ? `${Object.keys(x.weeks).length} sem. écrites` : ""].filter(Boolean).join(" · ");
         const nx = se[2][ri + 1], linked = r[3] && nx && nx[3] === r[3];
         return `<div class="bd-ex ${r[3] ? "ss" : ""}"><div class="row" style="gap:6px;align-items:flex-start"><span class="num xs" style="width:18px;padding-top:3px">${ri + 1}</span><button class="grow" style="text-align:left" data-a="bd-edit" data-s="${si}" data-r="${ri}">${r[3] ? `<span class="tag r">🔗 Superset ${esc(r[3])}</span> ` : ""}${x.ab ? `<span class="tag">${x.ab === "A" ? "Semaines A (impaires)" : "Semaines B (paires)"}</span> ` : ""}<br><b class="small" style="color:var(--red)">${esc(r[0])}</b><br><span class="xs">S1 : ${esc(E.setsTxt(E.weekPlan(x, 1, D).sets).replace(/x/g, "×") || "aucune série")}</span><br><span class="xs muted">${esc(rules)}</span></button>

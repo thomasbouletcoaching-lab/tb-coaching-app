@@ -18,6 +18,7 @@ import "./views/season.js";
 import "./views/admin.js";
 import "./views/coachprog.js";
 import "./views/volume.js";
+import "./views/muscles.js";
 import "./views/account.js";
 import "./views/coachfood.js";
 import "./views/live.js";

@@ -98,6 +98,7 @@ routes.settings = async () => {
       <div class="li"><span class="em">🔊</span><span class="grow">Bip en fin de repos</span><button class="switch ${S().settings.sound !== false ? "on" : ""}" data-a="sound-tg" aria-label="Bip"></button></div>
       <div class="li"><span class="em">📳</span><span class="grow">Vibrations</span><button class="switch ${S().settings.haptics ? "on" : ""}" data-a="haptics" aria-label="Vibrations"></button></div>
       <div class="li"><span class="em">🌗</span><span class="grow">Thème</span><select data-c="theme" class="inp" style="width:auto;padding:4px 8px;font-size:15px"><option value="">Automatique</option><option value="light" ${localStorage.getItem("cxs.theme") === "light" ? "selected" : ""}>Clair</option><option value="dark" ${localStorage.getItem("cxs.theme") === "dark" ? "selected" : ""}>Sombre</option></select></div>
+      <button class="li" data-a="go" data-r="muscles"><span class="em">💪</span><span class="grow">Mes muscles : volume et récupération</span>${I.chev}</button>
       <button class="li" data-a="go" data-r="notes"><span class="em">📝</span><span class="grow">Mes notes d'exercices</span>${I.chev}</button>
       <button class="li" data-a="go" data-r="kb"><span class="em">📚</span><span class="grow">Connaissances</span>${I.chev}</button>
       <button class="li" data-a="go" data-r="account"><span class="em">👤</span><span class="grow">Mon compte</span>${I.chev}</button>

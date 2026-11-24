@@ -854,3 +854,10 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 .tick.sm{width:28px;height:28px;border-radius:9px;border:1.5px solid var(--line);background:none;display:grid;place-items:center;padding:0}
 .tick.sm.on{background:var(--good,#1e8f4e);border-color:transparent;color:#fff}
 .tick.sm svg{width:16px;height:16px}
+
+/* Muscles : jauges de volume et carte du corps */
+.fxbar{position:relative;height:8px;border-radius:4px;background:var(--line);margin:6px 0 4px;overflow:visible}
+.fxbar>i{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+.fxbar>b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--soft);opacity:.5}
+.corps2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.corps{width:100%;height:auto;max-height:340px}
