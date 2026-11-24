@@ -35,7 +35,7 @@ async function body() {
   const signup = mode === "signup";
   return `${head}<div class="card mt12"><form data-f="${signup ? "account-signup" : "account-signin"}">
       ${signup ? `<label class="field"><span>Prénom</span><input name="name" autocomplete="given-name"></label>` : ""}
-      <label class="field"><span>E-mail ou téléphone</span><input name="email" type="text" inputmode="email" autocomplete="username" required></label>
+      <label class="field"><span>E-mail ou téléphone</span><input name="email" type="text" inputmode="email" autocomplete="username" value="${esc(S().loginHint || "")}" required></label>
       <label class="field"><span>Mot de passe (6 caractères min.)</span><input name="password" type="password" minlength="6" autocomplete="${signup ? "new-password" : "current-password"}" required></label>
       <button class="btn btn-red mt12">${signup ? "Créer mon compte" : "Me connecter"}</button></form></div>
       <p class="xs muted mt8">Utilise l'e-mail de ton compte TB my Coach : tes accès coaching sont les mêmes.</p>`;
@@ -124,7 +124,7 @@ export async function restoreFromCloud(m) {
 forms["account-signin"] = async (v) => {
   try {
     await C.signInEmail(loginId(v.email), v.password);
-    let full = false; try { full = await restoreFromCloud(await C.fetchMigrated()); } catch (err) { console.warn("Compte non restauré :", err.message); }
+    let full = false; try { const dm = await C.fetchMigrated(); full = await restoreFromCloud(dm); if (full && dm?.forceReprise) update(st => { st.repriseAt = dm.forceReprise; }); update(st => { delete st.loginHint; }); if (!full) { const { retrouverSuivi } = await import("../sync.js"); await retrouverSuivi(true); } } catch (err) { console.warn("Compte non restauré :", err.message); }
     let r = { w: 0, f: 0, m: 0, p: 0 }; try { r = await restoreMigrated(); } catch (err) { console.warn("Données non restaurées :", err.message); }
     await refreshMe().catch(() => { });
     toast(full ? "Connexion réussie · ton compte est restauré" : r.w + r.f + r.m ? `Connexion réussie · ${r.w} séances, ${r.f} repas, ${r.m} mesures restaurés` : "Connexion réussie");

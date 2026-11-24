@@ -35,6 +35,12 @@ export async function refreshMe() {
     if (!(await c.currentSession())) await c.ensureSession();
     if (!S().synced) return syncProfile();
     const me = await c.fetchMe();
+    // Compte réuni dans un autre (ex. ancien compte athlète fusionné dans le compte coach) : on se déconnecte et on demande la bonne adresse
+    if (me?.onboarding?.fusionneVers && !me.is_coach) {
+      const cible = await c.emailDe?.(me.onboarding.fusionneVers).catch(() => null);
+      await c.signOutSb(); update(st => { st.synced = false; st.repriseAt = 0; st.loginHint = cible || ""; });
+      const { toast, go } = await import("./core.js"); toast(`Ce compte a été réuni avec ${cible || "ton compte principal"} : connecte-toi avec cette adresse`); go("account"); return;
+    }
     if (me) update(st => st.me = { id: me.id, tier: me.tier, isCoach: me.is_coach, msgsLeft: me.msgsLeft, until: me.tier_until });
     const [un, ns] = await Promise.all([c.unreadFromCoach(), c.notifications()]);
     badges.msgs = un; badges.notifs = ns.filter(n => !n.read).length;
@@ -192,9 +198,9 @@ export async function pullSaisies() {
 // au lieu de repartir de zéro et d'écraser la copie du serveur avec un suivi vide.
 const REPRISE = ["settings", "profile", "plan", "workouts", "food", "daily", "measures", "customPrograms", "moves", "exoNotes", "surcharge", "skips", "swaps", "season", "goals", "lifts", "checkins", "anamnese", "trialStart"];
 let repriseFaite = false;
-export async function retrouverSuivi() {
+export async function retrouverSuivi(encore = false) {
   if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
-  if (repriseFaite || proxyActive()) return; const st0 = S();
+  if ((repriseFaite && !encore) || proxyActive()) return; const st0 = S();
   repriseFaite = true;
   try {
     const c = await cloud(); if (!c || !(await c.currentSession?.())) return;

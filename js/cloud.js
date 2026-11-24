@@ -52,7 +52,7 @@ export async function saveProfile(fields) {
 export async function fetchMe() {
   if (!uid) return null;
   const [{ data: p }, { data: left }] = await Promise.all([
-    sb.from("cxs_profiles").select("id,email,name,tier,tier_until,is_coach").eq("id", uid).maybeSingle(),
+    sb.from("cxs_profiles").select("id,email,name,tier,tier_until,is_coach,onboarding").eq("id", uid).maybeSingle(),
     sb.rpc("cxs_msgs_left"),
   ]);
   return p ? { ...p, msgsLeft: left } : null;
@@ -537,3 +537,6 @@ export async function signInToken(tokenHash) {
 export async function coachSaisie(memberId, payload) { const { error } = await sb.rpc("cxs_coach_saisie", { p_member: memberId, p: payload }); if (error) throw error; }
 export async function mesSaisies() { if (!uid) await ensureSession(); const { data, error } = await sb.from("cxs_coach_entries").select("id,payload").eq("user_id", uid).is("applied_at", null).order("id").limit(50); if (error) throw error; return data || []; }
 export async function saisiesAppliquees(ids) { if (!ids.length) return; const { error } = await sb.from("cxs_coach_entries").update({ applied_at: new Date().toISOString() }).in("id", ids); if (error) throw error; }
+
+// Adresse d'un compte (pour guider vers le compte principal après une fusion)
+export async function emailDe(id) { const { data } = await sb.rpc("cxs_email_fusion", { cible: id }); return data || null; }
