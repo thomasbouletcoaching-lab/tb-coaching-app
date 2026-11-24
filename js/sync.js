@@ -42,6 +42,8 @@ export async function refreshMe() {
       const { toast, go } = await import("./core.js"); toast(`Ce compte a été réuni avec ${cible || "ton compte principal"} : connecte-toi avec cette adresse`); go("account"); return;
     }
     if (me) update(st => st.me = { id: me.id, tier: me.tier, isCoach: me.is_coach, msgsLeft: me.msgsLeft, until: me.tier_until });
+    // L'e-mail affiché est toujours celui du compte connecté (pas une ancienne adresse restée dans le profil)
+    try { const em = await c.accountEmail(); if (em && S().profile && S().profile.email !== em) update(st => { st.profile.email = em; }); } catch { }
     const [un, ns] = await Promise.all([c.unreadFromCoach(), c.notifications()]);
     badges.msgs = un; badges.notifs = ns.filter(n => !n.read).length;
     if (isCoach()) { const ms = await c.members(); window.__members = ms; badges.msgs = ms.reduce((a, m) => a + m.unread, 0); }

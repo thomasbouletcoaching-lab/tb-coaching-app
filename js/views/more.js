@@ -127,7 +127,7 @@ actions["edit-body"] = () => {
   const p = S().profile, opt = (id) => ONB_STEPS.find(s => s.id === id).opts;
   sheet(`<h2 class="h1">Mes infos</h2><form data-f="edit-body" class="stack mt12">
     <div class="grid3"><label class="field"><span>Poids (kg)</span><input name="weight" inputmode="decimal" value="${E.fmtKg(p.weight)}"></label><label class="field"><span>Taille (cm)</span><input name="height" inputmode="numeric" value="${p.height}"></label><label class="field"><span>Âge</span><input name="age" inputmode="numeric" value="${p.age}"></label></div>
-    <label class="field"><span>E-mail</span><input name="email" type="email" value="${esc(p.email || "")}"></label>
+    <label class="field"><span>E-mail du compte</span><input name="email" type="email" value="${esc(p.email || "")}" readonly style="opacity:.7"></label>
     <label class="field"><span>Comment on s'adresse à toi</span><select name="genre"><option value="" ${genreChoisi(p) ? "" : "selected"}>Pas encore choisi</option>${GENRES.map(([v, l]) => `<option value="${v}" ${p.genre === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
     <label class="field"><span>Sexe (sert aux estimations : dépense, repères nutritionnels)</span><select name="sex">${SEXES.map(([v, l]) => `<option value="${v}" ${(p.sex || "") === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
     <label class="field"><span>Objectif de pas par jour</span><input name="stepsGoal" inputmode="numeric" value="${p.stepsGoal || 8000}"></label>
