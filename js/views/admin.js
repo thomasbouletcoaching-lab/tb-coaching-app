@@ -63,15 +63,19 @@ const RELANCE = {
   mood: "Salut {prénom}, ton bilan montre une semaine difficile. Comment ça va vraiment ? On adapte ce qu'il faut.",
   health: "Salut {prénom}, merci pour ton point de départ. Tu as signalé un point de santé : as-tu pu en parler à ton médecin ? En attendant, on garde des séances modérées.",
 };
-function decrochageBlock() {
+function decrocheurs() {
   const rows = (A.members || []).map(m => ({ m, adh: adhOf(m), al: memberAlerts(m) })).filter(x => x.al.some(a => a.level !== "info"));
   const lv = (x) => x.al.filter(a => a.level === "risk").length * 10 + x.al.filter(a => a.level === "watch").length;
-  rows.sort((a, b) => lv(b) - lv(a) || (a.adh?.score ?? 100) - (b.adh?.score ?? 100));
-  if (!rows.length) return `<div class="card mt12"><b class="small">🟢 Personne ne décroche</b><p class="xs muted mt4" style="margin:0">Les alertes apparaissent ici dès qu'un membre glisse : inactivité, chute de régularité, bilan manquant, séances loupées, fatigue.</p></div>`;
-  return `<details class="fold" open data-fold="drop"><summary>🚨 Qui décroche <span class="cnt out">${rows.length}</span></summary><div class="fb"><div class="list">${rows.slice(0, 12).map(({ m, adh, al }) => { const st = adh ? STATUS[adh.status] : null;
-    return `<div class="li" style="flex-direction:column;align-items:stretch;gap:6px"><div class="row between"><a href="#/member/${m.id}" style="color:inherit;text-decoration:none"><b>${esc(first(m))}</b></a><span>${st ? `<span class="tag ${"st-" + st.tone}">${adh.score ?? "–"} · ${st.label}</span>` : `<span class="tag">pas de score</span>`}</span></div>
-      <span class="xs">${al.filter(a => a.level !== "info").slice(0, 3).map(a => `${a.level === "risk" ? "🔴" : "🟠"} ${esc(a.text)}`).join("<br>")}</span>
-      <div class="row" style="gap:6px"><button class="btn btn-red btn-xs grow" data-a="adm-relance" data-id="${m.id}" data-c="${al.find(a => a.level !== "info").code}">💬 Relancer</button><a class="btn btn-line btn-xs grow" href="#/member/${m.id}">📈 Suivi</a></div></div>`; }).join("")}</div></div></details>`;
+  return rows.sort((a, b) => lv(b) - lv(a) || (a.adh?.score ?? 100) - (b.adh?.score ?? 100));
+}
+// Un seul indicateur : qui décroche, une ligne chacun (la pire alerte), puis le reste à traiter
+function decrochageBlock() {
+  const rows = decrocheurs();
+  if (!rows.length) return `<div class="card mt4"><p class="small" style="margin:0">🟢 Personne ne décroche.</p></div>`;
+  return `<div class="row between mt4"><b class="lbl" style="margin:0">Qui décroche</b><span class="xs muted">${rows.length}</span></div><div class="list mt4">${rows.slice(0, 5).map(({ m, adh, al }) => { const st = adh ? STATUS[adh.status] : null, top = al.filter(a => a.level !== "info").sort((x, y) => (y.level === "risk") - (x.level === "risk"))[0];
+    return `<div class="li" style="flex-direction:column;align-items:stretch;gap:4px"><div class="row between"><a href="#/member/${m.id}" style="color:inherit;text-decoration:none"><b>${esc(first(m))}</b></a>${st ? `<span class="tag ${"st-" + st.tone}">${adh.score ?? "–"}</span>` : ""}</div>
+      <span class="xs">${top.level === "risk" ? "🔴" : "🟠"} ${esc(top.text)}</span>
+      <div class="row" style="gap:6px"><button class="btn btn-red btn-xs grow" data-a="adm-relance" data-id="${m.id}" data-c="${top.code}">💬 Relancer</button><a class="btn btn-line btn-xs grow" href="#/member/${m.id}">Fiche</a></div></div>`; }).join("")}</div>${rows.length > 5 ? `<p class="xs muted mt4">+ ${rows.length - 5} autre${rows.length > 6 ? "s" : ""} à surveiller (voir Mes clients)</p>` : ""}`;
 }
 
 // ---------- Mise en page commune ----------
@@ -146,15 +150,18 @@ actions["adm-agnav"] = (b, d) => { UI.agDay = addDays(UI.agDay || today(), +d.v)
 document.addEventListener("toggle", (e) => { const f = e.target.closest?.("[data-fold]"); if (f) UI.open[f.dataset.fold] = f.open; }, true);
 
 // Tâches du coach
+const todoSheetHtml = () => `<div id="todo-sheet"><h2 class="h2">📋 Ma to-do</h2>${todoBlock().replace(/^<details[^>]*><summary>.*?<\/summary><div class="fb">/s, "<div>").replace(/<\/div><\/details>$/, "</div>")}</div>`;
+actions["adm-todo-sheet"] = () => sheet(todoSheetHtml());
+const todoRefresh = () => { if (document.getElementById("todo-sheet")) sheet(todoSheetHtml()); };
 function todoBlock() {
   const t = today(), items = A.store.todo, due = items.filter(x => !x.done && (!x.due || x.due <= t));
   return `<details class="fold" ${UI.open.todo ? "open" : ""} data-fold="todo"><summary>📋 Ma to-do ${items.filter(x => !x.done).length ? `<span class="cnt">${items.filter(x => !x.done).length}</span>` : ""}${due.length ? `<span class="cnt out">à faire aujourd'hui</span>` : ""}</summary><div class="fb">
     <form data-f="adm-todo" class="row" style="gap:6px"><input class="inp grow" name="t" placeholder="Nouvelle tâche" style="text-align:left" required maxlength="140"><input class="inp" type="date" name="due" style="width:150px" value="${t}"><button class="btn btn-red btn-xs" style="width:auto">+</button></form>
     <div class="list mt8">${items.slice().sort((a, b) => (a.done - b.done) || (a.due || "9").localeCompare(b.due || "9")).map(x => `<div class="li" style="gap:8px"><button class="rk" data-a="adm-todo-t" data-id="${x.id}" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);background:${x.done ? "var(--gradbtn)" : "var(--paper)"};color:#fff;flex:none">${x.done ? "✓" : ""}</button><span class="grow small" style="${x.done ? "text-decoration:line-through;opacity:.55" : ""}">${esc(x.t)}${x.due ? `<br><span class="xs ${x.due < t && !x.done ? "red" : "muted"}">${x.due === t ? "aujourd'hui" : fmtDate(x.due, { day: "numeric", month: "short" })}</span>` : ""}</span><button class="icon-btn sm" data-a="adm-todo-d" data-id="${x.id}" aria-label="Supprimer">${I.close}</button></div>`).join("") || `<p class="xs muted">Aucune tâche.</p>`}</div></div></details>`;
 }
-forms["adm-todo"] = async (v, f) => { A.store.todo.push({ id: Date.now(), t: v.t.trim(), due: v.due || null, done: false }); UI.open.todo = true; closeSheet(); rerender(); await saveStore("todo"); };
-actions["adm-todo-t"] = async (b, d) => { const x = A.store.todo.find(x => x.id === +d.id); if (x) x.done = !x.done; rerender(); await saveStore("todo"); };
-actions["adm-todo-d"] = async (b, d) => { A.store.todo = A.store.todo.filter(x => x.id !== +d.id); rerender(); await saveStore("todo"); };
+forms["adm-todo"] = async (v, f) => { A.store.todo.push({ id: Date.now(), t: v.t.trim(), due: v.due || null, done: false }); UI.open.todo = true; if (!document.getElementById("todo-sheet")) closeSheet(); rerender(); todoRefresh(); await saveStore("todo"); };
+actions["adm-todo-t"] = async (b, d) => { const x = A.store.todo.find(x => x.id === +d.id); if (x) x.done = !x.done; rerender(); todoRefresh(); await saveStore("todo"); };
+actions["adm-todo-d"] = async (b, d) => { A.store.todo = A.store.todo.filter(x => x.id !== +d.id); rerender(); todoRefresh(); await saveStore("todo"); };
 
 // Candidatures
 const candidates = () => (A.members || []).filter(m => m.onboarding?.application && !A.store.handled[m.id + ":" + m.onboarding.application.at]);
@@ -197,7 +204,7 @@ function todayBlock() {
 actions["adm-relance"] = (b, d) => { const m = A.members.find(x => x.id === d.id); if (!m) return; window.__prefill = personalize(RELANCE[d.c] || RELANCE.idle, m); go("chat", m.id); };
 actions["adm-go"] = (b, d) => {
   if (d.r.startsWith("relance:")) { const m = A.members.find(x => x.id === d.r.slice(8)); window.__prefill = `Salut ${first(m)}, comment ça va ? Je n'ai pas vu passer ta semaine dans l'app. Dis-moi ce qui coince et on ajuste ensemble 💪`; return go("chat", m.id); }
-  if (d.r === "todo") { UI.open.todo = true; return rerender(); }
+  if (d.r === "todo") { closeSheet(); return actions["adm-todo-sheet"](); }
   location.hash = "#/" + d.r;
 };
 
@@ -301,11 +308,12 @@ routes["admin-today"] = async () => {
   });
   let vids = []; try { vids = await videosEnAttente(); } catch { }
   // L'agenda d'abord ; vidéos et alertes en petites pastilles rondes
-  const nAl = alertesDuJour().length;
+  const nAl = alertesDuJour().length + decrocheurs().filter(x => x.al.some(a => a.level === "risk")).length, nTd = A.store.todo.filter(x => !x.done && (!x.due || x.due <= today())).length;
   const pastilles = `<div class="row mt8" style="gap:10px;align-items:center"><span class="grow small muted">${fmtDate(today(), { weekday: "long", day: "numeric", month: "long" })}</span>
     <button class="pastille" data-a="go" data-r="coach-videos" aria-label="Vidéos à analyser">🎥${vids.length ? `<i>${vids.length}</i>` : ""}</button>
-    <button class="pastille" data-a="adm-alertes" aria-label="Notifs et alertes">🚨${nAl ? `<i>${nAl}</i>` : ""}</button></div>`;
-  frame("admin-today", `${pastilles}${calendrier()}${liveNowBlock()}${kpiBlock()}${decrochageBlock()}${todoBlock()}${fabBtn()}`, "Accueil");
+    <button class="pastille" data-a="adm-todo-sheet" aria-label="Ma to-do">📋${nTd ? `<i>${nTd}</i>` : ""}</button>
+    <button class="pastille" data-a="adm-alertes" aria-label="Alertes et clients qui décrochent">🚨${nAl ? `<i>${nAl}</i>` : ""}</button></div>`;
+  frame("admin-today", `${pastilles}${calendrier()}${liveNowBlock()}${kpiBlock()}${fabBtn()}`, "Accueil");
 };
 
 routes.admin = async () => {
@@ -782,7 +790,7 @@ function kpiBlock() {
 // Notifications et alertes : chacune se ferme d'un ×, et ne revient que si elle change (ou après 7 jours)
 const alertKey = (e, t) => (e + " " + t).slice(0, 160);
 function alertesDuJour() { const t = today(), dis = A.store.dismiss || {}; return todoToday().filter(([e, tx]) => { const k = alertKey(e, tx); return !dis[k] || dis[k] < addDays(t, -7); }); }
-actions["adm-alertes"] = () => sheet(`<h2 class="h2">🚨 Notifs et alertes</h2>${alertsBlock()}`);
+actions["adm-alertes"] = () => sheet(`<h2 class="h2">🚨 À suivre</h2>${decrochageBlock()}${alertsBlock()}`);
 function alertsBlock() {
   const l = alertesDuJour();
   return `<div class="row between mt16"><b class="lbl" style="margin:0">Notifs & alertes</b><span class="xs muted">${l.length || "rien"} à traiter</span></div>

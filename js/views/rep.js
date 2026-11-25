@@ -1,5 +1,6 @@
 // Réponse rapide depuis une notification : un geste et la donnée est notée (repas comme prévu, eau, nuit, heure de réveil)
 import * as N from "../nutrition.js";
+import * as E from "../engine.js";
 import { S, update, today } from "../store.js";
 import { $app, esc, fr, toast, routes, actions, header, tabbar, R, go, rerender, buzz } from "../core.js";
 
@@ -36,8 +37,14 @@ routes.rep = () => {
       <div class="chips wrap mt8">${DUREES.map(x => `<button class="chip ${need === x ? "on" : ""}" data-a="rep-need" data-v="${x}">${String(x).replace(".", ",")} h</button>`).join("")}</div>
       <div class="card mt16 center"><div class="xs muted">Pour te lever à ${w}, couche-toi à</div><div class="h1" style="margin:4px 0">🛏️ ${bed}</div><p class="xs muted" style="margin:0">Je te le rappellerai 30 minutes avant.</p></div>
       <button class="btn btn-red mt12" data-a="rep-wake-ok">Valider</button>`;
+  } else if (k === "heure") {
+    const j = /^\d{4}-\d\d-\d\d$/.test(R.param2 || "") ? R.param2 : t, a = E.agenda(j, j)[j], cur = E.slotOf(j).time;
+    body = `<p class="small muted">${a?.title ? `<b>${esc(a.title)}</b><br>` : ""}À quelle heure peux-tu t'entraîner ${j === t ? "aujourd'hui" : "ce jour-là"} ?</p>
+      <div class="chips wrap mt8">${["06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "12:30", "13:00", "14:00", "16:00", "17:00", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"].map(x => `<button class="chip ${cur === x ? "on" : ""}" data-a="rep-heure" data-d="${j}" data-v="${x}">${x}</button>`).join("")}</div>
+      <p class="small muted mt16">Une autre heure ?</p><div class="row mt8" style="gap:8px"><input class="inp grow" type="time" id="rep-h" value="${cur || ""}"><button class="btn btn-red btn-sm" style="width:auto" data-a="rep-heure" data-d="${j}" data-v="">OK</button></div>
+      ${cur ? `<div class="card mt16 center"><div class="xs muted">C'est noté</div><div class="h1" style="margin:4px 0">🗓️ ${cur}</div><p class="xs muted" style="margin:0">Thomas le voit. Je te préviens avant.</p></div>` : ""}`;
   } else body = `<p class="empty">Rien à répondre ici.</p>`;
-  const titre = { repas: "🍽️ Mes repas", eau: "💧 Hydratation", sommeil: "😴 Ma nuit", reveil: "⏰ Mon réveil" }[k] || "Réponse rapide";
+  const titre = { repas: "🍽️ Mes repas", eau: "💧 Hydratation", sommeil: "😴 Ma nuit", reveil: "⏰ Mon réveil", heure: "🗓️ Ma séance" }[k] || "Réponse rapide";
   $app.innerHTML = header(titre, "Réponse rapide", { back: "home" }) + `<main class="page">${body}</main>${tabbar("home")}`;
 };
 actions["rep-eat"] = (b, d) => { actions["meal-eat"]?.(b, { m: d.m, d: today() }); buzz(12); toast(`${d.m} noté ✓`); setTimeout(() => routes.rep(), 50); };
@@ -48,3 +55,4 @@ const setSleep = (o) => update(st => { const s = { wake: "07:00", need: 8, ...(s
 actions["rep-wake"] = (b, d) => { setSleep({ wake: d.v }); rerender(); };
 actions["rep-need"] = (b, d) => { setSleep({ need: +d.v }); rerender(); };
 actions["rep-wake-ok"] = () => { setSleep({}); toast(`Réveil ${S().settings.sleep.wake} · coucher ${S().settings.sleep.bed}`); go("home"); };
+actions["rep-heure"] = (b, d) => { const v = d.v || document.getElementById("rep-h")?.value; if (!v) return toast("Choisis une heure"); E.setSlot(d.d, { time: v }); buzz(12); toast(`Séance à ${v} ✓`); rerender(); };

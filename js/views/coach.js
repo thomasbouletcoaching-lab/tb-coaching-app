@@ -351,8 +351,8 @@ function memberAgenda(D) {
   const t = today(), mon = addDays(t, -E.dowOf(t) + 7 * (mbr.wk || 0)), days = Array.from({ length: 7 }, (_, i) => addDays(mon, i)), ag = E.agenda(days[0], days[6]);
   const ns = E.nextSession();
   return `<div class="row between mt12"><button class="icon-btn" data-a="mb-wk" data-v="-1" aria-label="Semaine précédente">${I.back}</button><b class="h3">Semaine du ${fmtDate(mon, { day: "numeric", month: "long" })}</b><button class="icon-btn" data-a="mb-wk" data-v="1" aria-label="Semaine suivante" style="transform:scaleX(-1)">${I.back}</button></div>
-    <div class="list mt12">${days.map((k, i) => { const a = ag[k], modif = a?.st === "planned" && k >= t; return `<${modif ? `button data-a="mb-jour" data-v="${k}"` : "div"} class="li"><span class="em" style="font-size:20px">${a ? { done: "✅", missed: "❌", planned: "🏋️", rest: "😌", away: "↪️" }[a.st] : "·"}</span><span class="grow"><b class="small">${E.DAY_NAMES[i]} ${Number(k.slice(8))}</b><br><span class="xs muted">${a ? esc(a.title || "") : "Repos"}${a?.coach ? " · 🤝 avec toi" : ""}${a?.time ? ` · ${a.time}` : ""}</span></span>${modif ? `<span class="xs muted">Changer ›</span>` : ""}</${modif ? "button" : "div"}>`; }).join("")}</div>
-    <p class="xs muted mt4">Touche un jour à venir pour intervertir les séances de la semaine.</p>
+    <div class="list mt12">${days.map((k, i) => { const a = ag[k], modif = !!a && a.st !== "done" && a.st !== "rest", tx = a?.st === "away" ? `déplacée au ${fmtDate(a.to, { weekday: "long", day: "numeric" })}` : (a?.title || "Repos"); return `<${modif ? `button data-a="mb-jour" data-v="${k}"` : "div"} class="li"><span class="em" style="font-size:20px">${a ? { done: "✅", missed: "❌", planned: "🏋️", rest: "😌", away: "↪️" }[a.st] : "·"}</span><span class="grow"><b class="small">${E.DAY_NAMES[i]} ${Number(k.slice(8))}</b><br><span class="xs muted">${esc(tx)}${a?.coach ? " · 🤝 avec toi" : ""}${a?.time ? ` · ${a.time}` : ""}</span></span>${modif ? `<span class="xs muted">Changer ›</span>` : ""}</${modif ? "button" : "div"}>`; }).join("")}</div>
+    <p class="xs muted mt4">Touche un jour pour choisir la séance, le jour et l'heure : c'est dans son agenda et dans le tien.</p>
     ${ns ? `<div class="card mt12"><div class="lbl">🎯 Programme</div><b>${esc(ns.p.name)}</b><p class="small muted mt4" style="margin:0">Semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)} · prochaine séance : ${esc(ns.title)}</p></div>` : ""}
     ${S().season?.blocks?.length ? `<div class="card mt12"><div class="lbl">🗓️ Saison</div>${E.seasonBlocks().map(b => `<div class="xs mt4">${b.cur ? "👉 " : ""}<b>${esc(E.FOCUS[b.focus]?.[0] || "")}</b> · ${b.weeks} sem. · ${esc((b.p?.name || "").split("·")[0])} · ${fmtDate(b.from, { day: "numeric", month: "short" })} → ${fmtDate(b.to, { day: "numeric", month: "short" })}</div>`).join("")}</div>` : ""}
     ${(S().goals || []).length ? `<div class="card mt12"><div class="lbl">🎯 Objectifs</div>${S().goals.map(g => { const s2 = E.goalStatus(g); return `<div class="xs mt4"><b>${esc(g.name)}</b> : ${fr(g.kg, 1)} kg × ${g.reps} avant le ${fmtDate(g.date, { day: "numeric", month: "short", year: "numeric" })} · aujourd'hui ${fr(s2.cur, 1)} / ${fr(s2.tgt, 1)} (1RM est.)</div>`; }).join("")}</div>` : ""}`;
@@ -673,9 +673,29 @@ actions["saisie-edit"] = async (b, d) => {
 // Coach : intervertir les séances de la semaine d'un client (écrit chez lui, comme une saisie)
 actions["mb-jour"] = (b, d) => {
   const D = mbr.data?.data; if (!D) return;
-  const html = withState(D, () => { const a = E.agenda(d.v, d.v)[d.v]; return a ? `<h2 class="h2" style="text-transform:capitalize">${fmtDate(d.v, { weekday: "long", day: "numeric", month: "long" })}</h2><p class="small muted">Prévue : <b>${esc(a.title)}</b></p>${choixSeance(d.v, a, "mb-echange")}` : ""; });
+  const html = withState(D, () => {
+    const k = d.v, a = E.agenda(k, k)[k]; if (!a) return "";
+    const away = a.st === "away", orig = away ? k : (Object.keys(D.moves || {}).find(o => D.moves[o] === k) || k), dest = away ? a.to : k, sl = E.slotOf(dest);
+    const titre = away ? "Séance déplacée" : a.title, futur = a.st === "planned" && k >= today();
+    return `<h2 class="h2" style="text-transform:capitalize">${fmtDate(k, { weekday: "long", day: "numeric", month: "long" })}</h2><p class="small muted">${away ? `Déplacée au <b>${fmtDate(a.to, { weekday: "long", day: "numeric", month: "long" })}</b>` : `${a.st === "missed" ? "❌ Loupée" : "Prévue"} : <b>${esc(a.title)}</b>`}</p>
+    <form data-f="mb-slot" data-o="${esc(orig)}" class="mt12">
+      <div class="seg2"><label><input type="radio" name="avec" value="1" ${sl.coach ? "checked" : ""}><span>🤝 Avec moi</span></label><label><input type="radio" name="avec" value="0" ${sl.coach ? "" : "checked"}><span>🏃 En autonomie</span></label></div>
+      <div class="grid2 mt8"><label class="field"><span>Jour</span><input type="date" name="to" value="${esc(dest)}" required></label><label class="field"><span>Heure</span><input type="time" name="time" value="${esc(sl.time || "")}"></label></div>
+      <button class="btn btn-red mt8">Enregistrer · il/elle est prévenu(e)</button></form>
+    <button class="btn btn-line mt8" style="width:100%" data-a="mb-question" data-d="${esc(dest)}" data-t="${esc(titre)}">❓ Lui demander à quelle heure il/elle peut</button>
+    ${futur ? choixSeance(k, a, "mb-echange") : ""}`;
+  });
   if (html) sheet(html);
 };
+forms["mb-slot"] = async (v, f) => {
+  const D = mbr.data?.data, o = f.dataset.o, to = v.to || o, avec = v.avec === "1";
+  try {
+    const c = await cloud(); await c.coachSlotSet(mbr.id, o, to, v.time || null, avec, null);
+    if (D) { D.moves = { ...(D.moves || {}) }; if (o !== to) D.moves[o] = to; else delete D.moves[o]; D.slots = { ...(D.slots || {}), [to]: { ...(D.slots?.[to] || {}), ...(v.time ? { time: v.time } : {}), coach: avec } }; }
+    closeSheet(); toast("C'est dans son agenda ✓"); rerender();
+  } catch (e) { toast("Enregistrement impossible : " + e.message); }
+};
+actions["mb-question"] = async (b, d) => { try { const c = await cloud(); await c.questionHeure(mbr.id, d.d, d.t); closeSheet(); toast("Question envoyée : il/elle répond en un geste"); } catch (e) { toast("Envoi impossible : " + e.message); } };
 actions["mb-echange"] = async (b, d) => {
   if (!(await saisieStart(mbr.id, mbrName(), mbr.data?.data || {}))) return toast("Impossible pour le moment, réessaie.");
   try { E.echanger(d.v, +d.i); const nom = E.nextSession()?.p.s[+d.i]?.[0]; await saisieStop(); mbr.data.data.echanges = { ...(mbr.data.data.echanges || {}), [d.v]: +d.i }; closeSheet(); toast(`${fmtDate(d.v, { weekday: "long" })} : ${nom || "séance"} · c'est dans son agenda`); rerender(); }

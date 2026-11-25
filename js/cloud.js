@@ -307,6 +307,7 @@ export async function coachSlots() {
 }
 export async function coachSlotsTous(since) { const { data, error } = await sb.from("cxs_coach_slots").select("user_id,orig_d,new_d,new_time,avec_coach,duree").gte("new_d", since); if (error) throw error; return data || []; }
 export async function rdvNotif(memberId, titre, d, time) { const { error } = await sb.rpc("cxs_rdv_notif", { p_uid: memberId, p_titre: titre, p_d: d, p_time: time || null }); if (error) throw error; }
+export async function questionHeure(memberId, d, titre) { const { error } = await sb.rpc("cxs_question_heure", { p_uid: memberId, p_d: d, p_titre: titre || "" }); if (error) throw error; }
 export async function coachSlotSet(memberId, origD, newD, newTime, avec = null, duree = null) {
   const row = { user_id: memberId, orig_d: origD, new_d: newD, new_time: newTime || null, updated_at: new Date().toISOString() };
   if (avec != null) row.avec_coach = !!avec; if (duree) row.duree = +duree;
