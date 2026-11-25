@@ -3,7 +3,7 @@ import * as E from "./engine.js";
 import * as N from "./nutrition.js";
 import { R, render, installEvents, actions, toast } from "./core.js";
 import { S, update, today } from "./store.js";
-import { refreshMe, pullCoachSlots, pullCoachPlan, pullCoachSettings, pullSaisies, retrouverSuivi } from "./sync.js";
+import { refreshMe, pullCoachSlots, pullCoachPlan, pullCoachEchanges, pullCoachSettings, pullSaisies, retrouverSuivi } from "./sync.js";
 import { refreshLibrary } from "./library.js";
 import "./views/onboarding.js";
 import "./views/home.js";
@@ -71,6 +71,7 @@ window.addEventListener("hashchange", render);
   setInterval(refreshMe, 60000);
   pullCoachSlots(); setInterval(pullCoachSlots, 5 * 60000);
   pullCoachPlan(); setInterval(pullCoachPlan, 5 * 60000);
+  pullCoachEchanges(); setInterval(pullCoachEchanges, 5 * 60000);
   pullCoachSettings(); setInterval(pullCoachSettings, 15 * 60000); retrouverSuivi(); pullSaisies(); setInterval(pullSaisies, 5 * 60000);
   refreshLibrary(); setInterval(refreshLibrary, 15 * 60000);
   // Plan alimentaire du coach (toutes les 5 min) et séance en direct (toutes les 15 s, bandeau de l'accueil)
@@ -85,7 +86,7 @@ window.addEventListener("hashchange", render);
     if (S().plan?.programId && (done || (S().customPrograms || []).some(p => p.id === "tb-main"))) return;
     const { restoreMigrated } = await import("./views/account.js"); const r = await restoreMigrated(); if (r?.p) { try { localStorage.setItem("cxs.progHeal", "2"); } catch { } } if (r?.p && ["home", "train", "workout"].includes(R.route)) render(); } catch (e) { console.warn("Programme non rechargé :", e.message); } }, 2500);
   // Quand l'app revient au premier plan : programme et séance du coach tout de suite (pas d'attente de 5 min)
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { pullCoachPlan(); pullCoachSettings(); pullSaisies(); pullFood(); pullLive(); pullSocial(); } });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { pullCoachPlan(); pullCoachEchanges(); pullCoachSettings(); pullSaisies(); pullFood(); pullLive(); pullSocial(); } });
   // Pas de menu « lien » sur un appui long dans la barre du bas ou sur les liens internes
   document.addEventListener("contextmenu", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });
   document.addEventListener("dragstart", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });

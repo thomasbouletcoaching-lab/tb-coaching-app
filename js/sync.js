@@ -136,6 +136,20 @@ export async function pullCoachSlots() {
   });
 }
 
+// Échanges de séances posés par le coach dans mon suivi (ex. le B à la place du A le mardi) : repris dès qu'ils changent sur le serveur, sans rouvrir l'app
+export async function pullCoachEchanges() {
+  if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
+  const c = await cloud(); if (!c || !S().profile) return;
+  let d; try { d = await c.fetchMigrated(); } catch (e) { return; }
+  const srv = d?.echanges; if (!srv || typeof srv !== "object") return;
+  const sig = JSON.stringify(srv);
+  update(st => {
+    if (st.echangesSeen === sig) return;
+    st.echangesSeen = sig;
+    st.echanges = { ...(st.echanges || {}), ...srv };
+  });
+}
+
 // Réglages posés par le coach (bilans : jour, fréquence, questions ; échéances) : simplement copiés sur le téléphone
 export async function pullCoachSettings() {
   if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
