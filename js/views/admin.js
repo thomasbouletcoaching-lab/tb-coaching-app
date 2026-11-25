@@ -24,9 +24,9 @@ async function load(force = false) {
   const c = await cloud(); if (!c) { A.err = "Pas de connexion au serveur."; return; }
   try {
     await (c.currentSession().then(u => u || c.ensureSession()));
-    const [ms, sums, th, st, nut] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled", "dismiss", "events", "tags", "seances", "pins", "cal", "msgprefs", "automsg"]).catch(() => ({})), c.nutriRecent(7).catch(() => [])]);
-    A.members = ms.filter(m => m.name || m.email || th[m.id]); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.snapAt = Object.fromEntries(sums.map(x => [x.user_id, x.updated_at])); A.threads = th; window.__threads = th; A.nutri = {}; (nut || []).forEach(r => { (A.nutri[r.user_id] = A.nutri[r.user_id] || []).push(r); });
-    A.store = { todo: st.todo?.items || [], biz: st.biz || BIZ0(), notes: st.notes || {}, handled: st.handled || {}, dismiss: st.dismiss || {}, events: st.events?.items || [], tags: st.tags || {}, seances: st.seances?.items || [], pins: st.pins || { ids: [] }, msgprefs: st.msgprefs || { archived: {}, muted: {}, rappels: {}, calme: null }, automsg: st.automsg || {} };
+    const [ms, sums, th, st, nut, slots] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled", "dismiss", "events", "tags", "seances", "pins", "cal", "msgprefs", "automsg"]).catch(() => ({})), c.nutriRecent(7).catch(() => []), c.coachSlotsTous?.(addDays(today(), -62)).catch(() => []) || []]);
+    A.slots = Object.fromEntries((slots || []).map(x => [x.user_id + "|" + x.new_d, { time: x.new_time || null, dur: x.duree || 60, avec: !!x.avec_coach }])); A.members = ms.filter(m => m.name || m.email || th[m.id]); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.snapAt = Object.fromEntries(sums.map(x => [x.user_id, x.updated_at])); A.threads = th; window.__threads = th; A.nutri = {}; (nut || []).forEach(r => { (A.nutri[r.user_id] = A.nutri[r.user_id] || []).push(r); });
+    A.store = { todo: st.todo?.items || [], biz: st.biz || BIZ0(), notes: st.notes || {}, handled: st.handled || {}, dismiss: st.dismiss || {}, events: st.events?.items || [], tags: st.tags || {}, seances: st.seances?.items || [], pins: st.pins || { ids: [] }, msgprefs: st.msgprefs || { archived: {}, muted: {}, rappels: {}, calme: null }, automsg: st.automsg || {}, cal: st.cal || {} };
     A.store.biz.payments = A.store.biz.payments || []; A.store.biz.cycles = A.store.biz.cycles || []; A.store.biz.settings = A.store.biz.settings || {};
     A.invites = await c.invites().catch(() => []);
     window.__members = ms; A.at = Date.now(); A.err = null;
@@ -813,9 +813,10 @@ actions["ev-new"] = (b, d) => {
     <div class="grid2 mt8"><label class="field"><span>Jour</span><input type="date" name="d" value="${day}" required></label><label class="field"><span>Heure</span><input type="time" name="time" required></label></div>
     <div class="grid2 mt8"><label class="field"><span>Durée</span><select name="dur">${[15, 30, 45, 60, 75, 90, 120].map(x => `<option value="${x}" ${x === 60 ? "selected" : ""}>${x} min</option>`).join("")}</select></label><label class="field"><span>Type</span><select name="type">${EV_TYPES.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></label></div>
     <label class="field mt8"><span>Athlète (facultatif)</span><select name="member"><option value="">–</option>${(A.members || []).map(m => `<option value="${m.id}">${esc(first(m))}</option>`).join("")}</select></label>
+    <label class="row mt8" style="gap:8px"><input type="checkbox" name="notif" checked><span class="small">Prévenir l'athlète maintenant et 2 h avant (notification)</span></label>
     <button class="btn btn-red mt12">Ajouter</button></form>`);
 };
-forms["ev-new"] = async (v) => { A.store.events = [...(A.store.events || []).filter(e => e.d >= addDays(today(), -60)), { id: Date.now(), d: v.d, time: v.time, dur: +v.dur || null, type: v.type, title: v.title.trim(), member: v.member || null }]; UI.agDay = UI.calDay = v.d === today() ? null : v.d; closeSheet(); toast("Rendez-vous ajouté"); rerender(); await saveStore("events"); };
+forms["ev-new"] = async (v) => { if (v.member && v.notif && v.d >= today()) { cloud().then(c => c.rdvNotif(v.member, v.title.trim(), v.d, v.time)).then(() => toast("📅 Rendez-vous ajouté, l'athlète est prévenu(e)")).catch(() => { }); } A.store.events = [...(A.store.events || []).filter(e => e.d >= addDays(today(), -60)), { id: Date.now(), d: v.d, time: v.time, dur: +v.dur || null, type: v.type, title: v.title.trim(), member: v.member || null, notif: !!(v.member && v.notif) }]; UI.agDay = UI.calDay = v.d === today() ? null : v.d; closeSheet(); toast("Rendez-vous ajouté"); rerender(); await saveStore("events"); };
 actions["ev-del"] = async (b, d) => { if (!confirm("Supprimer ce rendez-vous ?")) return; A.store.events = (A.store.events || []).filter(e => e.id !== +d.id); rerender(); await saveStore("events"); };
 // Bouton + : les gestes les plus fréquents, depuis n'importe quel écran du coach
 const fabBtn = () => `<button class="fab" data-a="adm-fab" aria-label="Ajouter">${I.plus}</button>`;
@@ -1050,7 +1051,7 @@ actions["pre-mdp"] = async (b, d) => {
 // =====================================================================
 const H0 = 6, H1 = 23, PX = 52; // heures affichées, pixels par heure
 const calKey = (m, d) => m + "|" + d;
-const calOv = (m, d) => A.store.cal?.[calKey(m, d)] || null;
+const calOv = (m, d) => A.store.cal?.[calKey(m, d)] || A.slots?.[calKey(m, d)] || null;
 function calItems(d) {
   const out = agendaRows(d).filter(r => !r.me).map(r => { const o = calOv(r.m.id, d) || {}; return { k: "s", m: r.m, d, a: r.a, ip: r.ip, time: o.time || r.a.time || null, dur: +(o.dur || r.a.dur || 60), avec: o.avec ?? !!r.a.coach, name: r.name, st: r.ip ? "ip" : r.a.st }; });
   (A.store.events || []).filter(e => e.d === d).forEach(e => { const [, lab, col] = evType(e.type), m = (A.members || []).find(x => x.id === e.member); out.push({ k: "e", e, d, time: e.time, dur: +(e.dur || 60), col, name: e.title + (m ? " · " + first(m) : ""), lab }); });
@@ -1124,8 +1125,8 @@ actions["cal-s"] = (b, d) => {
 forms["cal-s"] = async (v, f) => {
   const mId = f.dataset.m, d0 = f.dataset.d, to = v.to || d0, avec = v.avec === "1";
   A.store.cal = { ...(A.store.cal || {}) }; delete A.store.cal[calKey(mId, d0)];
-  A.store.cal[calKey(mId, to)] = { time: v.time || null, dur: +v.dur || 60, avec };
+  A.store.cal[calKey(mId, to)] = { time: v.time || null, dur: +v.dur || 60, avec }; A.slots = { ...(A.slots || {}), [calKey(mId, to)]: A.store.cal[calKey(mId, to)] };
   if (to !== d0) { const s = A.sums[mId]; const a = s?.agenda?.find(x => x.d === d0); if (a) a.d = to; }
   closeSheet(); UI.calDay = to === today() ? null : to; rerender();
-  try { const c = await cloud(); await c.coachSlotSet(mId, d0, to, v.time || null, avec, +v.dur || 60); await saveStore("cal"); toast(avec ? "Séance avec toi, partagée dans son agenda" : "Séance en autonomie enregistrée"); } catch (e) { toast("Enregistrement impossible : " + e.message); }
+  try { const c = await cloud(); await c.coachSlotSet(mId, d0, to, v.time || null, avec, +v.dur || 60); await saveStore("cal"); toast(avec ? (to >= today() ? `🤝 Séance avec toi : ${first(A.members.find(x => x.id === mId) || {})} est prévenu(e)` : "🤝 Séance faite avec toi, enregistrée") : "Séance en autonomie enregistrée"); } catch (e) { toast("Enregistrement impossible : " + e.message); }
 };

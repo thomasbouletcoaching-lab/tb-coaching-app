@@ -302,9 +302,11 @@ async function currentUserIdSb() { const { data } = await sb.auth.getSession(); 
 // Décalages de séances posés par le coach (table cxs_coach_slots). Le membre les lit, le coach les écrit.
 export async function coachSlots() {
   if (!uid) await ensureSession();
-  const { data, error } = await sb.from("cxs_coach_slots").select("orig_d,new_d,new_time,avec_coach,duree,updated_at");
+  const { data, error } = await sb.from("cxs_coach_slots").select("orig_d,new_d,new_time,avec_coach,duree,updated_at").eq("user_id", uid);
   if (error) throw error; return data || [];
 }
+export async function coachSlotsTous(since) { const { data, error } = await sb.from("cxs_coach_slots").select("user_id,orig_d,new_d,new_time,avec_coach,duree").gte("new_d", since); if (error) throw error; return data || []; }
+export async function rdvNotif(memberId, titre, d, time) { const { error } = await sb.rpc("cxs_rdv_notif", { p_uid: memberId, p_titre: titre, p_d: d, p_time: time || null }); if (error) throw error; }
 export async function coachSlotSet(memberId, origD, newD, newTime, avec = null, duree = null) {
   const row = { user_id: memberId, orig_d: origD, new_d: newD, new_time: newTime || null, updated_at: new Date().toISOString() };
   if (avec != null) row.avec_coach = !!avec; if (duree) row.duree = +duree;
