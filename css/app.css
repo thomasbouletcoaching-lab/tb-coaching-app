@@ -991,3 +991,5 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 .mtop .row1{gap:8px}.mhd2{display:flex;align-items:center;gap:0;min-width:0;text-align:left;background:none;color:inherit;padding:0}
 .mhd2 .mhd b,.mhd2 .mhd small{max-width:none}
 .mhd2 .mav.sm{margin-right:10px}
+.mcnt{background:#2F6FED!important;color:#fff!important}.mnew{color:#2F6FED!important;font-weight:700}
+.mdown i{background:#2F6FED}

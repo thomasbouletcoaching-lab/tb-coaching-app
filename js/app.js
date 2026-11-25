@@ -90,4 +90,18 @@ window.addEventListener("hashchange", render);
   document.addEventListener("contextmenu", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });
   document.addEventListener("dragstart", (e) => { if (e.target.closest?.(".tabbar, a[href^='#']")) e.preventDefault(); });
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });
+  // Mise à jour automatique : quand l'app revient au premier plan et qu'une nouvelle version est en ligne, elle se recharge
+  // (sinon une app restée ouverte en arrière-plan sur iPhone garde l'ancienne version pendant des jours)
+  const versionEnLigne = () => fetch("sw.js?v=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "").then(t => (t.match(/cxs-v\d+/) || [])[0] || null).catch(() => null);
+  let maVersion = null; versionEnLigne().then(v => { maVersion = v; });
+  const verifier = async () => {
+    if (!maVersion || document.visibilityState !== "visible" || !navigator.onLine) return;
+    const v = await versionEnLigne(); if (!v || v === maVersion) return;
+    const ecrit = document.activeElement?.matches?.("input,textarea,select") && document.activeElement.value;
+    if (ecrit) return; // on ne coupe pas une saisie en cours ; nouvel essai au prochain retour
+    try { (await navigator.serviceWorker?.getRegistration())?.update(); } catch { }
+    location.reload();
+  };
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") setTimeout(verifier, 800); });
+  setInterval(verifier, 10 * 60 * 1000);
 })();

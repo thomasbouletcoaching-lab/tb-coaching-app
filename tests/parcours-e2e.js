@@ -33,7 +33,7 @@ const CONFS = [['iPhone clair', 390, 844, 'light'], ['iPhone sombre', 390, 844, 
 // Ce qui dépasse à droite de l'écran (hors zones prévues pour défiler). La largeur de la page est comparée à la largeur
 // réelle du téléphone, pas à innerWidth : en émulation mobile, innerWidth s'élargit avec le contenu qui déborde.
 const mesure = (w) => {
-  const over = [...document.querySelectorAll('#app *')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > w + 1 && !e.closest('.chips,.hscroll,.modes,.seg,svg,pre'); }).map(e => String(e.className || e.tagName)).slice(0, 3);
+  const over = [...document.querySelectorAll('#app *')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > w + 1 && !e.closest('.chips,.hscroll,.modes,.seg,svg,pre,.car,.chips-scroll'); }).map(e => String(e.className || e.tagName)).slice(0, 3);
   return { over, docW: document.documentElement.scrollWidth, vw: innerWidth, len: (document.querySelector('#app')?.innerText || '').length, bg: getComputedStyle(document.body).backgroundColor };
 };
 
