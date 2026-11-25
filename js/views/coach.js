@@ -351,7 +351,8 @@ function memberAgenda(D) {
   const t = today(), mon = addDays(t, -E.dowOf(t) + 7 * (mbr.wk || 0)), days = Array.from({ length: 7 }, (_, i) => addDays(mon, i)), ag = E.agenda(days[0], days[6]);
   const ns = E.nextSession();
   return `<div class="row between mt12"><button class="icon-btn" data-a="mb-wk" data-v="-1" aria-label="Semaine précédente">${I.back}</button><b class="h3">Semaine du ${fmtDate(mon, { day: "numeric", month: "long" })}</b><button class="icon-btn" data-a="mb-wk" data-v="1" aria-label="Semaine suivante" style="transform:scaleX(-1)">${I.back}</button></div>
-    <div class="list mt12">${days.map((k, i) => { const a = ag[k]; return `<div class="li"><span class="em" style="font-size:20px">${a ? { done: "✅", missed: "❌", planned: "🏋️", rest: "😌", away: "↪️" }[a.st] : "·"}</span><span class="grow"><b class="small">${E.DAY_NAMES[i]} ${Number(k.slice(8))}</b><br><span class="xs muted">${a ? esc(a.title || "") : "Repos"}</span></span></div>`; }).join("")}</div>
+    <div class="list mt12">${days.map((k, i) => { const a = ag[k], modif = a?.st === "planned" && k >= t; return `<${modif ? `button data-a="mb-jour" data-v="${k}"` : "div"} class="li"><span class="em" style="font-size:20px">${a ? { done: "✅", missed: "❌", planned: "🏋️", rest: "😌", away: "↪️" }[a.st] : "·"}</span><span class="grow"><b class="small">${E.DAY_NAMES[i]} ${Number(k.slice(8))}</b><br><span class="xs muted">${a ? esc(a.title || "") : "Repos"}${a?.coach ? " · 🤝 avec toi" : ""}${a?.time ? ` · ${a.time}` : ""}</span></span>${modif ? `<span class="xs muted">Changer ›</span>` : ""}</${modif ? "button" : "div"}>`; }).join("")}</div>
+    <p class="xs muted mt4">Touche un jour à venir pour intervertir les séances de la semaine.</p>
     ${ns ? `<div class="card mt12"><div class="lbl">🎯 Programme</div><b>${esc(ns.p.name)}</b><p class="small muted mt4" style="margin:0">Semaine ${ns.week}/${ns.weeks} · ${esc(ns.phase)} · prochaine séance : ${esc(ns.title)}</p></div>` : ""}
     ${S().season?.blocks?.length ? `<div class="card mt12"><div class="lbl">🗓️ Saison</div>${E.seasonBlocks().map(b => `<div class="xs mt4">${b.cur ? "👉 " : ""}<b>${esc(E.FOCUS[b.focus]?.[0] || "")}</b> · ${b.weeks} sem. · ${esc((b.p?.name || "").split("·")[0])} · ${fmtDate(b.from, { day: "numeric", month: "short" })} → ${fmtDate(b.to, { day: "numeric", month: "short" })}</div>`).join("")}</div>` : ""}
     ${(S().goals || []).length ? `<div class="card mt12"><div class="lbl">🎯 Objectifs</div>${S().goals.map(g => { const s2 = E.goalStatus(g); return `<div class="xs mt4"><b>${esc(g.name)}</b> : ${fr(g.kg, 1)} kg × ${g.reps} avant le ${fmtDate(g.date, { day: "numeric", month: "short", year: "numeric" })} · aujourd'hui ${fr(s2.cur, 1)} / ${fr(s2.tgt, 1)} (1RM est.)</div>`; }).join("")}</div>` : ""}`;
@@ -645,6 +646,7 @@ actions["mb-obj-del"] = async () => { if (await saveSettings({ objectif: null })
 // ---------- Saisie à la place du client (séance oubliée, repas non noté) ----------
 import { saisieStart, saisieStop } from "../saisie.js";
 import { regularite } from "./regularite.js";
+import { choixSeance } from "./agenda.js";
 import { proxyActive } from "../store.js";
 const mbrName = () => (window.__members || []).find(x => x.id === mbr.id)?.name || "le client";
 actions["saisie-seance"] = (b, d) => sheet(`<h2 class="h2">✍️ Noter une séance pour ${esc(mbrName().split(" ")[0])}</h2><p class="small muted mt4">Même écran que le sien : tu valides les séries, les charges, puis tu règles l'heure et la durée. Rien n'est lancé en direct.</p>
@@ -666,4 +668,16 @@ actions["saisie-edit"] = async (b, d) => {
     for (const k of ["we-save", "w-del"]) { const o = actions[k]; actions[k] = async (...a) => { await o(...a); if (proxyActive()) { await saisieStop(); mbr.data = null; toast("Séance mise à jour chez le client"); go("member", mbr.id); } }; }
   }
   actions["w-edit"](null, { id: d.id });
+};
+
+// Coach : intervertir les séances de la semaine d'un client (écrit chez lui, comme une saisie)
+actions["mb-jour"] = (b, d) => {
+  const D = mbr.data?.data; if (!D) return;
+  const html = withState(D, () => { const a = E.agenda(d.v, d.v)[d.v]; return a ? `<h2 class="h2" style="text-transform:capitalize">${fmtDate(d.v, { weekday: "long", day: "numeric", month: "long" })}</h2><p class="small muted">Prévue : <b>${esc(a.title)}</b></p>${choixSeance(d.v, a, "mb-echange")}` : ""; });
+  if (html) sheet(html);
+};
+actions["mb-echange"] = async (b, d) => {
+  if (!(await saisieStart(mbr.id, mbrName(), mbr.data?.data || {}))) return toast("Impossible pour le moment, réessaie.");
+  try { E.echanger(d.v, +d.i); const nom = E.nextSession()?.p.s[+d.i]?.[0]; await saisieStop(); mbr.data.data.echanges = { ...(mbr.data.data.echanges || {}), [d.v]: +d.i }; closeSheet(); toast(`${fmtDate(d.v, { weekday: "long" })} : ${nom || "séance"} · c'est dans son agenda`); rerender(); }
+  catch (e) { await saisieStop().catch(() => { }); toast("Échange impossible : " + e.message); }
 };

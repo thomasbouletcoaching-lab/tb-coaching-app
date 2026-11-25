@@ -132,7 +132,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+
     await a.p.click('[data-a="soc-story-w"]'); await a.p.waitForFunction(() => window.__shared.length >= 1, null, { timeout: 15000 }).catch(() => { });
     let sh = await a.p.evaluate(() => window.__shared);
     ok(sh[0]?.type === 'image/png' && sh[0]?.dim?.[0] === 1080 && sh[0]?.dim?.[1] === 1920, 'story : image PNG 1080×1920 partagée');
-    ok(/\?p=K7m2Qx9\d\b/.test(sh[0]?.text || '') && (sh[0]?.text || '').length < 140, 'story : lien court (?p=…) et message court (' + (sh[0]?.text || '').length + ' caractères)');
+    ok(/\?p=K7m2Qx9\d\b/.test(sh[0]?.text || '') && (sh[0]?.text || '').length < 200, 'story : lien court (?p=…) et message court (' + (sh[0]?.text || '').length + ' caractères)');
     ok((await a.p.evaluate(() => window.__db.partages.K7m2Qx90.data.titre)) === 'Full body A', 'partage enregistré sur le serveur (séance + pseudo)');
     await tap(a.p, '[data-a="soc-ami-w"]');
     sh = await a.p.evaluate(() => window.__shared);

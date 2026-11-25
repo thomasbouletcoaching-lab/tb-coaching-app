@@ -111,7 +111,7 @@ export async function restoreFromCloud(m) {
     st.plan = m.plan || st.plan;
     st.current = m.current ?? null;
     st.customPrograms = m.customPrograms || [];
-    st.moves = m.moves || {}; st.skips = m.skips || {}; st.swaps = m.swaps || {};
+    st.moves = m.moves || {}; st.skips = m.skips || {}; st.swaps = m.swaps || {}; st.echanges = m.echanges || {};
     st.season = m.season ?? st.season; st.goals = m.goals ?? st.goals; st.lifts = m.lifts || st.lifts || {};
     st.workouts = m.workouts || []; st.food = m.food || {}; st.daily = m.daily || {}; st.measures = m.measures || [];
     st.settings = { ...(st.settings || {}), ...(m.settings || {}) };

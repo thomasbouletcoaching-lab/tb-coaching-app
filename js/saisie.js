@@ -8,6 +8,7 @@ const baseOf = () => ({
   w: new Map((S().workouts || []).map(w => [String(w.id), J(w)])),
   f: new Map(Object.entries(S().food || {}).flatMap(([d, l]) => l.map(e => [d + "|" + e.id, J(e)]))),
   l: Object.fromEntries(Object.entries(S().lifts || {}).map(([k, h]) => [k, h.length])),
+  e: J(S().echanges || {}),
 });
 export function diffSaisie() {
   if (!M) return null;
@@ -19,7 +20,8 @@ export function diffSaisie() {
   for (const [d, l] of Object.entries(cur.food || {})) for (const e of l) { const k = d + "|" + e.id; seenF.add(k); if (M.base.f.get(k) !== J(e)) (out.food[d] = out.food[d] || []).push(e); }
   for (const k of M.base.f.keys()) if (!seenF.has(k)) { const i = k.indexOf("|"), d = k.slice(0, i), id = k.slice(i + 1); (out.foodDel[d] = out.foodDel[d] || []).push(id); }
   for (const [n, h] of Object.entries(cur.lifts || {})) { const b = M.base.l[n] || 0; if (h.length > b) out.lifts[n] = h.slice(b); }
-  const vide = !out.workouts.length && !out.wDel.length && !Object.keys(out.food).length && !Object.keys(out.foodDel).length && !Object.keys(out.lifts).length;
+  if (J(cur.echanges || {}) !== M.base.e) out.echanges = cur.echanges || {};
+  const vide = !out.echanges && !out.workouts.length && !out.wDel.length && !Object.keys(out.food).length && !Object.keys(out.foodDel).length && !Object.keys(out.lifts).length;
   return vide ? null : out;
 }
 async function flush() {

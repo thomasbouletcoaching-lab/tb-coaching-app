@@ -237,7 +237,7 @@ export function setRecord(key, kg, reps, rpe = 10) {
 export function nextSession(at = null) {
   const pl = S().plan; if (!pl) return null;
   const p = program(pl.programId); if (!p) return null;
-  const idx = at ?? pl.idx, s = p.s[idx % p.s.length];
+  const idx = at ?? idxDuJour(pl), s = p.s[idx % p.s.length];
   return { p, week: pl.week, idx, title: s[0], day: s[1], exercises: s[2], phase: phaseOf(p, pl.week), weeks: weeksOf(p), cycle: pl.cycle || 1 };
 }
 // Rattrapage : la séance suivante pas encore faite de la même semaine (pour fusionner deux séances le même jour)
@@ -603,34 +603,59 @@ export function agenda(from, to) {
   const lay = p ? weekLayout(p) : [];
   const t = today(), start = pl?.startedAt || t;
   const movedTo = {}; Object.entries(moves).forEach(([a, b]) => { movedTo[b] = a; });
-  // séances futures : on déroule l'ordre du programme à partir de la prochaine séance
-  let idx = pl ? pl.idx : 0;
+  // séances futures : chaque semaine garde l'ordre du programme sur ses jours (A, B, C…), sans rattraper la semaine d'avant ;
+  // une séance faite un autre jour ou un échange demandé intervertit les séances de la semaine
   const d0 = new Date(from + "T12:00:00"), d1 = new Date(to + "T12:00:00");
   const futureStart = doneBy[t] ? iso(new Date(Date.now() + 864e5)) : t;
-  // une séance déplacée reste la même séance : l'ordre est calculé sur les jours d'origine
-  const futureMap = {}, orig = {};
+  const futureMap = {}, orig = {}, idxOf = {};
   if (p) {
-    const end = [to, ...Object.keys(moves)].sort().at(-1);
+    const end = [to, ...Object.keys(moves)].sort().at(-1), sem = {};
     for (let d = new Date(futureStart + "T12:00:00"); iso(d) <= end; d.setDate(d.getDate() + 1)) {
-      const k = iso(d);
-      if (lay.some(l => l.dow === dowOf(k)) && !skips[k]) { orig[k] = p.s[idx % p.s.length][0]; idx++; }
+      const k = iso(d), l = lundiDe(k), m = sem[l] = sem[l] || seancesSemaine(l, p, lay);
+      if (m[k] != null && !skips[k]) { orig[k] = p.s[m[k] % p.s.length][0]; idxOf[k] = m[k]; }
     }
     Object.entries(orig).forEach(([k, t0]) => { if (!moves[k]) futureMap[k] = t0; });
-    Object.entries(moves).forEach(([a, b]) => { if (b < futureStart) return;
-      const t0 = orig[a] || (a < futureStart ? p.s[(lay.find(l => l.dow === dowOf(a))?.k) ?? 0]?.[0] : null); if (!t0) return;
-      futureMap[b] = futureMap[b] && futureMap[b] !== t0 ? `${futureMap[b]} + ${t0}` : t0; });
+    Object.entries(moves).forEach(([a, b]) => { if (b < futureStart || a === b) return;
+      const t0 = orig[a] || (a < futureStart ? p.s[seancesSemaine(lundiDe(a), p, lay)[a] ?? 0]?.[0] : null); if (!t0) return;
+      futureMap[b] = futureMap[b] && futureMap[b] !== t0 ? `${futureMap[b]} + ${t0}` : t0; if (idxOf[a] != null && !orig[b]) idxOf[b] = idxOf[a]; });
   }
   for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) {
     const k = iso(d), dow = dowOf(k);
     const plannedDay = p && lay.some(l => l.dow === dow);
     if (doneBy[k]) out[k] = { st: "done", title: doneBy[k].map(w => w.title).join(" + "), w: doneBy[k] };
-    else if (k >= futureStart && futureMap[k]) out[k] = { st: "planned", title: futureMap[k], moved: !!movedTo[k] };
-    else if (k < t && k >= start && ((plannedDay && !moves[k] && !skips[k]) || movedTo[k])) out[k] = { st: "missed", title: p?.s[(lay.find(l => l.dow === dow)?.k) ?? 0]?.[0] || "Séance" };
+    else if (k >= futureStart && futureMap[k]) out[k] = { st: "planned", title: futureMap[k], moved: !!movedTo[k], idx: idxOf[k] };
+    else if (k < t && k >= start && ((plannedDay && !moves[k] && !skips[k]) || movedTo[k])) { const i = p ? seancesSemaine(lundiDe(k), p, lay)[k] : null; out[k] = { st: "missed", title: p?.s[(i ?? lay.find(l => l.dow === dow)?.k ?? 0) % p.s.length]?.[0] || "Séance" }; }
     else if (skips[k] && plannedDay) out[k] = { st: "rest", title: "Repos choisi" };
     if (moves[k]) out[k] = { ...(out[k] || {}), st: out[k]?.st === "done" ? "done" : "away", to: moves[k] };
     if (out[k] && out[k].st !== "done") Object.assign(out[k], slotOf(k));
   }
   return out;
+}
+// Séances de la semaine (lundi donné) : { date: indice de la séance } sur les jours d'entraînement.
+// Base : l'ordre du programme sur les jours de la semaine type. Puis :
+// 1) une séance faite un autre jour que le sien prend la place de celle de ce jour-là (échange naturel) ;
+// 2) les échanges demandés (S().echanges[date] = indice) intervertissent deux jours de la semaine ;
+// 3) une séance déjà faite cette semaine n'est pas reproposée : le jour reçoit une séance pas encore faite (sinon rien).
+export function seancesSemaine(lundi, p = null, lay = null) {
+  const pl = S().plan; p = p || (pl && program(pl.programId)); if (!p) return {}; lay = lay || weekLayout(p);
+  const m = {}; lay.forEach(l => { m[addDaysIso(lundi, l.dow)] = l.k; });
+  const fin = addDaysIso(lundi, 6), faites = [];
+  (S().workouts || []).forEach(w => { if (w.free || w.idx == null || w.programId !== pl?.programId) return; const k = iso(new Date(w.end)); if (k < lundi || k > fin) return; faites.push([k, w.idx % p.s.length]); if (w.idx2 != null) faites.push([null, w.idx2 % p.s.length]); });
+  const t = today();
+  // l'autre jour n'est échangé que s'il est encore à venir : un jour passé (fait ou loupé) ne bouge plus
+  const swap = (k, i) => { if (m[k] == null || m[k] === i) return; const autre = Object.keys(m).find(x => x !== k && m[x] === i && x >= t && !faites.some(f => f[0] === x)); if (autre) m[autre] = m[k]; m[k] = i; };
+  faites.forEach(([k, i]) => { if (k && m[k] != null) swap(k, i); });
+  Object.entries(S().echanges || {}).forEach(([k, i]) => { if (k >= lundi && k <= fin && k >= t) swap(k, +i); });
+  const fait = new Set(faites.map(x => x[1]));
+  Object.keys(m).sort().forEach(k => { if (k < t || faites.some(f => f[0] === k)) return; if (fait.has(m[k])) { const libre = p.s.map((_, i) => i).find(i => !fait.has(i) && !Object.entries(m).some(([x, j]) => x >= t && x !== k && j === i)); if (libre == null) delete m[k]; else m[k] = libre; } });
+  return m;
+}
+// Intervertir : ce jour-là, faire telle séance (celle qui était prévue prend sa place dans la semaine)
+export function echanger(k, i) { update(st => { const lim = addDaysIso(today(), -21); st.echanges = Object.fromEntries(Object.entries(st.echanges || {}).filter(([d]) => d >= lim && d !== k)); st.echanges[k] = i; }); }
+// Séance à lancer : celle prévue aujourd'hui, sinon la prochaine prévue
+function idxDuJour(pl) {
+  try { const t = today(), ag = agenda(t, addDaysIso(t, 7)); const k = Object.keys(ag).sort().find(x => ag[x]?.st === "planned" && ag[x].idx != null); if (k) return ag[k].idx; } catch { }
+  return pl.idx;
 }
 export function moveSession(from, to, time = null) {
   update(st => {

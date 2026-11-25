@@ -65,7 +65,7 @@ export function snapshot() {
   if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   const st = S(), t = today();
   const lifts = Object.fromEntries(Object.entries(st.lifts || {}).map(([k, h]) => [k, h.slice(-25)]));
-  const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, exoNotes: st.exoNotes || {}, surcharge: st.surcharge || {}, repriseAt: st.repriseAt || 0, skips: st.skips, swaps: st.swaps, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin },
+  const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, exoNotes: st.exoNotes || {}, surcharge: st.surcharge || {}, repriseAt: st.repriseAt || 0, skips: st.skips, swaps: st.swaps, echanges: st.echanges || {}, schedule: st.schedule || null, slots: st.slots || {}, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin },
     // Suivi : bilans, anamnèse, témoignage, photos envoyées volontairement, essai
     checkins: (st.checkins || []).slice(-26), hybride: hybridePourServeur(st.hybride), anamnese: st.anamnese || null, programme: pourCoach(st.programme, !!st.anamnese?.consent), testimonial: st.testimonial || null, sharedPhotos: st.sharedPhotos || [], trialStart: st.trialStart || null, defi: st.defi || null,
     // Journal « Je craque » : uniquement avec l'accord explicite du membre ; sinon null, ce qui efface aussi une copie envoyée avant un retrait d'accord
@@ -130,7 +130,7 @@ export async function pullCoachSlots() {
     rows.forEach(r => {
       if (st.coachSeen[r.orig_d] === r.updated_at) return;
       st.coachSeen[r.orig_d] = r.updated_at;
-      st.moves[r.orig_d] = r.new_d;
+      if (r.orig_d !== r.new_d) st.moves[r.orig_d] = r.new_d; else if (st.moves[r.orig_d] === r.new_d) delete st.moves[r.orig_d]; // même jour : seulement l'heure ou « avec Thomas »
       if (r.new_time || r.avec_coach != null) st.slots[r.new_d] = { ...(st.slots[r.new_d] || {}), ...(r.new_time ? { time: r.new_time } : {}), coach: !!r.avec_coach, ...(r.duree ? { dur: r.duree } : {}) };
     });
   });
@@ -197,6 +197,7 @@ export async function pullSaisies() {
       st.workouts.push(...(p.workouts || [])); st.workouts.sort((a, b) => String(a.start).localeCompare(String(b.start)));
       for (const [d, l] of Object.entries(p.foodDel || {})) st.food[d] = (st.food[d] || []).filter(e => !l.includes(String(e.id)));
       for (const [d, l] of Object.entries(p.food || {})) st.food[d] = [...(st.food[d] || []).filter(e => !l.some(x => String(x.id) === String(e.id))), ...l];
+      if (p.echanges) st.echanges = { ...(st.echanges || {}), ...p.echanges };
       for (const [n, l] of Object.entries(p.lifts || {})) { const h = st.lifts[n] = st.lifts[n] || []; for (const x of l) if (!h.some(y => y.d === x.d && y.e1rm === x.e1rm)) h.push(x); h.sort((a, b) => String(a.d).localeCompare(String(b.d))); }
     }
   });
@@ -205,7 +206,7 @@ export async function pullSaisies() {
 
 // Appareil sans suivi (nouveau téléphone, ou app coach qui n'a jamais eu le sien) alors que le compte en a un côté serveur : on le retrouve,
 // au lieu de repartir de zéro et d'écraser la copie du serveur avec un suivi vide.
-const REPRISE = ["settings", "profile", "plan", "workouts", "food", "daily", "measures", "customPrograms", "moves", "exoNotes", "surcharge", "skips", "swaps", "season", "goals", "lifts", "checkins", "anamnese", "trialStart"];
+const REPRISE = ["settings", "profile", "plan", "workouts", "food", "daily", "measures", "customPrograms", "moves", "exoNotes", "surcharge", "skips", "swaps", "echanges", "season", "goals", "lifts", "checkins", "anamnese", "trialStart"];
 let repriseFaite = false;
 export async function retrouverSuivi(encore = false) {
   if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte

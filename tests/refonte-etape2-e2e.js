@@ -128,7 +128,7 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   // séance en cours : tout valider
   await e.p.evaluate(() => { const s = JSON.parse(localStorage.getItem('cxs.v1')); s.plan = { programId: 'my-ph', startedAt: s.plan.startedAt, week: 3, idx: 0, cycle: 1 }; localStorage.setItem('cxs.v1', JSON.stringify(s)); });
   await e.p.reload(); await e.p.waitForTimeout(1200);
-  await e.p.evaluate(async () => { const E = await import('./js/engine.js'); const st = await import('./js/store.js'); const s0 = E.buildSession(); s0.start = new Date().toISOString(); st.update(x => { x.current = s0; }); });
+  await e.p.evaluate(async () => { const E = await import('./js/engine.js'); const st = await import('./js/store.js'); const s0 = E.buildSession(0); s0.start = new Date().toISOString(); st.update(x => { x.current = s0; }); });
   await go(e.p, 'workout'); await e.p.waitForTimeout(600);
   const before = await e.p.evaluate(() => JSON.parse(localStorage.getItem('cxs.v1')).current.exercises[0].sets.filter(s => s.done).length);
   await e.p.click('[data-a="ex-all"][data-x="0"]'); await e.p.waitForTimeout(500);

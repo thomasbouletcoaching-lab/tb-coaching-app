@@ -141,7 +141,7 @@ const rpeMax = (s) => Math.max(0, ...(s?.exercises || []).flatMap(ex => ex.sets.
   ok(/Semaine de décharge/.test(await txt(e.p, '#sheet')) && /RPE 7/.test(await txt(e.p, '#sheet')), 'au démarrage : la décharge allège les séances');
   await e.p.evaluate(() => document.querySelector('#sheet [data-a="dur-go"]').click()); await e.p.waitForTimeout(900);
   const cur3 = (await S(e.p)).current;
-  ok(cur3.allege === 'decharge' && travail(cur3) < base2 && rpeMax(cur3) <= 7, `décharge : ${travail(cur3)} séries au lieu de ${base2}, effort ≤ RPE 7`);
+  ok(cur3.allege === 'decharge' && travail(cur3) <= base2 && rpeMax(cur3) <= 7, `décharge : ${travail(cur3)} séries (pas plus que ${base2}, chaque exercice garde son minimum), effort ≤ RPE 7`);
   await e.ctx.close();
   const f = await page(b, { state: { daily: feuxRouges(3), decharge: { debut: T, fin: add(T, 6) } } });
   await tap(f.p, '[data-a="fc-decharge-stop"]');

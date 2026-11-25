@@ -30,7 +30,8 @@ const blank = () => ({
   batches: [],            // sessions de batch cooking
   myPlan: null,           // plan alimentaire écrit par l'utilisateur
   customPrograms: [],     // programmes créés
-  moves: {}, skips: {},   // agenda : séances déplacées, repos choisis
+  moves: {}, skips: {}, echanges: {}, // échanges : ce jour-là, faire telle séance de la semaine
+    // agenda : séances déplacées, repos choisis
   highlights: {},         // Bible : { 'livre.chap.verset': couleur }
   bibleNotes: {},         // Bible : { 'livre.chap.verset': texte }
   bibleAt: { b: 43, c: 3 },

@@ -116,7 +116,7 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   await c.p.waitForTimeout(800); t = await txt(c.p, 'body');
   for (const l of ['Accueil', 'Athlètes', 'Messages', 'Programmes', 'Profil']) ok(t.includes(l), 'barre coach : ' + l);
   ok(await c.p.$('.fab') !== null, 'accueil coach : bouton +');
-  ok(await c.p.$('.wk7') !== null, 'accueil coach : semaine en bandeau');
+  ok(await c.p.$('.cgrid, .cmois') !== null, 'accueil coach : agenda en tête');
   ok((await overflow(c.p)).length === 0, 'accueil coach : rien ne dépasse');
   await shot(c.p, 'refonte-coach-accueil');
   await go(c.p, 'admin'); t = await txt(c.p);
@@ -129,7 +129,7 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   ok(/Programme sport/.test(t) && /Plan diète/.test(t) && /Bilans/.test(t) && /Échéances/.test(t), 'fiche athlète : cartes programme, diète, bilans, échéances');
   ok((await overflow(c.p)).length === 0, 'fiche athlète : rien ne dépasse');
   await shot(c.p, 'refonte-coach-fiche');
-  ok(/Vue d'ensemble/.test(t) && /Profil/.test(t) && /Nutrition/.test(t) && /cette semaine/.test(t), 'fiche athlète : vue d\'ensemble (profil, programme, nutrition, séances)');
+  ok(/Vue d'ensemble/.test(t) && /Profil/.test(t) && /Nutrition/.test(t), 'fiche athlète : vue d\'ensemble (profil, programme, nutrition, séances)');
   // les réglages du suivi sont repliés : on les déplie pour la suite du test (à chaque nouveau rendu)
   const ouvrir = () => c.p.evaluate(() => { const f = () => document.querySelectorAll('details.plis:not([open])').forEach(d => { d.open = true; }); f(); if (!window.__plis) { window.__plis = new MutationObserver(f); window.__plis.observe(document.body, { childList: true, subtree: true }); } });
   await ouvrir();
@@ -212,7 +212,7 @@ export function createClient() { return { auth: { getSession: async () => ({ dat
   await c.p.click('[data-a="mb-squel"]'); await c.p.waitForTimeout(2500);
   ok(/builder/.test(c.p.url()) && await c.p.$$eval('.bd-ex', l => l.length) >= 6, 'squelette 8 patterns ouvert dans l\'éditeur');
   await go(c.p, 'chat/' + U1); await c.p.waitForTimeout(800);
-  await c.p.click('[data-a="quiz-send"]'); await c.p.waitForTimeout(700);
+  await c.p.click('.mplus'); await c.p.waitForTimeout(300); await c.p.click('[data-a="quiz-send"]'); await c.p.waitForTimeout(700);
   ok((await c.p.evaluate(() => window.__msgs.at(-1)?.body || '')).includes('[[quiz-exos]]'), 'quiz exos envoyé dans la conversation');
 
 

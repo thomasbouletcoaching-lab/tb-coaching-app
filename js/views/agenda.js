@@ -96,6 +96,7 @@ actions["ag-day"] = (b, d) => {
       ${k === t ? `<button class="btn btn-red mt12" data-a="start">Commencer maintenant</button>` : ""}
       ${a.st === "missed" ? `<button class="btn btn-red btn-sm mt12" style="width:100%" data-a="missed-done" data-v="${k}">✅ Je l'ai faite, j'ai oublié de la noter</button><p class="small muted mt8">Sinon, tu peux la rattraper : déplace-la à un autre jour.</p>` : ""}</div>
       <button class="btn btn-line btn-sm mt8" style="width:100%" data-a="jnp" data-v="${k}">🙅 Je ne peux pas</button>
+      ${a.st === "planned" && k >= t ? choixSeance(k, a) : ""}
       <h3 class="sec">${a.st === "missed" ? "Rattraper le" : "Décaler au"}</h3>
       <div class="chips wrap">${quick.map(x => `<button class="chip" data-a="mv-day" data-v="${x}">${fmtDate(x, { weekday: "short", day: "numeric" })}</button>`).join("")}</div>
       <form data-f="ag-move" data-f0="${k}" class="mt12"><div class="grid2"><label class="field"><span>Ou une autre date</span><input type="date" name="to" min="${t}" max="${addDays(t, 120)}" value="${k >= t ? k : t}" required></label><label class="field"><span>Heure</span><input type="time" name="time" value="${a.time || ""}"></label></div>
@@ -220,3 +221,11 @@ function busyHtml(k) {
   return `<div class="card mt12"><div class="lbl">Ton calendrier</div>${b.map(x => `<p class="small" style="margin:4px 0">${esc(x.s)}–${esc(x.e)} · ${esc(x.t)}</p>`).join("")}
     <div class="lbl mt8">Créneaux libres</div><p class="small" style="margin:4px 0">${free.length ? free.map(([a, c]) => `${fm(a)}–${fm(c)}`).join(" · ") : "Aucun créneau d'une heure"}</p></div>`;
 }
+
+// Intervertir : ce jour-là, faire une autre séance de la semaine (celle qui était prévue prend sa place)
+export function choixSeance(k, a, act = "ag-echange", extra = "") {
+  const ns = E.nextSession(), p = ns?.p; if (!p || p.s.length < 2) return "";
+  return `<h3 class="sec">Faire une autre séance ce jour-là</h3><div class="chips wrap">${p.s.map((x, i) => `<button class="chip ${a.idx === i ? "on" : ""}" data-a="${act}" data-v="${k}" data-i="${i}" ${extra}>${esc(x[0])}</button>`).join("")}</div>
+    <p class="xs muted mt4">La séance prévue ce jour-là passe à la place de celle choisie, dans la même semaine. Une séance loupée n'est pas rattrapée.</p>`;
+}
+actions["ag-echange"] = (b, d) => { E.echanger(d.v, +d.i); closeSheet(); toast(`${fmtDate(d.v, { weekday: "long" })} : ${E.nextSession()?.p.s[+d.i]?.[0] || "séance"} ✓`); rerender(); };
