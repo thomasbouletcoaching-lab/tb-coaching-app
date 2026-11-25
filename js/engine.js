@@ -598,7 +598,7 @@ export const dowOf = (dateStr) => (new Date(dateStr + "T12:00:00").getDay() + 6)
 // Statut de chaque jour entre deux dates : fait, loupé, prévu (avec la séance prévue), déplacé
 export function agenda(from, to) {
   const out = {}, pl = S().plan, p = pl && program(pl.programId);
-  const moves = S().moves || {}, skips = S().skips || {};
+  const moves = Object.fromEntries(Object.entries(S().moves || {}).filter(([a, b]) => a !== b)), skips = S().skips || {}; // un « déplacement » vers le même jour n'en est pas un
   const doneBy = {}; S().workouts.forEach(w => { const k = iso(new Date(w.end)); (doneBy[k] = doneBy[k] || []).push(w); });
   const lay = p ? weekLayout(p) : [];
   const t = today(), start = pl?.startedAt || t;

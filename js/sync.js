@@ -127,6 +127,7 @@ export async function pullCoachSlots() {
   if (!rows.length) return;
   update(st => {
     st.coachSeen = st.coachSeen || {}; st.moves = st.moves || {}; st.slots = st.slots || {};
+    Object.keys(st.moves).forEach(a => { if (st.moves[a] === a) delete st.moves[a]; });
     rows.forEach(r => {
       if (st.coachSeen[r.orig_d] === r.updated_at) return;
       st.coachSeen[r.orig_d] = r.updated_at;

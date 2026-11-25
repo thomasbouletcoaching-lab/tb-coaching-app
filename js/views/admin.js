@@ -1059,9 +1059,11 @@ actions["pre-mdp"] = async (b, d) => {
 // =====================================================================
 const H0 = 6, H1 = 23, PX = 52; // heures affichées, pixels par heure
 const calKey = (m, d) => m + "|" + d;
-const calOv = (m, d) => A.store.cal?.[calKey(m, d)] || A.slots?.[calKey(m, d)] || null;
+const calOv = (m, d) => A.slots?.[calKey(m, d)] || A.store.cal?.[calKey(m, d)] || null; // le créneau enregistré chez le client prime sur l'ancien carnet
 function calItems(d) {
   const out = agendaRows(d).filter(r => !r.me).map(r => { const o = calOv(r.m.id, d) || {}; return { k: "s", m: r.m, d, a: r.a, ip: r.ip, time: o.time || r.a.time || null, dur: +(o.dur || r.a.dur || 60), avec: o.avec ?? !!r.a.coach, name: r.name, st: r.ip ? "ip" : r.a.st }; });
+  // Ce que j'ai programmé à un client apparaît même si son résumé n'est pas à jour
+  (A.members || []).filter(m => !m.is_coach && !out.some(x => x.k === "s" && x.m.id === m.id)).forEach(m => { const o = calOv(m.id, d); if (o?.time) out.push({ k: "s", m, d, a: { title: "Séance" }, ip: false, time: o.time, dur: +(o.dur || 60), avec: !!o.avec, name: first(m), st: "planned" }); });
   (A.store.events || []).filter(e => e.d === d).forEach(e => { const [, lab, col] = evType(e.type), m = (A.members || []).find(x => x.id === e.member); out.push({ k: "e", e, d, time: e.time, dur: +(e.dur || 60), col, name: e.title + (m ? " · " + first(m) : ""), lab }); });
   return out.sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
 }
