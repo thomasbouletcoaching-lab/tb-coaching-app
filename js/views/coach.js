@@ -147,23 +147,7 @@ function applyDone() {
   AP.i = 0; AP.a = {};
 }
 
-// ---------- Messagerie (avec réactions) ----------
-const REACTS = ["👍", "❤️", "🙏", "🔥", "💪", "😂"];
-let pollT = null, msgs = [], me = null;
-const stopPoll = () => { clearInterval(pollT); pollT = null; };
-function msgHtml(x) {
-  const mine = x.sender === me, rs = Object.values(x.reactions || {});
-  const grouped = rs.reduce((o, e) => (o[e] = (o[e] || 0) + 1, o), {});
-  const pj = (Array.isArray(x.media) ? x.media : []).filter(m => m && typeof m.path === "string").map(m => {
-    const t = String(m.type || ""), p = esc(m.path);
-    if (t.startsWith("image")) return `<img data-mp="${p}" alt="Photo jointe" loading="lazy" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">`;
-    if (t.startsWith("video")) return `<video controls playsinline preload="none" data-mp="${p}" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px"></video><button class="link xs" data-a="vd-from" style="margin-bottom:6px">🔬 Analyser la vidéo</button>`;
-    return `<audio controls preload="none" data-ap="${p}" style="width:220px;max-width:100%;display:block"></audio>`;
-  }).join("");
-  const quiz = (x.body || "").includes(QUIZ_TOKEN), body = (x.body || "").replace(QUIZ_TOKEN, "").trim();
-  const content = x.audio_path ? `<audio controls preload="none" data-ap="${esc(x.audio_path)}" style="width:220px;max-width:100%;display:block"></audio>` : pj + esc(body) + (quiz ? (isCoach() ? `<div class="xs mt4" style="opacity:.8">📋 Quiz envoyé : ses réponses arrivent dans la conversation.</div>` : `<button class="btn btn-red btn-sm mt8" data-a="go" data-r="quiz-exos" style="width:100%">📋 Faire le quiz</button>`) : "");
-  return `<div class="msg ${mine ? "me" : "them"}" data-a="msg" data-id="${x.id}">${content}<time>${ago(x.created_at)}${mine && x.read_at ? " · lu" : ""}</time></div>${rs.length ? `<div class="reacts ${mine ? "me" : "them"}">${Object.entries(grouped).map(([e, n]) => `<span>${e}${n > 1 ? " " + n : ""}</span>`).join("")}</div>` : ""}`;
-}
+// ---------- Messagerie : voir chat.js ----------
 // Messages prêts (espace coach) : phrases réutilisables, stockées dans l'espace coach (clé « ready »)
 const READY0 = [
   { id: "r1", label: "Séance validée", body: "Séance bien validée. Continue comme ça, on ajuste la suite à la prochaine." },
@@ -176,7 +160,7 @@ let READY = null;
 const readyList = () => READY || READY0;
 export { readyList };
 export async function ensureReady() { if (READY === null) await readyLoad(); return readyList(); }
-function readyBar() {
+export function readyBar() {
   return `<div id="ready-bar" style="display:flex;gap:6px;overflow-x:auto;padding:8px 0;white-space:nowrap"><button class="chip sm" data-a="quiz-send">📋 Quiz exos</button>${readyList().map(r => `<button class="chip sm" data-a="ready-use" data-v="${esc(r.id)}">${esc(r.label)}</button>`).join("")}<button class="chip sm" data-a="ready-manage">⚙️ Gérer</button></div>`;
 }
 async function readyLoad() {
@@ -199,99 +183,6 @@ actions["ready-manage"] = () => {
 };
 actions["ready-del"] = async (b, d) => { await readySave(readyList().filter(r => r.id !== d.v)); closeSheet(); toast("Supprimé"); };
 forms["ready-new"] = async (v) => { await readySave([...readyList(), { id: "r" + Date.now(), label: v.label.trim(), body: v.body.trim() }]); closeSheet(); toast("Message prêt ajouté"); };
-
-// Lecteurs audio : l'adresse signée n'est demandée qu'au moment de l'affichage
-async function hydrateAudio() {
-  const c = await cloud(); if (!c) return;
-  document.querySelectorAll("[data-mp]:not([src])").forEach(async el => {
-    try { el.src = await c.audioUrl(el.dataset.mp); }
-    catch (e) { el.outerHTML = `<span class="xs muted">Pièce jointe indisponible</span>`; }
-  });
-  document.querySelectorAll("audio[data-ap]:not([src])").forEach(async el => {
-    try { el.src = await c.audioUrl(el.dataset.ap); }
-    catch (e) { el.outerHTML = `<span class="xs muted">Message vocal indisponible</span>`; }
-  });
-}
-// Message vocal : enregistrer (touche 🎙️), puis toucher ⏹️ pour envoyer
-let REC = null;
-actions["rec"] = async () => {
-  if (REC) { REC.stop(); return; }
-  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return toast("Enregistrement vocal non disponible sur ce téléphone");
-  let stream; try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch (e) { return toast("Micro refusé : autorise-le dans les réglages du téléphone"); }
-  const type = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg"].find(t => MediaRecorder.isTypeSupported?.(t)) || "";
-  const rec = new MediaRecorder(stream, type ? { mimeType: type } : {}), chunks = [];
-  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
-  rec.onstop = async () => {
-    stream.getTracks().forEach(t => t.stop()); REC = null; setRecBtn(false);
-    const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-    if (blob.size < 2000) return toast("Message trop court");
-    await sendAudio(blob);
-  };
-  REC = rec; rec.start(); setRecBtn(true); toast("Enregistrement… touche ⏹️ pour envoyer");
-};
-function setRecBtn(on) { const b = document.getElementById("rec-btn"); if (b) b.textContent = on ? "⏹️" : "🎙️"; }
-async function sendAudio(blob) {
-  const c = await cloud(); const memberId = isCoach() ? R.param : null;
-  try {
-    await c.ensureSession(); const to = memberId || c.userId();
-    const path = await c.uploadAudio(blob, to);
-    await c.send("🎙️ Message vocal", to, path);
-    buzz(); window.__reloadThread?.(); toast("Message vocal envoyé");
-  } catch (e) { toast("Envoi impossible : " + (e?.message || e)); }
-}
-
-routes.chat = async () => {
-  if (!isCoach() && !canMsg()) { toast("Les messages avec Thomas sont réservés aux personnes coachées"); return go("offers"); }
-  const memberId = isCoach() ? R.param : null;
-  const m = memberId ? (window.__members || []).find(x => x.id === memberId) : null;
-  $app.innerHTML = header(memberId ? esc(m?.name || "Membre") : "Thomas", memberId ? esc(m?.email || "") : "Je réponds moi-même", { back: memberId ? "member/" + memberId : "coach", ...(memberId ? { actions: `<button class="pill" data-a="msg-unread" data-id="${esc(memberId)}">Marquer non lu</button>` } : {}) })
-    + `<main class="page" style="padding-bottom:calc(100px + var(--safe-b))">${memberId ? "" : absenceBanner()}<div class="thread" id="thread"><p class="empty small">Chargement…</p></div>${memberId ? readyBar() : ""}${memberId ? "" : `<p class="xs muted center">${msgQuotaText()} · touche un message pour réagir</p>`}</main>
-    <form class="composer" data-f="send"><textarea name="v" rows="1" placeholder="Ton message" maxlength="2000" aria-label="Message">${esc(window.__prefill || "")}</textarea><button type="button" class="send" id="rec-btn" data-a="rec" aria-label="Message vocal">🎙️</button><button class="send" aria-label="Envoyer">${I.send}</button></form>`;
-  window.__prefill = "";
-  const load = async (first) => {
-    const c = await cloud(); const box = document.getElementById("thread"); if (!box) return stopPoll();
-    try {
-      await c.ensureSession(); me = c.userId();
-      const list = await c.thread(memberId || me);
-      const changed = JSON.stringify(list) !== JSON.stringify(msgs); msgs = list;
-      if (changed || first) { box.innerHTML = list.length ? list.map(msgHtml).join("") : `<div class="msg them">Salut ${esc(S().profile?.name || "")} ! Je suis Thomas. Pose-moi ta question sur ton entraînement, ta nutrition ou ce que tu vis : je te réponds moi-même.</div>`; hydrateAudio(); }
-      await c.markRead(memberId || me);
-      if (!memberId) badges.msgs = 0;
-      if (changed || first) window.scrollTo(0, document.body.scrollHeight);
-    } catch (e) { box.innerHTML = `<p class="empty small">Messagerie indisponible pour le moment. Vérifie ta connexion et réessaie.</p>`; }
-  };
-  window.__reloadThread = () => load(false);
-  msgs = []; await load(true); if (memberId) readyLoad(); stopPoll(); pollT = setInterval(() => load(false), 15000);
-  onLeave(stopPoll);
-};
-actions.msg = (b, d) => {
-  const x = msgs.find(m => String(m.id) === d.id); if (!x) return;
-  sheet(`<p class="small muted center">Réagir au message</p><div class="reactbar">${REACTS.map(e => `<button data-a="react" data-id="${x.id}" data-v="${e}" style="${x.reactions?.[me] === e ? "box-shadow:0 0 0 2px var(--red) inset" : ""}">${e}</button>`).join("")}</div>
-    <button class="btn btn-ghost btn-sm mt8" data-a="msg-copy" data-id="${x.id}">Copier le texte</button>`);
-};
-actions.react = async (b, d) => {
-  const x = msgs.find(m => String(m.id) === d.id); closeSheet();
-  try { const c = await cloud(); x.reactions = await c.react(x.id, d.v, x.reactions); buzz(); document.getElementById("thread").innerHTML = msgs.map(msgHtml).join(""); }
-  catch { toast("Réaction impossible, réessaie."); }
-};
-actions["msg-copy"] = (b, d) => { const x = msgs.find(m => String(m.id) === d.id); navigator.clipboard?.writeText(x.body); closeSheet(); toast("Copié"); };
-forms.send = async (v, form) => {
-  const ta = form.querySelector("textarea"), body = ta.value.trim(); if (!body) return;
-  const c = await cloud(); if (!c) return toast("Pas de connexion.");
-  const memberId = isCoach() ? R.param : null;
-  if (!memberId && S().demoTier) toast("En démo, ton message part avec ta formule actuelle.");
-  try {
-    await c.ensureSession(); await c.send(body, memberId || c.userId()); ta.value = ""; buzz();
-    const x = { id: "tmp" + Date.now(), sender: c.userId(), body, created_at: new Date().toISOString(), reactions: {} };
-    msgs.push(x); document.getElementById("thread")?.insertAdjacentHTML("beforeend", msgHtml(x));
-    window.scrollTo(0, document.body.scrollHeight);
-    refreshMe();
-  } catch (e) {
-    const quota = /row-level|policy/i.test(e.message);
-    toast(quota ? "Tu as utilisé tes messages de la semaine. Une formule supérieure t'en donne plus." : "Envoi impossible : " + (e?.message || e));
-    if (quota) setTimeout(() => go("offers"), 1800);
-  }
-};
 
 // ---------- Bilan ----------
 actions.checkin = () => go("bilan");
@@ -331,8 +222,6 @@ actions["notif-open"] = async (b, d) => {
   if (!n.read) { n.read = true; n.garde = true; drawNotifs(); document.querySelector(`[data-a="notif-open"][data-id="${n.id}"]`)?.classList.add("open"); try { (await cloud()).notifRead([n.id]); } catch { } }
 };
 const majFil = (id, u) => { const th = window.__threads?.[id]; if (th) th.unread = u; };
-actions["msg-unread"] = async (b, d) => { try { await (await cloud()).markUnread(d.id); majFil(d.id, 1); toast("Marquée non lue"); if (R.route === "admin-msg") render(); else go("admin-msg"); } catch (e) { toast(e.message); } };
-actions["msg-read"] = async (b, d) => { try { await (await cloud()).markRead(d.id); majFil(d.id, 0); if (R.route === "admin-msg") render(); else go("admin-msg"); } catch (e) { toast(e.message); } };
 actions["notif-all"] = async () => { const ids = NL.filter(n => !n.read).map(n => n.id); NL.forEach(n => n.read = true); NL = []; drawNotifs(); clearAppBadge(); try { (await cloud()).notifRead(ids); } catch { } };
 actions["push-on"] = async (b) => { try { b && (b.disabled = true); await enablePush(); toast("🔔 Notifications activées"); const c = await cloud(); await c.pushTest().catch(() => { }); closeSheet(); rerender(); } catch (e) { toast(e.message); if (b) b.disabled = false; } };
 actions["push-off"] = async () => { await disablePush(); toast("Notifications coupées sur ce téléphone"); rerender(); };

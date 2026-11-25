@@ -24,9 +24,9 @@ async function load(force = false) {
   const c = await cloud(); if (!c) { A.err = "Pas de connexion au serveur."; return; }
   try {
     await (c.currentSession().then(u => u || c.ensureSession()));
-    const [ms, sums, th, st, nut] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled", "dismiss", "events", "tags", "seances", "pins", "cal"]).catch(() => ({})), c.nutriRecent(7).catch(() => [])]);
+    const [ms, sums, th, st, nut] = await Promise.all([c.members(), c.allSummaries().catch(() => []), c.lastMessages().catch(() => ({})), c.storeGet(["todo", "biz", "notes", "handled", "dismiss", "events", "tags", "seances", "pins", "cal", "msgprefs", "automsg"]).catch(() => ({})), c.nutriRecent(7).catch(() => [])]);
     A.members = ms.filter(m => m.name || m.email || th[m.id]); A.sums = Object.fromEntries(sums.map(x => [x.user_id, x.summary || {}])); A.snapAt = Object.fromEntries(sums.map(x => [x.user_id, x.updated_at])); A.threads = th; window.__threads = th; A.nutri = {}; (nut || []).forEach(r => { (A.nutri[r.user_id] = A.nutri[r.user_id] || []).push(r); });
-    A.store = { todo: st.todo?.items || [], biz: st.biz || BIZ0(), notes: st.notes || {}, handled: st.handled || {}, dismiss: st.dismiss || {}, events: st.events?.items || [], tags: st.tags || {}, seances: st.seances?.items || [] };
+    A.store = { todo: st.todo?.items || [], biz: st.biz || BIZ0(), notes: st.notes || {}, handled: st.handled || {}, dismiss: st.dismiss || {}, events: st.events?.items || [], tags: st.tags || {}, seances: st.seances?.items || [], pins: st.pins || { ids: [] }, msgprefs: st.msgprefs || { archived: {}, muted: {}, rappels: {}, calme: null }, automsg: st.automsg || {} };
     A.store.biz.payments = A.store.biz.payments || []; A.store.biz.cycles = A.store.biz.cycles || []; A.store.biz.settings = A.store.biz.settings || {};
     A.invites = await c.invites().catch(() => []);
     window.__members = ms; A.at = Date.now(); A.err = null;
@@ -316,35 +316,209 @@ routes.admin = async () => {
 };
 
 // =====================================================================
-// MESSAGES
+// MESSAGES (liste façon WhatsApp : glisser, filtres, recherche, archives, groupes)
 // =====================================================================
-let msgQ = "", msgF = "tous";
+let msgQ = "", msgF = "tous", HITS = null, GRPS = null, unLive = null;
 const pins = () => A.store.pins?.ids || [];
-const hueOf = (id) => [...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+const MP = () => (A.store.msgprefs = A.store.msgprefs || { archived: {}, muted: {}, rappels: {}, calme: null });
+export const hueOf = (id) => [...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+const heureMsg = (iso) => !iso ? "" : iso.slice(0, 10) === today() ? new Date(iso).toTimeString().slice(0, 5) : iso.slice(0, 10) === addDays(today(), -1) ? "Hier" : iso.slice(0, 10) > addDays(today(), -7) ? fmtDate(iso.slice(0, 10), { weekday: "long" }) : fmtDate(iso.slice(0, 10), { day: "numeric", month: "short" });
+export function apercu(l) {
+  if (!l) return "";
+  if (l.deleted_at) return "🚫 Message supprimé";
+  if (l.audio_path) { const d = +l.meta?.dur || 0; return `🎤 Vocal${d ? ` ${Math.floor(d / 60)}:${String(d % 60).padStart(2, "0")}` : ""}`; }
+  const t = String(l.media?.[0]?.type || ""), b = (l.body || "").replace(/\s+/g, " ").trim();
+  if (t) return `${t.startsWith("video") ? "🎥 Vidéo" : "📷 Photo"}${b ? " · " + b : ""}`;
+  return b;
+}
+// À répondre : le dernier message vient du client (lu ou non), hors messages automatiques
+const aRepondre = (m, th) => !!th?.last && th.last.sender === m.id && !th.last.deleted_at;
+const rappelDu = (id) => { const r = MP().rappels?.[id]; return r && r <= today() ? r : null; };
 routes["admin-msg"] = async () => {
   if (!(await guard("admin-msg"))) return;
-  const P = pins();
-  const ms = (A.members || []).map(m => ({ m, th: A.threads[m.id], pin: P.includes(m.id) })).sort((a, b) => (b.pin - a.pin) || (b.th?.last?.created_at || "").localeCompare(a.th?.last?.created_at || ""));
-  const unread = ms.reduce((a, x) => a + (x.th?.unread ? 1 : 0), 0);
-  const q = msgQ.toLowerCase(), shown = ms.filter(x => (!q || first(x.m).toLowerCase().includes(q)) && (msgF === "tous" || (msgF === "nonlus" ? x.th?.unread : x.pin)));
-  const heure = (l) => l ? (l.created_at.slice(0, 10) === today() ? new Date(l.created_at).toTimeString().slice(0, 5) : l.created_at.slice(0, 10) === addDays(today(), -1) ? "Hier" : fmtDate(l.created_at.slice(0, 10), { day: "numeric", month: "short" })) : "";
-  frame("admin-msg", `<div class="row between mt8" style="align-items:flex-end"><h1 class="h1" style="margin:0">Discussions</h1><span class="xs muted">${unread ? `${unread} non lue${unread > 1 ? "s" : ""}` : "Tout est lu"}</span></div>
-    <div class="msgsearch mt12">${I.search}<input id="msg-q" placeholder="Rechercher un client" value="${esc(msgQ)}"></div>
-    <div class="mt8">${chips([["tous", "Toutes"], ["nonlus", `Non lues${unread ? " " + unread : ""}`], ["pins", "Épinglées"]], msgF, "msg-f")}</div>
-    <div class="mlist mt8">${shown.map(({ m, th, pin }) => { const l = th?.last, mine = l && l.sender !== m.id, u = th?.unread || 0;
-      return `<div class="mrow" data-mrow="${m.id}"><div class="mrow-acts"><button class="ma-unread" data-a="${u ? "msg-read" : "msg-unread"}" data-id="${m.id}">${u ? "✓<span>Lu</span>" : "●<span>Non lu</span>"}</button><button class="ma-pin" data-a="msg-pin" data-id="${m.id}">📌<span>${pin ? "Détacher" : "Épingler"}</span></button></div>
-        <a class="mrow-front" href="#/chat/${m.id}"><span class="mav" style="background:hsl(${hueOf(m.id)} 55% 45%)">${esc(first(m)[0].toUpperCase())}</span><span class="grow" style="min-width:0"><span class="row between"><b class="${u ? "" : ""}">${esc(first(m))}</b><span class="xs ${u ? "mnew" : "muted"}">${heure(l)}</span></span>
-          <span class="row between" style="gap:8px"><span class="small mprev ${u ? "on" : ""}">${l ? `${mine ? "<span class='muted'>Toi : </span>" : ""}${esc(l.body)}` : "<span class='muted'>Pas encore de message</span>"}</span><span class="row" style="gap:4px">${pin ? `<span class="xs">📌</span>` : ""}${u ? `<span class="mcnt">${u}</span>` : ""}</span></span></span></a></div>`; }).join("") || `<p class="empty small">Aucune discussion.</p>`}</div>
-    <p class="xs muted center mt8">Fais glisser une discussion vers la droite : non lu, épingler.</p>`);
-  const i = document.getElementById("msg-q"); i?.addEventListener("input", () => { msgQ = i.value; clearTimeout(i._t); i._t = setTimeout(() => routes["admin-msg"](), 250); });
+  if (!GRPS) { try { GRPS = await (await cloud()).groups(); } catch { GRPS = []; } }
+  const P = pins(), mp = MP();
+  const all = (A.members || []).map(m => ({ m, th: A.threads[m.id], pin: P.includes(m.id), arch: !!mp.archived?.[m.id], muted: !!mp.muted?.[m.id], rap: rappelDu(m.id) }))
+    .map(x => (x.arch && x.th?.last && x.th.last.sender === x.m.id && x.th.last.created_at > mp.archived[x.m.id] ? { ...x, arch: false } : x)); // le client a réécrit : la discussion revient
+  const vis = all.filter(x => !x.arch);
+  const nb = { nonlus: vis.filter(x => x.th?.unread).length, arep: vis.filter(x => aRepondre(x.m, x.th)).length, arch: all.length - vis.length, g: (GRPS || []).reduce((a, g) => a + (g.unread ? 1 : 0), 0) };
+  const q = msgQ.trim().toLowerCase();
+  let shown = (msgF === "archives" ? all.filter(x => x.arch) : vis).filter(x => msgF === "tous" || msgF === "archives" || (msgF === "nonlus" ? x.th?.unread : msgF === "arep" ? aRepondre(x.m, x.th) : msgF === "pins" ? x.pin : false));
+  if (q) shown = shown.filter(x => first(x.m).toLowerCase().includes(q) || (HITS || []).some(h => h.user_id === x.m.id));
+  shown.sort((a, b) => (!!b.rap - !!a.rap) || (b.pin - a.pin) || (b.th?.last?.created_at || "").localeCompare(a.th?.last?.created_at || ""));
+  const grp = msgF === "groupes" || msgF === "tous" ? (GRPS || []).filter(g => !q || g.name.toLowerCase().includes(q)) : [];
+  const ligne = ({ m, th, pin, muted, rap, arch }) => { const l = th?.last, mine = l && l.sender !== m.id, u = th?.unread || 0, hit = q && (HITS || []).find(h => h.user_id === m.id);
+    const ticks = mine && !l.deleted_at ? `<span class="tk ${l.read_at ? "lu" : ""}">${l.read_at ? "✓✓" : "✓"}</span> ` : "";
+    return `<div class="mrow" data-mrow="${m.id}">
+      <div class="mra mra-l"><button class="ma-read" data-a="${u ? "msg-read" : "msg-unread"}" data-id="${m.id}">${u ? "✓" : "●"}<span>${u ? "Lu" : "Non lu"}</span></button></div>
+      <div class="mra mra-r"><button class="ma-pin" data-a="msg-pin" data-id="${m.id}">📌<span>${pin ? "Détacher" : "Épingler"}</span></button><button class="ma-arch" data-a="msg-arch" data-id="${m.id}">🗄️<span>${arch ? "Désarchiver" : "Archiver"}</span></button></div>
+      <a class="mrow-front" href="#/chat/${m.id}"><span class="mav" style="background:hsl(${hueOf(m.id)} 55% 45%)">${esc(first(m)[0].toUpperCase())}</span><span class="grow" style="min-width:0"><span class="row between" style="gap:8px"><b class="mnm ${u ? "on" : ""}">${esc(first(m))}</b><span class="xs ${u ? "mnew" : "muted"}">${heureMsg(l?.created_at)}</span></span>
+        <span class="row between" style="gap:8px"><span class="small mprev ${u ? "on" : ""}">${rap ? `<b style="color:var(--warn)">⏰ À rappeler · </b>` : ""}${hit ? `🔎 ${esc(hit.body.slice(0, 80))}` : l ? `${mine ? `${ticks}<span class='muted'>Toi : </span>` : ""}${esc(apercu(l))}` : "<span class='muted'>Pas encore de message</span>"}</span><span class="row" style="gap:4px">${muted ? `<span class="xs">🔕</span>` : ""}${pin ? `<span class="xs">📌</span>` : ""}${u ? `<span class="mcnt">${u}</span>` : aRepondre(m, th) ? `<span class="mrep" title="À répondre"></span>` : ""}</span></span></span></a></div>`; };
+  const gligne = (g) => `<div class="mrow"><a class="mrow-front" href="#/groupe/${g.id}"><span class="mav" style="background:var(--tint2);font-size:22px">${esc(g.emoji || "👥")}</span><span class="grow" style="min-width:0"><span class="row between"><b class="mnm ${g.unread ? "on" : ""}">${esc(g.name)}</b><span class="xs ${g.unread ? "mnew" : "muted"}">${heureMsg(g.last?.created_at)}</span></span>
+      <span class="row between" style="gap:8px"><span class="small mprev ${g.unread ? "on" : ""}">${g.last ? esc(apercu(g.last)) : `<span class="muted">${g.members.length} membre${g.members.length > 1 ? "s" : ""}${g.coach_only ? " · annonces" : ""}</span>`}</span>${g.unread ? `<span class="mcnt">${g.unread}</span>` : ""}</span></span></a></div>`;
+  frame("admin-msg", `<div class="row between mt8" style="align-items:center;gap:8px"><h1 class="h1 grow" style="margin:0">Discussions</h1>
+      <button class="pastille" data-a="msg-new" aria-label="Nouveau">✏️</button><button class="pastille" data-a="msg-reglages" aria-label="Réglages de la messagerie">⚙️</button></div>
+    <div class="msgsearch mt12">${I.search}<input id="msg-q" placeholder="Rechercher un client ou un message" value="${esc(msgQ)}" autocomplete="off"></div>
+    <div class="chips-scroll mt8">${chips([["tous", "Toutes"], ["nonlus", `Non lues${nb.nonlus ? " " + nb.nonlus : ""}`], ["arep", `À répondre${nb.arep ? " " + nb.arep : ""}`], ["pins", "Épinglées"], ["groupes", `Groupes${nb.g ? " " + nb.g : ""}`]], msgF === "archives" ? "" : msgF, "msg-f")}</div>
+    ${msgF === "archives" ? `<button class="link small mt8" data-a="msg-f" data-v="tous">‹ Retour aux discussions</button>` : ""}
+    ${grp.length ? `<div class="mlist mt8">${grp.map(gligne).join("")}</div>` : ""}
+    ${msgF !== "groupes" ? `<div class="mlist mt8">${shown.map(ligne).join("") || `<p class="empty small">${msgF === "arep" ? "Tu as répondu à tout le monde 👌" : "Aucune discussion."}</p>`}</div>` : ""}
+    ${msgF === "groupes" && !grp.length ? `<p class="empty small">Aucun groupe. Touche ✏️ pour en créer un.</p>` : ""}
+    ${nb.arch && msgF !== "archives" ? `<button class="li mt8" data-a="msg-f" data-v="archives" style="width:100%"><span class="em">🗄️</span><span class="grow">Archivées</span><span class="xs muted">${nb.arch}</span></button>` : ""}
+    <p class="xs muted center mt8">Glisse une discussion : à droite → lu / non lu · à gauche → épingler, archiver. Appui long : plus d'options.</p>`);
+  const i = document.getElementById("msg-q");
+  i?.addEventListener("input", () => { msgQ = i.value; clearTimeout(i._t); i._t = setTimeout(async () => { HITS = null; if (msgQ.trim().length >= 3) { try { HITS = await (await cloud()).searchMessages(msgQ.trim()); } catch { } } const pos = i.selectionStart; await routes["admin-msg"](); const j = document.getElementById("msg-q"); j?.focus(); try { j.setSelectionRange(pos, pos); } catch { } }, 300); });
+  // En direct : la liste se met à jour dès qu'un message arrive
+  if (!unLive) { try { const c = await cloud(); unLive = c.liveInbox(() => { clearTimeout(unLive?._t); const t = setTimeout(async () => { try { A.threads = await c.lastMessages(); window.__threads = A.threads; adminBadges.msgs = (A.members || []).reduce((a, m) => a + (A.threads[m.id]?.unread || 0), 0); GRPS = await c.groups().catch(() => GRPS); if (R.route === "admin-msg") routes["admin-msg"](); } catch { } }, 400); unLive._t = t; }); } catch { } }
 };
 actions["msg-f"] = (b, d) => { msgF = d.v; routes["admin-msg"](); };
-actions["msg-pin"] = async (b, d) => { const P = pins(); A.store.pins = { ids: P.includes(d.id) ? P.filter(x => x !== d.id) : [...P, d.id] }; await saveStore("pins"); routes["admin-msg"](); };
-// Glisser une discussion vers la droite (comme WhatsApp) : les actions apparaissent dessous
-let mg = null;
-document.addEventListener("touchstart", (e) => { const f = e.target.closest?.(".mrow-front"); document.querySelectorAll(".mrow.open").forEach(r => { if (!f || r !== f.parentElement) { r.classList.remove("open"); r.querySelector(".mrow-front").style.transform = ""; } }); if (!f) return; const t = e.touches[0]; mg = { f, x: t.clientX, y: t.clientY, base: f.parentElement.classList.contains("open") ? 150 : 0, on: false }; }, { passive: true });
-document.addEventListener("touchmove", (e) => { if (!mg) return; const t = e.touches[0], dx = t.clientX - mg.x, dy = t.clientY - mg.y; if (!mg.on && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3) mg.on = true; if (!mg.on) return; const x = Math.max(0, Math.min(170, mg.base + dx)); mg.f.style.transition = "none"; mg.f.style.transform = `translateX(${x}px)`; }, { passive: true });
-document.addEventListener("touchend", (e) => { if (!mg) return; const g = mg; mg = null; if (!g.on) return; const dx = e.changedTouches[0].clientX - g.x, open = g.base + dx > 70; g.f.style.transition = ""; g.f.style.transform = open ? "translateX(150px)" : ""; g.f.parentElement.classList.toggle("open", open); g.f.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); }, { once: true, capture: true }); }, { passive: true });
+actions["msg-pin"] = async (b, d) => { const P = pins(); if (!P.includes(d.id) && P.length >= 5) return toast("5 discussions épinglées au maximum"); A.store.pins = { ids: P.includes(d.id) ? P.filter(x => x !== d.id) : [...P, d.id] }; await saveStore("pins"); routes["admin-msg"](); };
+actions["msg-arch"] = async (b, d) => { const mp = MP(); mp.archived = mp.archived || {}; if (mp.archived[d.id]) delete mp.archived[d.id]; else { mp.archived[d.id] = new Date().toISOString(); toast("Archivée · elle revient si le client écrit"); } await saveStore("msgprefs"); closeSheet(); routes["admin-msg"](); };
+actions["msg-mute"] = async (b, d) => { const mp = MP(); mp.muted = mp.muted || {}; if (mp.muted[d.id]) delete mp.muted[d.id]; else mp.muted[d.id] = true; await saveStore("msgprefs"); closeSheet(); toast(mp.muted[d.id] ? "🔕 Plus de notification pour cette discussion" : "🔔 Notifications réactivées"); if (R.route === "admin-msg") routes["admin-msg"](); };
+actions["msg-rappel"] = (b, d) => sheet(`<h2 class="h2">⏰ Me le rappeler</h2><p class="small muted">La discussion remontera en haut de la liste ce jour-là.</p>
+  <div class="chips wrap mt8">${[[1, "Demain"], [3, "Dans 3 jours"], [7, "Dans 1 semaine"]].map(([n, l]) => `<button class="chip" data-a="msg-rappel-ok" data-id="${d.id}" data-v="${addDays(today(), n)}">${l}</button>`).join("")}</div>
+  <form data-f="msg-rappel" data-id="${d.id}" class="row mt12" style="gap:8px"><input class="inp grow" type="date" name="d" min="${today()}" required><button class="btn btn-red btn-sm">OK</button></form>
+  ${MP().rappels?.[d.id] ? `<button class="btn btn-ghost btn-sm mt8" data-a="msg-rappel-ok" data-id="${d.id}" data-v="">Retirer le rappel (${fmtDate(MP().rappels[d.id], { day: "numeric", month: "short" })})</button>` : ""}`);
+actions["msg-rappel-ok"] = async (b, d) => { const mp = MP(); mp.rappels = mp.rappels || {}; if (d.v) mp.rappels[d.id] = d.v; else delete mp.rappels[d.id]; await saveStore("msgprefs"); closeSheet(); toast(d.v ? `⏰ Rappel le ${fmtDate(d.v, { day: "numeric", month: "short" })}` : "Rappel retiré"); rerender(); };
+forms["msg-rappel"] = (v, f) => actions["msg-rappel-ok"](null, { id: f.dataset.id, v: v.d });
+// Répondre efface le rappel du jour
+export async function rappelFait(id) { const mp = MP(); if (mp.rappels?.[id] && mp.rappels[id] <= today()) { delete mp.rappels[id]; await saveStore("msgprefs"); } }
+// Appui long sur une discussion
+function menuDiscussion(id) {
+  const m = (A.members || []).find(x => x.id === id); if (!m) return; const mp = MP(), u = A.threads[id]?.unread;
+  sheet(`<h2 class="h2">${esc(first(m))}</h2><div class="list mt8">
+    <button class="li" data-a="${u ? "msg-read" : "msg-unread"}" data-id="${id}"><span class="em">${u ? "✓" : "●"}</span><span class="grow">${u ? "Marquer comme lu" : "Marquer comme non lu"}</span></button>
+    <button class="li" data-a="msg-pin" data-id="${id}"><span class="em">📌</span><span class="grow">${pins().includes(id) ? "Détacher" : "Épingler en haut"}</span></button>
+    <button class="li" data-a="msg-arch" data-id="${id}"><span class="em">🗄️</span><span class="grow">${mp.archived?.[id] ? "Désarchiver" : "Archiver"}</span></button>
+    <button class="li" data-a="msg-mute" data-id="${id}"><span class="em">${mp.muted?.[id] ? "🔔" : "🔕"}</span><span class="grow">${mp.muted?.[id] ? "Réactiver les notifications" : "Mettre en sourdine"}</span></button>
+    <button class="li" data-a="msg-rappel" data-id="${id}"><span class="em">⏰</span><span class="grow">Me le rappeler</span></button>
+    <button class="li" data-a="go" data-r="member" data-p="${id}"><span class="em">👤</span><span class="grow">Voir la fiche client</span></button></div>`);
+}
+// Glisser comme WhatsApp : à droite → lu / non lu, à gauche → épingler / archiver ; glisser jusqu'au bout déclenche l'action
+let mg = null, lp = null;
+const ferme = (r) => { r.classList.remove("open-l", "open-r", "sw"); const f = r.querySelector(".mrow-front"); if (f) { f.style.transition = ""; f.style.transform = ""; } };
+document.addEventListener("touchstart", (e) => {
+  const f = e.target.closest?.(".mrow-front"); document.querySelectorAll(".mrow.open-l,.mrow.open-r").forEach(r => { if (!f || r !== f.parentElement) ferme(r); });
+  if (!f) return; const t = e.touches[0], r = f.parentElement;
+  mg = { f, r, x: t.clientX, y: t.clientY, base: r.classList.contains("open-l") ? 84 : r.classList.contains("open-r") ? -168 : 0, on: false, dx: 0 };
+  const id = r.dataset.mrow; clearTimeout(lp); if (id) lp = setTimeout(() => { if (mg && !mg.on && Math.abs(mg.dx) < 8) { mg = null; try { navigator.vibrate?.(15); } catch { } f.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); }, { once: true, capture: true }); menuDiscussion(id); } }, 550);
+}, { passive: true });
+document.addEventListener("touchmove", (e) => {
+  if (!mg) return; const t = e.touches[0], dx = t.clientX - mg.x, dy = t.clientY - mg.y; mg.dx = dx;
+  if (Math.abs(dy) > 10 && !mg.on) { clearTimeout(lp); }
+  if (!mg.on && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3) { mg.on = true; clearTimeout(lp); mg.r.classList.add("sw"); }
+  if (!mg.on) return;
+  const w = mg.r.offsetWidth, hasL = !!mg.r.querySelector(".mra-l"), hasR = !!mg.r.querySelector(".mra-r");
+  let x = mg.base + dx; if (!hasL) x = Math.min(0, x); if (!hasR) x = Math.max(0, x); x = Math.max(-w * .8, Math.min(w * .6, x));
+  mg.r.classList.toggle("dir-l", x > 0); mg.r.classList.toggle("dir-r", x < 0);
+  mg.r.classList.toggle("full", x > w * .45 || x < -w * .6);
+  mg.f.style.transition = "none"; mg.f.style.transform = `translateX(${x}px)`;
+}, { passive: true });
+document.addEventListener("touchend", () => {
+  clearTimeout(lp); if (!mg) return; const g = mg; mg = null; if (!g.on) return;
+  const w = g.r.offsetWidth, x = g.base + g.dx; g.f.style.transition = "";
+  g.f.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); }, { once: true, capture: true });
+  if (x > w * .45) { try { navigator.vibrate?.(12); } catch { } g.r.querySelector(".mra-l button")?.click(); return ferme(g.r); }
+  if (x < -w * .6) { try { navigator.vibrate?.(12); } catch { } g.r.querySelector(".mra-r .ma-arch")?.click(); return ferme(g.r); }
+  if (x > 50) { g.r.classList.add("open-l"); g.f.style.transform = "translateX(84px)"; }
+  else if (x < -70) { g.r.classList.add("open-r"); g.f.style.transform = "translateX(-168px)"; }
+  else ferme(g.r);
+}, { passive: true });
+document.addEventListener("contextmenu", (e) => { const r = e.target.closest?.(".mrow[data-mrow]"); if (r) { e.preventDefault(); menuDiscussion(r.dataset.mrow); } });
+
+// ---------- Nouveau : message groupé, groupe ----------
+actions["msg-new"] = () => sheet(`<h2 class="h2">✏️ Nouveau</h2><div class="list mt8">
+  <button class="li" data-a="msg-bulk"><span class="em">📣</span><span class="grow">Message à plusieurs clients<br><span class="xs muted">chacun le reçoit dans sa conversation, comme un message perso</span></span></button>
+  <button class="li" data-a="grp-edit"><span class="em">👥</span><span class="grow">Créer un groupe<br><span class="xs muted">une conversation commune (défi, promo…)</span></span></button>
+  <button class="li" data-a="msg-sched-all"><span class="em">🕒</span><span class="grow">Messages programmés</span></button></div>`);
+let BULK = new Set();
+actions["msg-bulk"] = () => { BULK = new Set(); drawBulk(); };
+function drawBulk() {
+  const ms = (A.members || []).filter(m => !m.onboarding?.hidden);
+  sheet(`<h2 class="h2">📣 Message à plusieurs</h2><p class="xs muted">Écris {prenom} pour mettre le prénom de chacun.</p>
+    <div class="chips wrap mt8"><button class="chip sm" data-a="bulk-all">Tous</button><button class="chip sm" data-a="bulk-none">Aucun</button></div>
+    <div class="list mt8" style="max-height:34vh;overflow:auto">${ms.map(m => `<button class="li" data-a="bulk-tg" data-id="${m.id}"><span class="em">${BULK.has(m.id) ? "☑️" : "⬜"}</span><span class="grow">${esc(first(m))}</span></button>`).join("")}</div>
+    <form data-f="msg-bulk" class="mt12"><textarea class="inp" name="t" rows="3" required placeholder="Salut {prenom} !"></textarea>
+    <label class="field mt8"><span>Envoyer</span><input type="datetime-local" name="at" min="${new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 16)}"><small class="xs muted">vide = tout de suite</small></label>
+    <button class="btn btn-red mt8">Envoyer à ${BULK.size} client${BULK.size > 1 ? "s" : ""}</button></form>`);
+}
+actions["bulk-tg"] = (b, d) => { BULK.has(d.id) ? BULK.delete(d.id) : BULK.add(d.id); const t = document.querySelector("form[data-f=msg-bulk] textarea")?.value; drawBulk(); const ta = document.querySelector("form[data-f=msg-bulk] textarea"); if (ta && t) ta.value = t; };
+actions["bulk-all"] = () => { (A.members || []).forEach(m => BULK.add(m.id)); drawBulk(); };
+actions["bulk-none"] = () => { BULK.clear(); drawBulk(); };
+forms["msg-bulk"] = async (v) => {
+  if (!BULK.size) return toast("Choisis au moins un client"); const c = await cloud(); const ids = [...BULK];
+  const txt = (id) => v.t.replace(/\{prenom\}/g, first(A.members.find(m => m.id === id) || {}).split(" ")[0]);
+  try {
+    if (v.at) { await c.schedAdd(ids.map(id => ({ user_id: id, body: txt(id), send_at: new Date(v.at).toISOString() }))); toast(`🕒 Programmé pour ${ids.length} client${ids.length > 1 ? "s" : ""}`); }
+    else { for (const id of ids) await c.send(txt(id), id); toast(`📣 Envoyé à ${ids.length} client${ids.length > 1 ? "s" : ""}`); }
+    closeSheet(); A.at = 0; await load(true); rerender();
+  } catch (e) { toast("Envoi impossible : " + e.message); }
+};
+actions["msg-sched-all"] = async () => {
+  let l = []; try { l = await (await cloud()).schedList(); } catch (e) { return toast(e.message); }
+  sheet(`<h2 class="h2">🕒 Messages programmés</h2>${l.length ? `<div class="list mt8">${l.map(x => `<div class="li"><span class="grow small"><b>${esc(first(A.members.find(m => m.id === x.user_id) || {}))}</b> · ${fmtDate(x.send_at.slice(0, 10), { day: "numeric", month: "short" })} ${new Date(x.send_at).toTimeString().slice(0, 5)}<br><span class="muted">${esc(x.body.slice(0, 90))}</span></span><button class="icon-btn sm" data-a="sched-del" data-id="${x.id}">🗑️</button></div>`).join("")}</div>` : `<p class="empty small">Aucun message programmé.</p>`}`);
+};
+actions["sched-del"] = async (b, d) => { try { await (await cloud()).schedDel(+d.id); b.closest(".li")?.remove(); toast("Message programmé supprimé"); } catch (e) { toast(e.message); } };
+
+// ---------- Groupes ----------
+let GSEL = new Set(), GED = null;
+actions["grp-edit"] = (b, d) => { const g = d?.id ? (GRPS || []).find(x => x.id === +d.id) : null; GED = g ? { ...g } : { name: "", emoji: "💪", coach_only: false }; GSEL = new Set(g?.members || []); drawGrp(); };
+function drawGrp() {
+  const ms = (A.members || []).filter(m => !m.onboarding?.hidden);
+  sheet(`<h2 class="h2">${GED.id ? "Modifier le groupe" : "👥 Nouveau groupe"}</h2><form data-f="grp-save" class="mt8">
+    <div class="row" style="gap:8px"><input class="inp" name="emoji" value="${esc(GED.emoji || "👥")}" style="width:56px;text-align:center" maxlength="4"><input class="inp grow" name="name" value="${esc(GED.name)}" placeholder="Nom du groupe" required maxlength="40"></div>
+    <label class="row mt8" style="gap:8px"><input type="checkbox" name="co" ${GED.coach_only ? "checked" : ""}><span class="small">Seul moi peux écrire (groupe d'annonces)</span></label>
+    <div class="lbl mt12">Membres · ${GSEL.size}</div><div class="list mt4" style="max-height:34vh;overflow:auto">${ms.map(m => `<button type="button" class="li" data-a="grp-tg" data-id="${m.id}"><span class="em">${GSEL.has(m.id) ? "☑️" : "⬜"}</span><span class="grow">${esc(first(m))}</span></button>`).join("")}</div>
+    <button class="btn btn-red mt12">${GED.id ? "Enregistrer" : "Créer le groupe"}</button>${GED.id ? `<button type="button" class="btn btn-ghost btn-sm mt8" data-a="grp-del" data-id="${GED.id}">Supprimer le groupe</button>` : ""}</form>`);
+}
+actions["grp-tg"] = (b, d) => { const f = document.querySelector("form[data-f=grp-save]"); if (f) { GED.name = f.name.value; GED.emoji = f.emoji.value; GED.coach_only = f.co.checked; } GSEL.has(d.id) ? GSEL.delete(d.id) : GSEL.add(d.id); drawGrp(); };
+forms["grp-save"] = async (v) => { try { const c = await cloud(); const id = await c.groupSave({ id: GED.id, name: v.name.trim(), emoji: (v.emoji || "👥").trim(), coach_only: !!v.co }, [...GSEL]); GRPS = await c.groups(); closeSheet(); toast("Groupe enregistré"); go("groupe", id); } catch (e) { toast(e.message); } };
+actions["grp-del"] = async (b, d) => { if (!confirm("Supprimer ce groupe et tous ses messages ?")) return; try { const c = await cloud(); await c.groupDelete(+d.id); GRPS = await c.groups(); closeSheet(); go("admin-msg"); } catch (e) { toast(e.message); } };
+export const groupesCoach = () => GRPS || [];
+export async function rechargerGroupes() { try { GRPS = await (await cloud()).groups(); } catch { } return GRPS; }
+
+// ---------- Réglages de la messagerie : heures calmes, messages automatiques, réponses enregistrées, statistiques ----------
+const AUTO0 = {
+  bienvenue: { on: false, body: "Salut {prenom} ! Bienvenue dans ton espace 💪 Je suis Thomas, ton coach. Écris-moi ici dès que tu as une question, je te réponds moi-même." },
+  premiere: { on: false, body: "Première séance enregistrée, bravo {prenom} ! 👏 Comment tu t'es senti ? Dis-moi si un exercice t'a posé problème." },
+  relance: { on: false, jours: 3, body: "Hello {prenom}, je ne t'ai pas vu passer ces derniers jours. Tout va bien ? Même une petite séance compte, on reprend ensemble 💪" },
+  record: { on: false, body: "🏆 Nouveau record sur {records} ! Énorme {prenom}, ça paie. Continue comme ça." },
+};
+const AUTO_L = { bienvenue: ["👋", "Bienvenue", "à l'arrivée d'un nouveau client"], premiere: ["🎉", "Première séance", "juste après sa première séance"], relance: ["🔔", "Relance d'inactivité", "après quelques jours sans rien"], record: ["🏆", "Record", "quand il bat un record ({records} = les exercices)"] };
+const auto = () => { const a = A.store.automsg || {}; return Object.fromEntries(Object.keys(AUTO0).map(k => [k, { ...AUTO0[k], ...(a[k] || {}) }])); };
+actions["msg-reglages"] = async () => {
+  const mp = MP(), au = auto();
+  sheet(`<h2 class="h2">⚙️ Messagerie</h2>
+    <div class="lbl mt12">🌙 Heures calmes</div><p class="xs muted">Les messages arrivent, mais sans son ni vibration.</p>
+    <form data-f="msg-calme" class="row mt4" style="gap:8px;align-items:center"><input class="inp" type="time" name="de" value="${mp.calme?.de || "21:30"}"><span class="small">→</span><input class="inp" type="time" name="a" value="${mp.calme?.a || "07:30"}"><button class="btn btn-red btn-sm">${mp.calme ? "OK" : "Activer"}</button>${mp.calme ? `<button type="button" class="btn btn-ghost btn-sm" data-a="msg-calme-off">Couper</button>` : ""}</form>
+    <div class="lbl mt16">🤖 Messages automatiques</div><p class="xs muted">Envoyés à ton nom, une seule fois, entre 9 h et 20 h. {prenom} = son prénom.</p>
+    <div class="list mt4">${Object.keys(AUTO0).map(k => `<button class="li" data-a="auto-edit" data-k="${k}"><span class="em">${AUTO_L[k][0]}</span><span class="grow">${AUTO_L[k][1]}<br><span class="xs muted">${AUTO_L[k][2]}</span></span><span class="tag ${au[k].on ? "g" : ""}">${au[k].on ? "Activé" : "Coupé"}</span></button>`).join("")}</div>
+    <div class="list mt12"><button class="li" data-a="ready-manage"><span class="em">⚡</span><span class="grow">Réponses enregistrées<br><span class="xs muted">tape « / » dans une conversation</span></span></button>
+    <button class="li" data-a="msg-stats"><span class="em">📊</span><span class="grow">Statistiques</span></button>
+    <button class="li" data-a="go" data-r="admin-reseau"><span class="em">🌴</span><span class="grow">Mode absence<br><span class="xs muted">réponse automatique pendant tes congés</span></span></button></div>`);
+};
+forms["msg-calme"] = async (v) => { MP().calme = { de: v.de, a: v.a }; await saveStore("msgprefs"); closeSheet(); toast(`🌙 Calme de ${v.de} à ${v.a}`); };
+actions["msg-calme-off"] = async () => { MP().calme = null; await saveStore("msgprefs"); closeSheet(); toast("Heures calmes coupées"); };
+actions["auto-edit"] = (b, d) => { const a = auto()[d.k];
+  sheet(`<h2 class="h2">${AUTO_L[d.k][0]} ${AUTO_L[d.k][1]}</h2><form data-f="auto-save" data-k="${d.k}" class="mt8">
+    <label class="row" style="gap:8px"><input type="checkbox" name="on" ${a.on ? "checked" : ""}><span>Activé</span></label>
+    ${d.k === "relance" ? `<label class="field mt8"><span>Après combien de jours sans activité ?</span><input class="inp" name="jours" inputmode="numeric" value="${a.jours || 3}"></label>` : ""}
+    <label class="field mt8"><span>Message</span><textarea class="inp" name="body" rows="4">${esc(a.body)}</textarea></label><button class="btn btn-red mt8">Enregistrer</button></form>`); };
+forms["auto-save"] = async (v, f) => { const k = f.dataset.k; A.store.automsg = { ...(A.store.automsg || {}), [k]: { on: !!v.on, body: v.body.trim(), ...(k === "relance" ? { jours: Math.max(1, +v.jours || 3) } : {}) } }; await saveStore("automsg"); toast("Enregistré"); actions["msg-reglages"](); };
+actions["msg-stats"] = async () => {
+  let l = []; try { l = await (await cloud()).msgsSince(30); } catch (e) { return toast(e.message); }
+  // temps de réponse : du premier message du client resté sans réponse jusqu'à ta réponse
+  const att = {}, delais = []; l.forEach(m => { if (m.meta?.auto) return; if (m.sender === m.user_id) { att[m.user_id] = att[m.user_id] || m.created_at; } else if (att[m.user_id]) { delais.push((new Date(m.created_at) - new Date(att[m.user_id])) / 36e5); delete att[m.user_id]; } });
+  const moy = delais.length ? delais.reduce((a, b) => a + b, 0) / delais.length : null, med = delais.length ? [...delais].sort((a, b) => a - b)[Math.floor(delais.length / 2)] : null;
+  const attente = (A.members || []).filter(m => aRepondre(m, A.threads[m.id])).length;
+  const silence = (A.members || []).filter(m => { const x = A.threads[m.id]?.last; return !x || x.created_at < addDays(today(), -7); });
+  const h = (x) => x == null ? "–" : x < 1 ? `${Math.round(x * 60)} min` : x < 48 ? `${fr(x, 1)} h` : `${fr(x / 24, 1)} j`;
+  sheet(`<h2 class="h2">📊 Messagerie · 30 jours</h2><div class="grid2 mt8"><div class="card center"><div class="xs muted">Temps de réponse moyen</div><div class="h1" style="margin:4px 0">${h(moy)}</div><div class="xs muted">médiane ${h(med)}</div></div>
+    <div class="card center"><div class="xs muted">En attente de réponse</div><div class="h1" style="margin:4px 0">${attente}</div><div class="xs muted">conversation${attente > 1 ? "s" : ""}</div></div></div>
+    <div class="card mt8"><div class="row between"><b class="small">Messages échangés</b><span class="small">${l.filter(m => m.sender === m.user_id).length} reçus · ${l.filter(m => m.sender !== m.user_id).length} envoyés</span></div></div>
+    <div class="lbl mt12">Sans échange depuis 7 jours · ${silence.length}</div><div class="list mt4">${silence.slice(0, 20).map(m => `<a class="li" href="#/chat/${m.id}"><span class="grow small">${esc(first(m))}</span><span class="xs muted">${A.threads[m.id]?.last ? heureMsg(A.threads[m.id].last.created_at) : "jamais"}</span></a>`).join("") || `<p class="small muted">Personne 👌</p>`}</div>`);
+};
+export { A, saveStore, load as adminLoad, first as nomMembre };
 
 // =====================================================================
 // BUSINESS

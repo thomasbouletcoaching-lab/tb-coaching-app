@@ -14,7 +14,7 @@ import { S, update, save, today } from "../store.js";
 import { tbLogo, medalHtml, celebrate, recLabel, gradeOf, weightLike } from "../fx.js";
 import * as E from "../engine.js";
 import { CONFIG } from "../config.js";
-import { $app, esc, num, fr, buzz, toast, routes, R, actions, changes, forms, go, I, header, tabbar, chips, seg, sheet, ring, closeSheet, lockVeil, lineChart, barChart, hbars, wordOn, premium, rank, programOpen, weekOpen, fmtDate, addDays, rerender, onLeave, isCoach, cloud, modeBar } from "../core.js";
+import { canMsg, $app, esc, num, fr, buzz, toast, routes, R, actions, changes, forms, go, I, header, tabbar, chips, seg, sheet, ring, closeSheet, lockVeil, lineChart, barChart, hbars, wordOn, premium, rank, programOpen, weekOpen, fmtDate, addDays, rerender, onLeave, isCoach, cloud, modeBar } from "../core.js";
 import { kbSection } from "./more.js";
 import { pushStats } from "../sync.js";
 import * as RM from "../roadmap.js";
@@ -556,7 +556,7 @@ function exerciseBlock(ex, xi) {
       <h3 class="mt8">${esc(ex.name)} <button class="link xs" data-a="ex-hist" data-x="${xi}" style="font-weight:600">📈 Historique</button></h3><div class="xs muted mt4">🎯 ${targetTxt(ex)}${ex.name !== ex.orig ? ` · remplace ${esc(ex.orig)}` : ""}${adv() && ex.e1 ? ` · e1RM ${fr(ex.e1)} kg` : ""}</div>
       ${!ex.bw && ex.sets.every(s => !s.kg) ? `<div class="xs mt8 red">Première fois : choisis une charge qui te laisse 2 à 3 répétitions en réserve. L'app calcule la suite.</div>` : ""}
       ${ex.note ? `<div class="xs mt8">📝 ${esc(ex.note)}</div>` : ""}${cueOf(ex) ? `<div class="cue mt8">🗣️ <b>Thomas :</b> ${esc(cueOf(ex))}</div>` : ""}</div></div>
-    <div class="acts"><button data-a="go" data-r="fiche" data-p="${esc(ex.name)}">📖 Fiche</button><button data-a="ex-swap" data-x="${xi}">🔄 Remplacer</button><button data-a="ex-prog" data-x="${xi}">📈 Progression</button><button data-a="ex-rest" data-x="${xi}">⏱️ Repos</button><button data-a="ex-ss" data-x="${xi}">🔗 ${ex.ss ? "SS " + esc(ex.ss) : "Superset"}</button><button data-a="ex-video" data-x="${xi}">📹 Vidéo${(ex.videos || []).length ? " ✓" : ""}</button>${isCoach() && S().current?.mirror ? `<button data-a="ex-cue" data-x="${xi}">🗣️ Consigne</button>` : ""}<button data-a="ex-more" data-x="${xi}">${I.dots.replace("<svg", '<svg width="18"')}</button></div>
+    <div class="acts"><button data-a="go" data-r="fiche" data-p="${esc(ex.name)}">📖 Fiche</button><button data-a="ex-swap" data-x="${xi}">🔄 Remplacer</button><button data-a="ex-prog" data-x="${xi}">📈 Progression</button><button data-a="ex-rest" data-x="${xi}">⏱️ Repos</button><button data-a="ex-ss" data-x="${xi}">🔗 ${ex.ss ? "SS " + esc(ex.ss) : "Superset"}</button><button data-a="ex-video" data-x="${xi}">📹 Vidéo${(ex.videos || []).length ? " ✓" : ""}</button>${!isCoach() && !S().current?.mirror ? `<button data-a="ex-question" data-x="${xi}">💬 Question</button>` : ""}${isCoach() && S().current?.mirror ? `<button data-a="ex-cue" data-x="${xi}">🗣️ Consigne</button>` : ""}<button data-a="ex-more" data-x="${xi}">${I.dots.replace("<svg", '<svg width="18"')}</button></div>
     ${sugBox}
     ${ex.live ? `<div class="sug" style="box-shadow:0 0 0 1.5px var(--red) inset">🎚️ ${esc(ex.live.txt)}<div class="row mt8" style="gap:8px"><button class="btn btn-red btn-xs" data-a="live-adj" data-x="${xi}" data-v="1">Appliquer</button><button class="btn btn-line btn-xs" data-a="live-adj" data-x="${xi}" data-v="0">Garder</button></div></div>` : ""}
     ${L ? `<details class="prevbox"><summary>↺ La dernière fois · ${fmtDate(today(new Date(L.date)), { weekday: "short", day: "numeric", month: "short" })}${L.week ? ` · semaine ${L.week}` : ""}</summary><div class="xs mt4">${L.ex.sets.filter(s => s.done).map((s, i) => `<div>${s.type === "W" ? "Échauf." : "Série " + (L.ex.sets.filter(x => x.done && x.type !== "W").indexOf(s) + 1)} : ${esc(prevTxt(s))}</div>`).join("")}${L.ex.myNote ? `<div class="mt4">📝 ${esc(L.ex.myNote)}</div>` : ""}</div></details>` : ""}
@@ -1025,6 +1025,7 @@ routes.done = () => {
     ${w.records.length ? `<div style="width:100%;max-width:560px;text-align:left;background:rgba(255,255,255,.12);border-radius:18px;padding:14px"><b>🏆 Nouveau${w.records.length > 1 ? "x" : ""} record${w.records.length > 1 ? "s" : ""}</b>${w.records.map(r => `<div class="row between small mt8"><span>${esc(r.name)}</span><b>${Math.round(r.after)} kg <span style="opacity:.7;font-weight:400">1RM estimé</span></b></div>`).join("")}</div>` : ""}
     ${adj.length ? `<div style="width:100%;max-width:560px;text-align:left;background:rgba(255,255,255,.12);border-radius:18px;padding:14px"><b>🎯 Pour la prochaine séance</b>${premium() ? adj.map(a => `<div class="small mt8"><b>${esc(a.n)}</b><br><span style="opacity:.85">${esc(a.s.txt)}</span></div>`).join("") : `<p class="small mt8" style="opacity:.85">Tes charges sont recalculées. Les conseils détaillés (charge ou reps à viser selon ton RPE) sont dans Premium.</p>`}</div>` : ""}
     ${blocPartageSeance(w)}
+    ${!isCoach() && canMsg() ? `<button class="btn" style="max-width:560px;background:rgba(255,255,255,.16);color:#fff" data-a="share-coach" data-k="seance" data-id="${w.id}">💬 Envoyer le récap à Thomas</button>` : ""}
     <button class="btn" style="max-width:560px;background:#fff;color:var(--red)" data-a="go" data-r="home">Retour à l'accueil</button></section>`;
 };
 
@@ -1596,3 +1597,6 @@ actions["set-tq"] = (b, d) => tqMenu(+d.x, +d.s);
 actions["ex-fold"] = (b, d) => { update(st => { const e = st.current.exercises[+d.x]; e.closed = !e.closed; }); rerender(); };
 // Dernière série de travail validée : l'exercice se replie tout seul
 const baseTick2 = actions.tick; actions.tick = (b, d) => { baseTick2(b, d); const e = S().current?.exercises[+d.x]; if (e && !e.closed && e.sets.filter(z => z.type !== "W").every(z => z.done) && !e.live) { e.closed = true; save(); setTimeout(rerender, 350); } };
+
+// Question à Thomas sur cet exercice, avec la série en cours jointe
+actions["ex-question"] = async (b, d) => { const { questionExo } = await import("./chat.js"); questionExo(S().current.exercises[+d.x]); };

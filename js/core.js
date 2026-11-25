@@ -260,7 +260,7 @@ function initCarrousels(root = document) { root.querySelectorAll?.("[data-car]:n
 const trail = [];
 const PROXY_OK = ["workout", "done", "food", "carnet", "fiche", "train", "body", "meals", "recette", "aliment"];
 export const noteTrail = (r) => { if (trail.at(-1) !== r) trail.push(r); if (trail.length > 40) trail.shift(); };
-const COACH_R = /^(admin|member|live|chat|msg|coach)/;
+const COACH_R = /^(admin|member|live|chat|groupe|msg|coach)/;
 // Dans l'app coach, le retour remonte au dernier écran coach visité (fiche du client, liste…), jamais vers un écran « athlète »
 function coachBack() {
   const cur = trail.at(-1);

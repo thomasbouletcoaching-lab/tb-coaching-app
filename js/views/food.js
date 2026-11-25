@@ -5,7 +5,7 @@ import { nutriCard, nutriLevel } from "./nutri-detail.js";
 import * as N from "../nutrition.js";
 import * as RC from "../recipes.js";
 import * as EN from "../energy.js";
-import { $app, esc, num, fr, buzz, toast, routes, R, actions, forms, changes, go, I, header, tabbar, chips, seg, sheet, closeSheet, lockVeil, lineChart, barChart, hbars, ring, gradDef, premium, rank, fmtDate, addDays, hhmm, rerender, modeBar, carrousel } from "../core.js";
+import { isCoach, canMsg, $app, esc, num, fr, buzz, toast, routes, R, actions, forms, changes, go, I, header, tabbar, chips, seg, sheet, closeSheet, lockVeil, lineChart, barChart, hbars, ring, gradDef, premium, rank, fmtDate, addDays, hhmm, rerender, modeBar, carrousel } from "../core.js";
 import * as E from "../engine.js";
 import { kbSection } from "./more.js";
 import { caloriesCard } from "./home.js";
@@ -289,6 +289,7 @@ function journalBody(t) {
     <button class="card tap mt12" data-a="go" data-r="crise" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left"><span style="font-size:24px">🆘</span><span class="grow"><b>Je craque</b><br><span class="xs muted">Une envie forte ? On regarde quoi faire, sans culpabilité.</span></span>${I.chev}</button>
     <div class="card"><div class="rt" style="border:0;padding:0"><span class="em">💧</span><div class="grow"><b>Eau</b><div class="small muted">${fr(water * .25, 2)} L · 1 verre = 25 cl</div></div><div class="water"><button data-a="water" data-v="-1" data-d="${d}" aria-label="Retirer un verre">−</button><b>${water}</b><button data-a="water" data-v="1" data-d="${d}" aria-label="Ajouter un verre">+</button></div></div></div>
     ${fs ? `<button class="card tap" data-a="food-tab" data-v="jeune" style="display:flex;gap:12px;align-items:center"><span style="font-size:26px">${fs.stage[1]}</span><span class="grow"><b>Jeûne en cours · ${Math.floor(fs.hours)} h</b><br><span class="small muted">${esc(fs.stage[2])}</span></span>${I.chev}</button>` : ""}
+    ${!isCoach() && canMsg() && log.length ? `<button class="link small mt8" data-a="share-coach" data-k="repas" data-d="${d}" style="display:block;margin:8px auto">💬 Envoyer cette journée à Thomas</button>` : ""}
     ${memosCard(d)}
     ${ML.mealCards(t, d)}
     ${SP.suppsMini(d)}

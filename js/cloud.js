@@ -79,22 +79,90 @@ async function clientIdFor(memberId) {
   return data || null;
 }
 const ownThread = (memberId) => !memberId || memberId === uid;
-const MSG_COLS = "id,user_id,sender,body,created_at,read_at,reactions,audio_path,media";
-export async function thread(memberId = uid) {
-  const { data, error } = await sb.from("cxs_messages").select(MSG_COLS).eq("user_id", memberId || uid).order("created_at", { ascending: true }).limit(300);
-  if (error) throw error; return data || [];
+const MSG_COLS = "id,user_id,sender,body,created_at,read_at,reactions,audio_path,media,reply_to,edited_at,ref,deleted_at,pinned_at,meta,buttons";
+export async function thread(memberId = uid, limit = 400) {
+  const { data, error } = await sb.from("cxs_messages").select(MSG_COLS).eq("user_id", memberId || uid).order("created_at", { ascending: false }).limit(limit);
+  if (error) throw error; return (data || []).reverse();
 }
-export async function send(body, memberId = uid, audioPath = null) {
-  const { error } = await sb.from("cxs_messages").insert({ user_id: memberId || uid, sender: uid, body, audio_path: audioPath }); if (error) throw error;
+// Envoi : texte, vocal, photos/vidéos, réponse à un message, boutons de réponse, carte partagée (séance, repas, exercice…)
+export async function send(body, memberId = uid, audioPath = null, o = {}) {
+  const row = { user_id: memberId || uid, sender: uid, body: body || "", audio_path: audioPath };
+  if (o.media?.length) row.media = o.media; if (o.replyTo) row.reply_to = o.replyTo; if (o.buttons?.length) row.buttons = o.buttons;
+  if (o.meta) row.meta = o.meta; if (o.ref) row.ref = typeof o.ref === "string" ? o.ref : JSON.stringify(o.ref);
+  const { data, error } = await sb.from("cxs_messages").insert(row).select(MSG_COLS).single(); if (error) throw error; return data;
 }
-// Message vocal : fichier dans le bucket « media », dans le dossier de la fiche client (mêmes droits que les photos)
-export async function uploadAudio(blob, memberId = uid) {
-  const cid = await clientIdFor(memberId); if (!cid) throw new Error("Aucune fiche client liée à ce compte");
-  const ext = /mp4/.test(blob.type) ? "m4a" : /ogg/.test(blob.type) ? "ogg" : "webm";
-  const path = `${cid}/audio/${Date.now()}.${ext}`;
-  const { error } = await sb.storage.from("media").upload(path, blob, { contentType: blob.type || "audio/webm", upsert: false });
+// Fichier de messagerie (vocal, photo, vidéo) : dossier msg/<membre>/, lisible par le membre et le coach
+export async function uploadMsgFile(blob, memberId = uid, kind = "photo") {
+  const t = blob.type || "", ext = /png/.test(t) ? "png" : /webp/.test(t) ? "webp" : /heic/.test(t) ? "heic" : /jpe?g/.test(t) ? "jpg" : /quicktime/.test(t) ? "mov" : /video\/webm/.test(t) ? "webm" : /video/.test(t) ? "mp4" : /audio\/mp4|aac/.test(t) ? "m4a" : /ogg/.test(t) ? "ogg" : /audio/.test(t) ? "webm" : "bin";
+  const path = `msg/${memberId || uid}/${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+  const { error } = await sb.storage.from("media").upload(path, blob, { contentType: t || "application/octet-stream", upsert: false });
   if (error) throw error; return path;
 }
+export async function editMsg(id, body) { const { error } = await sb.rpc("cxs_msg_edit", { p_id: id, p_body: body }); if (error) throw error; }
+export async function deleteMsg(id) {
+  const { data, error } = await sb.rpc("cxs_msg_delete", { p_id: id }); if (error) throw error;
+  const files = [data?.audio, ...((data?.media || []).map(m => m?.path))].filter(p => typeof p === "string" && p.startsWith("msg/"));
+  if (files.length) await sb.storage.from("media").remove(files).catch(() => { });
+}
+export async function pinMsg(id, on) { const { error } = await sb.rpc("cxs_msg_pin", { p_id: id, p_on: !!on }); if (error) throw error; }
+// Direct : nouveaux messages, modifications, et « en train d'écrire » (canal éphémère, rien n'est stocké)
+export function liveThread(memberId, onChange, onTyping) {
+  const id = memberId || uid, ch = sb.channel("chat-" + id, { config: { broadcast: { self: false } } });
+  ch.on("postgres_changes", { event: "*", schema: "public", table: "cxs_messages", filter: `user_id=eq.${id}` }, (p) => onChange(p))
+    .on("broadcast", { event: "typing" }, (p) => { if (p.payload?.u !== uid) onTyping?.(p.payload); }).subscribe();
+  let last = 0;
+  return { typing: () => { if (Date.now() - last < 2500) return; last = Date.now(); ch.send({ type: "broadcast", event: "typing", payload: { u: uid } }).catch(() => { }); }, stop: () => { sb.removeChannel(ch); } };
+}
+export function liveInbox(onChange) {
+  const ch = sb.channel("inbox-" + uid).on("postgres_changes", { event: "*", schema: "public", table: "cxs_messages" }, onChange).subscribe();
+  return () => sb.removeChannel(ch);
+}
+export async function searchMessages(q) {
+  const { data, error } = await sb.from("cxs_messages").select("id,user_id,sender,body,created_at").ilike("body", `%${q.replace(/[%_]/g, "")}%`).is("deleted_at", null).order("created_at", { ascending: false }).limit(60);
+  if (error) throw error; return data || [];
+}
+export async function msgsSince(days = 30) {
+  const { data, error } = await sb.from("cxs_messages").select("user_id,sender,created_at,meta").gte("created_at", new Date(Date.now() - days * 864e5).toISOString()).order("created_at").limit(5000);
+  if (error) throw error; return data || [];
+}
+// Messages programmés
+export async function schedList(memberId) { let q = sb.from("cxs_msg_scheduled").select("*").is("sent_at", null).order("send_at"); if (memberId) q = q.eq("user_id", memberId); const { data, error } = await q; if (error) throw error; return data || []; }
+export async function schedAdd(rows) { const { error } = await sb.from("cxs_msg_scheduled").insert(rows.map(r => ({ ...r, sender: uid }))); if (error) throw error; }
+export async function schedDel(id) { const { error } = await sb.from("cxs_msg_scheduled").delete().eq("id", id); if (error) throw error; }
+// Groupes
+export async function groups() {
+  const { data, error } = await sb.from("cxs_groups").select("id,name,emoji,coach_only,created_at,cxs_group_members(user_id,read_at)").order("created_at"); if (error) throw error;
+  const ids = (data || []).map(g => g.id); if (!ids.length) return [];
+  const { data: last } = await sb.from("cxs_group_msgs").select("id,group_id,sender,body,created_at,audio_path,media,deleted_at").in("group_id", ids).order("created_at", { ascending: false }).limit(500);
+  return data.map(g => { const l = (last || []).filter(m => m.group_id === g.id), mine = (g.cxs_group_members || []).find(m => m.user_id === uid);
+    const lu = mine?.read_at || null; return { ...g, members: (g.cxs_group_members || []).map(m => m.user_id), last: l[0] || null, unread: l.filter(m => m.sender !== uid && (!lu || m.created_at > lu)).length }; });
+}
+export async function groupSave(g, memberIds) {
+  let id = g.id;
+  if (id) { const { error } = await sb.from("cxs_groups").update({ name: g.name, emoji: g.emoji, coach_only: !!g.coach_only }).eq("id", id); if (error) throw error; }
+  else { const { data, error } = await sb.from("cxs_groups").insert({ name: g.name, emoji: g.emoji, coach_only: !!g.coach_only }).select("id").single(); if (error) throw error; id = data.id; }
+  if (memberIds) {
+    await sb.from("cxs_group_members").delete().eq("group_id", id).not("user_id", "in", `(${memberIds.join(",") || "00000000-0000-0000-0000-000000000000"})`);
+    if (memberIds.length) { const { error } = await sb.from("cxs_group_members").upsert(memberIds.map(u => ({ group_id: id, user_id: u })), { onConflict: "group_id,user_id", ignoreDuplicates: true }); if (error) throw error; }
+  }
+  return id;
+}
+export async function groupDelete(id) { const { error } = await sb.from("cxs_groups").delete().eq("id", id); if (error) throw error; }
+export async function groupThread(id) {
+  const { data, error } = await sb.from("cxs_group_msgs").select("*").eq("group_id", id).order("created_at", { ascending: false }).limit(300); if (error) throw error;
+  const { data: noms } = await sb.rpc("cxs_group_noms", { g: id });
+  return { msgs: (data || []).reverse(), noms: Object.fromEntries((noms || []).map(n => [n.user_id, n.name])) };
+}
+export async function groupSend(id, body, audioPath = null, o = {}) {
+  const row = { group_id: id, sender: uid, body: body || "", audio_path: audioPath, media: o.media || [], meta: o.meta || {} }; if (o.replyTo) row.reply_to = o.replyTo;
+  const { data, error } = await sb.from("cxs_group_msgs").insert(row).select("*").single(); if (error) throw error; return data;
+}
+export async function groupReact(id, emoji, current = {}) { const r = { ...(current || {}) }; if (r[uid] === emoji) delete r[uid]; else r[uid] = emoji; const { error } = await sb.from("cxs_group_msgs").update({ reactions: r }).eq("id", id); if (error) throw error; return r; }
+export async function groupMsgDelete(id) { const { error } = await sb.rpc("cxs_gmsg_delete", { p_id: id }); if (error) throw error; }
+export async function groupRead(id) { await sb.from("cxs_group_members").update({ read_at: new Date().toISOString() }).eq("group_id", id).eq("user_id", uid); }
+export function liveGroup(id, onChange) { const ch = sb.channel("grp-" + id).on("postgres_changes", { event: "*", schema: "public", table: "cxs_group_msgs", filter: `group_id=eq.${id}` }, onChange).subscribe(); return () => sb.removeChannel(ch); }
+// Message vocal : fichier dans le bucket « media », dans le dossier de la fiche client (mêmes droits que les photos)
+export async function uploadAudio(blob, memberId = uid) { return uploadMsgFile(blob, memberId, "vocal"); }
 export async function audioUrl(path) {
   const { data, error } = await sb.storage.from("media").createSignedUrl(path, 3600);
   if (error) throw error; return data.signedUrl;
@@ -500,6 +568,7 @@ export async function videoPartager(d, compteRendu, blob = null) {
   if (blob) { const dir = d.source_path.replace(/\/source\.[^/]+$/, ""), ext = /webm/.test(blob.type) ? "webm" : "mp4"; analyse_path = `${dir}/analyse.${ext}`;
     const { error: e1 } = await sb.storage.from("media").upload(analyse_path, blob, { contentType: blob.type || "video/mp4", upsert: true }); if (e1) throw e1; }
   const { error } = await sb.from("cxs_video_demandes").update({ statut: "analysee", compte_rendu: compteRendu, analyse_path, analysed_at: new Date().toISOString() }).eq("id", d.id); if (error) throw error;
+  await send(`🎥 Ton analyse vidéo est prête${compteRendu?.mvtNom ? ` : ${compteRendu.mvtNom.toLowerCase()}` : ""}. Touche la carte pour la voir.`, d.user_id, null, { ref: { t: "video", id: d.id, titre: compteRendu?.mvtNom || "Analyse vidéo" } }).catch(() => { });
   await notify("🎥 Ton analyse vidéo est prête", `Thomas a analysé ta vidéo${compteRendu?.mvtNom ? ` (${compteRendu.mvtNom.toLowerCase()})` : ""}. Ouvre Entraînement › Analyses vidéo.`, d.user_id).catch(() => { });
 }
 export async function videoVue(id) { const { error } = await sb.rpc("cxs_video_vue", { p_id: id }); if (error) throw error; }
