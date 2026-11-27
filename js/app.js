@@ -21,6 +21,7 @@ import "./views/volume.js";
 import "./views/muscles.js";
 import "./views/rep.js";
 import "./views/chat.js";
+import "./views/meso.js";
 import "./views/account.js";
 import "./views/coachfood.js";
 import "./views/live.js";

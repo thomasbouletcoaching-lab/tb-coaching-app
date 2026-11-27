@@ -2,6 +2,8 @@
 // surcharge progressive ajustée au réel (RPE), agenda, volume, alertes.
 import * as DL from "./douleur.js";
 import { S, update, today } from "./store.js";
+import * as M from "./meso.js";
+import { faisceauxOf, groupOf } from "./volume.js";
 
 let PROG = null, FICHES = null, LIB = null;
 export async function loadPrograms() { if (!PROG) PROG = await (await fetch("data/programs.json")).json(); return PROG; }
@@ -112,7 +114,37 @@ export function migrateRow(x) {
 }
 export function isDeload(p, w) { const d = p?.deload; if (p?.phases?.[w - 1]) return p.phases[w - 1] === "Deload"; if (!d) return false; if (d.w?.length) return d.w.includes(w); return d.every ? w % d.every === 0 : false; }
 const cpSet = (s) => ({ t: "N", tech: [], ...s, tech: [...(s.tech || [])] });
-export function weekPlan(x, w, p = null) {
+// ---------- Mésocycles : quels exercices suivent les blocs du programme, et séries voulues par muscle ----------
+const KIND_OF = new WeakMap();
+function kindOf(p, x) {
+  let m = KIND_OF.get(p); if (!m) { m = new Map(); (p.s || []).forEach(se => (se[2] || []).forEach(r => { if (r?.[5]) m.set(r[5], r[1]); })); KIND_OF.set(p, m); }
+  return m.get(x);
+}
+function mesoBlocksFor(x, p) {
+  if (Array.isArray(x.meso)) return x.meso.length ? x.meso : null;
+  if (x.meso === false || !p?.meso?.length) return null;
+  if (x.meso !== true) { const k = kindOf(p, x); if (k !== undefined && !M.inScope(p.mesoScope, k)) return null; }
+  return p.meso;
+}
+let MC = new Map();
+function muscleCounts(p, w) {
+  const key = w, hit = MC.get(p)?.get(key); if (hit) return hit;
+  const rows = [], byKey = new Map();
+  (p.s || []).forEach((se, si) => (se[2] || []).forEach((r, ri) => {
+    if (!r?.[5]) return; const k = si + "|" + ri;
+    const fx = faisceauxOf(r[0], musclesOf, r[6]?.fx).map(f => ({ g: groupOf(f.f)?.id, c: f.c })).filter(f => f.g);
+    rows.push({ key: k, n: weekPlan(r[5], w, p, { base: true }).sets.filter(z => z.t !== "W").length, fx }); byKey.set(k, r[5]);
+  }));
+  const adj = M.muscleAdjust(p.muscleSets, w, rows), out = new Map();
+  Object.entries(adj).forEach(([k, n]) => out.set(byKey.get(k), n));
+  if (!MC.size) queueMicrotask(() => { MC = new Map(); });
+  if (!MC.has(p)) MC.set(p, new Map()); MC.get(p).set(key, out);
+  return out;
+}
+// Superset : une couleur par lettre (A, B, C…), la même partout (séance, aperçu du cycle, éditeur)
+export const SS_COL = ["#E5484D", "#2F6FED", "#22A45D", "#E8832A", "#8E4EC6", "#0FA3B1", "#D6409F", "#7C8B6A"];
+export const ssCol = (l) => l ? SS_COL[Math.max(0, String(l).toUpperCase().charCodeAt(0) - 65) % SS_COL.length] : null;
+export function weekPlan(x, w, p = null, o = {}) {
   x = migrateRow(x);
   const pr = x.prog || DEF_PROG, deload = isDeload(p, w), test = p?.phases?.[w - 1] === "Test";
   let sets;
@@ -122,6 +154,9 @@ export function weekPlan(x, w, p = null) {
     const n = Math.floor(steps / Math.max(1, pr.every || 1));
     sets = (x.sets || []).map(cpSet);
     const work = (s) => s.t !== "W";
+    const mb = mesoBlocksFor(x, p), blk = mb ? (deload ? M.lastWorkBlock(mb, w) : M.blockAt(mb, w)) : null;
+    if (blk) sets = M.applyBlock(sets, blk, deload ? blk.b : w);
+    if (!blk) {
     if (pr.load === "pct") sets.forEach(s => { if (s.pct && work(s)) s.pct = Math.round((s.pct + pr.step * n) * 10) / 10; });
     if (pr.load === "kg") sets.forEach(s => { if (s.kg && work(s)) s.kg = Math.round((s.kg + pr.step * n) * 100) / 100; });
     if (pr.load === "double") sets.forEach(s => { if (!work(s)) return; const { reps, bumps } = doubleStep(s.lo, Math.max(s.lo, pr.to || s.hi || s.lo + 2), n); s.lo = s.hi = reps;
@@ -135,9 +170,14 @@ export function weekPlan(x, w, p = null) {
     // séries ajoutées : seulement pendant l'accumulation quand le programme a des phases
     let acc = 0; for (let k = 1; k < w; k++) if (!isDeload(p, k) && (!p?.phases?.length || p.phases[k - 1] === "Accumulation")) acc++;
     if (pr.addSet?.every) { const k = Math.floor(acc / pr.addSet.every), cur = sets.filter(work).length, max = pr.addSet.max || 99; for (let i = 0; i < k && cur + i < max; i++) { const l = sets.filter(work).at(-1); if (l) sets.push(cpSet({ ...l, t: l.t === "T" ? "B" : l.t })); } }
+    }
     const top = test && sets.find(s => work(s) && s.pct);
     if (top) sets = [...sets.filter(s => !work(s)), { t: "T", lo: 1, hi: 1, rpe: 9.5, pct: null, kg: null, tech: [], note: "Test : monte par paliers jusqu'à un single propre" }];
-    if ((deload || test) && !top) { const keep = Math.max(1, Math.ceil(sets.filter(work).length * .6)); let c = 0; sets = sets.filter(s => !work(s) || c++ < keep).map(s => !work(s) ? s : { ...s, pct: s.pct ? Math.round(s.pct * .88) : s.pct, kg: s.kg ? Math.round(s.kg * .88 * 4) / 4 : s.kg, rpe: s.rpe ? Math.max(5, s.rpe - 2) : s.rpe, tech: [] }); }
+    if ((deload || test) && !top && !(deload && M.hasCurves(p))) { const keep = Math.max(1, Math.ceil(sets.filter(work).length * .6)); let c = 0; sets = sets.filter(s => !work(s) || c++ < keep).map(s => !work(s) ? s : { ...s, pct: s.pct ? Math.round(s.pct * .88) : s.pct, kg: s.kg ? Math.round(s.kg * .88 * 4) / 4 : s.kg, rpe: s.rpe ? Math.max(5, s.rpe - 2) : s.rpe, tech: [] }); }
+  }
+  if (!x.weeks?.[w] && p) {
+    if (M.hasCurves(p)) { sets = M.scaleVolume(sets, M.curveAt(p.vol, w)); sets = M.scaleIntensity(sets, M.curveAt(p.int, w)); }
+    if (!o.base && p.muscleSets) { const k = muscleCounts(p, w).get(x); if (k != null) sets = M.resizeSets(sets, k); }
   }
   const tech = x.techW?.[w]; if (tech?.length) sets.forEach(s => { if (s.t !== "W") s.tech = [...new Set([...(s.tech || []), ...tech])]; });
   let tempo = x.tempoW?.[w] || null, rest = null;

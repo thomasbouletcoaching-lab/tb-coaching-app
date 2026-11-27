@@ -725,7 +725,7 @@ a.card{text-decoration:none;color:inherit}
 .fab{position:fixed;right:max(16px,calc(50% - 300px));bottom:calc(96px + var(--safe-b));z-index:30;width:56px;height:56px;border-radius:50%;border:0;background:#F26B4F;color:#fff;box-shadow:0 10px 24px rgba(242,107,79,.4);display:flex;align-items:center;justify-content:center}
 .fab svg{width:26px;height:26px}
 /* Refonte étape 2 : supersets visuels, phases, frise */
-.bd-ex.ss{border-left:3px solid var(--red);padding-left:8px;background:var(--tint);border-radius:10px}
+.bd-ex.ss{border-left:5px solid var(--ss,var(--red));padding-left:8px;background:var(--tint);border-radius:10px}
 .phases-row{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px}
 .ph{flex:0 0 auto;min-width:64px;border-radius:10px;padding:6px 8px;text-align:left;font-size:11px;line-height:1.25;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
 .ph b{display:block;font-size:12px}
@@ -993,3 +993,21 @@ details.plis>summary::after{content:"▾";float:right;color:var(--soft)}details.
 .mhd2 .mav.sm{margin-right:10px}
 .mcnt{background:#2F6FED!important;color:#fff!important}.mnew{color:#2F6FED!important;font-weight:700}
 .mdown i{background:#2F6FED}
+
+/* Mésocycles et courbes */
+.ph-pk{background:#FDE0F0}
+:root[data-theme="dark"] .ph-pk{background:#5A2447}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ph-pk{background:#5A2447}}
+.ms-grid{border-collapse:collapse;font-size:11px}
+.ms-grid th{padding:2px 6px;font-weight:700;text-align:center;white-space:nowrap;color:var(--soft)}
+.ms-grid th.dl{color:#7C8B6A}
+.ms-grid td{padding:2px}
+.ms-grid input{width:46px;padding:6px 2px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);font:inherit}
+.hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+/* Supersets : une couleur par groupe */
+.ex.ssx{border-left:6px solid var(--ss);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ss) 35%,transparent)}
+.tag.sstag{background:var(--ss);color:#fff;font-weight:800}
+.ssrow .ssdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ss);margin-right:6px;vertical-align:middle}
+.ssrow .ssl{color:var(--ss)}
+.ssrow{box-shadow:inset 3px 0 0 var(--ss);padding-left:8px}

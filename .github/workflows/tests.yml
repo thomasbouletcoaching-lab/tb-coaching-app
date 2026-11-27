@@ -77,6 +77,7 @@ jobs:
           node tests/adherence-e2e.js
           node tests/exercices-e2e.js
           node tests/programme-e2e.js
+          node tests/meso-e2e.js
           node tests/monplan-e2e.js
           node tests/indice-e2e.js
           node tests/semaine-e2e.js
