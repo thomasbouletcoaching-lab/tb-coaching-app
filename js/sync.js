@@ -61,8 +61,8 @@ export function pushStats() {
 
 // Envoi des données au coach : après chaque changement (regroupé), au plus toutes les 20 secondes
 const keep = (obj, days) => { const cut = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10); return Object.fromEntries(Object.entries(obj || {}).filter(([k]) => k >= cut)); };
-export function snapshot() {
-  if (proxyActive()) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
+export function snapshot(force) {
+  if (proxyActive() && !force) return; // saisie pour un client en cours : rien ne part ni n'arrive sur mon compte
   const st = S(), t = today();
   const lifts = Object.fromEntries(Object.entries(st.lifts || {}).map(([k, h]) => [k, h.slice(-25)]));
   const data = { v: 1, at: new Date().toISOString(), profile: st.profile, plan: st.plan, current: st.current, workouts: st.workouts.slice(-40), food: keep(st.food, 31), daily: keep(st.daily, 60), measures: (st.measures || []).slice(-40), customPrograms: st.customPrograms, moves: st.moves, exoNotes: st.exoNotes || {}, surcharge: st.surcharge || {}, repriseAt: st.repriseAt || 0, skips: st.skips, swaps: st.swaps, echanges: st.echanges || {}, schedule: st.schedule || null, slots: st.slots || {}, season: st.season, goals: st.goals, lifts, settings: { pace: st.settings?.pace, sessionMin: st.settings?.sessionMin },

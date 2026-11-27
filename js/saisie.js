@@ -29,7 +29,11 @@ async function flush() {
   const d = diffSaisie(); if (!d) return;
   const { cloud } = await import("./core.js"), { toast } = await import("./core.js");
   const snap = baseOf();
-  try { const c = await cloud(); await c.coachSaisie(M.id, d); M.base = snap; }
+  try {
+    const c = await cloud(); await c.coachSaisie(M.id, d); M.base = snap;
+    // Le résumé du client (agenda, dernière séance, rappels) est recalculé tout de suite, sans attendre qu'il ouvre l'appli
+    try { const { snapshot } = await import("./sync.js"), r = snapshot(true); if (r?.summary) await c.coachSummary(M.id, r.summary); } catch { }
+  }
   catch (e) { toast("Enregistrement chez le client impossible : " + e.message); }
 }
 export const saisieActive = () => proxyActive();

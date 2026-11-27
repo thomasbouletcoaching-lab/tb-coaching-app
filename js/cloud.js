@@ -607,6 +607,7 @@ export async function signInToken(tokenHash) {
 
 // Saisie du coach à la place du client (séances, repas) : écriture côté coach, lecture et application côté client
 export async function coachSaisie(memberId, payload) { const { error } = await sb.rpc("cxs_coach_saisie", { p_member: memberId, p: payload }); if (error) throw error; }
+export async function coachSummary(memberId, summary) { const { error } = await sb.rpc("cxs_coach_summary", { p_member: memberId, p_summary: summary }); if (error) throw error; }
 export async function mesSaisies() { if (!uid) await ensureSession(); const { data, error } = await sb.from("cxs_coach_entries").select("id,payload").eq("user_id", uid).is("applied_at", null).order("id").limit(50); if (error) throw error; return data || []; }
 export async function saisiesAppliquees(ids) { if (!ids.length) return; const { error } = await sb.from("cxs_coach_entries").update({ applied_at: new Date().toISOString() }).in("id", ids); if (error) throw error; }
 
