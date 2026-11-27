@@ -409,10 +409,19 @@ actions.start = async () => {
   const s0 = E.buildSession(); if (!s0) return toast("Choisis d'abord un programme.");
   durationSheet((min, mode) => { let s = mode === "adapt" ? E.buildMerged(true) : mode === "full" ? E.buildMerged(false) : s0; if (mode === "express") s = E.expressSession(s, min); s = apresFeu(s); s.target = min; s.start = new Date().toISOString(); update(st => st.current = s); if (s.expressNote) toast(`⚡ Séance express ${min} min : ${s.expressNote}${s.allegeNote ? " · " + s.allegeNote : ""}`); else if (s.allegeNote) toast(s.allegeNote); go("workout"); }, s0.title, E.mergeCandidate(), { feu: true });
 };
+// Choisir une autre séance du programme aujourd'hui (ex. le dos-épaules que j'avais mis en repos) : la séance prévue prend sa place dans la semaine
+function autreSeanceBlock() {
+  const pl = S().plan, p = pl && E.program(pl.programId); if (!p) return "";
+  const t = today(), cur = E.nextSession()?.idx, done = E.doneIn(pl.programId, pl.cycle || 1, pl.week);
+  const l = p.s.map((x, i) => [i, x[0]]).filter(([i]) => i !== cur && !done.has(i));
+  if (!l.length) return "";
+  return `<div class="card soft mt8"><b class="small">🔄 Faire une autre séance aujourd'hui</b><div class="chips wrap mt8">${l.map(([i, n]) => `<button class="chip" data-a="start-autre" data-v="${i}">${esc(n)}</button>`).join("")}</div></div>`;
+}
+actions["start-autre"] = async (b, d) => { E.echanger(today(), +d.v); closeSheet(); toast("Séance du jour changée"); await actions.start(); };
 // Durée visée de la séance : compte à rebours pendant toute la séance
 export function durationSheet(onGo, title = "Ta séance", merge = null, opts = {}) {
   const last = S().settings.sessionMin ?? (S().profile?.sessionMin || 45);
-  sheet(`<h2 class="h2">${esc(title)}</h2>${opts.feu ? feuStartBlock() : ""}${merge ? `<div class="card soft mt8"><b class="small">🔗 Une séance à rattraper ?</b><p class="xs muted" style="margin:4px 0 8px">Tu peux faire aujourd'hui « ${esc(title)} » et « ${esc(merge.title)} » en une seule séance. Ce n'est pas obligatoire : souvent, mieux vaut simplement reprendre le fil.</p>
+  sheet(`<h2 class="h2">${esc(title)}</h2>${opts.feu ? feuStartBlock() : ""}${opts.feu ? autreSeanceBlock() : ""}${merge ? `<div class="card soft mt8"><b class="small">🔗 Une séance à rattraper ?</b><p class="xs muted" style="margin:4px 0 8px">Tu peux faire aujourd'hui « ${esc(title)} » et « ${esc(merge.title)} » en une seule séance. Ce n'est pas obligatoire : souvent, mieux vaut simplement reprendre le fil.</p>
       <div class="chips wrap"><button class="chip on" data-a="mg-pick" data-v="">Seulement celle-ci</button><button class="chip" data-a="mg-pick" data-v="adapt">Fusionner, version adaptée</button><button class="chip" data-a="mg-pick" data-v="full">Fusionner tout</button></div>
       <p class="xs muted" style="margin:6px 0 0">Adaptée : exercices en double regroupés, environ un tiers de séries en moins. Tu peux ensuite retirer ou changer des exercices.</p></div>` : ""}<div class="card soft mt12"><b class="small">⚡ Séance express</b><p class="xs muted" style="margin:4px 0 8px">Peu de temps ? Les mouvements principaux sont gardés, l'isolation et les dernières séries sautent, les repos raccourcissent.</p>
       <div class="chips wrap">${[10, 20, 30, 45].map(m => `<button class="chip" data-a="dur-express" data-v="${m}">${m} min</button>`).join("")}</div></div>
